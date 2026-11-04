@@ -63,6 +63,9 @@ var _booster_props: VBoxContainer
 var _stage_props: VBoxContainer
 var _tex_box: VBoxContainer
 var _freeform_box: VBoxContainer
+var _unlock_confirm: ConfirmationDialog
+var _pending_unlock := -1
+const RAMP_WIDE := ["style", "solid", "base_depth", "detail", "slice", "freeform", "twist"]   ## frozen while locked
 var _status: Label
 var _info: Label
 var _fields := {}
@@ -277,6 +280,7 @@ func _build_props(props: VBoxContainer) -> void:
 	flip.pressed.connect(_flip_clicked)
 	_ramp_props.add_child(flip)
 	_fields["flip"] = flip
+	_build_lock_props()
 	var shape := OptionButton.new()
 	shape.add_item("V ramp (surf either side)")
 	shape.add_item("Half ramp (surf the left side)")
@@ -541,8 +545,10 @@ func _refresh_props() -> void:
 		var r := selected as RampNode
 		_fields["head"].text = "Ramp  ·  FREEFORM" if r.freeform else "Ramp"
 		_fields["style"].select(RampShape.STYLES.find(r.style))
-		_fields["flip"].disabled = r.freeform and r.twist != 0.0
-		_fields["flip"].tooltip_text = ("A twisted ramp can't be flipped without changing its shape: set Twist to 0 first."
+		_refresh_lock_props(r)
+		_fields["flip"].disabled = (r.freeform and r.twist != 0.0) or not r.frozen.is_empty()
+		_fields["flip"].tooltip_text = ("Unlock the ramp first: flipping would change what each lock freezes." if not r.frozen.is_empty()
+			else "A twisted ramp can't be flipped without changing its shape: set Twist to 0 first."
 			if _fields["flip"].disabled else "Reverse which end the ramp is ridden from. The ramp itself stays exactly where it is.")
 		_fields["solid"].select(1 if r.solid else 0)
 		_fields["slice"].select(0 if r.slice == "vertical" else 1)
@@ -842,9 +848,164 @@ func _draw_direction(cam: Camera3D, ov: Control, r: RampNode, is_selected: bool)
 		ov.draw_string(font, at + Vector2(16, 18), end[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, end[2])
 
 
+func _draw_lines(cam: Camera3D, ov: Control, lines: Array, col: Color, width: float) -> void:
+	for line in lines:
+		for i in range(1, line.size()):
+			if cam.is_position_behind(line[i]) or cam.is_position_behind(line[i - 1]):
+				continue
+			ov.draw_line(cam.unproject_position(line[i - 1]), cam.unproject_position(line[i]), col, width)
+
+
+## A small padlock icon centred on `at`.
+func _draw_padlock(ov: Control, at: Vector2, col: Color) -> void:
+	for pass_col in [Color(0, 0, 0, 0.8), col]:
+		var grow := 1.5 if pass_col.a > 0.75 and pass_col.r == 0.0 else 0.0
+		ov.draw_arc(at + Vector2(0, -2), 4.0, PI, TAU, 10, pass_col, 2.0 + grow * 2.0)
+		ov.draw_rect(Rect2(at + Vector2(-6 - grow, -2 - grow), Vector2(12 + grow * 2, 9 + grow * 2)), pass_col, true)
+
+
 func _redraw_overlays() -> void:
 	for p in panes:
 		p.overlay.queue_redraw()
+
+
+func _build_lock_props() -> void:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	_ramp_props.add_child(box)
+	var head := Label.new()
+	head.text = "Sections (locking)"
+	head.add_theme_font_size_override("font_size", 15)
+	box.add_child(head)
+	var info := Label.new()
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_theme_color_override("font_color", Color(0.72, 0.76, 0.82))
+	info.add_theme_font_size_override("font_size", 13)
+	box.add_child(info)
+	_fields["lock_info"] = info
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	var lock := Button.new()
+	lock.focus_mode = Control.FOCUS_NONE
+	lock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lock.pressed.connect(_lock_clicked)
+	row.add_child(lock)
+	_fields["lock_btn"] = lock
+	var unlock := Button.new()
+	unlock.focus_mode = Control.FOCUS_NONE
+	unlock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	unlock.pressed.connect(_unlock_clicked)
+	row.add_child(unlock)
+	_fields["unlock_btn"] = unlock
+	var seam := CheckButton.new()
+	seam.text = "Tangent lock at seam"
+	seam.focus_mode = Control.FOCUS_NONE
+	seam.tooltip_text = "On: the editable section leaves the seam in exactly the locked section's direction (no kink). Off: it follows its own points, which can leave a crease."
+	seam.toggled.connect(func(on): _edit_prop("seam_tangent_lock", on))
+	box.add_child(seam)
+	_fields["seam_lock"] = seam
+	var warn := Label.new()
+	warn.text = "⚠ Tangent lock is off: the ramp can kink at the seam, which riders feel as a bump."
+	warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warn.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+	box.add_child(warn)
+	_fields["seam_warn"] = warn
+	box.add_child(HSeparator.new())
+	_unlock_confirm = ConfirmationDialog.new()
+	_unlock_confirm.title = "Unlock"
+	_unlock_confirm.ok_button_text = "Unlock them"
+	_unlock_confirm.confirmed.connect(func(): _do_unlock(_pending_unlock))
+	_ui.add_child(_unlock_confirm)
+
+
+func _refresh_lock_props(r: RampNode) -> void:
+	var n := r.frozen.size()
+	var sp := selected_point
+	var text := ""
+	if n == 0:
+		text = "Select a point and lock it (L) to freeze the ramp up to there. Everything after it becomes a new section you can reshape freely - the locked part never changes."
+	else:
+		text = "%d locked section%s (grey) + the editable section (blue). Points up to %d are frozen; the orange line is the seam. Slope angle and face length now only change the editable section; they blend in from the seam." % [
+			n, "" if n == 1 else "s", r.lock_index()]
+	_fields["lock_info"].text = text
+	var lock_btn: Button = _fields["lock_btn"]
+	var problem := r.lock_problem(sp) if sp >= 0 else "Select a point first (click its yellow handle)."
+	lock_btn.text = "🔒 Lock at point %d" % sp if sp >= 0 else "🔒 Lock at a point"
+	lock_btn.disabled = problem != ""
+	lock_btn.tooltip_text = problem if problem != "" else "Freeze the ramp from its start up to this point (L)."
+	var unlock_btn: Button = _fields["unlock_btn"]
+	var k := r.lock_number(sp) if sp >= 0 else -1
+	unlock_btn.visible = n > 0
+	unlock_btn.text = "Unlock point %d" % sp if k >= 0 else "Unlock the last lock"
+	unlock_btn.tooltip_text = ("Also unlocks the %d lock(s) after it." % (n - 1 - k)) if k >= 0 and k < n - 1 else "Merge the last locked section back into the editable one."
+	_fields["seam_lock"].visible = n > 0
+	_fields["seam_lock"].set_pressed_no_signal(r.seam_tangent_lock)
+	_fields["seam_warn"].visible = n > 0 and not r.seam_tangent_lock
+	# settings that shape the whole ramp would change the locked part too
+	for key in RAMP_WIDE:
+		var f = _fields[key]
+		if f is Array:
+			f[0].editable = n == 0
+			f[1].editable = n == 0
+		elif f is BaseButton:
+			f.disabled = n > 0
+		elif f is OptionButton:
+			f.disabled = n > 0
+	_fields["freeform"].tooltip_text = "Unlock the ramp to change this: it shapes every section." if n > 0 else \
+		"Off: both faces match, the cross-section stays upright, no twist. On: each face can differ and the ramp can twist."
+
+
+func _lock_clicked() -> void:
+	if not selected is RampNode:
+		return
+	var r := selected as RampNode
+	var problem := r.lock_problem(selected_point) if selected_point >= 0 else "Select a point first (click its yellow handle)."
+	if problem != "":
+		_set_status(problem)
+		return
+	_checkpoint()
+	r.lock_at(selected_point)
+	_refresh_props()
+	_map_changed()
+	_set_status("Locked at point %d: everything before it is frozen. The ramp after it is a new section - reshape it freely." % selected_point)
+
+
+func _unlock_clicked() -> void:
+	if not selected is RampNode or selected.frozen.is_empty():
+		return
+	var r := selected as RampNode
+	var k := r.lock_number(selected_point) if selected_point >= 0 else -1
+	if k < 0:
+		k = r.frozen.size() - 1
+	if k < r.frozen.size() - 1:
+		_pending_unlock = k
+		_unlock_confirm.dialog_text = "Unlocking point %d also unlocks the %d lock(s) after it, merging those sections back into the editable one.\n\n(Undo brings them back.)" % [
+			int(r.frozen[k]["end"]), r.frozen.size() - 1 - k]
+		_unlock_confirm.popup_centered()
+		return
+	_do_unlock(k)
+
+
+func _do_unlock(k: int) -> void:
+	if not selected is RampNode or k < 0:
+		return
+	var r := selected as RampNode
+	var at := int(r.frozen[k]["end"])
+	_checkpoint()
+	r.unlock_from(k)
+	_refresh_props()
+	_map_changed()
+	_set_status("Unlocked from point %d: that part is editable again (it takes the editable section's slope and face)." % at)
+
+
+## L: lock the selected point, or unlock it if it already is a lock.
+func _lock_toggle() -> void:
+	if not selected is RampNode:
+		return
+	if selected_point >= 0 and selected.is_locked_point(selected_point):
+		_unlock_clicked()
+	else:
+		_lock_clicked()
 
 
 ## Reverse a ramp's direction of travel without moving any of it: the points run the other way, and what was
@@ -853,6 +1014,9 @@ func _flip_clicked() -> void:
 	if not selected is RampNode:
 		return
 	var r := selected as RampNode
+	if not r.frozen.is_empty():
+		_set_status("Unlock the ramp first: flipping would change what each lock freezes.")
+		return
 	if r.freeform and r.twist != 0.0:
 		_set_status("A twisted ramp can't be flipped without changing its shape: set Twist to 0 first.")
 		return
@@ -911,6 +1075,8 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 	if show_direction:
 		for r in ramps_root.get_children():
 			_draw_direction(cam, ov, r, r == selected)
+	for r in ramps_root.get_children():                  # seams between sections
+		_draw_lines(cam, ov, r.seam_lines, Color(1.0, 0.62, 0.15, 0.95 if r == selected else 0.5), 3.0 if r == selected else 2.0)
 	if selected == null:
 		return
 	if selected is EntityNode and selected.kind == "teleport":      # where does this teleport go?
@@ -923,11 +1089,9 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 				if k % 2 == 0:
 					ov.draw_line(a.lerp(b, float(k) / segs), a.lerp(b, float(k + 1) / segs), Color(0.85, 0.5, 1.0), 2.0)
 	var lines: Array[PackedVector3Array] = selected.outline if selected is RampNode else selected.outline_lines()
-	for line in lines:                           # selection outline (keeps the object's real colour visible)
-		for i in range(1, line.size()):
-			if cam.is_position_behind(line[i]) or cam.is_position_behind(line[i - 1]):
-				continue
-			ov.draw_line(cam.unproject_position(line[i - 1]), cam.unproject_position(line[i]), Color(0.3, 0.75, 1.0, 0.95), 2.0)
+	_draw_lines(cam, ov, lines, Color(0.3, 0.75, 1.0, 0.95), 2.0)   # selection outline (keeps the real colour visible)
+	if selected is RampNode:                       # the locked part: muted
+		_draw_lines(cam, ov, selected.outline_frozen, Color(0.62, 0.64, 0.7, 0.9), 2.0)
 	if selected is RampNode:
 		var pts: PackedVector3Array = selected.points
 		for i in pts.size():
@@ -942,9 +1106,12 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			if cam.is_position_behind(pts[i]):
 				continue
 			var s := cam.unproject_position(pts[i])
-			var col := Color(1.0, 0.35, 0.1) if i == selected_point else Color(1.0, 0.85, 0.15)
+			var frozen_pt: bool = i <= selected.lock_index()
+			var col := Color(1.0, 0.35, 0.1) if i == selected_point else (Color(0.6, 0.62, 0.68) if frozen_pt else Color(1.0, 0.85, 0.15))
 			ov.draw_circle(s, HANDLE_RADIUS + 1.5, Color(0, 0, 0, 0.7))
 			ov.draw_circle(s, HANDLE_RADIUS, col)
+			if selected.is_locked_point(i):
+				_draw_padlock(ov, s + Vector2(0, -HANDLE_RADIUS - 12), Color(1.0, 0.62, 0.15))
 	else:
 		var e := selected as EntityNode
 		if not cam.is_position_behind(e.global_position):
@@ -1053,6 +1220,12 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 				_insert_point_at_mouse(pane, event.position)
 				return true
 			var hp := _pick_handle(pane, event.position)
+			if hp >= 0 and hp <= (selected as RampNode).lock_index():
+				selected_point = hp                       # select it (to unlock), but it can't move
+				_refresh_props()
+				_set_status("Point %d is locked%s." % [hp, " (a lock point: press L or Unlock to free it)" if selected.is_locked_point(hp)
+					else ": it's part of a locked section"])
+				return true
 			if hp >= 0:
 				_begin_drag(pane, Drag.POINT, event.position, event.shift_pressed, hp)
 				return true
@@ -1110,6 +1283,7 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_O when ctrl: _open_clicked()
 		KEY_D when ctrl: _duplicate_clicked()
 		KEY_N: _add_ramp_clicked()
+		KEY_L: _lock_toggle()
 		KEY_R: _generate_clicked()
 		KEY_B: _add_entity("start")
 		KEY_M: _add_entity("finish")
@@ -1251,6 +1425,9 @@ func _insert_point_at_mouse(pane: ViewPane, mouse: Vector2) -> void:
 		return
 	var ramp := selected as RampNode
 	var best := RampShape.nearest_on_path(ramp.points, hit.position)
+	if best["span"] < ramp.lock_index():
+		_set_status("That part of the ramp is locked: unlock it to add points there.")
+		return
 	_checkpoint()
 	var pts := ramp.points
 	pts.insert(best["span"] + 1, best["point"])
@@ -1272,6 +1449,9 @@ func _nudge(key: int) -> void:
 		KEY_DOWN: d = Vector3(0, 0, step)
 		KEY_PAGEUP: d = Vector3(0, step, 0)
 		KEY_PAGEDOWN: d = Vector3(0, -step, 0)
+	if selected is RampNode and selected_point >= 0 and selected_point <= selected.lock_index():
+		_set_status("Point %d is locked." % selected_point)
+		return
 	_checkpoint("nudge")
 	if selected is RampNode and selected_point >= 0:
 		var pts: PackedVector3Array = selected.points
@@ -1586,7 +1766,7 @@ func _bend_clicked() -> void:
 	_checkpoint()
 	var r := selected as RampNode
 	var pts := r.points
-	var i: int = clamp(selected_point if selected_point >= 0 else 0, 0, pts.size() - 2)
+	var i: int = clamp(selected_point if selected_point >= 0 else 0, maxi(r.lock_index(), 0), pts.size() - 2)
 	pts.insert(i + 1, pts[i].lerp(pts[i + 1], 0.5))
 	r.points = pts
 	r.rebuild()
@@ -1618,6 +1798,12 @@ func _duplicate_clicked() -> void:
 
 func _delete_clicked() -> void:
 	if selected == null:
+		return
+	if selected is RampNode and selected_point >= 0 and selected_point <= selected.lock_index():
+		_set_status("Point %d is locked: unlock it before deleting it." % selected_point)
+		return
+	if selected is RampNode and selected_point >= 0 and selected.points.size() - 1 - selected.lock_index() < 2:
+		_set_status("The editable section needs at least one point after the lock.")
 		return
 	_checkpoint()
 	if selected is RampNode and selected_point >= 0 and selected.points.size() > 2:

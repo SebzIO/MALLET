@@ -22,7 +22,7 @@ Double-click `Run SurfForge.cmd` (uses Godot 4.5.1), or open this folder as a pr
 | Look & feel | Nothing selected → **Map** panel: sky preset (Clear day, Sunset, Overcast, Night, Aurora, Deep space) and every colour, sun direction/height/colour/brightness, stars, aurora, nebula, fog. Ramp panel → **Look**: plain colour, glazed ceramic, brushed steel, dev grid, aurora (animated), nebula, neon edges, or your own image (PNG/JPG/WebP, size along the ramp in metres). Everything is embedded in the exported map. |
 | Jump checker | Select a ramp: arcs show where riders fly off its end at full speed (solid) and at 85% speed (dashed): **green** = lands on a ramp, platform, teleport or booster, **red** = falls to a kill zone or the kill floor. The ramp panel shows the exit speed and the outcome. Toolbar **Jump arcs: all ramps** shows every jump at once. Speed comes from the drop since the start/stage plate (from 400 u/s); arcs assume no air strafing. |
 | Export | **Export to SurfsUp**: writes `<name>.pck` into SurfsUp's Maps folder (auto-detected, remembered); in game press ~ and type `map <name>`. Restart SurfsUp before reloading a map you replaced. |
-| Keys | N ramp · R generate a ramp shape · Del delete point/object · Ctrl+D duplicate · F frame · G snap · Ctrl+Z/Y undo/redo · Ctrl+S save |
+| Keys | N ramp · R generate a ramp shape · L lock/unlock the selected point · Del delete point/object · Ctrl+D duplicate · F frame · G snap · Ctrl+Z/Y undo/redo · Ctrl+S save |
 
 Maps save as `.sfmap` (plain JSON, engine-neutral so other exporters can be added).
 
@@ -46,7 +46,9 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
 8. Profile rules ✅ upright cross-section (level, never rolls), slope angle + face length (56° default), half ramps,
    vertical-slice / perpendicular option, too-tight bends marked red, Freeform for uneven faces and twist; no tilt
 9. Direction arrows ✅ (toggle, editor-only) with ramp start / end markers, Flip direction (the ramp stays put)
-10. Next: keypoint locking into sections · then ghost replay · prop import (glTF) · CS:S export
+10. Locking ✅ (L) freeze a ramp up to a point; the rest is a new section with its own slope/face, joined with no
+    kink (tangent lock at seam) and no step (settings blend in); unlock merges; undo/redo covers it
+11. Next: · then ghost replay · prop import (glTF) · CS:S export
 
 Templates live in `templates/` and are rebuilt (with every jump re-proven and fresh thumbnails) by
 `godot --path . --resolution 1600x900 -s res://tools/make_templates.gd`.

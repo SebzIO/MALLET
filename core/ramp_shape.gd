@@ -32,7 +32,12 @@ const DEFAULTS := {
 	"detail": 1.0,                 ## stations per metre along the spine (smoothness / polygon count)
 	"freeform": false,             ## unlocks different left/right faces and twist
 	"twist": 0.0,                  ## Freeform only: the profile rolls from 0 at the start to this at the end (degrees)
+	"frozen": [],                  ## locked sections, first to last: {end, angle, face_length, angle_right,
+	                               ## face_length_right, end_ghost, tangent_lock} (see "Sections" below)
+	"seam_tangent_lock": true,     ## the editable section leaves its seam along the locked section's tangent
 }
+const SEAM_BLEND := 30.0         ## metres over which a section bends from the inherited seam direction to its own
+const SETTINGS_BLEND := 20.0     ## metres over which a section's angle / face length blend in from the seam
 
 
 ## A complete, consistent set of ramp settings from a (possibly partial) dictionary. Outside Freeform the right
@@ -51,6 +56,8 @@ static func spec(d: Dictionary) -> Dictionary:
 		s[k] = float(s[k])
 	s["solid"] = bool(s["solid"])
 	s["freeform"] = bool(s["freeform"])
+	s["seam_tangent_lock"] = bool(s["seam_tangent_lock"])
+	s["frozen"] = (s["frozen"] as Array).duplicate(true)
 	if not s["style"] in STYLES:
 		s["style"] = "v"
 	if not s["freeform"]:
@@ -87,24 +94,73 @@ static func landing_side(s: Dictionary, wanted: float) -> float:
 
 
 # ------------------------------------------------------------------------------------------------ spine
-static func _span(points: PackedVector3Array, i: int) -> Array:
+## The four Catmull-Rom control points of span i. Past either end the curve normally mirrors the last span (so
+## the ends run straight-ish); a "ghost" point given for that end is used instead, which lets a locked section
+## keep exactly the curve it had while it was still joined to the points after it.
+static func _span(points: PackedVector3Array, i: int, ghosts := []) -> Array:
 	var n := points.size()
 	var p1 := points[i]
 	var p2 := points[i + 1]
-	var p0 := points[i - 1] if i > 0 else p1 - (p2 - p1)          # mirror the ends so they stay straight-ish
-	var p3 := points[i + 2] if i + 2 < n else p2 + (p2 - p1)
+	var p0: Vector3 = points[i - 1] if i > 0 else (ghosts[0] if ghosts.size() > 0 and ghosts[0] != null else p1 - (p2 - p1))
+	var p3: Vector3 = points[i + 2] if i + 2 < n else (ghosts[1] if ghosts.size() > 1 and ghosts[1] != null else p2 + (p2 - p1))
 	return [p0, p1, p2, p3]
 
 
-static func _eval(points: PackedVector3Array, i: int, t: float) -> Vector3:
-	var c := _span(points, i)
+static func _eval(points: PackedVector3Array, i: int, t: float, ghosts := []) -> Vector3:
+	var c := _span(points, i, ghosts)
 	return _catmull_rom(c[0], c[1], c[2], c[3], t)
 
 
 ## Stations evenly spaced by arc length (about `spacing` metres apart, the ends exactly on the first and last
 ## point), each with the spine's own tangent there (the curve's derivative, not differences between vertices).
+## `ghosts` = [before the first point, after the last point] (null = mirror). `start_tangent`, if given, bends
+## the first SEAM_BLEND metres so the spine leaves its first point exactly along it (a smooth seam).
 ## Returns {"pos": PackedVector3Array, "tan": PackedVector3Array, "dist": PackedFloat32Array, "length": float}.
-static func stations(points: PackedVector3Array, spacing: float) -> Dictionary:
+static func stations(points: PackedVector3Array, spacing: float, ghosts := [], start_tangent := Vector3.ZERO) -> Dictionary:
+	if start_tangent == Vector3.ZERO or points.size() < 2:
+		return _stations_raw(points, spacing, ghosts)
+	var fine := _stations_raw(points, spacing * 0.25, ghosts)
+	var pos: PackedVector3Array = fine["pos"]
+	var tan: PackedVector3Array = fine["tan"]
+	var dist: PackedFloat32Array = fine["dist"]
+	var corr := start_tangent.normalized() - tan[0]
+	if corr.length() < 1e-6:
+		return _stations_raw(points, spacing, ghosts)
+	# add (T - T0) * f(s), f(s) = s (1 - s/B)^2: zero at both ends of the blend, slope 1 at the seam and 0 at B,
+	# so the spine starts along T and rejoins its own shape smoothly
+	for i in pos.size():
+		var u := dist[i] / SEAM_BLEND
+		if u >= 1.0:
+			break
+		pos[i] += corr * dist[i] * (1.0 - u) * (1.0 - u)
+		tan[i] = (tan[i] + corr * (1.0 - u) * (1.0 - 3.0 * u)).normalized()
+	return _resample(pos, tan, spacing)
+
+
+## Even arc-length stations along a dense polyline (positions and tangents interpolated between its points).
+static func _resample(pos: PackedVector3Array, tan: PackedVector3Array, spacing: float) -> Dictionary:
+	var cum := PackedFloat32Array([0.0])
+	for i in range(1, pos.size()):
+		cum.append(cum[i - 1] + pos[i].distance_to(pos[i - 1]))
+	var total := cum[cum.size() - 1]
+	var count: int = maxi(1, int(ceil(total / maxf(spacing, 0.05))))
+	var out_p := PackedVector3Array()
+	var out_t := PackedVector3Array()
+	var out_d := PackedFloat32Array()
+	var j := 0
+	for k in count + 1:
+		var s := total * k / count
+		while j < cum.size() - 2 and cum[j + 1] < s:
+			j += 1
+		var seg := cum[j + 1] - cum[j]
+		var f := clampf((s - cum[j]) / seg, 0.0, 1.0) if seg > 1e-6 else 0.0
+		out_p.append(pos[pos.size() - 1] if k == count else (pos[0] if k == 0 else pos[j].lerp(pos[j + 1], f)))
+		out_t.append(tan[j].lerp(tan[j + 1], f).normalized())
+		out_d.append(s)
+	return {"pos": out_p, "tan": out_t, "dist": out_d, "length": total}
+
+
+static func _stations_raw(points: PackedVector3Array, spacing: float, ghosts := []) -> Dictionary:
 	var pos := PackedVector3Array()
 	var tan := PackedVector3Array()
 	var dist := PackedFloat32Array()
@@ -123,7 +179,7 @@ static func stations(points: PackedVector3Array, spacing: float) -> Dictionary:
 			if i > 0 and k == 0:
 				continue
 			var t := float(k) / m
-			var q := _eval(points, i, t)
+			var q := _eval(points, i, t, ghosts)
 			total += q.distance_to(prev)
 			prev = q
 			tab_i.append(i)
@@ -144,15 +200,86 @@ static func stations(points: PackedVector3Array, spacing: float) -> Dictionary:
 		var seg := tab_s[j + 1] - tab_s[j]
 		var f := clampf((s - tab_s[j]) / seg, 0.0, 1.0) if seg > 1e-6 else 0.0
 		var tt := lerpf(t, t2, f)
-		var p := points[n - 1] if k == count else (points[0] if k == 0 else _eval(points, i, tt))
+		var p := points[n - 1] if k == count else (points[0] if k == 0 else _eval(points, i, tt, ghosts))
 		var h := 1e-3
-		var d := _eval(points, i, minf(tt + h, 1.0)) - _eval(points, i, maxf(tt - h, 0.0))
+		var d := _eval(points, i, minf(tt + h, 1.0), ghosts) - _eval(points, i, maxf(tt - h, 0.0), ghosts)
 		if d.length() > 1e-7:
 			last_tan = d.normalized()
 		pos.append(p)
 		tan.append(last_tan)
 		dist.append(s)
 	return {"pos": pos, "tan": tan, "dist": dist, "length": total}
+
+
+# ------------------------------------------------------------------------------------------------ sections
+## A ramp with locks is a chain of sections joined at the locked points. Every locked ("frozen") section keeps
+## its points, its face settings and a ghost of the point that followed it when it was locked, so its curve can
+## never change again; the last section is the editable one. Each section after the first starts exactly where
+## the previous one ended, leaving along the same tangent (tangent lock) and blending its face settings in from
+## the seam's, so the join has no kink and no step.
+## Returns [{from, to, values: [angle, face_length, angle_right, face_length_right], end_ghost, tangent_lock}].
+static func sections(points: PackedVector3Array, s: Dictionary) -> Array:
+	var out := []
+	var start := 0
+	for f in s["frozen"]:
+		var end: int = int(f["end"])
+		var g = f.get("end_ghost")
+		out.append({"from": start, "to": end, "values": _values(f, s["freeform"]),
+			"end_ghost": Vector3(g[0], g[1], g[2]) if g is Array and g.size() == 3 else null,
+			"tangent_lock": bool(f.get("tangent_lock", true))})
+		start = end
+	out.append({"from": start, "to": points.size() - 1, "values": _values(s, s["freeform"]), "end_ghost": null,
+		"tangent_lock": bool(s["seam_tangent_lock"])})
+	return out
+
+
+static func _values(d: Dictionary, freeform: bool) -> Array:
+	var a := float(d.get("angle", 56.0))
+	var l := float(d.get("face_length", 10.5))
+	if freeform:
+		return [a, l, float(d.get("angle_right", a)), float(d.get("face_length_right", l))]
+	return [a, l, a, l]
+
+
+## The whole spine, section by section: stations, tangents, distances, the face settings at every station and
+## the station index of every seam.
+static func spine(points: PackedVector3Array, s: Dictionary) -> Dictionary:
+	var spacing := 1.0 / maxf(s["detail"], 0.05)
+	var pos := PackedVector3Array()
+	var tan := PackedVector3Array()
+	var dist := PackedFloat32Array()
+	var values: Array = []
+	var seams := PackedInt32Array()
+	var offset := 0.0
+	var prev_tan := Vector3.ZERO
+	var prev_vals: Array = []
+	var secs := sections(points, s)
+	for k in secs.size():
+		var sec: Dictionary = secs[k]
+		var sub := points.slice(sec["from"], sec["to"] + 1)
+		if sub.size() < 2:
+			continue
+		var ghosts := [points[sec["from"] - 1] if sec["from"] > 0 else null, sec["end_ghost"]]
+		var st := stations(sub, spacing, ghosts, prev_tan if k > 0 and sec["tangent_lock"] else Vector3.ZERO)
+		var v: Array = sec["values"]
+		for i in st["pos"].size():
+			if k > 0 and i == 0:
+				continue                                # the seam station is the previous section's last one
+			pos.append(st["pos"][i])
+			tan.append(st["tan"][i])
+			dist.append(offset + st["dist"][i])
+			if k > 0 and prev_vals != v:
+				var w := smoothstep(0.0, SETTINGS_BLEND, st["dist"][i])
+				values.append([lerpf(prev_vals[0], v[0], w), lerpf(prev_vals[1], v[1], w),
+					lerpf(prev_vals[2], v[2], w), lerpf(prev_vals[3], v[3], w)])
+			else:
+				values.append(v)
+		if k > 0:
+			seams.append(pos.size() - st["pos"].size())
+		offset += st["length"]
+		prev_tan = st["tan"][st["tan"].size() - 1]
+		prev_vals = v
+	return {"pos": pos, "tan": tan, "dist": dist, "length": offset, "values": values, "seams": seams}
 
 
 ## Points along the spine about `spacing` metres apart.
@@ -277,9 +404,10 @@ static func frames(st: Dictionary, s: Dictionary) -> Array:
 ## Everything about one ramp: stations, frames, cross-section rings, the mesh and any folds.
 ## Returns {"ridge", "tan", "rights", "ups", "rings", "profile", "mesh", "folds", "length", "triangles"}.
 static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
-	var st := stations(points, 1.0 / maxf(s["detail"], 0.05))
+	var st := spine(points, s)
 	var out := {"ridge": st["pos"], "tan": st["tan"], "rights": PackedVector3Array(), "ups": PackedVector3Array(),
-		"rings": [], "profile": {}, "mesh": ArrayMesh.new(), "folds": PackedInt32Array(), "length": st["length"], "triangles": 0}
+		"rings": [], "profile": {}, "mesh": ArrayMesh.new(), "folds": PackedInt32Array(), "length": st["length"], "triangles": 0,
+		"values": st["values"], "seams": st["seams"]}
 	var ridge: PackedVector3Array = st["pos"]
 	var n := ridge.size()
 	if n < 2:
@@ -287,13 +415,27 @@ static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 	var fr := frames(st, s)
 	var rights: PackedVector3Array = fr[0]
 	var ups: PackedVector3Array = fr[1]
+	# the cross-section at every station (face settings can vary along a ramp with sections)
+	var station_spec := s.duplicate()
 	var prof := profile(s)
-	var pp: PackedVector2Array = prof["pts"]
+	var last_vals: Array = []
+	var profiles: Array = []
+	for i in n:
+		var v: Array = st["values"][i]
+		if v != last_vals:
+			station_spec["angle"] = v[0]
+			station_spec["face_length"] = v[1]
+			station_spec["angle_right"] = v[2]
+			station_spec["face_length_right"] = v[3]
+			prof = profile(station_spec)
+			last_vals = v
+		profiles.append(prof["pts"])
+	var pp: PackedVector2Array = profiles[0]
 	var pc := pp.size()
 	var rings: Array[PackedVector3Array] = []
 	for i in n:
 		var ring := PackedVector3Array()
-		for q in pp:
+		for q in profiles[i]:
 			ring.append(ridge[i] + rights[i] * q.x + ups[i] * q.y)
 		rings.append(ring)
 	# folds: a face edge that stops moving forward (or runs backwards) means a bend too tight for the face
@@ -341,8 +483,8 @@ static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 	var side_out := rights[0] * out2.x + ups[0] * out2.y
 	var gn := (rings[0][1] - rings[0][0]).cross(rings[1][1] - rings[0][0])
 	var conv := signf(gn.dot(side_out))
-	var cap_idx := Geometry2D.triangulate_polygon(pp)
 	for end in [0, n - 1]:
+		var cap_idx := Geometry2D.triangulate_polygon(profiles[end])
 		var ring: PackedVector3Array = rings[end]
 		var outward: Vector3 = -tans[0] if end == 0 else tans[n - 1]
 		for c in range(0, cap_idx.size(), 3):
@@ -355,7 +497,7 @@ static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 				ic = tmp
 			stool.set_smooth_group(-1)
 			for k in [ia, ib, ic]:
-				stool.set_uv(pp[k] / UV_METRES)
+				stool.set_uv(profiles[end][k] / UV_METRES)
 				stool.add_vertex(ring[k])
 			tris += 1
 	stool.generate_normals()
@@ -412,11 +554,12 @@ static func self_check(s: Dictionary, res: Dictionary, tol := 1e-3) -> PackedStr
 			problems.append("station %d: right is not level (y = %.4f)" % [i, r.y])
 		if not twisted and s["slice"] == "vertical" and up.distance_to(Vector3.UP) > tol:
 			problems.append("station %d: profile is not upright" % i)
+		var v: Array = res["values"][i]
 		for k in prof["edges"]:
 			var e: Vector3 = ring[k] - ridge[i]
 			var left: bool = pp[k].x < 0.0
-			var want_l: float = s["face_length"] if left else s["face_length_right"]
-			var want_a: float = s["angle"] if left else s["angle_right"]
+			var want_l: float = v[1] if left else v[3]
+			var want_a: float = v[0] if left else v[2]
 			if absf(e.length() - want_l) > tol * 10.0:
 				problems.append("station %d: face length %.3f, expected %.3f" % [i, e.length(), want_l])
 			var got := rad_to_deg(atan2(-e.dot(up), absf(e.dot(r))))
