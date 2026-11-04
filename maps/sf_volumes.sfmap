@@ -1,0 +1,91 @@
+{
+  "entities": [
+    {
+      "kind": "start",
+      "position": [
+        -84,
+        128,
+        0
+      ],
+      "size": [
+        20,
+        2,
+        26
+      ],
+      "yaw": -90.0
+    },
+    {
+      "kind": "finish",
+      "position": [
+        190,
+        60,
+        0
+      ],
+      "size": [
+        40,
+        2,
+        40
+      ],
+      "yaw": 0.0
+    },
+    {
+      "kind": "booster",
+      "mode": 0,
+      "pitch": 25.0,
+      "position": [
+        76,
+        86,
+        0
+      ],
+      "size": [
+        16,
+        24,
+        30
+      ],
+      "strength": 600.0,
+      "yaw": -90.0
+    },
+    {
+      "kind": "kill",
+      "position": [
+        -30,
+        70,
+        0
+      ],
+      "size": [
+        60,
+        20,
+        60
+      ],
+      "yaw": 0.0
+    }
+  ],
+  "format": "surfforge-map",
+  "ramps": [
+    {
+      "color": "edebe3",
+      "detail": 1.0,
+      "height": 8.125,
+      "points": [
+        [
+          -60,
+          120,
+          0
+        ],
+        [
+          0,
+          105,
+          0
+        ],
+        [
+          60,
+          90,
+          0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    }
+  ],
+  "version": 2
+}

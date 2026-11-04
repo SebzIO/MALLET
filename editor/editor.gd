@@ -48,6 +48,7 @@ var _view_grid: GridContainer
 var _props_panel: PanelContainer
 var _ramp_props: VBoxContainer
 var _entity_props: VBoxContainer
+var _booster_props: VBoxContainer
 var _status: Label
 var _info: Label
 var _fields := {}
@@ -117,8 +118,9 @@ func _build_ui() -> void:
 
 	var bar_panel := PanelContainer.new()
 	root.add_child(bar_panel)
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 5)
+	var bar := HFlowContainer.new()                    # wraps onto a second row on narrower windows
+	bar.add_theme_constant_override("h_separation", 5)
+	bar.add_theme_constant_override("v_separation", 2)
 	bar_panel.add_child(bar)
 	var title := Label.new()
 	title.text = "  SurfForge  "
@@ -126,7 +128,8 @@ func _build_ui() -> void:
 	bar.add_child(title)
 	for spec in [["New", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
 			["+ Ramp (N)", _add_ramp_clicked], ["+ Start (B)", func(): _add_entity("start")],
-			["+ Finish (M)", func(): _add_entity("finish")], ["|", null],
+			["+ Finish (M)", func(): _add_entity("finish")], ["+ Kill zone (K)", func(): _add_entity("kill")],
+			["+ Booster (J)", func(): _add_entity("booster")], ["|", null],
 			["Extend", _extend_clicked], ["Add Bend", _bend_clicked], ["Duplicate", _duplicate_clicked],
 			["Delete", _delete_clicked], ["|", null], ["Undo", undo], ["Redo", redo], ["|", null],
 			["Frame (F)", _frame_clicked], ["1 / 4 Views (V)", _toggle_views], ["|", null], ["▶ Play (P)", _play_clicked],
@@ -231,7 +234,20 @@ func _build_props(props: VBoxContainer) -> void:
 	props.add_child(_entity_props)
 	_add_slider(_entity_props, "size_x", "Width (m)", 4.0, 200.0, 1.0)
 	_add_slider(_entity_props, "size_z", "Depth (m)", 4.0, 200.0, 1.0)
+	_add_slider(_entity_props, "size_y", "Height (m)", 2.0, 200.0, 1.0)
 	_add_slider(_entity_props, "yaw", "Facing (°)", -180.0, 180.0, 5.0)
+	_booster_props = VBoxContainer.new()
+	_booster_props.add_theme_constant_override("separation", 6)
+	_entity_props.add_child(_booster_props)
+	_add_slider(_booster_props, "pitch", "Push angle above horizontal (°)", -89.0, 89.0, 1.0)
+	_add_slider(_booster_props, "strength", "Strength (u/s)", 50.0, 5000.0, 50.0)
+	var mode := OptionButton.new()
+	mode.add_item("Add to the player's speed", 0)
+	mode.add_item("Set the player's speed", 1)
+	mode.focus_mode = Control.FOCUS_NONE
+	mode.item_selected.connect(func(i): _edit_prop("mode", i))
+	_add_row(_booster_props, "Mode", mode)
+	_fields["mode"] = mode
 
 	props.add_child(HSeparator.new())
 	_info = Label.new()
@@ -244,7 +260,7 @@ func _build_props(props: VBoxContainer) -> void:
 	help.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
 	help.text = ("Drag yellow handles to reshape · drag the object to move it (Shift = up/down in 3D view)\n"
 		+ "Double-click a ramp to add a bend\nArrows / PgUp PgDn nudge · [ ] rotate\n"
-		+ "N ramp · B start · M finish · P play\nSpace maximise the view under the mouse · V 3D / four views\nF frame · G snap\n"
+		+ "N ramp · B start · M finish · K kill zone · J booster · P play\nSpace maximise the view under the mouse · V 3D / four views\nF frame · G snap\n"
 		+ "Del delete · Ctrl+D duplicate · Ctrl+Z undo · Ctrl+S save")
 	props.add_child(help)
 
@@ -303,7 +319,15 @@ func _refresh_props() -> void:
 		_fields["head"].text = e.label()
 		_set_field("size_x", e.size.x)
 		_set_field("size_z", e.size.z)
+		_set_field("size_y", e.size.y)
 		_set_field("yaw", e.yaw)
+		_fields["size_y"][0].get_parent().get_parent().get_child(_fields["size_y"][0].get_parent().get_index() - 1).visible = e.is_volume()
+		_fields["size_y"][0].get_parent().visible = e.is_volume()
+		_booster_props.visible = e.kind == "booster"
+		if e.kind == "booster":
+			_set_field("pitch", e.pitch)
+			_set_field("strength", e.strength)
+			_fields["mode"].select(e.mode)
 	_updating_ui = false
 	_refresh_info()
 
@@ -320,9 +344,13 @@ func _refresh_info() -> void:
 			% [r.length, drop, face_angle, surfable, r.points.size(), r.triangle_count])
 	else:
 		var e := selected as EntityNode
-		_info.text = "Position: (%.0f, %.0f, %.0f)\n%s" % [e.position.x, e.position.y, e.position.z,
-			"Players spawn here facing the arrow. The timer starts when they leave the green zone." if e.kind == "start"
-			else "Landing in the red zone finishes the run."]
+		var about := {
+			"start": "Players spawn here facing the arrow. The timer starts when they leave the green zone.",
+			"finish": "Landing in the blue zone finishes the run.",
+			"kill": "Touching this sends the player back to their spawn. Players fly through it; it is invisible in game.",
+			"booster": "Players passing through are pushed along the arrow. Add = extra speed on top of theirs; Set = this exact speed.",
+		}
+		_info.text = "Position: (%.0f, %.0f, %.0f)\n%s" % [e.position.x, e.position.y, e.position.z, about.get(e.kind, "")]
 
 
 func _set_status(t: String) -> void:
@@ -569,6 +597,8 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_N: _add_ramp_clicked()
 		KEY_B: _add_entity("start")
 		KEY_M: _add_entity("finish")
+		KEY_K: _add_entity("kill")
+		KEY_J: _add_entity("booster")
 		KEY_P: _play_clicked()
 		KEY_V: _toggle_views()
 		KEY_SPACE: _toggle_maximise_hovered()
@@ -773,7 +803,7 @@ func _add_entity(kind: String) -> void:
 	if snap_enabled:
 		c = c.snapped(Vector3.ONE * snap_step)
 	for e in entities_root.get_children():         # a map has one start and one finish: move the existing one
-		if e.kind == kind:
+		if e.kind == kind and kind in ["start", "finish"]:
 			e.position = c
 			_select(e)
 			_set_status("Moved the %s to the view centre (a map has one)." % e.label().to_lower())
@@ -815,6 +845,15 @@ func _bend_clicked() -> void:
 
 
 func _duplicate_clicked() -> void:
+	if selected is EntityNode and selected.is_volume():
+		_checkpoint()
+		var copy := EntityNode.new()
+		entities_root.add_child(copy)
+		copy.from_dict(selected.to_dict())
+		copy.translate_by(Vector3(selected.size.x + 8, 0, 0))
+		_select(copy)
+		_set_status("Duplicated %s." % copy.label().to_lower())
+		return
 	if not selected is RampNode:
 		_set_status("A map has one start and one finish." if selected else "")
 		return
@@ -877,6 +916,10 @@ func _edit_prop(key: String, value) -> void:
 			"size_x": e.size.x = value
 			"size_z": e.size.z = value
 			"yaw": e.yaw = value
+			"size_y": e.size.y = value
+			"pitch": e.pitch = value
+			"strength": e.strength = value
+			"mode": e.mode = value
 		e.rebuild()
 	_refresh_info()
 
@@ -963,7 +1006,9 @@ func _play_clicked() -> void:
 	if selected:
 		selected.set_selected(false)
 	_ui.visible = false
-	play.start(at, start.zone_aabb() if start else AABB(), finish.zone_aabb() if finish else AABB())
+	var volumes := entities_root.get_children().filter(func(x): return x.is_volume())
+	play.start(at, start.zone_aabb() if start else AABB(), finish.zone_aabb() if finish else AABB(),
+		SurfsUpExporter.kill_floor_y(_map_dict()), volumes)
 
 
 func _on_play_stopped() -> void:

@@ -10,7 +10,6 @@ const UNITS_PER_METRE := 39.37            # SurfsUp's HUD shows Source units/s
 const KEYS := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "jump": KEY_SPACE,
 	"crouch": KEY_CTRL, "sprint": KEY_SHIFT}
 const PRESPEED_CAP := 400.0                ## u/s: SurfsUp's default mode caps speed in the start zone
-const KILL_Y := -60.0                     # below this you respawn (stand-in for the map's kill floor)
 
 var active := false
 var player: SUCC
@@ -22,6 +21,9 @@ enum Run { WAITING, RUNNING, FINISHED }
 var run_state := Run.WAITING
 var run_time := 0.0
 var _start_box := AABB()
+var _kill_y := -60.0
+var _volumes: Array = []
+var _inside := {}                      ## booster -> was the player inside last tick
 var _finish_box := AABB()
 var _flash := 0.0
 var _time_label := Label.new()
@@ -75,12 +77,15 @@ func _ensure_input_actions() -> void:
 
 ## `start_box` / `finish_box` are the start and finish zones (empty AABB = none): leaving the start starts the
 ## timer, entering the finish stops it.
-func start(at: Transform3D, start_box := AABB(), finish_box := AABB()) -> void:
+func start(at: Transform3D, start_box := AABB(), finish_box := AABB(), kill_y := -60.0, volumes: Array = []) -> void:
 	if active:
 		return
 	spawn = at
 	_start_box = start_box
 	_finish_box = finish_box
+	_kill_y = kill_y
+	_volumes = volumes
+	_inside.clear()
 	best_time = 0.0
 	player = load(SUCC_SCENE).instantiate()
 	add_child(player)
@@ -119,10 +124,20 @@ func _place() -> void:
 func _physics_process(delta: float) -> void:
 	if not active:
 		return
-	if player.global_position.y < KILL_Y:
+	if player.global_position.y < _kill_y:
 		_place()
 		return
 	var feet := player.global_position + Vector3(0, 0.5, 0)
+	var body := player.global_position + Vector3(0, 0.9, 0)
+	for v in _volumes:
+		var inside: bool = v.contains(body)
+		if v.kind == "kill" and inside:
+			_place()
+			return
+		if v.kind == "booster":
+			if inside and not _inside.get(v, false):
+				_boost(v)                        # once per entry, like a trigger
+			_inside[v] = inside
 	match run_state:
 		Run.WAITING:
 			# no prespeed: bhopping on the platform can't build speed, and you leave it at 400 u/s at most
@@ -137,6 +152,13 @@ func _physics_process(delta: float) -> void:
 				_flash = 3.0
 				if best_time <= 0.0 or run_time < best_time:
 					best_time = run_time
+
+
+## SurfsUp booster: Add pushes along the arrow on top of your speed, Set replaces your speed with exactly this.
+func _boost(v: EntityNode) -> void:
+	var push: Vector3 = v.boost_direction() * (v.strength / UNITS_PER_METRE)
+	var change: Vector3 = push if v.mode == 0 else push - player.velocity
+	player.add_impulse(change)
 
 
 func _cap_horizontal_speed(limit: float) -> void:

@@ -14,7 +14,8 @@ Double-click `Run SurfForge.cmd` (uses Godot 4.5.1), or open this folder as a pr
 | Move anything | Drag the object itself · arrows / PgUp PgDn nudge by the snap step · **[ ]** rotate 15° |
 | Add a bend | Double-click the selected ramp, or **Add Bend** · **Extend** makes it longer |
 | Ramp style | Hollow (open V) or Solid (flat bottom, optional base depth) · width, height, smoothness, tilt, colour |
-| Platforms | **B** start platform (spawn + timer start, arrow = facing) · **M** finish platform |
+| Platforms | **B** start platform (green: spawn + timer start, arrow = facing) · **M** finish platform (blue) |
+| Zones | **K** kill zone (red: touching it respawns you) · **J** booster (yellow: arrow = push direction; strength in u/s; Add or Set speed) · an automatic kill floor sits 60 m below the map |
 | Play | **P**: spawn on the start platform; the timer runs from leaving the start to landing on the finish · speed is capped at 400 u/s in the start zone (SurfsUp default: no prespeed) · R restart · Esc back |
 | Camera | 3D: right-drag orbit · middle-drag pan · wheel zoom · right-drag + WASD/QE fly · ortho: right/middle-drag pan, wheel zoom |
 | Export | **Export to SurfsUp**: writes `<name>.pck` into SurfsUp's Maps folder (auto-detected, remembered); in game press ~ and type `map <name>`. Restart SurfsUp before reloading a map you replaced. |
@@ -33,7 +34,7 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
 ## Roadmap
 1. Ramp sandbox ✅
 2. Play mode ✅ (SUCC, SurfsUp's own movement code)
-3. Map basics: start/finish platforms + timed runs ✅ · one-click SurfsUp export ✅ · kill zones, boosters, stages
+3. Map basics: start/finish platforms + timed runs ✅ · one-click SurfsUp export ✅ · kill zones + boosters ✅ · stages
 4. Jump checker + difficulty readout
 5. Look & feel: skybox, fog, lighting, materials, textures
 6. Templates, tutorial, prop import, CS:S export

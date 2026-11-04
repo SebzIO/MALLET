@@ -116,7 +116,7 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			var box := BoxMesh.new()
 			box.size = size
 			var pm := StandardMaterial3D.new()
-			pm.albedo_color = Color(0.25, 0.75, 0.4) if kind == "start" else Color(0.9, 0.3, 0.25)
+			pm.albedo_color = Color(0.25, 0.75, 0.4) if kind == "start" else Color(0.25, 0.5, 0.95)
 			box.material = pm
 			var mi := MeshInstance3D.new()
 			mi.name = "Mesh"
@@ -138,27 +138,63 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 				zone.set_meta("run_direction", Vector3.ZERO)
 				spawn = Transform3D(basis, pos + basis * Vector3(0, 0.1, size.z * 0.25))
 
+	# kill zones and boosters: invisible trigger volumes, exactly as SurfsUp's own zone types
+	var n_kill := 0
+	var n_boost := 0
+	for ed in map.get("entities", []):
+		var kind: String = ed.get("kind", "")
+		if not kind in ["kill", "booster"]:
+			continue
+		var pa: Array = ed.get("position", [0, 0, 0])
+		var sa: Array = ed.get("size", [20, 20, 20])
+		var basis := Basis(Vector3.UP, deg_to_rad(ed.get("yaw", 0.0)))
+		var xf := Transform3D(basis, Vector3(pa[0], pa[1], pa[2]))
+		if kind == "kill":
+			var z := _zone(root, "KillZone%d" % n_kill, "kill", xf, Vector3(sa[0], sa[1], sa[2]))
+			z.set_meta("kill_kind", "killbox")
+			z.set_meta("play_sfx", true)
+			n_kill += 1
+		else:
+			var z := _zone(root, "Booster%d" % n_boost, "booster", xf, Vector3(sa[0], sa[1], sa[2]))
+			var dir := (basis * (Basis(Vector3.RIGHT, deg_to_rad(ed.get("pitch", 20.0))) * Vector3.FORWARD)).normalized()
+			z.set_meta("boost_velocity", float(ed.get("strength", 1000.0)))
+			z.set_meta("boost_mode", int(ed.get("mode", 0)))
+			z.set_meta("boost_direction", dir)
+			z.set_meta("freeze_gravity", true)
+			z.set_meta("boost_on_exit", false)
+			n_boost += 1
+
 	var sp := Marker3D.new()
 	sp.name = "SpawnPoint"
 	sp.transform = spawn
 	_add(root, root, sp)
 
 	# kill floor: an infinite plane well below everything
-	if lowest == INF:
-		lowest = 0.0
 	var kill := Area3D.new()
 	kill.name = "KillFloor"
 	kill.collision_layer = 0
 	kill.collision_mask = 2
 	kill.set_meta("sdk_zone", "kill")
 	kill.set_meta("kill_kind", "killbox")
-	kill.position = Vector3(0, lowest - KILL_MARGIN, 0)
+	kill.position = Vector3(0, kill_floor_y(map), 0)
 	_add(root, root, kill)
 	var plane := CollisionShape3D.new()
 	plane.name = "Plane"
 	plane.shape = WorldBoundaryShape3D.new()
 	_add(root, kill, plane)
 	return root
+
+
+## Height of the automatic kill floor: KILL_MARGIN below the lowest ramp or platform.
+static func kill_floor_y(map: Dictionary) -> float:
+	var lowest := INF
+	for rd in map.get("ramps", []):
+		for p in rd.get("points", []):
+			lowest = min(lowest, p[1] - rd.get("height", 8.125) - rd.get("base_depth", 0.0) - 20.0)
+	for ed in map.get("entities", []):
+		if ed.get("kind", "") in ["start", "finish"]:
+			lowest = min(lowest, ed["position"][1] - ed["size"][1])
+	return (0.0 if lowest == INF else lowest) - KILL_MARGIN
 
 
 static func _zone(root: Node, name: String, kind: String, xf: Transform3D, size: Vector3) -> Area3D:
