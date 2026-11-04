@@ -7,6 +7,8 @@ extends Node3D
 const KINDS := {
 	"start": {"label": "Start platform", "size": Vector3(20, 2, 26), "color": Color(0.25, 0.75, 0.4), "zone": 10.0},
 	"finish": {"label": "Finish platform", "size": Vector3(40, 2, 40), "color": Color(0.25, 0.5, 0.95), "zone": 10.0},
+	"stage": {"label": "Stage", "size": Vector3(24, 2, 24), "color": Color(0.62, 0.38, 0.95), "zone": 10.0},
+	"teleport": {"label": "Teleport", "size": Vector3(30, 30, 10), "color": Color(0.78, 0.3, 0.95), "volume": true},
 	"kill": {"label": "Kill zone", "size": Vector3(40, 20, 40), "color": Color(0.95, 0.15, 0.15), "volume": true},
 	"booster": {"label": "Booster", "size": Vector3(20, 12, 20), "color": Color(1.0, 0.8, 0.1), "volume": true},
 }
@@ -19,6 +21,8 @@ var yaw := 0.0                          ## degrees; start platform: spawn facing
 var strength := 1000.0                  ## booster: speed in u/s (SurfsUp units, 39.37 per metre)
 var pitch := 20.0                       ## booster: degrees above horizontal the push points
 var mode := 0                           ## booster: 0 = add to the player's speed, 1 = set it
+var number := 2                         ## stage plate: its stage number; teleport: the stage it sends you to
+var keep_speed := true                  ## teleport: keep the player's velocity (else they stop on the plate)
 
 var _mesh := MeshInstance3D.new()
 var _zone_mesh := MeshInstance3D.new()
@@ -75,7 +79,24 @@ func _ready() -> void:
 
 
 func label() -> String:
+	match kind:
+		"stage": return "Stage %d" % number
+		"teleport": return "Teleport to stage %d" % number
 	return KINDS[kind]["label"]
+
+
+## Short tag drawn next to the object in every view.
+func tag() -> String:
+	match kind:
+		"start": return "Start"
+		"finish": return "Finish"
+		"stage": return "Stage %d" % number
+		"teleport": return "→ Stage %d" % number
+	return ""
+
+
+func is_platform() -> bool:
+	return not is_volume()
 
 
 func rebuild() -> void:
@@ -114,9 +135,9 @@ func rebuild() -> void:
 		_zone_mesh.position = Vector3(0, zh / 2, 0)
 		_zone_mesh.visible = true
 		_zone_mat.albedo_color = Color(c.r, c.g, c.b, 0.12)
-		# arrow on the start platform showing which way the player will face
-		_flat_arrow.visible = kind == "start"
-		if kind == "start":
+		# arrow on start / stage plates showing which way the player will face
+		_flat_arrow.visible = kind in ["start", "stage"]
+		if kind in ["start", "stage"]:
 			var pm := PrismMesh.new()
 			pm.size = Vector3(min(size.x, size.z) * 0.5, min(size.x, size.z) * 0.6, 0.2)
 			_flat_arrow.mesh = pm
@@ -211,6 +232,10 @@ func to_dict() -> Dictionary:
 		d["strength"] = strength
 		d["pitch"] = pitch
 		d["mode"] = mode
+	if kind in ["stage", "teleport"]:
+		d["number"] = number
+	if kind == "teleport":
+		d["keep_speed"] = keep_speed
 	return d
 
 
@@ -224,6 +249,8 @@ func from_dict(d: Dictionary) -> void:
 	strength = d.get("strength", 1000.0)
 	pitch = d.get("pitch", 20.0)
 	mode = d.get("mode", 0)
+	number = d.get("number", 2)
+	keep_speed = d.get("keep_speed", true)
 	if is_inside_tree():
 		rebuild()
 

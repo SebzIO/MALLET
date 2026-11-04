@@ -1,0 +1,115 @@
+{
+  "entities": [
+    {
+      "kind": "start",
+      "position": [
+        -84,
+        128,
+        0
+      ],
+      "size": [
+        20,
+        2,
+        26
+      ],
+      "yaw": -90.0
+    },
+    {
+      "keep_speed": true,
+      "kind": "teleport",
+      "number": 2,
+      "position": [
+        84,
+        84,
+        0
+      ],
+      "size": [
+        30,
+        40,
+        10
+      ],
+      "yaw": 90.0
+    },
+    {
+      "kind": "stage",
+      "number": 2,
+      "position": [
+        -84,
+        128,
+        200
+      ],
+      "size": [
+        24,
+        2,
+        24
+      ],
+      "yaw": -90.0
+    },
+    {
+      "kind": "finish",
+      "position": [
+        110,
+        60,
+        200
+      ],
+      "size": [
+        40,
+        2,
+        40
+      ],
+      "yaw": 0.0
+    }
+  ],
+  "format": "surfforge-map",
+  "ramps": [
+    {
+      "color": "edebe3",
+      "detail": 1.0,
+      "height": 8.125,
+      "points": [
+        [
+          -60,
+          120,
+          0
+        ],
+        [
+          0,
+          105,
+          0
+        ],
+        [
+          60,
+          90,
+          0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "9fd3ff",
+      "detail": 1.0,
+      "height": 8.125,
+      "points": [
+        [
+          -60,
+          120,
+          200
+        ],
+        [
+          0,
+          105,
+          200
+        ],
+        [
+          60,
+          90,
+          200
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    }
+  ],
+  "version": 2
+}

@@ -31,6 +31,20 @@ static func check(map: Dictionary) -> PackedStringArray:
 		out.append("The map needs a finish platform (press M).")
 	if map.get("ramps", []).is_empty():
 		out.append("The map has no ramps.")
+	var stages := []
+	for e in map.get("entities", []):
+		if e.get("kind", "") == "stage":
+			if int(e.get("number", 2)) in stages:
+				out.append("Two stage plates are both numbered %d." % int(e.get("number", 2)))
+			stages.append(int(e.get("number", 2)))
+	stages.sort()
+	for i in stages.size():
+		if stages[i] != i + 2:
+			out.append("Stage numbers must run 2, 3, 4... without gaps (stage %d is missing)." % (i + 2))
+			break
+	for e in map.get("entities", []):
+		if e.get("kind", "") == "teleport" and not int(e.get("number", 2)) in stages:
+			out.append("A teleport goes to stage %d, but there is no stage %d plate." % [int(e.get("number", 2)), int(e.get("number", 2))])
 	return out
 
 
@@ -108,6 +122,44 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		var size := Vector3(sa[0], sa[1], sa[2])
 		var basis := Basis(Vector3.UP, deg_to_rad(ed.get("yaw", 0.0)))
 		lowest = min(lowest, pos.y - size.y)
+		if kind == "stage":
+			var num := int(ed.get("number", 2))
+			var plat := StaticBody3D.new()
+			plat.name = "Stage%dPlate" % num
+			plat.transform = Transform3D(basis, pos)
+			_add(root, root, plat)
+			var box := BoxMesh.new()
+			box.size = size
+			var pm := StandardMaterial3D.new()
+			pm.albedo_color = Color(0.62, 0.38, 0.95)
+			box.material = pm
+			var mi := MeshInstance3D.new()
+			mi.name = "Mesh"
+			mi.mesh = box
+			mi.position = Vector3(0, -size.y / 2, 0)
+			_add(root, plat, mi)
+			var shape := BoxShape3D.new()
+			shape.size = size
+			var cs := CollisionShape3D.new()
+			cs.name = "Collision"
+			cs.shape = shape
+			cs.position = mi.position
+			_add(root, plat, cs)
+			# respawn point on the plate, named so teleports and the respawn zone can find it
+			var marker := Marker3D.new()
+			marker.name = "Stage%d" % num
+			marker.transform = Transform3D(basis, pos + basis * Vector3(0, 0.1, size.z * 0.25))
+			_add(root, root, marker)
+			var zxf := Transform3D(basis, pos + Vector3(0, ZONE_HEIGHT / 2, 0))
+			var zsize := Vector3(size.x, ZONE_HEIGHT, size.z)
+			var resp := _zone(root, "Stage%dCheckpoint" % num, "respawn", zxf, zsize)
+			resp.set_meta("respawn", "Stage%d" % num)
+			resp.set_meta("is_alt_spawn", false)
+			resp.set_meta("bhop_area", false)
+			var split := _zone(root, "Stage%dSplit" % num, "split", zxf, zsize)
+			split.set_meta("split_index", num - 2)
+			split.set_meta("course_id", 0)
+			continue
 		if kind in ["start", "finish"]:
 			var plat := StaticBody3D.new()
 			plat.name = "StartPlatform" if kind == "start" else "FinishPlatform"
@@ -141,14 +193,40 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	# kill zones and boosters: invisible trigger volumes, exactly as SurfsUp's own zone types
 	var n_kill := 0
 	var n_boost := 0
+	var n_tp := 0
 	for ed in map.get("entities", []):
 		var kind: String = ed.get("kind", "")
-		if not kind in ["kill", "booster"]:
+		if not kind in ["kill", "booster", "teleport"]:
 			continue
 		var pa: Array = ed.get("position", [0, 0, 0])
 		var sa: Array = ed.get("size", [20, 20, 20])
 		var basis := Basis(Vector3.UP, deg_to_rad(ed.get("yaw", 0.0)))
 		var xf := Transform3D(basis, Vector3(pa[0], pa[1], pa[2]))
+		if kind == "teleport":
+			var target := "Stage%d" % int(ed.get("number", 2))
+			var dest_yaw := 0.0
+			for other in map.get("entities", []):
+				if other.get("kind", "") == "stage" and int(other.get("number", 2)) == int(ed.get("number", 2)):
+					dest_yaw = other.get("yaw", 0.0)
+			if ed.get("keep_speed", true):
+				# SurfsUp's plain teleport always stops the player; the point teleport can keep their velocity
+				var z := _zone(root, "TeleportTo%s_%d" % [target, n_tp], "point_tp", xf, Vector3(sa[0], sa[1], sa[2]))
+				z.set_meta("target", target)
+				z.set_meta("reset_velocity_on_teleport", false)
+				z.set_meta("reset_view_on_teleport", true)
+				z.set_meta("horizontal_view_override", float(dest_yaw))
+				z.set_meta("cancel_run", false)
+			else:
+				var z := _zone(root, "TeleportTo%s_%d" % [target, n_tp], "teleport", xf, Vector3(sa[0], sa[1], sa[2]))
+				z.set_meta("next_stage", target)
+				z.set_meta("kill_velocity", true)
+				z.set_meta("align_to_spawn", true)
+				z.set_meta("do_not_set_spawn", false)
+				z.set_meta("keep_offset", false)
+				z.set_meta("cancel_run", false)
+				z.set_meta("to_current_stage", false)
+			n_tp += 1
+			continue
 		if kind == "kill":
 			var z := _zone(root, "KillZone%d" % n_kill, "kill", xf, Vector3(sa[0], sa[1], sa[2]))
 			z.set_meta("kill_kind", "killbox")
@@ -192,7 +270,7 @@ static func kill_floor_y(map: Dictionary) -> float:
 		for p in rd.get("points", []):
 			lowest = min(lowest, p[1] - rd.get("height", 8.125) - rd.get("base_depth", 0.0) - 20.0)
 	for ed in map.get("entities", []):
-		if ed.get("kind", "") in ["start", "finish"]:
+		if ed.get("kind", "") in ["start", "finish", "stage"]:
 			lowest = min(lowest, ed["position"][1] - ed["size"][1])
 	return (0.0 if lowest == INF else lowest) - KILL_MARGIN
 

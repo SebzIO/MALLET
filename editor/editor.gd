@@ -49,6 +49,7 @@ var _props_panel: PanelContainer
 var _ramp_props: VBoxContainer
 var _entity_props: VBoxContainer
 var _booster_props: VBoxContainer
+var _stage_props: VBoxContainer
 var _status: Label
 var _info: Label
 var _fields := {}
@@ -129,7 +130,8 @@ func _build_ui() -> void:
 	for spec in [["New", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
 			["+ Ramp (N)", _add_ramp_clicked], ["+ Start (B)", func(): _add_entity("start")],
 			["+ Finish (M)", func(): _add_entity("finish")], ["+ Kill zone (K)", func(): _add_entity("kill")],
-			["+ Booster (J)", func(): _add_entity("booster")], ["|", null],
+			["+ Booster (J)", func(): _add_entity("booster")], ["+ Stage (T)", func(): _add_entity("stage")],
+			["+ Teleport (Y)", func(): _add_entity("teleport")], ["|", null],
 			["Extend", _extend_clicked], ["Add Bend", _bend_clicked], ["Duplicate", _duplicate_clicked],
 			["Delete", _delete_clicked], ["|", null], ["Undo", undo], ["Redo", redo], ["|", null],
 			["Frame (F)", _frame_clicked], ["1 / 4 Views (V)", _toggle_views], ["|", null], ["▶ Play (P)", _play_clicked],
@@ -236,6 +238,16 @@ func _build_props(props: VBoxContainer) -> void:
 	_add_slider(_entity_props, "size_z", "Depth (m)", 4.0, 200.0, 1.0)
 	_add_slider(_entity_props, "size_y", "Height (m)", 2.0, 200.0, 1.0)
 	_add_slider(_entity_props, "yaw", "Facing (°)", -180.0, 180.0, 5.0)
+	_stage_props = VBoxContainer.new()
+	_stage_props.add_theme_constant_override("separation", 6)
+	_entity_props.add_child(_stage_props)
+	_add_slider(_stage_props, "number", "Stage number", 2.0, 50.0, 1.0)
+	var keep := CheckButton.new()
+	keep.text = "Keep the player's speed"
+	keep.focus_mode = Control.FOCUS_NONE
+	keep.toggled.connect(func(on): _edit_prop("keep_speed", on))
+	_stage_props.add_child(keep)
+	_fields["keep_speed"] = keep
 	_booster_props = VBoxContainer.new()
 	_booster_props.add_theme_constant_override("separation", 6)
 	_entity_props.add_child(_booster_props)
@@ -260,7 +272,7 @@ func _build_props(props: VBoxContainer) -> void:
 	help.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
 	help.text = ("Drag yellow handles to reshape · drag the object to move it (Shift = up/down in 3D view)\n"
 		+ "Double-click a ramp to add a bend\nArrows / PgUp PgDn nudge · [ ] rotate\n"
-		+ "N ramp · B start · M finish · K kill zone · J booster · P play\nSpace maximise the view under the mouse · V 3D / four views\nF frame · G snap\n"
+		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · P play\nSpace maximise the view under the mouse · V 3D / four views\nF frame · G snap\n"
 		+ "Del delete · Ctrl+D duplicate · Ctrl+Z undo · Ctrl+S save")
 	props.add_child(help)
 
@@ -324,6 +336,13 @@ func _refresh_props() -> void:
 		_fields["size_y"][0].get_parent().get_parent().get_child(_fields["size_y"][0].get_parent().get_index() - 1).visible = e.is_volume()
 		_fields["size_y"][0].get_parent().visible = e.is_volume()
 		_booster_props.visible = e.kind == "booster"
+		_stage_props.visible = e.kind in ["stage", "teleport"]
+		_fields["keep_speed"].visible = e.kind == "teleport"
+		var num_label: Label = _fields["number"][0].get_parent().get_parent().get_child(_fields["number"][0].get_parent().get_index() - 1)
+		num_label.text = "Stage number" if e.kind == "stage" else "Sends the player to stage"
+		if e.kind in ["stage", "teleport"]:
+			_set_field("number", e.number)
+			_fields["keep_speed"].button_pressed = e.keep_speed
 		if e.kind == "booster":
 			_set_field("pitch", e.pitch)
 			_set_field("strength", e.strength)
@@ -349,6 +368,8 @@ func _refresh_info() -> void:
 			"finish": "Landing in the blue zone finishes the run.",
 			"kill": "Touching this sends the player back to their spawn. Players fly through it; it is invisible in game.",
 			"booster": "Players passing through are pushed along the arrow. Add = extra speed on top of theirs; Set = this exact speed.",
+			"stage": "Stage checkpoint: reaching this plate (landing on it or being teleported here) makes it the player's respawn point and records a split. Players spawn here facing the arrow.",
+			"teleport": "Sends the player to the stage plate with this number. Keep speed: they arrive still moving (same direction of travel); off: they arrive standing still.",
 		}
 		_info.text = "Position: (%.0f, %.0f, %.0f)\n%s" % [e.position.x, e.position.y, e.position.z, about.get(e.kind, "")]
 
@@ -505,11 +526,41 @@ func _select(obj: Node3D, point := -1) -> void:
 	_refresh_props()
 
 
+func _stage_numbers() -> Array:
+	return entities_root.get_children().filter(func(x): return x.kind == "stage").map(func(x): return x.number)
+
+
+func _stage_plate(n: int) -> EntityNode:
+	for e in entities_root.get_children():
+		if e.kind == "stage" and e.number == n:
+			return e
+	return null
+
+
 ## Handles and helper lines, drawn in 2D on top of each view so they stay a constant size.
 func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
-	if play.active or selected == null:
+	if play.active:
 		return
 	var cam := pane.camera
+	var font := ov.get_theme_default_font()
+	for e in entities_root.get_children():       # name tags: Start, Finish, Stage 2, -> Stage 3 ...
+		var t: String = e.tag()
+		if t == "" or cam.is_position_behind(e.global_position):
+			continue
+		var s := cam.unproject_position(e.global_position + Vector3(0, 4, 0))
+		ov.draw_string_outline(font, s + Vector2(-30, -6), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color(0, 0, 0, 0.85))
+		ov.draw_string(font, s + Vector2(-30, -6), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, EntityNode.KINDS[e.kind]["color"].lightened(0.35))
+	if selected == null:
+		return
+	if selected is EntityNode and selected.kind == "teleport":      # where does this teleport go?
+		var target := _stage_plate(selected.number)
+		if target and not cam.is_position_behind(target.global_position) and not cam.is_position_behind(selected.global_position):
+			var a := cam.unproject_position(selected.global_position)
+			var b := cam.unproject_position(target.global_position)
+			var segs := 24
+			for k in segs:
+				if k % 2 == 0:
+					ov.draw_line(a.lerp(b, float(k) / segs), a.lerp(b, float(k + 1) / segs), Color(0.85, 0.5, 1.0), 2.0)
 	var lines: Array[PackedVector3Array] = selected.outline if selected is RampNode else selected.outline_lines()
 	for line in lines:                           # selection outline (keeps the object's real colour visible)
 		for i in range(1, line.size()):
@@ -599,6 +650,8 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_M: _add_entity("finish")
 		KEY_K: _add_entity("kill")
 		KEY_J: _add_entity("booster")
+		KEY_T: _add_entity("stage")
+		KEY_Y: _add_entity("teleport")
 		KEY_P: _play_clicked()
 		KEY_V: _toggle_views()
 		KEY_SPACE: _toggle_maximise_hovered()
@@ -810,6 +863,15 @@ func _add_entity(kind: String) -> void:
 			return
 	var n := EntityNode.create(kind)
 	n.position = c
+	if kind in ["stage", "teleport"]:
+		# new stage plates take the next free number; new teleports point at the highest stage without one
+		var stages := _stage_numbers()
+		if kind == "stage":
+			n.number = (stages.max() + 1) if not stages.is_empty() else 2
+		else:
+			var targeted := entities_root.get_children().filter(func(x): return x.kind == "teleport").map(func(x): return x.number)
+			var free := stages.filter(func(s): return not s in targeted)
+			n.number = free.min() if not free.is_empty() else (stages.max() if not stages.is_empty() else 2)
 	entities_root.add_child(n)
 	_select(n)
 	_set_status("Added %s at the view centre." % n.label().to_lower())
@@ -920,6 +982,8 @@ func _edit_prop(key: String, value) -> void:
 			"pitch": e.pitch = value
 			"strength": e.strength = value
 			"mode": e.mode = value
+			"number": e.number = int(value)
+			"keep_speed": e.keep_speed = value
 		e.rebuild()
 	_refresh_info()
 
@@ -1007,8 +1071,12 @@ func _play_clicked() -> void:
 		selected.set_selected(false)
 	_ui.visible = false
 	var volumes := entities_root.get_children().filter(func(x): return x.is_volume())
+	var stages := {}
+	for e in entities_root.get_children():
+		if e.kind == "stage":
+			stages[e.number] = e
 	play.start(at, start.zone_aabb() if start else AABB(), finish.zone_aabb() if finish else AABB(),
-		SurfsUpExporter.kill_floor_y(_map_dict()), volumes)
+		SurfsUpExporter.kill_floor_y(_map_dict()), volumes, stages)
 
 
 func _on_play_stopped() -> void:
