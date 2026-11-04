@@ -22,6 +22,7 @@ var _shape := CollisionShape3D.new()
 var _material := StandardMaterial3D.new()
 var _selected := false
 var triangle_count := 0
+var outline: Array[PackedVector3Array] = []   ## edge polylines for the selection outline
 var length := 0.0
 
 
@@ -46,6 +47,7 @@ func rebuild() -> void:
 	if mesh.get_surface_count() > 0:
 		triangle_count = mesh.surface_get_array_len(0) / 3
 	length = RampShape.path_length(ridge)
+	_build_outline(ridge)
 	_update_material()
 	changed.emit()
 
@@ -56,10 +58,33 @@ func set_selected(on: bool) -> void:
 
 
 func _update_material() -> void:
-	_material.albedo_color = color
-	_material.emission_enabled = _selected
-	_material.emission = Color(0.15, 0.35, 0.9)
-	_material.emission_energy_multiplier = 0.35
+	_material.albedo_color = color             # selection is shown with an outline, so the colour is always true
+
+
+## Lines along each edge of the cross-section, plus the outline of both end caps.
+func _build_outline(ridge: PackedVector3Array) -> void:
+	outline.clear()
+	if ridge.size() < 2:
+		return
+	var step: int = max(1, ridge.size() / 60)
+	var thin := PackedVector3Array()
+	for i in range(0, ridge.size(), step):
+		thin.append(ridge[i])
+	if thin[thin.size() - 1] != ridge[ridge.size() - 1]:
+		thin.append(ridge[ridge.size() - 1])
+	var rings := RampShape.compute_rings(thin, width, height, roll, solid, base_depth)
+	var pc := rings[0].size()
+	for k in pc:
+		if not solid and k >= 3:
+			continue                                 # skip the hollow ramp's underside lines
+		var line := PackedVector3Array()
+		for ring in rings:
+			line.append(ring[k])
+		outline.append(line)
+	for ring in [rings[0], rings[rings.size() - 1]]:
+		var cap: PackedVector3Array = ring.duplicate()
+		cap.append(ring[0])
+		outline.append(cap)
 
 
 ## Plain-data snapshot for save files and undo.

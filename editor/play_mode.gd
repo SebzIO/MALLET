@@ -9,6 +9,7 @@ const SUCC_SCENE := "res://addons/SUCC/scenes/succ_character.tscn"
 const UNITS_PER_METRE := 39.37            # SurfsUp's HUD shows Source units/s
 const KEYS := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "jump": KEY_SPACE,
 	"crouch": KEY_CTRL, "sprint": KEY_SHIFT}
+const PRESPEED_CAP := 400.0                ## u/s: SurfsUp's default mode caps speed in the start zone
 const KILL_Y := -60.0                     # below this you respawn (stand-in for the map's kill floor)
 
 var active := false
@@ -124,6 +125,8 @@ func _physics_process(delta: float) -> void:
 	var feet := player.global_position + Vector3(0, 0.5, 0)
 	match run_state:
 		Run.WAITING:
+			# no prespeed: bhopping on the platform can't build speed, and you leave it at 400 u/s at most
+			_cap_horizontal_speed(PRESPEED_CAP / UNITS_PER_METRE)
 			if not _start_box.has_volume() or not _start_box.has_point(feet):
 				run_state = Run.RUNNING              # left the start zone (or there is none): go
 				run_time = 0.0
@@ -134,6 +137,14 @@ func _physics_process(delta: float) -> void:
 				_flash = 3.0
 				if best_time <= 0.0 or run_time < best_time:
 					best_time = run_time
+
+
+func _cap_horizontal_speed(limit: float) -> void:
+	var h := Vector2(player.velocity.x, player.velocity.z)
+	if h.length() > limit:
+		h = h.normalized() * limit
+		player.velocity.x = h.x
+		player.velocity.z = h.y
 
 
 static func format_time(t: float) -> String:

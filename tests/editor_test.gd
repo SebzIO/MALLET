@@ -77,12 +77,30 @@ func _run() -> void:
 	await shot("e03_single_view")
 	ed._toggle_views()
 
+	# recolour the selected ramp: it must show its real colour (outline, not tint)
+	ed._select(ed.ramps_root.get_child(0))
+	ed._edit_prop("color", Color(0.9, 0.2, 0.6))
+	await shot("e03b_recolour_selected")
+	# Space over the top view maximises it, Space again restores four views
+	var topv: ViewPane = ed.panes[1]
+	root.warp_mouse(topv.get_global_rect().get_center())
+	await process_frame
+	key(KEY_SPACE)
+	print("after Space: visible panes ", ed.panes.filter(func(x): return x.visible).size(), " -> ", ed._status.text.strip_edges())
+	await shot("e03c_space_top")
+	key(KEY_SPACE)
+	print("after Space again: visible panes ", ed.panes.filter(func(x): return x.visible).size())
+
 	# timed run: play, then teleport the player off the start (timer starts) and onto the finish (timer stops)
 	ed._play_clicked()
 	await physics_frame
 	var p: SUCC = ed.play.player
 	print("spawned at ", p.global_position.snapped(Vector3.ONE * 0.1), " state ", ed.play.run_state)
 	await shot("e04_play_on_start")
+	# prehop attempt: 900 u/s on the platform must be capped to 400
+	p.velocity = Vector3(900.0 / 39.37, 0, 0)
+	for i in 2: await physics_frame
+	print("prespeed on start: %d u/s (cap 400)" % roundi(Vector2(p.velocity.x, p.velocity.z).length() * 39.37))
 	p.teleport(Transform3D(Basis(), Vector3(0, 140, 0)))
 	for i in 30: await physics_frame
 	print("left start: state ", ed.play.run_state, " time %.2f" % ed.play.run_time)

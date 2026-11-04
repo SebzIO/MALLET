@@ -8,14 +8,14 @@ Double-click `Run SurfForge.cmd` (uses Godot 4.5.1), or open this folder as a pr
 ## Controls
 | Action | How |
 |---|---|
-| Views | Perspective + Top / Front / Side like Hammer · **V** toggles one big 3D view |
+| Views | Perspective + Top / Front / Side like Hammer · **Space** maximises the view under the mouse (again to restore) · **V** toggles one big 3D view |
 | Select | Left-click a ramp or platform in any view |
 | Reshape a ramp | Drag its yellow handles (in 3D: Shift+drag = up/down; ortho views move along what you see) |
 | Move anything | Drag the object itself · arrows / PgUp PgDn nudge by the snap step · **[ ]** rotate 15° |
 | Add a bend | Double-click the selected ramp, or **Add Bend** · **Extend** makes it longer |
 | Ramp style | Hollow (open V) or Solid (flat bottom, optional base depth) · width, height, smoothness, tilt, colour |
 | Platforms | **B** start platform (spawn + timer start, arrow = facing) · **M** finish platform |
-| Play | **P**: spawn on the start platform; the timer runs from leaving the start to landing on the finish · R restart · Esc back |
+| Play | **P**: spawn on the start platform; the timer runs from leaving the start to landing on the finish · speed is capped at 400 u/s in the start zone (SurfsUp default: no prespeed) · R restart · Esc back |
 | Camera | 3D: right-drag orbit · middle-drag pan · wheel zoom · right-drag + WASD/QE fly · ortho: right/middle-drag pan, wheel zoom |
 | Keys | N ramp · Del delete point/object · Ctrl+D duplicate · F frame · G snap · Ctrl+Z/Y undo/redo · Ctrl+S save |
 

@@ -75,20 +75,12 @@ static func profile(width: float, height: float, solid := false, base_depth := 0
 		Vector2(w * 0.9, -height * 0.0625), Vector2(0, height * 0.84), Vector2(-w * 0.9, -height * 0.0625)])
 
 
-## Full ramp mesh. `ridge` is the sampled path of the ridge line.
-## `roll` (degrees) tilts the cross-section around the path; positive tips the right face down.
-static func build_mesh(ridge: PackedVector3Array, width: float, height: float, roll_deg := 0.0,
-		solid := false, base_depth := 0.0) -> ArrayMesh:
-	var mesh := ArrayMesh.new()
-	var n := ridge.size()
-	if n < 2:
-		return mesh
+## Cross-section points at every ridge sample: rings[i][k] is profile point k at sample i.
+static func compute_rings(ridge: PackedVector3Array, width: float, height: float, roll_deg := 0.0,
+		solid := false, base_depth := 0.0) -> Array[PackedVector3Array]:
 	var prof := profile(width, height, solid, base_depth)
-	var pc := prof.size()
-	# frame at every sample
+	var n := ridge.size()
 	var rings: Array[PackedVector3Array] = []
-	var dist := PackedFloat32Array()
-	var d := 0.0
 	for i in n:
 		var t: Vector3 = (ridge[min(i + 1, n - 1)] - ridge[max(i - 1, 0)]).normalized()
 		var side := Vector3.UP.cross(t)
@@ -105,6 +97,23 @@ static func build_mesh(ridge: PackedVector3Array, width: float, height: float, r
 		for p in prof:
 			ring.append(base + side * p.x + up * p.y)
 		rings.append(ring)
+	return rings
+
+
+## Full ramp mesh. `ridge` is the sampled path of the ridge line.
+## `roll` (degrees) tilts the cross-section around the path; positive tips the right face down.
+static func build_mesh(ridge: PackedVector3Array, width: float, height: float, roll_deg := 0.0,
+		solid := false, base_depth := 0.0) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	var n := ridge.size()
+	if n < 2:
+		return mesh
+	var prof := profile(width, height, solid, base_depth)
+	var pc := prof.size()
+	var rings := compute_rings(ridge, width, height, roll_deg, solid, base_depth)
+	var dist := PackedFloat32Array()
+	var d := 0.0
+	for i in n:
 		if i > 0:
 			d += ridge[i].distance_to(ridge[i - 1])
 		dist.append(d)

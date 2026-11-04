@@ -90,9 +90,25 @@ func set_selected(on: bool) -> void:
 
 func _update_material() -> void:
 	_mat.albedo_color = KINDS[kind]["color"]
-	_mat.emission_enabled = _selected
-	_mat.emission = Color(0.15, 0.35, 0.9)
-	_mat.emission_energy_multiplier = 0.45
+	_mat.emission_enabled = false              # selection is shown with an outline
+
+
+## The platform's box edges in world space (for the selection outline).
+func outline_lines() -> Array[PackedVector3Array]:
+	var h := size / 2
+	var out: Array[PackedVector3Array] = []
+	var corners := {}
+	for x in [-1, 1]:
+		for y in [-1, 1]:
+			for z in [-1, 1]:
+				corners[Vector3i(x, y, z)] = global_transform * Vector3(x * h.x, -h.y + y * h.y, z * h.z)
+	for y in [-1, 1]:
+		out.append(PackedVector3Array([corners[Vector3i(-1, y, -1)], corners[Vector3i(1, y, -1)], corners[Vector3i(1, y, 1)],
+			corners[Vector3i(-1, y, 1)], corners[Vector3i(-1, y, -1)]]))
+	for x in [-1, 1]:
+		for z in [-1, 1]:
+			out.append(PackedVector3Array([corners[Vector3i(x, -1, z)], corners[Vector3i(x, 1, z)]]))
+	return out
 
 
 ## World-space box the player must be inside (start: leaving it starts the timer; finish: entering it stops it).

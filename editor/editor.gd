@@ -237,7 +237,7 @@ func _build_props(props: VBoxContainer) -> void:
 	help.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
 	help.text = ("Drag yellow handles to reshape · drag the object to move it (Shift = up/down in 3D view)\n"
 		+ "Double-click a ramp to add a bend\nArrows / PgUp PgDn nudge · [ ] rotate\n"
-		+ "N ramp · B start · M finish · P play\nV one/four views · F frame · G snap\n"
+		+ "N ramp · B start · M finish · P play\nSpace maximise the view under the mouse · V 3D / four views\nF frame · G snap\n"
 		+ "Del delete · Ctrl+D duplicate · Ctrl+Z undo · Ctrl+S save")
 	props.add_child(help)
 
@@ -324,10 +324,26 @@ func _set_status(t: String) -> void:
 
 func _toggle_views() -> void:
 	quad_view = not quad_view
-	for i in range(1, panes.size()):
-		panes[i].visible = quad_view
+	for i in panes.size():
+		panes[i].visible = quad_view or i == 0
 	_view_grid.columns = 2 if quad_view else 1
 	_set_status("Four views" if quad_view else "Single 3D view")
+
+
+## Space: fill the editor with the view under the mouse; press again to go back to four views.
+func _toggle_maximise_hovered() -> void:
+	var mouse := get_viewport().get_mouse_position()
+	var hovered: ViewPane = active_pane
+	for p in panes:
+		if p.visible and p.get_global_rect().has_point(mouse):
+			hovered = p
+	var maximised: bool = panes.filter(func(p): return p.visible).size() == 1
+	for p in panes:
+		p.visible = maximised or p == hovered
+	_view_grid.columns = 2 if maximised else 1
+	quad_view = maximised
+	active_pane = hovered
+	_set_status("Four views" if maximised else "%s view - Space to go back to four views" % ViewPane.NAMES[hovered.kind].get_slice(" ", 0))
 
 
 func set_active_pane(p: ViewPane) -> void:
@@ -459,6 +475,12 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 	if play.active or selected == null:
 		return
 	var cam := pane.camera
+	var lines: Array[PackedVector3Array] = selected.outline if selected is RampNode else selected.outline_lines()
+	for line in lines:                           # selection outline (keeps the object's real colour visible)
+		for i in range(1, line.size()):
+			if cam.is_position_behind(line[i]) or cam.is_position_behind(line[i - 1]):
+				continue
+			ov.draw_line(cam.unproject_position(line[i - 1]), cam.unproject_position(line[i]), Color(0.3, 0.75, 1.0, 0.95), 2.0)
 	if selected is RampNode:
 		var pts: PackedVector3Array = selected.points
 		for i in pts.size():
@@ -542,6 +564,7 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_M: _add_entity("finish")
 		KEY_P: _play_clicked()
 		KEY_V: _toggle_views()
+		KEY_SPACE: _toggle_maximise_hovered()
 		KEY_DELETE, KEY_BACKSPACE: _delete_clicked()
 		KEY_F: _frame_clicked()
 		KEY_G:
