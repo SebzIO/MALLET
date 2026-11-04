@@ -80,7 +80,8 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		var h: float = rd.get("height", 8.125)
 		var detail: float = rd.get("detail", 1.0)
 		var ridge := RampShape.sample_path(pts, 1.0 / max(detail, 0.05))
-		var mesh := RampShape.build_mesh(ridge, w, h, rd.get("roll", 0.0), rd.get("solid", false), rd.get("base_depth", 0.0))
+		var mesh := RampShape.build_mesh(ridge, w, h, rd.get("roll", 0.0), rd.get("solid", false), rd.get("base_depth", 0.0),
+			rd.get("twist", 0.0))
 		var mat := Look.ramp_material(rd.get("look", "color"), Color.html(rd.get("color", "edebe3")), rd.get("texture", ""),
 			rd.get("tex_scale", 20.0))
 		mesh.surface_set_material(0, mat)

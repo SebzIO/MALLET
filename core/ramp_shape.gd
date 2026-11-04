@@ -76,20 +76,27 @@ static func profile(width: float, height: float, solid := false, base_depth := 0
 
 
 ## Cross-section points at every ridge sample: rings[i][k] is profile point k at sample i.
+## `twist_deg` rolls the cross-section progressively along the ramp: from roll - twist/2 at the start to
+## roll + twist/2 at the end (a corkscrew).
 static func compute_rings(ridge: PackedVector3Array, width: float, height: float, roll_deg := 0.0,
-		solid := false, base_depth := 0.0) -> Array[PackedVector3Array]:
+		solid := false, base_depth := 0.0, twist_deg := 0.0) -> Array[PackedVector3Array]:
 	var prof := profile(width, height, solid, base_depth)
 	var n := ridge.size()
 	var rings: Array[PackedVector3Array] = []
+	var total := path_length(ridge)
+	var along := 0.0
 	for i in n:
+		if i > 0:
+			along += ridge[i].distance_to(ridge[i - 1])
+		var roll_here := roll_deg + twist_deg * ((along / total if total > 0.0 else 0.0) - 0.5)
 		var t: Vector3 = (ridge[min(i + 1, n - 1)] - ridge[max(i - 1, 0)]).normalized()
 		var side := Vector3.UP.cross(t)
 		if side.length() < 1e-3:
 			side = Vector3.RIGHT
 		side = side.normalized()
 		var up := t.cross(side).normalized()
-		if roll_deg != 0.0:
-			var r := Basis(t, deg_to_rad(roll_deg))
+		if roll_here != 0.0:
+			var r := Basis(t, deg_to_rad(roll_here))
 			side = r * side
 			up = r * up
 		var base := ridge[i] - up * height
@@ -103,14 +110,14 @@ static func compute_rings(ridge: PackedVector3Array, width: float, height: float
 ## Full ramp mesh. `ridge` is the sampled path of the ridge line.
 ## `roll` (degrees) tilts the cross-section around the path; positive tips the right face down.
 static func build_mesh(ridge: PackedVector3Array, width: float, height: float, roll_deg := 0.0,
-		solid := false, base_depth := 0.0) -> ArrayMesh:
+		solid := false, base_depth := 0.0, twist_deg := 0.0) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var n := ridge.size()
 	if n < 2:
 		return mesh
 	var prof := profile(width, height, solid, base_depth)
 	var pc := prof.size()
-	var rings := compute_rings(ridge, width, height, roll_deg, solid, base_depth)
+	var rings := compute_rings(ridge, width, height, roll_deg, solid, base_depth, twist_deg)
 	var dist := PackedFloat32Array()
 	var d := 0.0
 	for i in n:

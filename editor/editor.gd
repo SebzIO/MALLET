@@ -71,6 +71,22 @@ var _export_name: LineEdit
 var _export_dir: LineEdit
 var _dir_dialog: FileDialog
 var welcome: WelcomeScreen
+# ramp generator (while _gen_ramp is set, the side panel shows the generator and the ramp is a live preview)
+var _gen_ramp: RampNode = null
+var _gen_source: RampNode = null        ## the ramp the new one continues from (null = place at the view centre)
+var _gen_shape := "spiral"
+var _gen_values := {}                   ## shape -> {param: value}, remembered between uses
+var _gen_follow := true
+var _gen_gap := 40.0
+var _gen_side := 1.0
+var _gen_anchor := Vector3.ZERO
+var _gen_anchor_yaw := 0.0
+var _gen_props: VBoxContainer
+var _gen_param_box: VBoxContainer
+var _gen_place_box: VBoxContainer
+var _gen_about: Label
+var _gen_warning: Label
+var _gen_shape_buttons := {}
 const SETTINGS_PATH := "user://settings.cfg"
 
 
@@ -148,7 +164,7 @@ func _build_ui_main() -> void:
 	title.add_theme_font_size_override("font_size", 18)
 	bar.add_child(title)
 	for spec in [["New", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
-			["+ Ramp (N)", _add_ramp_clicked], ["+ Start (B)", func(): _add_entity("start")],
+			["+ Ramp (N)", _add_ramp_clicked], ["✦ Generate (R)", _generate_clicked], ["+ Start (B)", func(): _add_entity("start")],
 			["+ Finish (M)", func(): _add_entity("finish")], ["+ Kill zone (K)", func(): _add_entity("kill")],
 			["+ Booster (J)", func(): _add_entity("booster")], ["+ Stage (T)", func(): _add_entity("stage")],
 			["+ Teleport (Y)", func(): _add_entity("teleport")], ["|", null],
@@ -256,6 +272,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_add_slider(_ramp_props, "base_depth", "Base depth (m, solid only)", 0.0, 60.0, 0.5)
 	_add_slider(_ramp_props, "detail", "Smoothness (segments / m)", 0.1, 4.0, 0.05)
 	_add_slider(_ramp_props, "roll", "Tilt (°)", -45.0, 45.0, 1.0)
+	_add_slider(_ramp_props, "twist", "Twist along the ramp (°)", -180.0, 180.0, 1.0)
 	var look := OptionButton.new()
 	for k in Look.LOOK_ORDER:
 		look.add_item(Look.RAMP_LOOKS[k][0])
@@ -282,6 +299,8 @@ func _build_props(props: VBoxContainer) -> void:
 	_tex_box.add_child(tex_name)
 	_fields["tex_name"] = tex_name
 	_add_slider(_tex_box, "tex_scale", "Image size along the ramp (m)", 1.0, 200.0, 1.0)
+
+	_build_gen_props(props)
 
 	_entity_props = VBoxContainer.new()
 	_entity_props.add_theme_constant_override("separation", 6)
@@ -445,6 +464,14 @@ func _set_field(key: String, v: float) -> void:
 
 
 func _refresh_props() -> void:
+	_gen_props.visible = _gen_ramp != null
+	if _gen_ramp:
+		_map_props.visible = false
+		_ramp_props.visible = false
+		_entity_props.visible = false
+		_fields["head"].text = "Generate a ramp"
+		_refresh_info()
+		return
 	_map_props.visible = selected == null
 	if selected == null:
 		_ramp_props.visible = false
@@ -461,7 +488,7 @@ func _refresh_props() -> void:
 		var r := selected as RampNode
 		_fields["head"].text = "Ramp"
 		_fields["solid"].select(1 if r.solid else 0)
-		for key in ["width", "height", "base_depth", "detail", "roll"]:
+		for key in ["width", "height", "base_depth", "detail", "roll", "twist"]:
 			_set_field(key, r.get(key))
 		_fields["color"].color = r.color
 		_fields["look"].select(Look.LOOK_ORDER.find(r.look))
@@ -572,6 +599,8 @@ func _map_dict() -> Dictionary:
 
 
 func _load_dict(data: Dictionary) -> void:
+	_gen_ramp = null
+	_gen_source = null
 	environment = Look.default_environment()
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
@@ -791,6 +820,8 @@ func _speed_reference(r: RampNode) -> Array:
 func _update_arcs() -> void:
 	_arcs.clear()
 	var targets: Array = ramps_root.get_children() if show_all_arcs else ([selected] if selected is RampNode else [])
+	if _gen_source and is_instance_valid(_gen_source) and not _gen_source in targets:
+		targets.append(_gen_source)
 	if targets.is_empty():
 		return
 	var space := get_world_3d().direct_space_state
@@ -841,6 +872,10 @@ func _draw_arcs(pane: ViewPane, ov: Control) -> void:
 func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 	if play.active:
 		return false
+	if _gen_ramp and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_set_status("Generating a ramp: press Create (Enter) to keep it or Cancel (Esc) first.")
+		return true
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			if event.double_click and selected is RampNode:
@@ -878,6 +913,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if play.handle_input(event):
 		return
+	if _gen_ramp and event is InputEventKey and event.pressed and not event.echo:
+		match event.keycode:
+			KEY_ENTER, KEY_KP_ENTER: _gen_create()
+			KEY_ESCAPE: _gen_cancel()
+			KEY_F: _frame_clicked()
+			KEY_V: _toggle_views()
+			KEY_SPACE: _toggle_maximise_hovered()
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed:
 		_handle_key(event)
 
@@ -895,6 +939,7 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_O when ctrl: _open_clicked()
 		KEY_D when ctrl: _duplicate_clicked()
 		KEY_N: _add_ramp_clicked()
+		KEY_R: _generate_clicked()
 		KEY_B: _add_entity("start")
 		KEY_M: _add_entity("finish")
 		KEY_K: _add_entity("kill")
@@ -1098,6 +1143,220 @@ func _add_ramp_clicked() -> void:
 		b = b.snapped(Vector3.ONE * snap_step)
 	_select(_make_ramp(a, b))
 	_set_status("New ramp added at the view centre.")
+
+
+# ================================================================================================= ramp generator
+func _build_gen_props(props: VBoxContainer) -> void:
+	_gen_props = VBoxContainer.new()
+	_gen_props.add_theme_constant_override("separation", 6)
+	_gen_props.visible = false
+	props.add_child(_gen_props)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	_gen_props.add_child(grid)
+	var group := ButtonGroup.new()
+	for shape in RampGenerator.SHAPE_ORDER:
+		var b := Button.new()
+		b.text = RampGenerator.SHAPES[shape]["label"]
+		b.toggle_mode = true
+		b.button_group = group
+		b.focus_mode = Control.FOCUS_NONE
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(func(): _gen_set_shape(shape))
+		grid.add_child(b)
+		_gen_shape_buttons[shape] = b
+	_gen_about = Label.new()
+	_gen_about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_gen_about.add_theme_color_override("font_color", Color(0.72, 0.76, 0.82))
+	_gen_props.add_child(_gen_about)
+	_gen_param_box = VBoxContainer.new()
+	_gen_param_box.add_theme_constant_override("separation", 6)
+	_gen_props.add_child(_gen_param_box)
+	_gen_props.add_child(HSeparator.new())
+	_gen_place_box = VBoxContainer.new()
+	_gen_place_box.add_theme_constant_override("separation", 6)
+	_gen_props.add_child(_gen_place_box)
+	var follow := CheckButton.new()
+	follow.text = "Continue from the selected ramp"
+	follow.focus_mode = Control.FOCUS_NONE
+	follow.toggled.connect(func(on): _gen_follow = on; _gen_refresh_place(); _gen_rebuild())
+	_gen_place_box.add_child(follow)
+	_fields["gen_follow"] = follow
+	var follow_opts := VBoxContainer.new()
+	follow_opts.add_theme_constant_override("separation", 6)
+	_gen_place_box.add_child(follow_opts)
+	_fields["gen_follow_opts"] = follow_opts
+	_gen_slider(follow_opts, "Jump gap (m)", 5.0, 150.0, 1.0, _gen_gap, func(v): _gen_gap = v; _gen_rebuild())
+	var face := OptionButton.new()
+	face.add_item("Land on the right-hand face")
+	face.add_item("Land on the left-hand face")
+	face.focus_mode = Control.FOCUS_NONE
+	face.item_selected.connect(func(i): _gen_side = 1.0 if i == 0 else -1.0; _gen_rebuild())
+	_add_row(follow_opts, "Landing", face)
+	_gen_warning = Label.new()
+	_gen_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_gen_warning.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+	_gen_props.add_child(_gen_warning)
+	var row := HBoxContainer.new()
+	_gen_props.add_child(row)
+	var ok := Button.new()
+	ok.text = "Create (Enter)"
+	ok.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ok.focus_mode = Control.FOCUS_NONE
+	ok.pressed.connect(_gen_create)
+	row.add_child(ok)
+	var cancel := Button.new()
+	cancel.text = "Cancel (Esc)"
+	cancel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cancel.focus_mode = Control.FOCUS_NONE
+	cancel.pressed.connect(_gen_cancel)
+	row.add_child(cancel)
+	var tip := Label.new()
+	tip.text = "The result is an ordinary ramp: drag its points, change its width, look or smoothness afterwards."
+	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tip.add_theme_font_size_override("font_size", 12)
+	tip.add_theme_color_override("font_color", Color(0.6, 0.64, 0.7))
+	_gen_props.add_child(tip)
+
+
+func _gen_slider(parent: Container, label: String, lo: float, hi: float, step: float, value: float, on_change: Callable) -> void:
+	var row := HBoxContainer.new()
+	var s := HSlider.new()
+	s.min_value = lo
+	s.max_value = hi
+	s.step = step
+	s.value = value
+	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	s.focus_mode = Control.FOCUS_NONE
+	var box := SpinBox.new()
+	box.min_value = lo
+	box.max_value = hi
+	box.step = step
+	box.value = value
+	box.custom_minimum_size = Vector2(86, 0)
+	s.value_changed.connect(func(v): box.set_value_no_signal(v); on_change.call(v))
+	box.value_changed.connect(func(v): s.set_value_no_signal(v); on_change.call(v))
+	row.add_child(s)
+	row.add_child(box)
+	_add_row(parent, label, row)
+
+
+func _generate_clicked() -> void:
+	if play.active or _gen_ramp:
+		return
+	_gen_source = selected if selected is RampNode else null
+	_checkpoint()                                       # Cancel pops this again
+	var r := RampNode.new()
+	if _gen_source:                                     # carry the course's style on
+		for key in ["width", "height", "detail", "solid", "base_depth", "color", "look", "texture", "tex_scale"]:
+			r.set(key, _gen_source.get(key))
+	# fallback placement: the middle of the 3D view, heading the way the camera looks
+	var cam := panes[0].camera as OrbitCamera
+	var fwd := -cam.global_basis.z
+	fwd.y = 0
+	fwd = fwd.normalized() if fwd.length() > 1e-3 else Vector3.FORWARD
+	_gen_anchor = _view_center()
+	_gen_anchor.y = maxf(_gen_anchor.y, 120.0)
+	_gen_anchor_yaw = rad_to_deg(atan2(-fwd.x, -fwd.z))
+	_gen_follow = _gen_source != null
+	_fields["gen_follow"].set_pressed_no_signal(_gen_follow)
+	_fields["gen_follow"].disabled = _gen_source == null
+	_gen_ramp = r
+	ramps_root.add_child(r)
+	_gen_set_shape(_gen_shape)
+	_select(r)
+	_set_status("Pick a shape and drag the sliders - the ramp updates as you go. Enter keeps it, Esc throws it away.")
+
+
+func _gen_set_shape(shape: String) -> void:
+	_gen_shape = shape
+	_gen_shape_buttons[shape].set_pressed_no_signal(true)
+	_gen_about.text = RampGenerator.SHAPES[shape]["about"]
+	var vals: Dictionary = _gen_values.get(shape, {})
+	var defaults := RampGenerator.defaults(shape)
+	for k in defaults:
+		if not vals.has(k):
+			vals[k] = defaults[k]
+	_gen_values[shape] = vals
+	for c in _gen_param_box.get_children():
+		_gen_param_box.remove_child(c)
+		c.queue_free()
+	for p in RampGenerator.params(shape):
+		var key: String = p[0]
+		if p[2] == 0.0 and p[3] == 1.0 and p[4] == 1.0:  # an on/off choice
+			var cb := CheckButton.new()
+			cb.text = p[1]
+			cb.focus_mode = Control.FOCUS_NONE
+			cb.button_pressed = vals[key] >= 0.5
+			cb.toggled.connect(func(on): vals[key] = 1.0 if on else 0.0; _gen_rebuild())
+			_gen_param_box.add_child(cb)
+		else:
+			_gen_slider(_gen_param_box, p[1], p[2], p[3], p[4], vals[key], func(v): vals[key] = v; _gen_rebuild())
+	_gen_refresh_place()
+	_gen_rebuild()
+
+
+func _gen_refresh_place() -> void:
+	_fields["gen_follow_opts"].visible = _gen_follow and _gen_source != null
+
+
+## Where the generated ramp starts and which way it heads.
+func _gen_placement() -> Array:
+	var r := _gen_ramp
+	if _gen_follow and _gen_source and is_instance_valid(_gen_source) and _gen_source.ridge.size() >= 2:
+		var ex := JumpCheck.exit_of(_gen_source.ridge)
+		var ref := _speed_reference(_gen_source)
+		var speed := JumpCheck.speed_at(ref[0], ref[1], ex[0].y) * SLOPPY   # aim so even a sloppy run makes it
+		var start := JumpCheck.next_ramp_start(ex[0], ex[1], speed, _gen_gap, _gen_side, r.width, r.height)
+		return [start, rad_to_deg(atan2(-ex[1].x, -ex[1].z))]
+	return [_gen_anchor, _gen_anchor_yaw]
+
+
+func _gen_rebuild() -> void:
+	if _gen_ramp == null:
+		return
+	var place := _gen_placement()
+	var res := RampGenerator.generate(_gen_shape, _gen_values[_gen_shape], place[0], place[1])
+	_gen_ramp.points = res["points"]
+	_gen_ramp.twist = res["twist"]
+	_gen_ramp.roll = res["roll"]
+	_gen_ramp.rebuild()
+	var warn := ""
+	var crest := RampGenerator.crest_above_start(_gen_ramp.points)
+	if crest > 0.0:
+		warn = "A crest is %.0f m above the start of the ramp: slow riders may not make it over. Add more drop or lower the waves." % crest
+	elif _gen_shape == "corkscrew" and absf(_gen_values["corkscrew"]["twist"]) > 38.0:
+		warn = "Past about 38° the riding face goes beyond vertical near the end: riders will slide off."
+	_gen_warning.text = warn
+	_gen_warning.visible = warn != ""
+	_map_changed()
+
+
+func _gen_create() -> void:
+	if _gen_ramp == null:
+		return
+	var r := _gen_ramp
+	var label: String = RampGenerator.SHAPES[_gen_shape]["label"]
+	_gen_ramp = null
+	_gen_source = null
+	_select(r)
+	_set_status("%s ramp created. Drag its points to fine-tune it; Ctrl+Z takes it away again." % label)
+
+
+func _gen_cancel() -> void:
+	if _gen_ramp == null:
+		return
+	var r := _gen_ramp
+	var src := _gen_source
+	_gen_ramp = null
+	_gen_source = null
+	ramps_root.remove_child(r)
+	r.queue_free()
+	if not _undo.is_empty():
+		_undo.pop_back()                                # the checkpoint taken when the generator opened
+	_select(src if src and is_instance_valid(src) else null)
+	_set_status("Generator closed, nothing added.")
 
 
 func _add_entity(kind: String) -> void:

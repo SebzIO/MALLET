@@ -12,6 +12,7 @@ var width := 13.0                    ## metres edge to edge
 var height := 8.125                  ## ridge height above the edges (face steepness = height / (width / 2))
 var detail := 1.0                    ## segments per metre of path (smoothness / polygon count)
 var roll := 0.0                      ## degrees the cross-section is tilted around the path
+var twist := 0.0                     ## extra roll spread along the ramp: roll-twist/2 at the start .. roll+twist/2 at the end
 var solid := false                   ## closed flat bottom instead of the open V
 var base_depth := 0.0                ## solid only: how far the flat bottom sits below the face edges
 var color := DEFAULT_COLOR
@@ -41,7 +42,7 @@ func _ready() -> void:
 func rebuild() -> void:
 	var spacing: float = 1.0 / max(detail, 0.05)
 	ridge = RampShape.sample_path(points, spacing)
-	var mesh := RampShape.build_mesh(ridge, width, height, roll, solid, base_depth)
+	var mesh := RampShape.build_mesh(ridge, width, height, roll, solid, base_depth, twist)
 	_mesh_instance.mesh = mesh
 	_shape.shape = mesh.create_trimesh_shape() if mesh.get_surface_count() > 0 else null
 	triangle_count = 0
@@ -77,7 +78,7 @@ func _build_outline(ridge: PackedVector3Array) -> void:
 		thin.append(ridge[i])
 	if thin[thin.size() - 1] != ridge[ridge.size() - 1]:
 		thin.append(ridge[ridge.size() - 1])
-	var rings := RampShape.compute_rings(thin, width, height, roll, solid, base_depth)
+	var rings := RampShape.compute_rings(thin, width, height, roll, solid, base_depth, twist)
 	var pc := rings[0].size()
 	for k in pc:
 		if not solid and k >= 3:
@@ -97,7 +98,7 @@ func to_dict() -> Dictionary:
 	var pts := []
 	for p in points:
 		pts.append([snappedf(p.x, 0.001), snappedf(p.y, 0.001), snappedf(p.z, 0.001)])
-	return {"points": pts, "width": width, "height": height, "detail": detail, "roll": roll, "solid": solid, "base_depth": base_depth,
+	return {"points": pts, "width": width, "height": height, "detail": detail, "roll": roll, "twist": twist, "solid": solid, "base_depth": base_depth,
 		"color": color.to_html(false), "look": look, "texture": texture, "tex_scale": tex_scale}
 
 
@@ -109,6 +110,7 @@ func from_dict(data: Dictionary) -> void:
 	height = data.get("height", 8.125)
 	detail = data.get("detail", 1.0)
 	roll = data.get("roll", 0.0)
+	twist = data.get("twist", 0.0)
 	solid = data.get("solid", false)
 	base_depth = data.get("base_depth", 0.0)
 	color = Color.html(data.get("color", DEFAULT_COLOR.to_html(false)))

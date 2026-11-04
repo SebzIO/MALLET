@@ -25,6 +25,19 @@ static func exit_of(ridge: PackedVector3Array) -> Array:
 	return [ridge[n - 1] + Vector3(0, -RIDER_BELOW_RIDGE, 0) + dir * 1.5, dir]
 
 
+## Where to put the next ramp's first ridge point so a rider leaving `exit_point` along `exit_dir` at `speed`
+## (m/s) lands on its face after flying `gap` metres horizontally. `side` +1 / -1 picks which face they land on:
+## the ridge is moved 3 m sideways so the arc meets the face 3 m out from the ridge, just under its top.
+static func next_ramp_start(exit_point: Vector3, exit_dir: Vector3, speed: float, gap: float, side: float,
+		width: float, height: float) -> Vector3:
+	var v := exit_dir * speed
+	var vh := maxf(Vector2(v.x, v.z).length(), 0.5)
+	var t := gap / vh
+	var land := exit_point + v * t + Vector3.DOWN * 0.5 * G * t * t
+	var lateral := Vector3.UP.cross(exit_dir).normalized() * side
+	return land + lateral * 3.0 + Vector3(0, 3.0 * height / (width * 0.5) - 0.6, 0)
+
+
 ## Flies from `from` with velocity `vel`. `volumes` are EntityNodes (kill / teleport / booster boxes) tested by
 ## containment; solid things are found with rays on collision layer 1 (ramps and platforms).
 ## Returns {points, outcome: "ramp"/"platform"/"teleport"/"booster"/"kill"/"floor"/"air", label, hit_point}.

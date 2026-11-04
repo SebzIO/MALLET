@@ -54,12 +54,7 @@ func arc_at(p0: Vector3, v0: Vector3, t: float) -> Vector3:
 
 ## The next ramp's ridge start, placed so the rider's arc meets the start of its face `gap` metres on.
 func next_start(ex: Array, speed: float, gap: float, side: float) -> Vector3:
-	var v: Vector3 = ex[1] * speed
-	var vh := Vector2(v.x, v.z).length()
-	var land := arc_at(ex[0], v, gap / vh)
-	var lateral := Vector3.UP.cross(ex[1]).normalized() * side
-	# the face 3 m out from the ridge is 3.75 m below it; put the ridge so the arc lands there
-	return land + lateral * 3.0 + Vector3(0, 3.0 * H / (W * 0.5) - 0.6, 0)
+	return JumpCheck.next_ramp_start(ex[0], ex[1], speed, gap, side, W, H)
 
 
 ## A course of ramps from a plate. Returns [ramps, last exit, speed at the last exit].
