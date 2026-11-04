@@ -45,7 +45,8 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
    places the new one where the jump lands (aimed so 85% speed still makes it); ramps gain a "twist along the ramp"
 8. Profile rules ✅ upright cross-section (level, never rolls), slope angle + face length (56° default), half ramps,
    vertical-slice / perpendicular option, too-tight bends marked red, Freeform for uneven faces and twist; no tilt
-9. Next: direction arrows + flip, keypoint locking into sections · then ghost replay · prop import (glTF) · CS:S export
+9. Direction arrows ✅ (toggle, editor-only) with ramp start / end markers, Flip direction (the ramp stays put)
+10. Next: keypoint locking into sections · then ghost replay · prop import (glTF) · CS:S export
 
 Templates live in `templates/` and are rebuilt (with every jump re-proven and fresh thumbnails) by
 `godot --path . --resolution 1600x900 -s res://tools/make_templates.gd`.

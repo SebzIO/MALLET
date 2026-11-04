@@ -33,6 +33,7 @@ var sun: DirectionalLight3D
 var _map_props: VBoxContainer
 var _image_dialog: FileDialog
 var show_all_arcs := false
+var show_direction := true             ## editor guide: arrows along each ramp from its start to its end
 var _arcs: Array = []                ## [{ramp, speed, ref, runs: [full, sloppy]}] from the jump checker
 var _arcs_timer := 0.0
 var _arcs_dirty := 2                 ## frames left to recompute arcs (2: physics needs a tick to see moved bodies)
@@ -196,6 +197,13 @@ func _build_ui_main() -> void:
 	arcs.tooltip_text = "Off: arcs only for the selected ramp. On: every ramp's jump at once."
 	arcs.toggled.connect(func(on): show_all_arcs = on; _map_changed())
 	bar.add_child(arcs)
+	var arrows := CheckButton.new()
+	arrows.text = "Direction arrows"
+	arrows.button_pressed = show_direction
+	arrows.focus_mode = Control.FOCUS_NONE
+	arrows.tooltip_text = "Arrows along every ramp showing which way it is ridden (first point to last). Editor only: never exported."
+	arrows.toggled.connect(func(on): show_direction = on; _redraw_overlays())
+	bar.add_child(arrows)
 	var step := OptionButton.new()
 	for s in [1, 2, 4, 8, 16]:
 		step.add_item("%d m" % s, s)
@@ -262,6 +270,13 @@ func _build_props(props: VBoxContainer) -> void:
 	_ramp_props = VBoxContainer.new()
 	_ramp_props.add_theme_constant_override("separation", 6)
 	props.add_child(_ramp_props)
+	var flip := Button.new()
+	flip.text = "⇄  Flip direction"
+	flip.focus_mode = Control.FOCUS_NONE
+	flip.tooltip_text = "Reverse which end the ramp is ridden from. The ramp itself stays exactly where it is."
+	flip.pressed.connect(_flip_clicked)
+	_ramp_props.add_child(flip)
+	_fields["flip"] = flip
 	var shape := OptionButton.new()
 	shape.add_item("V ramp (surf either side)")
 	shape.add_item("Half ramp (surf the left side)")
@@ -526,6 +541,9 @@ func _refresh_props() -> void:
 		var r := selected as RampNode
 		_fields["head"].text = "Ramp  ·  FREEFORM" if r.freeform else "Ramp"
 		_fields["style"].select(RampShape.STYLES.find(r.style))
+		_fields["flip"].disabled = r.freeform and r.twist != 0.0
+		_fields["flip"].tooltip_text = ("A twisted ramp can't be flipped without changing its shape: set Twist to 0 first."
+			if _fields["flip"].disabled else "Reverse which end the ramp is ridden from. The ramp itself stays exactly where it is.")
 		_fields["solid"].select(1 if r.solid else 0)
 		_fields["slice"].select(0 if r.slice == "vertical" else 1)
 		_fields["freeform"].set_pressed_no_signal(r.freeform)
@@ -588,8 +606,9 @@ func _refresh_info() -> void:
 			face_text += "\nFace angle%s: %.1f° (%s)" % [(" (" + f[0] + ")") if f[0] != "" else "", f[1],
 				"surfable" if ok else ("too flat: players will stand on it" if f[1] <= 45.6 else "too steep")]
 		var drop := r.points[0].y - r.points[r.points.size() - 1].y
-		_info.text = ("%sLength: %.0f m\nDrop: %.0f m\nWidth: %.1f m edge to edge%s\nControl points: %d\nTriangles: %d"
-			% ["FREEFORM is on: the upright rules are off for this ramp.\n\n" if r.freeform else "", r.length, drop,
+		_info.text = ("%sLength: %.0f m\n%s\nWidth: %.1f m edge to edge%s\nControl points: %d\nTriangles: %d"
+			% ["FREEFORM is on: the upright rules are off for this ramp.\n\n" if r.freeform else "", r.length,
+				("Drop: %.0f m" % drop) if drop >= 0.0 else ("Climbs %.0f m (riders lose speed going up it)" % -drop),
 				r.geometry_width(), face_text, r.points.size(), r.triangle_count])
 		if not r.folds.is_empty():
 			_info.text = ("⚠ The bend is too tight for this face width in %d place(s): the inner edge folds over"
@@ -771,6 +790,93 @@ func _select(obj: Node3D, point := -1) -> void:
 	_refresh_props()
 
 
+## Arrows along a ramp's spine pointing from its first point to its last, spaced evenly on screen; the selected
+## ramp also gets "ramp start" / "ramp end" markers. Drawn in the views only: nothing here reaches the map.
+func _draw_direction(cam: Camera3D, ov: Control, r: RampNode, is_selected: bool) -> void:
+	var ridge := r.ridge
+	var n := ridge.size()
+	if n < 2:
+		return
+	var tans: PackedVector3Array = r.geometry.get("tan", PackedVector3Array())
+	var col := Color(1, 1, 1, 0.95) if is_selected else Color(1, 1, 1, 0.4)
+	var size := 12.0 if is_selected else 8.0
+	var gap := 90.0 if is_selected else 120.0
+	var travelled := gap * 0.5                         # first arrow half a gap in from the start
+	var prev_s := Vector2.INF
+	for i in n:
+		if cam.is_position_behind(ridge[i]):
+			prev_s = Vector2.INF
+			continue
+		var sp := cam.unproject_position(ridge[i])
+		if prev_s != Vector2.INF:
+			travelled += sp.distance_to(prev_s)
+		prev_s = sp
+		if travelled < gap or i == 0 or i == n - 1:
+			continue
+		var t: Vector3 = tans[i] if i < tans.size() else (ridge[i] - ridge[i - 1]).normalized()
+		var ahead := ridge[i] + t * 2.0
+		if cam.is_position_behind(ahead):
+			continue
+		var d := cam.unproject_position(ahead) - sp
+		if d.length() < 0.5:                            # travelling straight at or away from this view
+			continue
+		travelled = 0.0
+		d = d.normalized()
+		var perp := Vector2(-d.y, d.x)
+		var tip := sp + d * size * 0.6
+		for w in [Color(0, 0, 0, col.a * 0.8), col]:
+			var thick := 4.0 if w.r == 0.0 else 2.0
+			ov.draw_line(tip, tip - d * size + perp * size * 0.7, w, thick)
+			ov.draw_line(tip, tip - d * size - perp * size * 0.7, w, thick)
+	if not is_selected:
+		return
+	var font := ov.get_theme_default_font()
+	for end in [[r.points[0], "ramp start", Color(0.45, 1.0, 0.55)], [r.points[r.points.size() - 1], "ramp end", Color(1.0, 0.5, 0.45)]]:
+		var p: Vector3 = end[0]
+		if cam.is_position_behind(p):
+			continue
+		var at := cam.unproject_position(p)
+		ov.draw_arc(at, 12.0, 0.0, TAU, 24, Color(0, 0, 0, 0.7), 4.0)
+		ov.draw_arc(at, 12.0, 0.0, TAU, 24, end[2], 2.0)
+		ov.draw_string_outline(font, at + Vector2(16, 18), end[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.85))
+		ov.draw_string(font, at + Vector2(16, 18), end[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, end[2])
+
+
+func _redraw_overlays() -> void:
+	for p in panes:
+		p.overlay.queue_redraw()
+
+
+## Reverse a ramp's direction of travel without moving any of it: the points run the other way, and what was
+## the left face is now the right face (half ramps and Freeform faces swap sides to stay where they are).
+func _flip_clicked() -> void:
+	if not selected is RampNode:
+		return
+	var r := selected as RampNode
+	if r.freeform and r.twist != 0.0:
+		_set_status("A twisted ramp can't be flipped without changing its shape: set Twist to 0 first.")
+		return
+	_checkpoint()
+	var pts := r.points.duplicate()                     # a real copy: reverse() works in place
+	pts.reverse()
+	r.points = pts
+	match r.style:
+		"half_left": r.style = "half_right"
+		"half_right": r.style = "half_left"
+	var a := r.angle
+	var l := r.face_length
+	r.angle = r.angle_right
+	r.face_length = r.face_length_right
+	r.angle_right = a
+	r.face_length_right = l
+	if selected_point >= 0:
+		selected_point = pts.size() - 1 - selected_point
+	r.rebuild()
+	_refresh_props()
+	_map_changed()
+	_set_status("Direction flipped: the ramp is now ridden the other way (the jump leaves from the other end).")
+
+
 func _stage_numbers() -> Array:
 	return entities_root.get_children().filter(func(x): return x.kind == "stage").map(func(x): return x.number)
 
@@ -802,6 +908,9 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 				if cam.is_position_behind(line[i]) or cam.is_position_behind(line[i - 1]):
 					continue
 				ov.draw_line(cam.unproject_position(line[i - 1]), cam.unproject_position(line[i]), Color(1.0, 0.15, 0.1, 0.95), 3.0)
+	if show_direction:
+		for r in ramps_root.get_children():
+			_draw_direction(cam, ov, r, r == selected)
 	if selected == null:
 		return
 	if selected is EntityNode and selected.kind == "teleport":      # where does this teleport go?
