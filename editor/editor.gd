@@ -43,11 +43,14 @@ var _info: Label
 var _fields := {}
 var _updating_ui := false
 var _file_dialog: FileDialog
+var play := PlayMode.new()
 
 
 func _ready() -> void:
 	_build_world()
 	_build_ui()
+	add_child(play)
+	play.stopped.connect(_on_play_stopped)
 	_new_map()
 	get_window().title = "SurfForge"
 
@@ -130,7 +133,7 @@ func _build_ui() -> void:
 	for spec in [["New Map", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
 			["+ Ramp", _add_ramp_clicked], ["Extend", _extend_clicked], ["Add Bend", _bend_clicked],
 			["Duplicate", _duplicate_clicked], ["Delete", _delete_clicked], ["|", null],
-			["Undo", undo], ["Redo", redo], ["Frame (F)", _frame_clicked]]:
+			["Undo", undo], ["Redo", redo], ["Frame (F)", _frame_clicked], ["|", null], ["▶ Play (P)", _play_clicked]]:
 		if spec[0] == "|":
 			bar.add_child(VSeparator.new())
 			continue
@@ -417,11 +420,14 @@ func _update_handles() -> void:
 
 
 func _process(_delta: float) -> void:
-	_update_handles()
+	if not play.active:
+		_update_handles()
 
 
 # ------------------------------------------------------------------------------------------------- viewport input
 func _unhandled_input(event: InputEvent) -> void:
+	if play.handle_input(event):
+		return
 	if camera.handle_input(event):
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -457,6 +463,7 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_O when ctrl: _open_clicked()
 		KEY_D when ctrl: _duplicate_clicked()
 		KEY_N: _add_ramp_clicked()
+		KEY_P: _play_clicked()
 		KEY_DELETE, KEY_BACKSPACE: _delete_clicked()
 		KEY_F: _frame_clicked()
 		KEY_G:
@@ -721,3 +728,36 @@ func load_map(path: String) -> void:
 	get_window().title = "SurfForge - " + path.get_file()
 	_frame_clicked()
 	_set_status("Opened %s (%d ramps)" % [path.get_file(), ramps_root.get_child_count()])
+
+
+# ------------------------------------------------------------------------------------------------- play mode
+## Play from the selected ramp's start (on its face, facing down it), or from the view centre if none is selected.
+func _play_clicked() -> void:
+	var at := Transform3D(Basis(Vector3.UP, camera.yaw + PI), camera.focus + Vector3(0, 2, 0))
+	var r: RampNode = selected if selected else (ramps_root.get_child(0) if ramps_root.get_child_count() > 0 else null)
+	if r and r.points.size() >= 2:
+		var p0 := r.points[0]
+		var t := r.points[1] - p0
+		t.y = 0.0
+		t = t.normalized()
+		var side := Vector3.UP.cross(t).normalized()
+		var out := 2.5                                   # metres out from the ridge, on one face
+		var face_drop := out * r.height / (r.width * 0.5)
+		var pos := p0 + t * 3.0 + side * out + Vector3(0, -face_drop + 0.3, 0)
+		at = Transform3D(Basis(Vector3.UP, atan2(-t.x, -t.z)), pos)
+	_dragging = false
+	if selected:
+		selected.set_selected(false)
+	_ui.visible = false
+	handles_root.visible = false
+	_line_mesh.clear_surfaces()
+	play.start(at)
+
+
+func _on_play_stopped() -> void:
+	camera.current = true
+	_ui.visible = true
+	handles_root.visible = true
+	if selected:
+		selected.set_selected(true)
+	_set_status("Back in the editor. Top speed that run: %d u/s" % roundi(play.top_speed))

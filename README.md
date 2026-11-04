@@ -13,9 +13,13 @@ Double-click `Run SurfForge.cmd` (uses Godot 4.5.1), or open this folder as a pr
 | Add a bend | Double-click the selected ramp where you want it, or **Add Bend** |
 | Make longer | **Extend** |
 | Camera | Right-drag orbit · middle-drag pan · wheel zoom · right-drag + WASD/QE fly |
+| Play mode | **P** or ▶ Play: surf from the selected ramp's start · R respawn · Esc back to the editor |
 | Keys | N new ramp · Del delete point/ramp · Ctrl+D duplicate · F frame · G snap · Ctrl+Z/Y undo/redo · Ctrl+S save |
 
 Maps save as `.sfmap` (plain JSON, engine-neutral so other exporters can be added).
+
+## Credits
+Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
 
 ## Layout
 - `core/` – engine-agnostic geometry (ramp generation) shared by every exporter
@@ -24,7 +28,7 @@ Maps save as `.sfmap` (plain JSON, engine-neutral so other exporters can be adde
 
 ## Roadmap
 1. Ramp sandbox ✅
-2. Play mode (surf the map in the editor)
+2. Play mode ✅ (SUCC, SurfsUp's own movement code)
 3. Map basics + one-click SurfsUp export (start/finish, stages, kill floor)
 4. Jump checker + difficulty readout
 5. Look & feel: skybox, fog, lighting, materials, textures
