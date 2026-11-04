@@ -50,6 +50,8 @@ func _init(k: int, ed: Node) -> void:
 	viewport.add_child(camera)
 	camera.current = true
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.clip_contents = true                         # handles/outlines/arcs never spill into neighbouring views
+	clip_contents = true
 	overlay.draw.connect(_draw_overlay)
 	add_child(overlay)
 
