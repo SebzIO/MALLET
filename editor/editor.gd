@@ -70,6 +70,7 @@ var _export_dialog: ConfirmationDialog
 var _export_name: LineEdit
 var _export_dir: LineEdit
 var _dir_dialog: FileDialog
+var welcome: WelcomeScreen
 const SETTINGS_PATH := "user://settings.cfg"
 
 
@@ -85,6 +86,13 @@ func _ready() -> void:
 	play.stopped.connect(_on_play_stopped)
 	_new_map()
 	get_window().title = "SurfForge"
+	_show_welcome_if_main.call_deferred()
+
+
+## The welcome screen greets you when SurfForge starts (not when a test builds the editor).
+func _show_welcome_if_main() -> void:
+	if get_tree().current_scene == self:
+		welcome.popup("Skip, use the simple starter map")
 
 
 # ================================================================================================= world
@@ -113,6 +121,17 @@ func _build_world() -> void:
 # ================================================================================================= ui
 func _build_ui() -> void:
 	add_child(_ui)
+	_build_ui_main()
+	welcome = WelcomeScreen.new()
+	welcome.hide()
+	_ui.add_child(welcome)
+	welcome.template_chosen.connect(_on_template_chosen)
+	welcome.open_requested.connect(func():
+		welcome.hide()
+		_open_clicked())
+
+
+func _build_ui_main() -> void:
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_theme_constant_override("separation", 0)
@@ -852,6 +871,11 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if welcome.visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			welcome.hide()
+			get_viewport().set_input_as_handled()
+		return
 	if play.handle_input(event):
 		return
 	if event is InputEventKey and event.pressed:
@@ -1191,6 +1215,46 @@ func _frame_clicked() -> void:
 			p.frame(aabb.get_center(), max(aabb.size.length() * 0.5, 30.0))
 
 
+## Point a perspective camera down the whole course: from behind the start, a little off to the side, raised,
+## and backed off until every ramp and platform fits a frame of the given aspect.
+func frame_course(cam: OrbitCamera, aspect: float) -> void:
+	var pts: Array[Vector3] = []
+	for o in _all_objects():
+		if o is RampNode:
+			pts.append_array(Array(o.ridge))
+		else:
+			var hs: Vector3 = o.size / 2.0
+			for c in 8:
+				pts.append(o.position + Vector3(hs.x * (1 if c & 1 else -1), hs.y * (1 if c & 2 else -1), hs.z * (1 if c & 4 else -1)))
+	if pts.is_empty():
+		return
+	var course := Vector3(1, 0, 0)
+	var st: Array = entities_root.get_children().filter(func(x): return x.kind == "start")
+	var fin: Array = entities_root.get_children().filter(func(x): return x.kind == "finish")
+	if not st.is_empty() and not fin.is_empty() and (fin[0].position - st[0].position) * Vector3(1, 0, 1) != Vector3.ZERO:
+		course = (fin[0].position - st[0].position) * Vector3(1, 0, 1)
+	course = course.normalized()
+	cam.yaw = atan2(-course.x, -course.z) + deg_to_rad(42.0)
+	cam.pitch = deg_to_rad(-32)
+	cam._apply()
+	# measure the points along the camera's right/up/forward axes, centre on them and back off until they fit
+	var bx := cam.global_basis.x
+	var by := cam.global_basis.y
+	var bz := cam.global_basis.z
+	var lo := Vector3(INF, INF, INF)
+	var hi := -lo
+	for q in pts:
+		var c := Vector3(q.dot(bx), q.dot(by), q.dot(bz))
+		lo = lo.min(c)
+		hi = hi.max(c)
+	var mid := (lo + hi) / 2.0
+	cam.focus = bx * mid.x + by * mid.y + bz * mid.z
+	var half_v := tan(deg_to_rad(cam.fov) / 2.0)          # Godot's fov is vertical
+	var half_h := half_v * aspect
+	cam.distance = maxf(maxf((hi.x - lo.x) / 2.0 / (half_h * 0.88), (hi.y - lo.y) / 2.0 / (half_v * 0.80)) + (hi.z - lo.z) / 2.0, 30.0)
+	cam._apply()
+
+
 func _edit_prop(key: String, value) -> void:
 	_map_changed()
 	if key.begins_with("env_"):
@@ -1221,8 +1285,26 @@ func _edit_prop(key: String, value) -> void:
 
 
 func _new_map_clicked() -> void:
-	_checkpoint()
-	_new_map()
+	welcome.popup("Keep the current map")
+
+
+func _on_template_chosen(path: String) -> void:
+	var data = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if typeof(data) != TYPE_DICTIONARY or data.get("format", "") != MAP_FORMAT:
+		_set_status("Template %s could not be read" % path.get_file())
+		return
+	welcome.hide()
+	var info: Dictionary = data.get("template", {})
+	data.erase("template")
+	_checkpoint()                                       # Ctrl+Z brings back the map you had before
+	_load_dict(data)
+	current_path = ""
+	get_window().title = "SurfForge - new map"
+	_frame_clicked()
+	var pv: Vector2 = Vector2(panes[0].viewport.size)
+	frame_course(panes[0].camera, pv.x / maxf(pv.y, 1.0))
+	_map_changed()
+	_set_status("%s: %s  Press P to play it, then make it your own." % [info.get("title", "New map"), info.get("description", "")])
 
 
 func _open_clicked() -> void:

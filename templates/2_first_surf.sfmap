@@ -1,0 +1,208 @@
+{
+  "entities": [
+    {
+      "kind": "start",
+      "position": [
+        0.0,
+        400.0,
+        0.0
+      ],
+      "size": [
+        20,
+        2,
+        26
+      ],
+      "yaw": 0.0
+    },
+    {
+      "kind": "finish",
+      "position": [
+        -136.85,
+        121.75,
+        -1011.61
+      ],
+      "size": [
+        44,
+        2,
+        44
+      ],
+      "yaw": 0.0
+    }
+  ],
+  "environment": {
+    "ambient_color": "c8d4e6",
+    "ambient_energy": 0.6,
+    "aurora": 0.0,
+    "fog": false,
+    "fog_color": "adbdd1",
+    "fog_density": 0.0006,
+    "ground": "2e3038",
+    "nebula": 0.0,
+    "preset": "day",
+    "sky_horizon": "adbdd1",
+    "sky_top": "5277ad",
+    "stars": 0.0,
+    "sun_color": "fff2e0",
+    "sun_energy": 1.0,
+    "sun_pitch": 55.0,
+    "sun_yaw": -35.0
+  },
+  "format": "surfforge-map",
+  "ramps": [
+    {
+      "color": "2b4ea3",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "ceramic",
+      "points": [
+        [
+          0.0,
+          392.0,
+          -24.0
+        ],
+        [
+          -2.91,
+          378.67,
+          -73.92
+        ],
+        [
+          -11.59,
+          365.33,
+          -123.16
+        ],
+        [
+          -25.93,
+          352.0,
+          -171.06
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "a33b2b",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "ceramic",
+      "points": [
+        [
+          -40.81,
+          330.89,
+          -209.86
+        ],
+        [
+          -50.4,
+          319.56,
+          -255.53
+        ],
+        [
+          -51.9,
+          308.23,
+          -302.17
+        ],
+        [
+          -45.28,
+          296.89,
+          -348.37
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "2b8a4e",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "ceramic",
+      "points": [
+        [
+          -35.94,
+          281.51,
+          -390.91
+        ],
+        [
+          -33.66,
+          270.18,
+          -440.86
+        ],
+        [
+          -41.54,
+          258.84,
+          -490.24
+        ],
+        [
+          -59.24,
+          247.51,
+          -537.0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "7a3ba3",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "ceramic",
+      "points": [
+        [
+          -78.36,
+          233.89,
+          -578.35
+        ],
+        [
+          -91.91,
+          223.89,
+          -623.01
+        ],
+        [
+          -98.84,
+          213.89,
+          -669.16
+        ],
+        [
+          -99.01,
+          203.89,
+          -715.83
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "c48a1c",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "ceramic",
+      "points": [
+        [
+          -95.99,
+          191.06,
+          -763.29
+        ],
+        [
+          -98.28,
+          179.72,
+          -816.58
+        ],
+        [
+          -105.21,
+          168.39,
+          -869.46
+        ],
+        [
+          -116.73,
+          157.06,
+          -921.53
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    }
+  ],
+  "template": {
+    "description": "A classic linear surf: five glazed-ceramic ramps with gentle turns on a clear day. Every jump is makeable at 85% speed.",
+    "title": "First Surf"
+  },
+  "version": 2
+}

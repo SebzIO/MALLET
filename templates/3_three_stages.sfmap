@@ -1,0 +1,300 @@
+{
+  "entities": [
+    {
+      "kind": "start",
+      "position": [
+        0.0,
+        380.0,
+        0.0
+      ],
+      "size": [
+        20,
+        2,
+        26
+      ],
+      "yaw": 0.0
+    },
+    {
+      "keep_speed": false,
+      "kind": "teleport",
+      "number": 2,
+      "position": [
+        47.74,
+        250.55,
+        -417.67
+      ],
+      "size": [
+        40,
+        30,
+        40
+      ],
+      "yaw": 0.0
+    },
+    {
+      "kind": "stage",
+      "number": 2,
+      "position": [
+        320.0,
+        380.0,
+        -40.0
+      ],
+      "size": [
+        24,
+        2,
+        24
+      ],
+      "yaw": 0.0
+    },
+    {
+      "keep_speed": false,
+      "kind": "teleport",
+      "number": 3,
+      "position": [
+        367.74,
+        250.55,
+        -457.67
+      ],
+      "size": [
+        40,
+        30,
+        40
+      ],
+      "yaw": 0.0
+    },
+    {
+      "kind": "stage",
+      "number": 3,
+      "position": [
+        640.0,
+        380.0,
+        0.0
+      ],
+      "size": [
+        24,
+        2,
+        24
+      ],
+      "yaw": 0.0
+    },
+    {
+      "kind": "finish",
+      "position": [
+        687.73,
+        245.55,
+        -417.67
+      ],
+      "size": [
+        44,
+        2,
+        44
+      ],
+      "yaw": 0.0
+    }
+  ],
+  "environment": {
+    "ambient_color": "d9a090",
+    "ambient_energy": 0.6,
+    "aurora": 0.0,
+    "fog": true,
+    "fog_color": "e89a72",
+    "fog_density": 0.00035,
+    "ground": "2a2230",
+    "nebula": 0.0,
+    "preset": "sunset",
+    "sky_horizon": "f58c59",
+    "sky_top": "2c3566",
+    "stars": 0.15,
+    "sun_color": "ffb070",
+    "sun_energy": 1.2,
+    "sun_pitch": 7.0,
+    "sun_yaw": 70.0
+  },
+  "format": "surfforge-map",
+  "ramps": [
+    {
+      "color": "c9ced8",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "steel",
+      "points": [
+        [
+          0.0,
+          372.0,
+          -24.0
+        ],
+        [
+          2.91,
+          358.67,
+          -73.92
+        ],
+        [
+          11.59,
+          345.33,
+          -123.16
+        ],
+        [
+          25.93,
+          332.0,
+          -171.06
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "c9ced8",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "steel",
+      "points": [
+        [
+          40.81,
+          310.89,
+          -209.86
+        ],
+        [
+          51.79,
+          298.89,
+          -258.64
+        ],
+        [
+          55.58,
+          286.89,
+          -308.49
+        ],
+        [
+          52.1,
+          274.89,
+          -358.37
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "9ea8b8",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "grid",
+      "points": [
+        [
+          320.0,
+          372.0,
+          -64.0
+        ],
+        [
+          322.91,
+          358.67,
+          -113.92
+        ],
+        [
+          331.59,
+          345.33,
+          -163.16
+        ],
+        [
+          345.93,
+          332.0,
+          -211.06
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "9ea8b8",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "grid",
+      "points": [
+        [
+          360.81,
+          310.9,
+          -249.86
+        ],
+        [
+          371.79,
+          298.9,
+          -298.64
+        ],
+        [
+          375.58,
+          286.9,
+          -348.49
+        ],
+        [
+          372.1,
+          274.9,
+          -398.37
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "ff7a1a",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "neon",
+      "points": [
+        [
+          640.0,
+          372.0,
+          -24.0
+        ],
+        [
+          642.91,
+          358.67,
+          -73.92
+        ],
+        [
+          651.59,
+          345.33,
+          -123.16
+        ],
+        [
+          665.93,
+          332.0,
+          -171.06
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "ff7a1a",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "neon",
+      "points": [
+        [
+          680.81,
+          310.9,
+          -209.86
+        ],
+        [
+          691.79,
+          298.9,
+          -258.64
+        ],
+        [
+          695.58,
+          286.9,
+          -308.49
+        ],
+        [
+          692.1,
+          274.9,
+          -358.37
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    }
+  ],
+  "template": {
+    "description": "Three short stages joined by teleports, at sunset: falling off sends you back to your stage's plate, and the finish needs every stage.",
+    "title": "Three Stages"
+  },
+  "version": 2
+}

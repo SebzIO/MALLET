@@ -12,7 +12,7 @@ const ENV_PRESETS := {
 		"fog": false, "fog_color": "adbdd1", "fog_density": 0.0006},
 	"sunset": {"label": "Sunset", "sky_top": "2c3566", "sky_horizon": "f58c59", "ground": "2a2230", "sun_yaw": 70.0, "sun_pitch": 7.0,
 		"sun_color": "ffb070", "sun_energy": 1.2, "ambient_color": "d9a090", "ambient_energy": 0.6, "stars": 0.15, "aurora": 0.0, "nebula": 0.0,
-		"fog": true, "fog_color": "e89a72", "fog_density": 0.0008},
+		"fog": true, "fog_color": "e89a72", "fog_density": 0.00035},
 	"overcast": {"label": "Overcast", "sky_top": "8a9099", "sky_horizon": "b8bcc2", "ground": "4a4d52", "sun_yaw": -20.0, "sun_pitch": 60.0,
 		"sun_color": "d8dde5", "sun_energy": 0.6, "ambient_color": "c0c4ca", "ambient_energy": 0.9, "stars": 0.0, "aurora": 0.0, "nebula": 0.0,
 		"fog": true, "fog_color": "b0b5bc", "fog_density": 0.0015},

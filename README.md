@@ -40,4 +40,8 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
 3. Map basics: start/finish platforms + timed runs ✅ · one-click SurfsUp export ✅ · kill zones + boosters ✅ · stages ✅
 4. Jump checker ✅ (arcs matched the real controller's landing within 1 m) · difficulty readout
 5. Look & feel ✅ sky presets + custom sky, sun, fog, 8 ramp looks incl. animated shaders and custom images
-6. Templates, tutorial, prop import, CS:S export
+6. Templates ✅ welcome screen with 4 ready-made, jump-checked maps (Blank, First Surf, Three Stages, Aurora Night)
+7. Ramp generators (spiral, S-curve, rollers, corkscrew) · ghost replay · prop import · CS:S export
+
+Templates live in `templates/` and are rebuilt (with every jump re-proven and fresh thumbnails) by
+`godot --path . --resolution 1600x900 -s res://tools/make_templates.gd`.

@@ -1,0 +1,57 @@
+{
+  "entities": [
+    {
+      "kind": "start",
+      "position": [
+        0,
+        200,
+        0
+      ],
+      "size": [
+        20,
+        2,
+        26
+      ],
+      "yaw": 0.0
+    },
+    {
+      "kind": "finish",
+      "position": [
+        0,
+        100,
+        -260
+      ],
+      "size": [
+        40,
+        2,
+        40
+      ],
+      "yaw": 0.0
+    }
+  ],
+  "environment": {
+    "ambient_color": "c8d4e6",
+    "ambient_energy": 0.6,
+    "aurora": 0.0,
+    "fog": false,
+    "fog_color": "adbdd1",
+    "fog_density": 0.0006,
+    "ground": "2e3038",
+    "nebula": 0.0,
+    "preset": "day",
+    "sky_horizon": "adbdd1",
+    "sky_top": "5277ad",
+    "stars": 0.0,
+    "sun_color": "fff2e0",
+    "sun_energy": 1.0,
+    "sun_pitch": 55.0,
+    "sun_yaw": -35.0
+  },
+  "format": "surfforge-map",
+  "ramps": [],
+  "template": {
+    "description": "Just a start and a finish. Press N to add your first ramp.",
+    "title": "Blank"
+  },
+  "version": 2
+}

@@ -1,0 +1,195 @@
+{
+  "entities": [
+    {
+      "kind": "start",
+      "position": [
+        0.0,
+        420.0,
+        0.0
+      ],
+      "size": [
+        20,
+        2,
+        26
+      ],
+      "yaw": 0.0
+    },
+    {
+      "kind": "booster",
+      "mode": 0,
+      "pitch": 7.08889214807028,
+      "position": [
+        -95.1,
+        250.06,
+        -578.59
+      ],
+      "size": [
+        24,
+        18,
+        14
+      ],
+      "strength": 600.0,
+      "yaw": 21.006418829053
+    },
+    {
+      "kind": "finish",
+      "position": [
+        -218.38,
+        120.6,
+        -978.24
+      ],
+      "size": [
+        44,
+        2,
+        44
+      ],
+      "yaw": 0.0
+    }
+  ],
+  "environment": {
+    "ambient_color": "3a6a70",
+    "ambient_energy": 0.7,
+    "aurora": 1.0,
+    "fog": false,
+    "fog_color": "0b1d2b",
+    "fog_density": 0.0006,
+    "ground": "03060a",
+    "nebula": 0.0,
+    "preset": "aurora",
+    "sky_horizon": "0b1d2b",
+    "sky_top": "02060f",
+    "stars": 0.8,
+    "sun_color": "9fc0ff",
+    "sun_energy": 0.3,
+    "sun_pitch": 35.0,
+    "sun_yaw": 10.0
+  },
+  "format": "surfforge-map",
+  "ramps": [
+    {
+      "color": "26ff99",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "aurora",
+      "points": [
+        [
+          0.0,
+          412.0,
+          -24.0
+        ],
+        [
+          -4.65,
+          397.33,
+          -77.13
+        ],
+        [
+          -18.45,
+          382.67,
+          -128.65
+        ],
+        [
+          -40.99,
+          368.0,
+          -176.98
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "1ae6ff",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "neon",
+      "points": [
+        [
+          -62.24,
+          345.68,
+          -215.0
+        ],
+        [
+          -78.18,
+          333.68,
+          -262.39
+        ],
+        [
+          -82.75,
+          321.68,
+          -312.18
+        ],
+        [
+          -75.72,
+          309.68,
+          -361.68
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "d933e6",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "nebula",
+      "points": [
+        [
+          -66.08,
+          293.78,
+          -406.21
+        ],
+        [
+          -63.51,
+          280.44,
+          -462.82
+        ],
+        [
+          -72.43,
+          267.11,
+          -518.78
+        ],
+        [
+          -92.48,
+          253.78,
+          -571.78
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    },
+    {
+      "color": "26ff99",
+      "detail": 1.0,
+      "height": 8.125,
+      "look": "aurora",
+      "points": [
+        [
+          -153.16,
+          197.94,
+          -721.43
+        ],
+        [
+          -179.77,
+          184.61,
+          -771.46
+        ],
+        [
+          -197.29,
+          171.27,
+          -825.35
+        ],
+        [
+          -205.18,
+          157.94,
+          -881.47
+        ]
+      ],
+      "roll": 0.0,
+      "width": 13.0
+    }
+  ],
+  "template": {
+    "description": "Under the northern lights: aurora, neon and nebula ramps, with a booster that throws you across the big gap.",
+    "title": "Aurora Night"
+  },
+  "version": 2
+}
