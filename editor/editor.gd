@@ -71,7 +71,7 @@ var _tex_box: VBoxContainer
 var _freeform_box: VBoxContainer
 var _unlock_confirm: ConfirmationDialog
 var _pending_unlock := -1
-const RAMP_WIDE := ["style", "solid", "base_depth", "detail", "slice", "freeform", "twist"]   ## frozen while locked
+const RAMP_WIDE := ["style", "solid", "base_depth", "detail", "slice", "freeform"]   ## frozen while locked
 var _status: Label
 var _info: Label
 var _fields := {}
@@ -108,7 +108,6 @@ var _gen_place_box: VBoxContainer
 var _gen_about: Label
 var _gen_warning: Label
 var _gen_shape_buttons := {}
-var _gen_base_freeform := false
 const SETTINGS_PATH := "user://settings.cfg"
 
 
@@ -194,7 +193,7 @@ func _build_ui_main() -> void:
 			["+ Teleport (Y)", func(): _add_entity("teleport")], ["+ Prop (I)", _add_prop_clicked], ["|", null],
 			["Extend", _extend_clicked], ["Add Bend", _bend_clicked], ["Duplicate", _duplicate_clicked],
 			["Delete", _delete_clicked], ["|", null], ["Undo", undo], ["Redo", redo], ["|", null],
-			["Frame (F)", _frame_clicked], ["1 / 4 Views (V)", _toggle_views], ["|", null], ["▶ Play (P)", _play_clicked],
+			["Frame (F)", _frame_clicked], ["|", null], ["▶ Play (P)", _play_clicked],
 			["Export to SurfsUp", _export_clicked], ["Export to CS:S", _css_clicked]]:
 		if spec[0] == "|":
 			bar.add_child(VSeparator.new())
@@ -206,12 +205,23 @@ func _build_ui_main() -> void:
 		bar.add_child(b)
 	bar.add_child(VSeparator.new())
 	var snap := CheckButton.new()
-	snap.text = "Snap"
+	snap.text = "Snap to grid"
 	snap.button_pressed = snap_enabled
 	snap.focus_mode = Control.FOCUS_NONE
-	snap.toggled.connect(func(on): snap_enabled = on; _set_status("Grid snap %s" % ("on" if on else "off")))
+	snap.tooltip_text = "Dragged and nudged points land on a grid (G)."
+	snap.toggled.connect(func(on): snap_enabled = on; _fields["snap_step"].disabled = not on; _set_status("Grid snap %s" % ("on" if on else "off")))
 	bar.add_child(snap)
 	_fields["snap_button"] = snap
+	var step := OptionButton.new()
+	for s in [1, 2, 4, 8, 16]:
+		step.add_item("every %d m" % s, s)
+	step.select(2)
+	step.focus_mode = Control.FOCUS_NONE
+	step.tooltip_text = "Grid size: how far apart the snap points are (also the arrow-key nudge step)."
+	step.item_selected.connect(func(i): snap_step = float(step.get_item_id(i)); _set_status("Snap grid: every %d m" % int(snap_step)))
+	bar.add_child(step)
+	_fields["snap_step"] = step
+	bar.add_child(VSeparator.new())
 	var arcs := CheckButton.new()
 	arcs.text = "Jump arcs: all ramps"
 	arcs.focus_mode = Control.FOCUS_NONE
@@ -232,13 +242,6 @@ func _build_ui_main() -> void:
 	gp.tooltip_text = "Draw the path of your best play-mode run, coloured by speed (blue slow, red fast). Editor only."
 	gp.toggled.connect(func(on): show_ghost_path = on)
 	bar.add_child(gp)
-	var step := OptionButton.new()
-	for s in [1, 2, 4, 8, 16]:
-		step.add_item("%d m" % s, s)
-	step.select(2)
-	step.focus_mode = Control.FOCUS_NONE
-	step.item_selected.connect(func(i): snap_step = float(step.get_item_id(i)))
-	bar.add_child(step)
 
 	var middle := HBoxContainer.new()
 	middle.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -341,7 +344,7 @@ func _build_props(props: VBoxContainer) -> void:
 	var ff := CheckButton.new()
 	ff.text = "Freeform (advanced)"
 	ff.focus_mode = Control.FOCUS_NONE
-	ff.tooltip_text = "Off: both faces match, the cross-section stays upright, no twist. On: each face can differ and the ramp can twist."
+	ff.tooltip_text = "Off: both faces match. On: the right face can have its own angle and length."
 	ff.toggled.connect(func(on): _edit_prop("freeform", on))
 	_ramp_props.add_child(ff)
 	_fields["freeform"] = ff
@@ -349,13 +352,12 @@ func _build_props(props: VBoxContainer) -> void:
 	_freeform_box.add_theme_constant_override("separation", 6)
 	_ramp_props.add_child(_freeform_box)
 	var ff_note := Label.new()
-	ff_note.text = "FREEFORM: the rules are off. Turning it off again makes both faces match the left one and removes twist."
+	ff_note.text = "FREEFORM: the faces can differ. Turning it off again makes the right face match the left one."
 	ff_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ff_note.add_theme_color_override("font_color", Color(1.0, 0.65, 0.25))
 	_freeform_box.add_child(ff_note)
 	_add_slider(_freeform_box, "angle_right", "Right face angle (°)", 10.0, 89.0, 0.5)
 	_add_slider(_freeform_box, "face_length_right", "Right face length (m)", 2.0, 60.0, 0.25)
-	_add_slider(_freeform_box, "twist", "Twist along the ramp (°)", -180.0, 180.0, 1.0)
 	var look := OptionButton.new()
 	for k in Look.LOOK_ORDER:
 		look.add_item(Look.RAMP_LOOKS[k][0])
@@ -428,7 +430,7 @@ func _build_props(props: VBoxContainer) -> void:
 	help.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
 	help.text = ("Drag yellow handles to reshape · drag the object to move it (Shift = up/down in 3D view)\n"
 		+ "Double-click a ramp to add a bend\nArrows / PgUp PgDn nudge · [ ] rotate\n"
-		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · I prop · P play\nR generate a ramp shape · L lock / unlock a point\nSpace maximise the view under the mouse · V 3D / four views\nF frame · G snap\n"
+		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · I prop · P play\nR generate a ramp shape · L lock / unlock a point\nSpace maximise the view under the mouse (again: back to four)\nF frame · G snap to grid\n"
 		+ "Del delete · Ctrl+D duplicate · Ctrl+Z undo · Ctrl+S save")
 	props.add_child(help)
 
@@ -586,17 +588,16 @@ func _refresh_props() -> void:
 		_fields["head"].text = "Ramp  ·  FREEFORM" if r.freeform else "Ramp"
 		_fields["style"].select(RampShape.STYLES.find(r.style))
 		_refresh_lock_props(r)
-		_fields["flip"].disabled = (r.freeform and r.twist != 0.0) or not r.frozen.is_empty()
+		_fields["flip"].disabled = not r.frozen.is_empty()
 		_fields["flip"].tooltip_text = ("Unlock the ramp first: flipping would change what each lock freezes." if not r.frozen.is_empty()
-			else "A twisted ramp can't be flipped without changing its shape: set Twist to 0 first."
-			if _fields["flip"].disabled else "Reverse which end the ramp is ridden from. The ramp itself stays exactly where it is.")
+			else "Reverse which end the ramp is ridden from. The ramp itself stays exactly where it is.")
 		_fields["solid"].select(1 if r.solid else 0)
 		_fields["slice"].select(0 if r.slice == "vertical" else 1)
 		_fields["freeform"].set_pressed_no_signal(r.freeform)
 		_freeform_box.visible = r.freeform
 		_fields["angle_label"].text = "Left face angle (°)" if r.freeform else "Slope angle (°)"
 		_fields["face_length_label"].text = "Left face length (m)" if r.freeform else "Face length (m)"
-		for key in ["angle", "face_length", "base_depth", "detail", "angle_right", "face_length_right", "twist"]:
+		for key in ["angle", "face_length", "base_depth", "detail", "angle_right", "face_length_right"]:
 			_set_field(key, r.get(key))
 		_fields["color"].color = r.color
 		_fields["look"].select(Look.LOOK_ORDER.find(r.look))
@@ -1040,7 +1041,7 @@ func _refresh_lock_props(r: RampNode) -> void:
 		elif f is OptionButton:
 			f.disabled = n > 0
 	_fields["freeform"].tooltip_text = "Unlock the ramp to change this: it shapes every section." if n > 0 else \
-		"Off: both faces match, the cross-section stays upright, no twist. On: each face can differ and the ramp can twist."
+		"Off: both faces match. On: the right face can have its own angle and length."
 
 
 func _lock_clicked() -> void:
@@ -1171,9 +1172,6 @@ func _flip_clicked() -> void:
 	var r := selected as RampNode
 	if not r.frozen.is_empty():
 		_set_status("Unlock the ramp first: flipping would change what each lock freezes.")
-		return
-	if r.freeform and r.twist != 0.0:
-		_set_status("A twisted ramp can't be flipped without changing its shape: set Twist to 0 first.")
 		return
 	_checkpoint()
 	var pts := r.points.duplicate()                     # a real copy: reverse() works in place
@@ -1420,7 +1418,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_ENTER, KEY_KP_ENTER: _gen_create()
 			KEY_ESCAPE: _gen_cancel()
 			KEY_F: _frame_clicked()
-			KEY_V: _toggle_views()
 			KEY_SPACE: _toggle_maximise_hovered()
 		get_viewport().set_input_as_handled()
 		return
@@ -1451,13 +1448,11 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_T: _add_entity("stage")
 		KEY_Y: _add_entity("teleport")
 		KEY_P: _play_clicked()
-		KEY_V: _toggle_views()
 		KEY_SPACE: _toggle_maximise_hovered()
 		KEY_DELETE, KEY_BACKSPACE: _delete_clicked()
 		KEY_F: _frame_clicked()
 		KEY_G:
-			snap_enabled = not snap_enabled
-			_fields["snap_button"].button_pressed = snap_enabled
+			_fields["snap_button"].button_pressed = not snap_enabled
 		KEY_BRACKETLEFT: _rotate_selected(-15.0)
 		KEY_BRACKETRIGHT: _rotate_selected(15.0)
 		KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_PAGEUP, KEY_PAGEDOWN:
@@ -1664,7 +1659,7 @@ func _build_gen_props(props: VBoxContainer) -> void:
 	_gen_props.visible = false
 	props.add_child(_gen_props)
 	var grid := GridContainer.new()
-	grid.columns = 2
+	grid.columns = 3
 	_gen_props.add_child(grid)
 	var group := ButtonGroup.new()
 	for shape in RampGenerator.SHAPE_ORDER:
@@ -1764,7 +1759,6 @@ func _generate_clicked() -> void:
 		for key in ["style", "angle", "face_length", "angle_right", "face_length_right", "slice", "freeform", "detail",
 				"solid", "base_depth", "color", "look", "texture", "tex_scale"]:
 			r.set(key, _gen_source.get(key))
-	_gen_base_freeform = r.freeform
 	# fallback placement: the middle of the 3D view, heading the way the camera looks
 	var cam := panes[0].camera as OrbitCamera
 	var fwd := -cam.global_basis.z
@@ -1835,17 +1829,11 @@ func _gen_rebuild() -> void:
 	var place := _gen_placement()
 	var res := RampGenerator.generate(_gen_shape, _gen_values[_gen_shape], place[0], place[1])
 	_gen_ramp.points = res["points"]
-	_gen_ramp.freeform = _gen_base_freeform or _gen_shape == "corkscrew"   # twisting needs Freeform
-	_gen_ramp.twist = res["twist"] if _gen_ramp.freeform else 0.0
 	_gen_ramp.rebuild()
 	var warn := ""
 	var crest := RampGenerator.crest_above_start(_gen_ramp.points)
 	if crest > 0.0:
 		warn = "A crest is %.0f m above the start of the ramp: slow riders may not make it over. Add more drop or lower the waves." % crest
-	elif _gen_shape == "corkscrew" and _gen_ramp.angle_right + absf(_gen_values["corkscrew"]["twist"]) > 89.0:
-		warn = "With this much twist the riding face goes past vertical near the end: riders will slide off."
-	if _gen_shape == "corkscrew":
-		warn = ("Corkscrews need Freeform (the ramp rolls), so this ramp will be Freeform. " + warn).strip_edges()
 	if not _gen_ramp.folds.is_empty():
 		warn += ("\n" if warn != "" else "") + "Too tight for this face width: the inner edge folds (red). Use a bigger radius or fewer bends."
 	_gen_warning.text = warn
@@ -2069,10 +2057,9 @@ func _edit_prop(key: String, value) -> void:
 	if selected is RampNode:
 		var r := selected as RampNode
 		r.set(key, value)
-		if not r.freeform:                              # outside Freeform both faces always match, no twist
+		if not r.freeform:                              # outside Freeform both faces always match
 			r.angle_right = r.angle
 			r.face_length_right = r.face_length
-			r.twist = 0.0
 		r.rebuild()
 		if key in ["look", "freeform", "style"]:
 			_refresh_props()

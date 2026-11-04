@@ -15,8 +15,7 @@ var angle_right := 56.0              ## Freeform only: the right face's own angl
 var face_length_right := 10.5        ## Freeform only: the right face's own length
 var slice := "vertical"              ## profile held in a vertical slice, or "perpendicular" to travel
 var detail := 1.0                    ## cross-sections per metre of path (smoothness / polygon count)
-var freeform := false                ## unlocks different faces and twist
-var twist := 0.0                     ## Freeform only: the profile rolls from 0 at the start to this at the end
+var freeform := false                ## lets the right face have its own angle and length
 var frozen: Array = []               ## locked sections, first to last (see RampShape.sections)
 var seam_tangent_lock := true        ## the editable section leaves its seam along the locked section's tangent
 var solid := false                   ## closed flat bottom instead of an open shell
@@ -66,7 +65,7 @@ func _set_size(w: float, h: float) -> void:
 		face_length_right = face_length
 
 
-## The settings RampShape builds from (Freeform off forces matching faces and no twist).
+## The settings RampShape builds from (Freeform off forces matching faces).
 func shape_spec() -> Dictionary:
 	return RampShape.spec(to_dict())
 
@@ -146,7 +145,7 @@ func to_dict() -> Dictionary:
 	for p in points:
 		pts.append([snappedf(p.x, 0.001), snappedf(p.y, 0.001), snappedf(p.z, 0.001)])
 	return {"points": pts, "style": style, "angle": angle, "face_length": face_length, "angle_right": angle_right,
-		"face_length_right": face_length_right, "slice": slice, "detail": detail, "freeform": freeform, "twist": twist,
+		"face_length_right": face_length_right, "slice": slice, "detail": detail, "freeform": freeform,
 		"frozen": frozen.duplicate(true), "seam_tangent_lock": seam_tangent_lock,
 		"solid": solid, "base_depth": base_depth, "color": color.to_html(false), "look": look, "texture": texture,
 		"tex_scale": tex_scale}
@@ -162,7 +161,6 @@ func from_dict(data: Dictionary) -> void:
 	if data.get("freeform", false):                # keep a Freeform ramp's own right-face values
 		angle_right = float(data.get("angle_right", angle))
 		face_length_right = float(data.get("face_length_right", face_length))
-		twist = float(data.get("twist", 0.0))
 	color = Color.html(data.get("color", DEFAULT_COLOR.to_html(false)))
 	look = data.get("look", "color")
 	texture = data.get("texture", "")
@@ -228,8 +226,6 @@ func lock_problem(i: int) -> String:
 		return "That point is already in a locked section."
 	if i >= points.size() - 1:
 		return "The last point can't be locked: there has to be ramp after it. Use Extend to add more first."
-	if freeform and twist != 0.0:
-		return "A twisted ramp can't be locked (the twist runs the length of the whole ramp)."
 	return ""
 
 

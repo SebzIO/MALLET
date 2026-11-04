@@ -1,6 +1,6 @@
 extends SceneTree
 ## Direction of travel: Flip reverses the points but leaves the ramp exactly where it was (same surface, half ramps
-## keep their face on the same side), undo restores the original order, twisted ramps refuse to flip, and the
+## keep their face on the same side), undo restores the original order, and the
 ## arrows are an editor overlay only. Screenshots: direction_*.png
 ## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/direction_test.gd -- <out>
 
@@ -82,15 +82,6 @@ func _run() -> void:
 	print("flip with uneven Freeform faces: left %.0f / right %.0f, surface moved by at most %.3f m  %s" % [r.angle, r.angle_right, gff,
 		"OK" if gff < 0.05 and r.angle == 70.0 else "FAIL"])
 	ok = ok and gff < 0.05 and r.angle == 70.0
-
-	# a twisted ramp refuses
-	ed._edit_prop("twist", 30.0)
-	var pts_tw := r.points
-	ed._refresh_props()
-	ed._flip_clicked()
-	var refused: bool = r.points == pts_tw and ed._fields["flip"].disabled
-	print("twisted ramp refuses to flip (button disabled): ", refused)
-	ok = ok and refused
 
 	# arrows are overlay only: the exported scene has nothing new in it
 	var scene: Node = SurfsUpExporter.build_scene(ed._map_dict(), "sf_dir_test")

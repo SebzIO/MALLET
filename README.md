@@ -41,10 +41,10 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
 4. Jump checker ✅ (arcs matched the real controller's landing within 1 m) · difficulty readout
 5. Look & feel ✅ sky presets + custom sky, sun, fog, 8 ramp looks incl. animated shaders and custom images
 6. Templates ✅ welcome screen with 4 ready-made, jump-checked maps (Blank, First Surf, Three Stages, Aurora Night)
-7. Ramp generators ✅ (R) spiral, S-curve, rollers, corkscrew with live preview; "continue from the selected ramp"
-   places the new one where the jump lands (aimed so 85% speed still makes it); ramps gain a "twist along the ramp"
+7. Ramp generators ✅ (R) spiral, S-curve, rollers with live preview; "continue from the selected ramp"
+   places the new one where the jump lands (aimed so 85% speed still makes it)
 8. Profile rules ✅ upright cross-section (level, never rolls), slope angle + face length (56° default), half ramps,
-   vertical-slice / perpendicular option, too-tight bends marked red, Freeform for uneven faces and twist; no tilt
+   vertical-slice / perpendicular option, too-tight bends marked red, Freeform for uneven faces; ramps never tilt, twist or roll
 9. Direction arrows ✅ (toggle, editor-only) with ramp start / end markers, Flip direction (the ramp stays put)
 10. Locking ✅ (L) freeze a ramp up to a point; the rest is a new section with its own slope/face, joined with no
     kink (tangent lock at seam) and no step (settings blend in); unlock merges; undo/redo covers it

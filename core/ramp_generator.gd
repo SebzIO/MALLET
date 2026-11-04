@@ -1,7 +1,7 @@
 class_name RampGenerator
 extends RefCounted
 ## Ready-made ramp shapes. Each one is an ordinary ramp afterwards: a handful of control points (drag them like
-## any other ramp) plus, for the corkscrew, a twist. Shapes are built in a local frame (start at the origin,
+## any other ramp). Shapes are built in a local frame (start at the origin,
 ## heading along -Z, "right" = +X) and then placed at a start point and heading.
 
 const SHAPES := {
@@ -14,11 +14,8 @@ const SHAPES := {
 	"rollers": {"label": "Rollers", "about": "Rises and falls in waves on the way down: hills to pump over.",
 		"params": [["length", "Length (m)", 60.0, 800.0, 10.0, 300.0], ["waves", "Waves", 1.0, 10.0, 1.0, 3.0],
 			["wave_height", "Wave height (m)", 1.0, 60.0, 0.5, 8.0], ["drop", "Drop (m)", 0.0, 400.0, 5.0, 80.0]]},
-	"corkscrew": {"label": "Corkscrew", "about": "Freeform: starts level and rolls over as you ride it. A positive twist tips the right-hand face steeper and steeper (ride that one); the other face flattens out.",
-		"params": [["length", "Length (m)", 60.0, 800.0, 10.0, 220.0], ["twist", "Twist (°)", -80.0, 80.0, 1.0, 35.0],
-			["turn", "Turn (°)", -180.0, 180.0, 5.0, 0.0], ["drop", "Drop (m)", 0.0, 400.0, 5.0, 60.0]]},
 }
-const SHAPE_ORDER := ["spiral", "s_curve", "rollers", "corkscrew"]
+const SHAPE_ORDER := ["spiral", "s_curve", "rollers"]
 ## Every shape starts with a straight run-in lined up with the way the rider arrives, so fast and slow jumps
 ## (which land at different distances) both come down on the same line.
 const RUN_IN := ["run_in", "Straight start (m)", 0.0, 150.0, 5.0, 40.0]
@@ -35,11 +32,10 @@ static func defaults(shape: String) -> Dictionary:
 	return d
 
 
-## Returns {"points": PackedVector3Array (world), "twist": float}. `yaw_deg` is the heading at the start
+## Returns {"points": PackedVector3Array (world)}. `yaw_deg` is the heading at the start
 ## (0 = towards -Z, positive turns left, matching Node3D rotation about +Y).
 static func generate(shape: String, p: Dictionary, start: Vector3, yaw_deg: float) -> Dictionary:
 	var local := PackedVector3Array()
-	var twist := 0.0
 	match shape:
 		"spiral":
 			var r: float = p["radius"]
@@ -64,16 +60,6 @@ static func generate(shape: String, p: Dictionary, start: Vector3, yaw_deg: floa
 				var t := float(i) / (n - 1)
 				var bump := float(p["wave_height"]) * pow(sin(PI * waves * t), 2.0)
 				local.append(Vector3(0, -float(p["drop"]) * t + bump, -float(p["length"]) * t))
-		"corkscrew":
-			var n := 6
-			var turn := deg_to_rad(float(p["turn"]))
-			var seg: float = float(p["length"]) / (n - 1)
-			var pos := Vector3.ZERO
-			for i in n:
-				local.append(pos + Vector3(0, -float(p["drop"]) * i / (n - 1), 0))
-				var heading := turn * (i + 0.5) / (n - 1)
-				pos += Vector3(-sin(heading), 0, -cos(heading)) * seg
-			twist = p["twist"]
 	var run_in: float = p.get("run_in", 0.0)
 	if run_in > 0.5 and local.size() >= 2:
 		# straight lead-in at the shape's own opening slope, then the shape
@@ -90,7 +76,7 @@ static func generate(shape: String, p: Dictionary, start: Vector3, yaw_deg: floa
 	var out := PackedVector3Array()
 	for q in local:
 		out.append(start + b * q)
-	return {"points": out, "twist": twist}            # twist rolls the profile from level at the start to `twist`
+	return {"points": out}
 
 
 ## Highest point the rider must climb back over, measured against the height they started from (rollers):

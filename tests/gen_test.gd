@@ -1,6 +1,6 @@
 extends SceneTree
 ## Ramp generators: each shape, generated off the starter ramp, must be landed on by that ramp's jump (full and 85%
-## speed). Then a showcase course start -> spiral -> S-curve -> rollers -> corkscrew -> finish is chained with
+## speed). Then a showcase course start -> spiral -> S-curve -> rollers -> finish is chained with
 ## "continue from the selected ramp", every jump checked, and exported as sf_generators.
 ## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/gen_test.gd -- <out> [maps_dir]
 
@@ -68,8 +68,6 @@ func _run() -> void:
 		var g: RampNode = ed._gen_ramp
 		ok = check_jump(shape, src, g) and ok
 		ok = ok and ed._gen_props.visible and g.points.size() >= 4
-		if shape == "corkscrew":
-			ok = ok and g.freeform and absf(g.twist - 35.0) < 0.01
 		await shot("gen_" + shape)
 		ed._gen_cancel()
 		var clean: bool = ed.ramps_root.get_child_count() == 1 and ed._undo.size() == undo_before and ed.selected == src
@@ -87,8 +85,7 @@ func _run() -> void:
 	first.rebuild()
 	var plan := [["spiral", {"radius": 70.0, "turns": 0.6, "drop": 70.0, "hand": 1.0}, 1.0],
 		["s_curve", {"length": 240.0, "bends": 2.0, "sway": 25.0, "drop": 70.0}, -1.0],
-		["rollers", {"length": 260.0, "waves": 3.0, "wave_height": 6.0, "drop": 80.0}, 1.0],
-		["corkscrew", {"length": 220.0, "twist": 35.0, "turn": 30.0, "drop": 60.0}, 1.0]]
+		["rollers", {"length": 260.0, "waves": 3.0, "wave_height": 6.0, "drop": 80.0}, 1.0]]
 	var prev := first
 	var created := [first]
 	for step in plan:
@@ -121,9 +118,8 @@ func _run() -> void:
 	var problems: PackedStringArray = SurfsUpExporter.check(ed._map_dict())
 	print("export check: ", problems)
 	ok = ok and problems.is_empty()
-	# saved twist survives a round trip
 	var d: Dictionary = ed._map_dict()
-	ok = ok and absf(float(d["ramps"][4]["twist"]) - 35.0) < 0.01
+	ok = ok and not d["ramps"][3].has("twist")          # ramps never roll: no twist is even stored
 	ed.show_all_arcs = false
 	ed._toggle_views()
 	var cam := ed.panes[0].camera as OrbitCamera

@@ -59,12 +59,13 @@ func _run() -> void:
 	case("half ramp, right face, hollow", curved, {"style": "half_right"})
 	case("near-vertical stretch (no NaN)", vertical, {})
 	case("Freeform: uneven faces", curved, {"freeform": true, "angle": 50.0, "angle_right": 65.0, "face_length_right": 14.0})
-	case("Freeform: twist (no level rule)", straight, {"freeform": true, "twist": 30.0})
+	# a twist in an old file is ignored: ramps never roll, even in Freeform
+	case("old twist value is ignored (stays level)", straight, {"freeform": true, "twist": 30.0})
 	case("too-tight bend is caught", tight, {}, true)
-	# Freeform off ignores right-face values and twist
-	var sp := RampShape.spec({"angle_right": 70.0, "twist": 40.0})
-	var snapped: bool = sp["angle_right"] == sp["angle"] and sp["twist"] == 0.0
-	print("Freeform off snaps the right face and twist back: ", snapped)
+	# Freeform off ignores right-face values
+	var sp := RampShape.spec({"angle_right": 70.0})
+	var snapped: bool = sp["angle_right"] == sp["angle"] and not sp.has("twist")
+	print("Freeform off snaps the right face back (and there is no twist setting): ", snapped)
 	ok = ok and snapped
 
 	# width / height conversion (tests and older files still describe ramps that way)

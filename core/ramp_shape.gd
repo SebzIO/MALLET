@@ -30,8 +30,7 @@ const DEFAULTS := {
 	"face_length_right": 10.5,     ## Freeform only
 	"slice": "vertical",           ## "vertical" or "perpendicular" (how the profile is held on climbs and drops)
 	"detail": 1.0,                 ## stations per metre along the spine (smoothness / polygon count)
-	"freeform": false,             ## unlocks different left/right faces and twist
-	"twist": 0.0,                  ## Freeform only: the profile rolls from 0 at the start to this at the end (degrees)
+	"freeform": false,             ## lets the right face have its own angle and length
 	"frozen": [],                  ## locked sections, first to last: {end, angle, face_length, angle_right,
 	                               ## face_length_right, end_ghost, tangent_lock} (see "Sections" below)
 	"seam_tangent_lock": true,     ## the editable section leaves its seam along the locked section's tangent
@@ -41,7 +40,7 @@ const SETTINGS_BLEND := 20.0     ## metres over which a section's angle / face l
 
 
 ## A complete, consistent set of ramp settings from a (possibly partial) dictionary. Outside Freeform the right
-## face mirrors the left and there is no twist. A dictionary with only width/height is converted.
+## face mirrors the left. A dictionary with only width/height is converted.
 static func spec(d: Dictionary) -> Dictionary:
 	var s := DEFAULTS.duplicate()
 	if d.has("width") and d.has("height") and not d.has("face_length"):
@@ -52,7 +51,7 @@ static func spec(d: Dictionary) -> Dictionary:
 	for k in DEFAULTS:
 		if d.has(k):
 			s[k] = d[k]
-	for k in ["base_depth", "angle", "face_length", "angle_right", "face_length_right", "detail", "twist"]:
+	for k in ["base_depth", "angle", "face_length", "angle_right", "face_length_right", "detail"]:
 		s[k] = float(s[k])
 	s["solid"] = bool(s["solid"])
 	s["freeform"] = bool(s["freeform"])
@@ -63,7 +62,6 @@ static func spec(d: Dictionary) -> Dictionary:
 	if not s["freeform"]:
 		s["angle_right"] = s["angle"]
 		s["face_length_right"] = s["face_length"]
-		s["twist"] = 0.0
 	return s
 
 
@@ -360,8 +358,7 @@ static func profile(s: Dictionary) -> Dictionary:
 	return {"pts": pts, "ride": [0, 2], "edges": [0, 2], "lines": [0, 1, 2]}
 
 
-## The upright frame at every station: right (always level) and up. Twist (Freeform) rolls both around the
-## tangent. Returns [rights, ups].
+## The upright frame at every station: right (always level) and up. Ramps never roll. Returns [rights, ups].
 static func frames(st: Dictionary, s: Dictionary) -> Array:
 	var tan: PackedVector3Array = st["tan"]
 	var n := tan.size()
@@ -385,17 +382,11 @@ static func frames(st: Dictionary, s: Dictionary) -> Array:
 		if rights[i] == Vector3.ZERO:
 			rights[i] = fallback
 		fallback = rights[i]
-	var total: float = st["length"]
 	for i in n:
 		var r := rights[i]
 		var up := Vector3.UP if s["slice"] != "perpendicular" else r.cross(tan[i]).normalized()
 		if up.length() < 1e-4:
 			up = Vector3.UP
-		var tw: float = s["twist"]
-		if tw != 0.0 and total > 0.0:
-			var roll := Basis(tan[i], deg_to_rad(tw * st["dist"][i] / total))
-			r = roll * r
-			up = roll * up
 		rights[i] = r
 		ups[i] = up
 	return [rights, ups]
@@ -540,8 +531,7 @@ static func self_check(s: Dictionary, res: Dictionary, tol := 1e-3) -> PackedStr
 		return problems
 	var prof: Dictionary = res["profile"]
 	var pp: PackedVector2Array = prof["pts"]
-	var twisted: bool = s["twist"] != 0.0
-	var symmetric: bool = s["style"] == "v" and not twisted and not s["freeform"]
+	var symmetric: bool = s["style"] == "v" and not s["freeform"]
 	for i in ridge.size():
 		var r: Vector3 = res["rights"][i]
 		var up: Vector3 = res["ups"][i]
@@ -550,9 +540,9 @@ static func self_check(s: Dictionary, res: Dictionary, tol := 1e-3) -> PackedStr
 			if is_nan(q.x) or is_nan(q.y) or is_nan(q.z):
 				problems.append("station %d: NaN" % i)
 				return problems
-		if not twisted and absf(r.y) > tol:
+		if absf(r.y) > tol:
 			problems.append("station %d: right is not level (y = %.4f)" % [i, r.y])
-		if not twisted and s["slice"] == "vertical" and up.distance_to(Vector3.UP) > tol:
+		if s["slice"] == "vertical" and up.distance_to(Vector3.UP) > tol:
 			problems.append("station %d: profile is not upright" % i)
 		var v: Array = res["values"][i]
 		for k in prof["edges"]:
