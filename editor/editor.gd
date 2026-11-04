@@ -1,49 +1,58 @@
 extends Node3D
-## SurfForge main editor: viewport, ramp tools, properties panel, undo/redo and save/load.
+## SurfForge main editor: four views (perspective / top / front / side), ramp + platform tools,
+## properties panel, undo/redo, save/load and play mode.
 ##
-## Mouse:   left-click a ramp to select it; drag its yellow handles to reshape it
-##          (drag = move across the ground plane, Shift+drag = raise/lower);
-##          double-click a selected ramp to add a bend point there.
-##          Right-drag orbit, middle-drag pan, wheel zoom, right-drag + WASD/QE fly.
-## Keys:    N new ramp, Delete remove point/ramp, Ctrl+D duplicate, F frame selection,
-##          G toggle grid snap, Ctrl+Z / Ctrl+Y undo/redo, Ctrl+S save, Ctrl+O open.
+## Mouse (any view):  left-click selects. Drag a yellow handle to reshape a ramp; drag the object itself to move it.
+##                    Perspective: drag = across the ground, Shift+drag = up/down. Ortho views move along what you see.
+##                    Double-click a selected ramp to add a bend point there.
+## Navigation:        perspective: right-drag orbit, middle-drag pan, wheel zoom, right-drag + WASD/QE fly.
+##                    ortho: right/middle-drag pan, wheel zoom.
+## Keys:              N ramp · B start platform · M finish platform · Del delete · Ctrl+D duplicate · F frame
+##                    arrows / PgUp PgDn nudge · [ ] rotate 15° · V one/four views · G snap · P play
+##                    Ctrl+Z / Ctrl+Y undo/redo · Ctrl+S save · Ctrl+O open
 
 const MAP_FORMAT := "surfforge-map"
-const MAP_VERSION := 1
-const HANDLE_PIXELS := 9.0          ## handle radius on screen
-const PICK_PIXELS := 14.0
+const MAP_VERSION := 2
+const HANDLE_RADIUS := 6.0          ## px
+const PICK_PIXELS := 12.0
 
-var camera: OrbitCamera
 var ramps_root := Node3D.new()
-var handles_root := Node3D.new()
-var selected: RampNode = null
+var entities_root := Node3D.new()
+var selected: Node3D = null          ## a RampNode or an EntityNode
 var selected_point := -1
 var snap_enabled := true
 var snap_step := 4.0
 var current_path := ""
+var play := PlayMode.new()
+var panes: Array[ViewPane] = []
+var active_pane: ViewPane
+var quad_view := true
 
 var _undo: Array = []
 var _redo: Array = []
 var _coalesce_key := ""
 var _coalesce_time := 0.0
-var _dragging := false
+# drag state
+enum Drag { NONE, POINT, OBJECT }
+var _drag := Drag.NONE
+var _drag_pane: ViewPane
 var _drag_plane := Plane()
 var _drag_vertical := false
-var _drag_start_point := Vector3.ZERO
-var _handle_mat := StandardMaterial3D.new()
-var _handle_sel_mat := StandardMaterial3D.new()
-var _line_mesh := ImmediateMesh.new()
+var _drag_start_hit := Vector3.ZERO
+var _drag_origin := {}               ## snapshot of the dragged object before the drag
+var _drag_moved := false
 
-# UI
+# ui
 var _ui := CanvasLayer.new()
-var _props: VBoxContainer
+var _view_grid: GridContainer
 var _props_panel: PanelContainer
+var _ramp_props: VBoxContainer
+var _entity_props: VBoxContainer
 var _status: Label
 var _info: Label
 var _fields := {}
 var _updating_ui := false
 var _file_dialog: FileDialog
-var play := PlayMode.new()
 
 
 func _ready() -> void:
@@ -55,7 +64,7 @@ func _ready() -> void:
 	get_window().title = "SurfForge"
 
 
-# ------------------------------------------------------------------------------------------------- world
+# ================================================================================================= world
 func _build_world() -> void:
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
@@ -87,53 +96,35 @@ func _build_world() -> void:
 	gm.shader = load("res://editor/grid.gdshader")
 	grid.material_override = gm
 	grid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	grid.layers = 2                                     # perspective only: the ortho views draw their own grid
 	add_child(grid)
-
 	add_child(ramps_root)
-	add_child(handles_root)
-	var lines := MeshInstance3D.new()
-	lines.mesh = _line_mesh
-	var lm := StandardMaterial3D.new()
-	lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	lm.no_depth_test = true
-	lm.vertex_color_use_as_albedo = true
-	lm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	lines.material_override = lm
-	add_child(lines)
-
-	for m in [_handle_mat, _handle_sel_mat]:
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.no_depth_test = true
-		m.render_priority = 10
-	_handle_mat.albedo_color = Color(1.0, 0.85, 0.15)
-	_handle_sel_mat.albedo_color = Color(1.0, 0.35, 0.1)
-
-	camera = OrbitCamera.new()
-	add_child(camera)
-	camera.current = true
+	add_child(entities_root)
 
 
-# ------------------------------------------------------------------------------------------------- ui
+# ================================================================================================= ui
 func _build_ui() -> void:
 	add_child(_ui)
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_theme_constant_override("separation", 0)
 	_ui.add_child(root)
 
 	var bar_panel := PanelContainer.new()
 	root.add_child(bar_panel)
 	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 6)
+	bar.add_theme_constant_override("separation", 5)
 	bar_panel.add_child(bar)
 	var title := Label.new()
 	title.text = "  SurfForge  "
 	title.add_theme_font_size_override("font_size", 18)
 	bar.add_child(title)
-	for spec in [["New Map", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
-			["+ Ramp", _add_ramp_clicked], ["Extend", _extend_clicked], ["Add Bend", _bend_clicked],
-			["Duplicate", _duplicate_clicked], ["Delete", _delete_clicked], ["|", null],
-			["Undo", undo], ["Redo", redo], ["Frame (F)", _frame_clicked], ["|", null], ["▶ Play (P)", _play_clicked]]:
+	for spec in [["New", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
+			["+ Ramp (N)", _add_ramp_clicked], ["+ Start (B)", func(): _add_entity("start")],
+			["+ Finish (M)", func(): _add_entity("finish")], ["|", null],
+			["Extend", _extend_clicked], ["Add Bend", _bend_clicked], ["Duplicate", _duplicate_clicked],
+			["Delete", _delete_clicked], ["|", null], ["Undo", undo], ["Redo", redo], ["|", null],
+			["Frame (F)", _frame_clicked], ["1 / 4 Views (V)", _toggle_views], ["|", null], ["▶ Play (P)", _play_clicked]]:
 		if spec[0] == "|":
 			bar.add_child(VSeparator.new())
 			continue
@@ -160,12 +151,21 @@ func _build_ui() -> void:
 
 	var middle := HBoxContainer.new()
 	middle.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	middle.add_theme_constant_override("separation", 0)
 	root.add_child(middle)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	middle.add_child(spacer)
+	_view_grid = GridContainer.new()
+	_view_grid.columns = 2
+	_view_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_view_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_view_grid.add_theme_constant_override("h_separation", 2)
+	_view_grid.add_theme_constant_override("v_separation", 2)
+	middle.add_child(_view_grid)
+	for k in [ViewPane.Kind.PERSPECTIVE, ViewPane.Kind.TOP, ViewPane.Kind.FRONT, ViewPane.Kind.SIDE]:
+		var pane := ViewPane.new(k, self)
+		panes.append(pane)
+		_view_grid.add_child(pane)
+	active_pane = panes[0]
+
 	_props_panel = PanelContainer.new()
 	_props_panel.custom_minimum_size = Vector2(300, 0)
 	middle.add_child(_props_panel)
@@ -173,10 +173,10 @@ func _build_ui() -> void:
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 10)
 	_props_panel.add_child(margin)
-	_props = VBoxContainer.new()
-	_props.add_theme_constant_override("separation", 8)
-	margin.add_child(_props)
-	_build_props()
+	var props := VBoxContainer.new()
+	props.add_theme_constant_override("separation", 8)
+	margin.add_child(props)
+	_build_props(props)
 
 	var status_panel := PanelContainer.new()
 	root.add_child(status_panel)
@@ -192,60 +192,88 @@ func _build_ui() -> void:
 	_ui.add_child(_file_dialog)
 
 
-func _build_props() -> void:
+func _build_props(props: VBoxContainer) -> void:
 	var head := Label.new()
-	head.text = "Ramp"
 	head.add_theme_font_size_override("font_size", 20)
-	_props.add_child(head)
+	props.add_child(head)
 	_fields["head"] = head
-	_add_slider("width", "Width (m)", 4.0, 60.0, 0.5)
-	_add_slider("height", "Height (m)", 2.0, 40.0, 0.25)
-	_add_slider("detail", "Smoothness (segments / m)", 0.1, 4.0, 0.05)
-	_add_slider("roll", "Tilt (°)", -45.0, 45.0, 1.0)
-	var cl := Label.new()
-	cl.text = "Colour"
-	_props.add_child(cl)
+
+	_ramp_props = VBoxContainer.new()
+	_ramp_props.add_theme_constant_override("separation", 6)
+	props.add_child(_ramp_props)
+	var style := OptionButton.new()
+	style.add_item("Hollow (open V underneath)", 0)
+	style.add_item("Solid (flat bottom)", 1)
+	style.focus_mode = Control.FOCUS_NONE
+	style.item_selected.connect(func(i): _edit_prop("solid", i == 1))
+	_add_row(_ramp_props, "Style", style)
+	_fields["solid"] = style
+	_add_slider(_ramp_props, "width", "Width (m)", 4.0, 60.0, 0.5)
+	_add_slider(_ramp_props, "height", "Height (m)", 2.0, 40.0, 0.25)
+	_add_slider(_ramp_props, "base_depth", "Base depth (m, solid only)", 0.0, 60.0, 0.5)
+	_add_slider(_ramp_props, "detail", "Smoothness (segments / m)", 0.1, 4.0, 0.05)
+	_add_slider(_ramp_props, "roll", "Tilt (°)", -45.0, 45.0, 1.0)
 	var cp := ColorPickerButton.new()
-	cp.custom_minimum_size = Vector2(0, 28)
+	cp.custom_minimum_size = Vector2(0, 26)
 	cp.color_changed.connect(func(c): _edit_prop("color", c))
-	_props.add_child(cp)
+	_add_row(_ramp_props, "Colour", cp)
 	_fields["color"] = cp
-	_props.add_child(HSeparator.new())
+
+	_entity_props = VBoxContainer.new()
+	_entity_props.add_theme_constant_override("separation", 6)
+	props.add_child(_entity_props)
+	_add_slider(_entity_props, "size_x", "Width (m)", 4.0, 200.0, 1.0)
+	_add_slider(_entity_props, "size_z", "Depth (m)", 4.0, 200.0, 1.0)
+	_add_slider(_entity_props, "yaw", "Facing (°)", -180.0, 180.0, 5.0)
+
+	props.add_child(HSeparator.new())
 	_info = Label.new()
 	_info.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_props.add_child(_info)
-	_props.add_child(HSeparator.new())
+	props.add_child(_info)
+	props.add_child(HSeparator.new())
 	var help := Label.new()
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD
+	help.add_theme_font_size_override("font_size", 12)
 	help.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
-	help.text = ("Drag yellow handles to shape the ramp.\nShift+drag raises/lowers a handle.\n"
-		+ "Double-click the ramp to add a bend there.\nRight-drag orbit · middle-drag pan · wheel zoom\n"
-		+ "Right-drag + WASD/QE to fly.\nN new ramp · Del delete · Ctrl+D duplicate\nCtrl+Z undo · Ctrl+S save · F frame · G snap")
-	_props.add_child(help)
+	help.text = ("Drag yellow handles to reshape · drag the object to move it (Shift = up/down in 3D view)\n"
+		+ "Double-click a ramp to add a bend\nArrows / PgUp PgDn nudge · [ ] rotate\n"
+		+ "N ramp · B start · M finish · P play\nV one/four views · F frame · G snap\n"
+		+ "Del delete · Ctrl+D duplicate · Ctrl+Z undo · Ctrl+S save")
+	props.add_child(help)
 
 
-func _add_slider(key: String, label: String, lo: float, hi: float, step: float) -> void:
+func _add_row(parent: Container, label: String, control: Control) -> void:
 	var l := Label.new()
 	l.text = label
-	_props.add_child(l)
+	parent.add_child(l)
+	parent.add_child(control)
+
+
+func _add_slider(parent: Container, key: String, label: String, lo: float, hi: float, step: float) -> void:
 	var row := HBoxContainer.new()
 	var s := HSlider.new()
 	s.min_value = lo
 	s.max_value = hi
 	s.step = step
 	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.focus_mode = Control.FOCUS_NONE
 	var box := SpinBox.new()
 	box.min_value = lo
 	box.max_value = hi
 	box.step = step
-	box.custom_minimum_size = Vector2(90, 0)
+	box.custom_minimum_size = Vector2(86, 0)
 	s.value_changed.connect(func(v): if not _updating_ui: box.set_value_no_signal(v); _edit_prop(key, v))
 	box.value_changed.connect(func(v): if not _updating_ui: s.set_value_no_signal(v); _edit_prop(key, v))
 	row.add_child(s)
 	row.add_child(box)
-	_props.add_child(row)
+	_add_row(parent, label, row)
 	_fields[key] = [s, box]
+
+
+func _set_field(key: String, v: float) -> void:
+	_fields[key][0].value = v
+	_fields[key][1].value = v
 
 
 func _refresh_props() -> void:
@@ -253,11 +281,22 @@ func _refresh_props() -> void:
 	if selected == null:
 		return
 	_updating_ui = true
-	for key in ["width", "height", "detail", "roll"]:
-		var v: float = selected.get(key)
-		_fields[key][0].value = v
-		_fields[key][1].value = v
-	_fields["color"].color = selected.color
+	var is_ramp := selected is RampNode
+	_ramp_props.visible = is_ramp
+	_entity_props.visible = not is_ramp
+	if is_ramp:
+		var r := selected as RampNode
+		_fields["head"].text = "Ramp"
+		_fields["solid"].select(1 if r.solid else 0)
+		for key in ["width", "height", "base_depth", "detail", "roll"]:
+			_set_field(key, r.get(key))
+		_fields["color"].color = r.color
+	else:
+		var e := selected as EntityNode
+		_fields["head"].text = e.label()
+		_set_field("size_x", e.size.x)
+		_set_field("size_z", e.size.z)
+		_set_field("yaw", e.yaw)
 	_updating_ui = false
 	_refresh_info()
 
@@ -265,45 +304,80 @@ func _refresh_props() -> void:
 func _refresh_info() -> void:
 	if selected == null:
 		return
-	var face_angle := rad_to_deg(atan2(selected.height, selected.width * 0.5))
-	var surfable := "surfable" if face_angle > 45.6 else "too flat: players will stand on it"
-	var drop := selected.points[0].y - selected.points[selected.points.size() - 1].y
-	_info.text = ("Length: %.0f m\nDrop: %.0f m\nFace angle: %.1f° (%s)\nControl points: %d\nTriangles: %d"
-		% [selected.length, drop, face_angle, surfable, selected.points.size(), selected.triangle_count])
+	if selected is RampNode:
+		var r := selected as RampNode
+		var face_angle := rad_to_deg(atan2(r.height, r.width * 0.5))
+		var surfable := "surfable" if face_angle > 45.6 else "too flat: players will stand on it"
+		var drop := r.points[0].y - r.points[r.points.size() - 1].y
+		_info.text = ("Length: %.0f m\nDrop: %.0f m\nFace angle: %.1f° (%s)\nControl points: %d\nTriangles: %d"
+			% [r.length, drop, face_angle, surfable, r.points.size(), r.triangle_count])
+	else:
+		var e := selected as EntityNode
+		_info.text = "Position: (%.0f, %.0f, %.0f)\n%s" % [e.position.x, e.position.y, e.position.z,
+			"Players spawn here facing the arrow. The timer starts when they leave the green zone." if e.kind == "start"
+			else "Landing in the red zone finishes the run."]
 
 
 func _set_status(t: String) -> void:
 	_status.text = "  " + t
 
 
-# ------------------------------------------------------------------------------------------------- map data
+func _toggle_views() -> void:
+	quad_view = not quad_view
+	for i in range(1, panes.size()):
+		panes[i].visible = quad_view
+	_view_grid.columns = 2 if quad_view else 1
+	_set_status("Four views" if quad_view else "Single 3D view")
+
+
+func set_active_pane(p: ViewPane) -> void:
+	active_pane = p
+
+
+# ================================================================================================= map data
 func _map_dict() -> Dictionary:
 	var rs := []
 	for r in ramps_root.get_children():
 		rs.append(r.to_dict())
-	return {"format": MAP_FORMAT, "version": MAP_VERSION, "ramps": rs}
+	var es := []
+	for e in entities_root.get_children():
+		es.append(e.to_dict())
+	return {"format": MAP_FORMAT, "version": MAP_VERSION, "ramps": rs, "entities": es}
 
 
 func _load_dict(data: Dictionary) -> void:
-	for r in ramps_root.get_children():
-		ramps_root.remove_child(r)
-		r.queue_free()
 	_select(null)
+	for root in [ramps_root, entities_root]:
+		for c in root.get_children():
+			root.remove_child(c)
+			c.queue_free()
 	for rd in data.get("ramps", []):
 		var r := RampNode.new()
 		ramps_root.add_child(r)
 		r.from_dict(rd)
+	for ed in data.get("entities", []):
+		var e := EntityNode.new()
+		entities_root.add_child(e)
+		e.from_dict(ed)
 
 
 func _new_map() -> void:
-	_load_dict({"ramps": []})
+	_load_dict({})
 	_undo.clear()
 	_redo.clear()
 	current_path = ""
+	var s := EntityNode.create("start")
+	s.position = Vector3(-84, 128, 0)
+	s.yaw = -90.0
+	entities_root.add_child(s)
 	var r := _make_ramp(Vector3(-60, 120, 0), Vector3(60, 90, 0))
+	var f := EntityNode.create("finish")
+	f.position = Vector3(110, 60, 0)
+	entities_root.add_child(f)
 	_select(r)
-	camera.frame(Vector3(0, 100, 0), 90)
-	_set_status("New map. Drag the yellow handles to shape your first ramp.")
+	for p in panes:
+		p.frame(Vector3(20, 100, 0), 110)
+	_set_status("New map: a start platform, one ramp and a finish. Shape the ramp, then press P to play.")
 
 
 func _make_ramp(a: Vector3, b: Vector3) -> RampNode:
@@ -313,7 +387,11 @@ func _make_ramp(a: Vector3, b: Vector3) -> RampNode:
 	return r
 
 
-# ------------------------------------------------------------------------------------------------- undo / redo
+func _all_objects() -> Array:
+	return ramps_root.get_children() + entities_root.get_children()
+
+
+# ================================================================================================= undo / redo
 ## Call before any change. `key` lets rapid repeats of the same edit (slider drags) share one undo step.
 func _checkpoint(key := "") -> void:
 	var now := Time.get_ticks_msec() / 1000.0
@@ -329,15 +407,16 @@ func _checkpoint(key := "") -> void:
 
 
 func _snapshot() -> Dictionary:
-	var sel := selected.get_index() if selected else -1
+	var sel := _all_objects().find(selected) if selected else -1
 	return {"map": _map_dict(), "sel": sel, "pt": selected_point}
 
 
 func _restore(s: Dictionary) -> void:
 	_load_dict(s["map"])
+	var objs := _all_objects()
 	var sel: int = s["sel"]
-	if sel >= 0 and sel < ramps_root.get_child_count():
-		_select(ramps_root.get_child(sel), s["pt"])
+	if sel >= 0 and sel < objs.size():
+		_select(objs[sel], s["pt"])
 
 
 func undo() -> void:
@@ -360,100 +439,96 @@ func redo() -> void:
 	_set_status("Redo")
 
 
-# ------------------------------------------------------------------------------------------------- selection + handles
-func _select(r: RampNode, point := -1) -> void:
+# ================================================================================================= selection
+func _select(obj: Node3D, point := -1) -> void:
 	if selected and is_instance_valid(selected):
 		selected.set_selected(false)
-		if selected.changed.is_connected(_on_ramp_changed):
-			selected.changed.disconnect(_on_ramp_changed)
-	selected = r
-	selected_point = point
+		if selected is RampNode and selected.changed.is_connected(_refresh_info):
+			selected.changed.disconnect(_refresh_info)
+	selected = obj
+	selected_point = point if obj is RampNode else -1
 	if selected:
 		selected.set_selected(true)
-		selected.changed.connect(_on_ramp_changed)
-	_rebuild_handles()
+		if selected is RampNode:
+			selected.changed.connect(_refresh_info)
 	_refresh_props()
 
 
-func _on_ramp_changed() -> void:
-	_refresh_info()
-
-
-func _rebuild_handles() -> void:
-	for h in handles_root.get_children():
-		h.queue_free()
-	if selected == null:
+## Handles and helper lines, drawn in 2D on top of each view so they stay a constant size.
+func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
+	if play.active or selected == null:
 		return
-	for i in selected.points.size():
-		var h := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 1.0
-		sm.height = 2.0
-		h.mesh = sm
-		h.material_override = _handle_sel_mat if i == selected_point else _handle_mat
-		h.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		handles_root.add_child(h)
-	_update_handles()
+	var cam := pane.camera
+	if selected is RampNode:
+		var pts: PackedVector3Array = selected.points
+		for i in pts.size():
+			if cam.is_position_behind(pts[i]):
+				continue
+			var s := cam.unproject_position(pts[i])
+			if pane.kind == ViewPane.Kind.PERSPECTIVE and not cam.is_position_behind(Vector3(pts[i].x, 0, pts[i].z)):
+				ov.draw_line(s, cam.unproject_position(Vector3(pts[i].x, 0, pts[i].z)), Color(1, 0.85, 0.15, 0.25), 1.0)
+			if i > 0 and not cam.is_position_behind(pts[i - 1]):
+				ov.draw_line(cam.unproject_position(pts[i - 1]), s, Color(1, 0.85, 0.15, 0.35), 1.0)
+		for i in pts.size():
+			if cam.is_position_behind(pts[i]):
+				continue
+			var s := cam.unproject_position(pts[i])
+			var col := Color(1.0, 0.35, 0.1) if i == selected_point else Color(1.0, 0.85, 0.15)
+			ov.draw_circle(s, HANDLE_RADIUS + 1.5, Color(0, 0, 0, 0.7))
+			ov.draw_circle(s, HANDLE_RADIUS, col)
+	else:
+		var e := selected as EntityNode
+		if not cam.is_position_behind(e.global_position):
+			var s := cam.unproject_position(e.global_position)
+			ov.draw_rect(Rect2(s - Vector2(6, 6), Vector2(12, 12)), Color(1, 0.85, 0.15), true)
+			ov.draw_rect(Rect2(s - Vector2(7, 7), Vector2(14, 14)), Color(0, 0, 0, 0.7), false, 1.5)
 
 
-func _update_handles() -> void:
-	_line_mesh.clear_surfaces()
-	if selected == null:
-		return
-	var pts := selected.points
-	var hs := handles_root.get_children()
-	for i in min(hs.size(), pts.size()):
-		var h: MeshInstance3D = hs[i]
-		h.global_position = pts[i]
-		var dist := camera.global_position.distance_to(pts[i])
-		var world_per_px := 2.0 * dist * tan(deg_to_rad(camera.fov * 0.5)) / get_viewport().get_visible_rect().size.y
-		h.scale = Vector3.ONE * HANDLE_PIXELS * world_per_px
-		h.material_override = _handle_sel_mat if i == selected_point else _handle_mat
-	# dashed drop lines from each handle to the ground: makes heights readable
-	_line_mesh.surface_begin(Mesh.PRIMITIVE_LINES)
-	for p in pts:
-		_line_mesh.surface_set_color(Color(1, 0.85, 0.15, 0.55))
-		_line_mesh.surface_add_vertex(p)
-		_line_mesh.surface_set_color(Color(1, 0.85, 0.15, 0.1))
-		_line_mesh.surface_add_vertex(Vector3(p.x, 0, p.z))
-	_line_mesh.surface_end()
+# ================================================================================================= view input
+## Mouse input from a view (after its own camera navigation). Returns true if used.
+func pane_input(pane: ViewPane, event: InputEvent) -> bool:
+	if play.active:
+		return false
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if event.double_click and selected is RampNode:
+				_insert_point_at_mouse(pane, event.position)
+				return true
+			var hp := _pick_handle(pane, event.position)
+			if hp >= 0:
+				_begin_drag(pane, Drag.POINT, event.position, event.shift_pressed, hp)
+				return true
+			var obj := _pick_object(pane, event.position)
+			if obj != selected:
+				_select(obj)
+			elif obj is RampNode:
+				selected_point = -1
+			if obj:
+				_begin_drag(pane, Drag.OBJECT, event.position, event.shift_pressed)
+				_set_status("Selected %s - drag to move it" % ("ramp" if obj is RampNode else obj.label().to_lower()))
+			else:
+				_set_status("")
+			return true
+		elif _drag != Drag.NONE:
+			_end_drag()
+			return true
+	elif event is InputEventMouseMotion and _drag != Drag.NONE and pane == _drag_pane:
+		_drag_to(event.position, event.shift_pressed)
+		return true
+	return false
 
 
-func _process(_delta: float) -> void:
-	if not play.active:
-		_update_handles()
-
-
-# ------------------------------------------------------------------------------------------------- viewport input
 func _unhandled_input(event: InputEvent) -> void:
 	if play.handle_input(event):
 		return
-	if camera.handle_input(event):
-		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			if event.double_click and selected:
-				_insert_point_at_mouse(event.position)
-				return
-			var hp := _pick_handle(event.position)
-			if hp >= 0:
-				_begin_drag(hp, event.position, event.shift_pressed)
-				return
-			var r := _pick_ramp(event.position)
-			_select(r)
-			_set_status("Selected ramp" if r else "")
-		elif _dragging:
-			_dragging = false
-			_set_status("Moved point %d to (%.0f, %.0f, %.0f)" % [selected_point, selected.points[selected_point].x,
-				selected.points[selected_point].y, selected.points[selected_point].z])
-	elif event is InputEventMouseMotion and _dragging:
-		_drag_to(event.position, event.shift_pressed)
-	elif event is InputEventKey and event.pressed and not event.echo:
+	if event is InputEventKey and event.pressed:
 		_handle_key(event)
 
 
 func _handle_key(e: InputEventKey) -> void:
 	var ctrl := e.ctrl_pressed or e.meta_pressed
+	if e.echo and not e.keycode in [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_PAGEUP, KEY_PAGEDOWN]:
+		return
 	match e.keycode:
 		KEY_Z when ctrl:
 			if e.shift_pressed: redo()
@@ -463,173 +538,261 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_O when ctrl: _open_clicked()
 		KEY_D when ctrl: _duplicate_clicked()
 		KEY_N: _add_ramp_clicked()
+		KEY_B: _add_entity("start")
+		KEY_M: _add_entity("finish")
 		KEY_P: _play_clicked()
+		KEY_V: _toggle_views()
 		KEY_DELETE, KEY_BACKSPACE: _delete_clicked()
 		KEY_F: _frame_clicked()
 		KEY_G:
 			snap_enabled = not snap_enabled
 			_fields["snap_button"].button_pressed = snap_enabled
+		KEY_BRACKETLEFT: _rotate_selected(-15.0)
+		KEY_BRACKETRIGHT: _rotate_selected(15.0)
+		KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_PAGEUP, KEY_PAGEDOWN:
+			_nudge(e.keycode)
 
 
-func _pick_handle(mouse: Vector2) -> int:
-	if selected == null:
+func _pick_handle(pane: ViewPane, mouse: Vector2) -> int:
+	if not selected is RampNode:
 		return -1
 	var best := -1
 	var best_d := PICK_PIXELS
-	for i in selected.points.size():
-		var p := selected.points[i]
-		if camera.is_position_behind(p):
+	var pts: PackedVector3Array = selected.points
+	for i in pts.size():
+		if pane.camera.is_position_behind(pts[i]):
 			continue
-		var d := camera.unproject_position(p).distance_to(mouse)
+		var d := pane.camera.unproject_position(pts[i]).distance_to(mouse)
 		if d < best_d:
 			best_d = d
 			best = i
 	return best
 
 
-func _pick_ramp(mouse: Vector2) -> RampNode:
-	var from := camera.project_ray_origin(mouse)
-	var to := from + camera.project_ray_normal(mouse) * 10000.0
-	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, to))
-	if hit and hit.collider.has_meta("ramp"):
-		return hit.collider.get_meta("ramp")
-	return null
+func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
+	var r := pane.ray(mouse)
+	var q := PhysicsRayQueryParameters3D.create(r[0], r[0] + r[1] * 20000.0)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit:
+		if hit.collider.has_meta("ramp"):
+			return hit.collider.get_meta("ramp")
+		if hit.collider.has_meta("entity"):
+			return hit.collider.get_meta("entity")
+	# fallback: the ridge line on screen (thin ramps seen edge-on in the side views, clicks on the ridge seam)
+	var best: Node3D = null
+	var best_d := PICK_PIXELS
+	for ramp in ramps_root.get_children():
+		var path := RampShape.sample_path(ramp.points, 4.0)
+		for i in range(1, path.size()):
+			if pane.camera.is_position_behind(path[i]) or pane.camera.is_position_behind(path[i - 1]):
+				continue
+			var a := pane.camera.unproject_position(path[i - 1])
+			var b := pane.camera.unproject_position(path[i])
+			var d := Geometry2D.get_closest_point_to_segment(mouse, a, b).distance_to(mouse)
+			if d < best_d:
+				best_d = d
+				best = ramp
+	return best
 
 
-func _begin_drag(i: int, mouse: Vector2, vertical: bool) -> void:
-	_checkpoint()
-	selected_point = i
-	_dragging = true
-	_drag_start_point = selected.points[i]
-	_setup_drag_plane(vertical)
-	_set_status("Dragging point %d  (hold Shift to raise/lower)" % i)
+func _begin_drag(pane: ViewPane, kind: int, mouse: Vector2, vertical: bool, point := -1) -> void:
+	_drag = kind
+	_drag_pane = pane
+	_drag_moved = false
+	if kind == Drag.POINT:
+		selected_point = point
+	_set_drag_plane(mouse, vertical)
 
 
-func _setup_drag_plane(vertical: bool) -> void:
+func _drag_anchor() -> Vector3:
+	return selected.points[selected_point] if _drag == Drag.POINT else selected.center()
+
+
+func _set_drag_plane(mouse: Vector2, vertical: bool) -> void:
 	_drag_vertical = vertical
-	var p := selected.points[selected_point]
-	if vertical:
-		var n := camera.global_basis.z
-		n.y = 0.0
-		if n.length() < 1e-3:
-			n = Vector3.FORWARD
-		_drag_plane = Plane(n.normalized(), p)
-	else:
-		_drag_plane = Plane(Vector3.UP, p)
+	var anchor := _drag_anchor()
+	_drag_plane = _drag_pane.drag_plane(anchor, vertical)
+	var r := _drag_pane.ray(mouse)
+	var hit = _drag_plane.intersects_ray(r[0], r[1])
+	_drag_start_hit = hit if hit != null else anchor
+	_drag_origin = selected.to_dict()                    # re-based so switching Shift mid-drag doesn't jump
 
 
 func _drag_to(mouse: Vector2, vertical: bool) -> void:
-	if vertical != _drag_vertical:
-		_setup_drag_plane(vertical)                    # switch mode mid-drag without jumping
-	var from := camera.project_ray_origin(mouse)
-	var dir := camera.project_ray_normal(mouse)
-	var hit = _drag_plane.intersects_ray(from, dir)
+	if vertical != _drag_vertical and not _drag_pane.is_ortho():
+		_set_drag_plane(mouse, vertical)
+		return
+	var r := _drag_pane.ray(mouse)
+	var hit = _drag_plane.intersects_ray(r[0], r[1])
 	if hit == null:
 		return
-	var p := selected.points[selected_point]
-	if _drag_vertical:
-		p.y = hit.y
+	var delta: Vector3 = (hit - _drag_start_hit) * _drag_pane.drag_axes(_drag_vertical)
+	if not _drag_moved:
+		if delta.length() < 0.01:
+			return
+		_checkpoint()                                    # first real movement: the object is still in its pre-drag state
+		_drag_moved = true
+	selected.from_dict(_drag_origin)
+	if _drag == Drag.POINT:
+		var pts: PackedVector3Array = selected.points
+		var p: Vector3 = pts[selected_point] + delta
+		pts[selected_point] = _snap_axes(p, _drag_pane.drag_axes(_drag_vertical))
+		selected.points = pts
+		selected.rebuild()
+		_set_status("Point %d: (%.0f, %.0f, %.0f)" % [selected_point, pts[selected_point].x, pts[selected_point].y, pts[selected_point].z])
 	else:
-		p.x = hit.x
-		p.z = hit.z
-	if snap_enabled:
-		if _drag_vertical:
-			p.y = snappedf(p.y, snap_step)
-		else:
-			p.x = snappedf(p.x, snap_step)
-			p.z = snappedf(p.z, snap_step)
-	var pts := selected.points
-	pts[selected_point] = p
-	selected.points = pts
-	selected.rebuild()
-	_set_status("Point %d: (%.0f, %.0f, %.0f)%s" % [selected_point, p.x, p.y, p.z, "  [height]" if _drag_vertical else ""])
+		delta = _snap_axes(delta, _drag_pane.drag_axes(_drag_vertical))
+		selected.translate_by(delta)
+		var c: Vector3 = selected.center()
+		_set_status("Moved by (%.0f, %.0f, %.0f) - centre now (%.0f, %.0f, %.0f)" % [delta.x, delta.y, delta.z, c.x, c.y, c.z])
+	_refresh_info()
+
+
+func _snap_axes(v: Vector3, axes: Vector3) -> Vector3:
+	if not snap_enabled:
+		return v
+	for i in 3:
+		if axes[i] > 0.5:
+			v[i] = snappedf(v[i], snap_step)
+	return v
+
+
+func _end_drag() -> void:
+	_drag = Drag.NONE
+	_drag_pane = null
 
 
 ## Double-click on the selected ramp: add a control point on the path where you clicked.
-func _insert_point_at_mouse(mouse: Vector2) -> void:
-	var r := _pick_ramp(mouse)
-	if r != selected:
+func _insert_point_at_mouse(pane: ViewPane, mouse: Vector2) -> void:
+	if _pick_object(pane, mouse) != selected:
 		return
-	var from := camera.project_ray_origin(mouse)
-	var to := from + camera.project_ray_normal(mouse) * 10000.0
-	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, to))
+	var r := pane.ray(mouse)
+	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(r[0], r[0] + r[1] * 20000.0))
 	if not hit:
 		return
-	# find the point on the curved ridge nearest the click, and which span between control points it is in
-	var pts := selected.points
-	var best := RampShape.nearest_on_path(pts, hit.position)
+	var ramp := selected as RampNode
+	var best := RampShape.nearest_on_path(ramp.points, hit.position)
 	_checkpoint()
-	var best_i: int = best["span"]
-	pts.insert(best_i + 1, best["point"])
-	selected.points = pts
-	selected.rebuild()
-	selected_point = best_i + 1
-	_rebuild_handles()
-	_refresh_info()
+	var pts := ramp.points
+	pts.insert(best["span"] + 1, best["point"])
+	ramp.points = pts
+	ramp.rebuild()
+	selected_point = best["span"] + 1
 	_set_status("Added a bend point. Drag it to curve the ramp.")
 
 
-# ------------------------------------------------------------------------------------------------- toolbar actions
+func _nudge(key: int) -> void:
+	if selected == null:
+		return
+	var step := snap_step if snap_enabled else 1.0
+	var d := Vector3.ZERO
+	match key:
+		KEY_LEFT: d = Vector3(-step, 0, 0)
+		KEY_RIGHT: d = Vector3(step, 0, 0)
+		KEY_UP: d = Vector3(0, 0, -step)
+		KEY_DOWN: d = Vector3(0, 0, step)
+		KEY_PAGEUP: d = Vector3(0, step, 0)
+		KEY_PAGEDOWN: d = Vector3(0, -step, 0)
+	_checkpoint("nudge")
+	if selected is RampNode and selected_point >= 0:
+		var pts: PackedVector3Array = selected.points
+		pts[selected_point] += d
+		selected.points = pts
+		selected.rebuild()
+	else:
+		selected.translate_by(d)
+	_refresh_info()
+	_set_status("Nudged %s" % ["point" if selected is RampNode and selected_point >= 0 else "object"])
+
+
+func _rotate_selected(deg: float) -> void:
+	if selected == null:
+		return
+	_checkpoint("rotate")
+	selected.rotate_by(deg)
+	_refresh_props()
+	_set_status("Rotated %+.0f°" % deg)
+
+
+# ================================================================================================= toolbar actions
+func _view_center() -> Vector3:
+	return (panes[0].camera as OrbitCamera).focus
+
+
 func _add_ramp_clicked() -> void:
 	_checkpoint()
-	var fwd := -camera.global_basis.z
+	var cam := panes[0].camera as OrbitCamera
+	var fwd := -cam.global_basis.z
 	fwd.y = 0
 	fwd = fwd.normalized() if fwd.length() > 1e-3 else Vector3.FORWARD
 	var right := fwd.cross(Vector3.UP).normalized()
-	var c := camera.focus
+	var c := _view_center()
 	c.y = max(c.y, 40.0)
 	var a := c - right * 60 + Vector3(0, 15, 0)
 	var b := c + right * 60 - Vector3(0, 15, 0)
 	if snap_enabled:
 		a = a.snapped(Vector3.ONE * snap_step)
 		b = b.snapped(Vector3.ONE * snap_step)
-	var r := _make_ramp(a, b)
-	_select(r)
+	_select(_make_ramp(a, b))
 	_set_status("New ramp added at the view centre.")
 
 
+func _add_entity(kind: String) -> void:
+	_checkpoint()
+	var c := _view_center()
+	if snap_enabled:
+		c = c.snapped(Vector3.ONE * snap_step)
+	for e in entities_root.get_children():         # a map has one start and one finish: move the existing one
+		if e.kind == kind:
+			e.position = c
+			_select(e)
+			_set_status("Moved the %s to the view centre (a map has one)." % e.label().to_lower())
+			return
+	var n := EntityNode.create(kind)
+	n.position = c
+	entities_root.add_child(n)
+	_select(n)
+	_set_status("Added %s at the view centre." % n.label().to_lower())
+
+
 func _extend_clicked() -> void:
-	if selected == null:
+	if not selected is RampNode:
 		return
 	_checkpoint()
-	var pts := selected.points
+	var r := selected as RampNode
+	var pts := r.points
 	var n := pts.size()
-	var dir := (pts[n - 1] - pts[n - 2])
+	var dir := pts[n - 1] - pts[n - 2]
 	pts.append(pts[n - 1] + dir.normalized() * max(dir.length(), 30.0))
-	selected.points = pts
-	selected.rebuild()
+	r.points = pts
+	r.rebuild()
 	selected_point = pts.size() - 1
-	_rebuild_handles()
 	_set_status("Ramp extended. Drag the new end point.")
 
 
 func _bend_clicked() -> void:
-	if selected == null:
+	if not selected is RampNode:
 		return
 	_checkpoint()
-	var pts := selected.points
+	var r := selected as RampNode
+	var pts := r.points
 	var i: int = clamp(selected_point if selected_point >= 0 else 0, 0, pts.size() - 2)
 	pts.insert(i + 1, pts[i].lerp(pts[i + 1], 0.5))
-	selected.points = pts
-	selected.rebuild()
+	r.points = pts
+	r.rebuild()
 	selected_point = i + 1
-	_rebuild_handles()
 	_set_status("Bend point added between points %d and %d." % [i, i + 2])
 
 
 func _duplicate_clicked() -> void:
-	if selected == null:
+	if not selected is RampNode:
+		_set_status("A map has one start and one finish." if selected else "")
 		return
 	_checkpoint()
-	var d := selected.to_dict()
 	var r := RampNode.new()
 	ramps_root.add_child(r)
-	r.from_dict(d)
-	var pts := r.points
-	for i in pts.size():
-		pts[i] += Vector3(0, -30, 40)
-	r.points = pts
-	r.rebuild()
+	r.from_dict(selected.to_dict())
+	r.translate_by(Vector3(0, -30, 40))
 	_select(r)
 	_set_status("Duplicated ramp (moved 30 m down, 40 m over).")
 
@@ -638,43 +801,54 @@ func _delete_clicked() -> void:
 	if selected == null:
 		return
 	_checkpoint()
-	if selected_point >= 0 and selected.points.size() > 2:
-		var pts := selected.points
+	if selected is RampNode and selected_point >= 0 and selected.points.size() > 2:
+		var r := selected as RampNode
+		var pts := r.points
 		pts.remove_at(selected_point)
-		selected.points = pts
-		selected.rebuild()
+		r.points = pts
+		r.rebuild()
 		selected_point = -1
-		_rebuild_handles()
 		_set_status("Removed control point.")
-	else:
-		var r := selected
-		_select(null)
-		ramps_root.remove_child(r)
-		r.queue_free()
-		_set_status("Deleted ramp.")
+		return
+	var obj := selected
+	_select(null)
+	obj.get_parent().remove_child(obj)
+	obj.queue_free()
+	_set_status("Deleted.")
 
 
 func _frame_clicked() -> void:
 	var aabb := AABB()
 	var first := true
-	var targets := [selected] if selected else ramps_root.get_children()
-	for r in targets:
-		for p in r.points:
+	var targets := [selected] if selected else _all_objects()
+	for o in targets:
+		var pts: Array = Array(o.points) if o is RampNode else [o.position]
+		for p in pts:
 			if first:
 				aabb = AABB(p, Vector3.ZERO)
 				first = false
 			else:
 				aabb = aabb.expand(p)
 	if not first:
-		camera.frame(aabb.get_center(), max(aabb.size.length() * 0.5, 30.0))
+		for p in panes:
+			p.frame(aabb.get_center(), max(aabb.size.length() * 0.5, 30.0))
 
 
 func _edit_prop(key: String, value) -> void:
 	if selected == null or _updating_ui:
 		return
-	_checkpoint("prop:%s:%d" % [key, selected.get_index()])
-	selected.set(key, value)
-	selected.rebuild()
+	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])
+	if selected is RampNode:
+		selected.set(key, value)
+		selected.rebuild()
+	else:
+		var e := selected as EntityNode
+		match key:
+			"size_x": e.size.x = value
+			"size_z": e.size.z = value
+			"yaw": e.yaw = value
+		e.rebuild()
+	_refresh_info()
 
 
 func _new_map_clicked() -> void:
@@ -717,8 +891,7 @@ func save_map(path: String) -> void:
 
 
 func load_map(path: String) -> void:
-	var text := FileAccess.get_file_as_string(path)
-	var data = JSON.parse_string(text)
+	var data = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if typeof(data) != TYPE_DICTIONARY or data.get("format", "") != MAP_FORMAT:
 		_set_status("%s is not a SurfForge map" % path.get_file())
 		return
@@ -730,34 +903,42 @@ func load_map(path: String) -> void:
 	_set_status("Opened %s (%d ramps)" % [path.get_file(), ramps_root.get_child_count()])
 
 
-# ------------------------------------------------------------------------------------------------- play mode
-## Play from the selected ramp's start (on its face, facing down it), or from the view centre if none is selected.
+# ================================================================================================= play mode
+func _find_entity(kind: String) -> EntityNode:
+	for e in entities_root.get_children():
+		if e.kind == kind:
+			return e
+	return null
+
+
+## Play from the start platform if there is one, otherwise from the selected (or first) ramp's start.
 func _play_clicked() -> void:
-	var at := Transform3D(Basis(Vector3.UP, camera.yaw + PI), camera.focus + Vector3(0, 2, 0))
-	var r: RampNode = selected if selected else (ramps_root.get_child(0) if ramps_root.get_child_count() > 0 else null)
-	if r and r.points.size() >= 2:
-		var p0 := r.points[0]
-		var t := r.points[1] - p0
-		t.y = 0.0
-		t = t.normalized()
-		var side := Vector3.UP.cross(t).normalized()
-		var out := 2.5                                   # metres out from the ridge, on one face
-		var face_drop := out * r.height / (r.width * 0.5)
-		var pos := p0 + t * 3.0 + side * out + Vector3(0, -face_drop + 0.3, 0)
-		at = Transform3D(Basis(Vector3.UP, atan2(-t.x, -t.z)), pos)
-	_dragging = false
+	var start := _find_entity("start")
+	var finish := _find_entity("finish")
+	var at := Transform3D(Basis(), _view_center() + Vector3(0, 2, 0))
+	if start:
+		at = start.spawn_transform()
+	else:
+		var r: RampNode = selected if selected is RampNode else (ramps_root.get_child(0) if ramps_root.get_child_count() > 0 else null)
+		if r and r.points.size() >= 2:
+			var p0 := r.points[0]
+			var t := r.points[1] - p0
+			t.y = 0.0
+			t = t.normalized()
+			var side := Vector3.UP.cross(t).normalized()
+			var out := 2.5
+			var pos := p0 + t * 3.0 + side * out + Vector3(0, -out * r.height / (r.width * 0.5) + 0.3, 0)
+			at = Transform3D(Basis(Vector3.UP, atan2(-t.x, -t.z)), pos)
+	_end_drag()
 	if selected:
 		selected.set_selected(false)
 	_ui.visible = false
-	handles_root.visible = false
-	_line_mesh.clear_surfaces()
-	play.start(at)
+	play.start(at, start.zone_aabb() if start else AABB(), finish.zone_aabb() if finish else AABB())
 
 
 func _on_play_stopped() -> void:
-	camera.current = true
 	_ui.visible = true
-	handles_root.visible = true
 	if selected:
 		selected.set_selected(true)
-	_set_status("Back in the editor. Top speed that run: %d u/s" % roundi(play.top_speed))
+	var t := " Best time: %s" % PlayMode.format_time(play.best_time) if play.best_time > 0.0 else ""
+	_set_status("Back in the editor. Top speed %d u/s.%s" % [roundi(play.top_speed), t])

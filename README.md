@@ -8,13 +8,16 @@ Double-click `Run SurfForge.cmd` (uses Godot 4.5.1), or open this folder as a pr
 ## Controls
 | Action | How |
 |---|---|
-| Select a ramp | Left-click it |
-| Reshape | Drag the yellow handles (Shift+drag = raise/lower) |
-| Add a bend | Double-click the selected ramp where you want it, or **Add Bend** |
-| Make longer | **Extend** |
-| Camera | Right-drag orbit · middle-drag pan · wheel zoom · right-drag + WASD/QE fly |
-| Play mode | **P** or ▶ Play: surf from the selected ramp's start · R respawn · Esc back to the editor |
-| Keys | N new ramp · Del delete point/ramp · Ctrl+D duplicate · F frame · G snap · Ctrl+Z/Y undo/redo · Ctrl+S save |
+| Views | Perspective + Top / Front / Side like Hammer · **V** toggles one big 3D view |
+| Select | Left-click a ramp or platform in any view |
+| Reshape a ramp | Drag its yellow handles (in 3D: Shift+drag = up/down; ortho views move along what you see) |
+| Move anything | Drag the object itself · arrows / PgUp PgDn nudge by the snap step · **[ ]** rotate 15° |
+| Add a bend | Double-click the selected ramp, or **Add Bend** · **Extend** makes it longer |
+| Ramp style | Hollow (open V) or Solid (flat bottom, optional base depth) · width, height, smoothness, tilt, colour |
+| Platforms | **B** start platform (spawn + timer start, arrow = facing) · **M** finish platform |
+| Play | **P**: spawn on the start platform; the timer runs from leaving the start to landing on the finish · R restart · Esc back |
+| Camera | 3D: right-drag orbit · middle-drag pan · wheel zoom · right-drag + WASD/QE fly · ortho: right/middle-drag pan, wheel zoom |
+| Keys | N ramp · Del delete point/object · Ctrl+D duplicate · F frame · G snap · Ctrl+Z/Y undo/redo · Ctrl+S save |
 
 Maps save as `.sfmap` (plain JSON, engine-neutral so other exporters can be added).
 
@@ -24,12 +27,12 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
 ## Layout
 - `core/` – engine-agnostic geometry (ramp generation) shared by every exporter
 - `editor/` – the editor app
-- `tests/` – automated smoke tests (`godot --path . -s res://tests/smoke.gd -- <out_dir>`)
+- `tests/` – automated tests: `editor_test.gd`, `play_test.gd`, `surf_physics.gd` (`godot --path . -s res://tests/<name>.gd -- <out_dir>`)
 
 ## Roadmap
 1. Ramp sandbox ✅
 2. Play mode ✅ (SUCC, SurfsUp's own movement code)
-3. Map basics + one-click SurfsUp export (start/finish, stages, kill floor)
+3. Map basics: start/finish platforms + timed runs ✅ · stages, kill floor, one-click SurfsUp export
 4. Jump checker + difficulty readout
 5. Look & feel: skybox, fog, lighting, materials, textures
 6. Templates, tutorial, prop import, CS:S export

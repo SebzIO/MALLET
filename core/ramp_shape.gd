@@ -64,20 +64,26 @@ static func _catmull_rom(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: 
 
 ## Cross-section as (lateral, vertical) pairs measured from the ramp's base line under the ridge.
 ## Order: left edge, ridge, right edge, then the thin underside back to the left edge.
-static func profile(width: float, height: float) -> PackedVector2Array:
+## Solid ramps close the bottom flat instead; `base_depth` extends that bottom downward into a block.
+static func profile(width: float, height: float, solid := false, base_depth := 0.0) -> PackedVector2Array:
 	var w := width * 0.5
+	if solid:
+		if base_depth > 0.01:
+			return PackedVector2Array([Vector2(-w, 0), Vector2(0, height), Vector2(w, 0), Vector2(w, -base_depth), Vector2(-w, -base_depth)])
+		return PackedVector2Array([Vector2(-w, 0), Vector2(0, height), Vector2(w, 0)])
 	return PackedVector2Array([Vector2(-w, 0), Vector2(0, height), Vector2(w, 0),
 		Vector2(w * 0.9, -height * 0.0625), Vector2(0, height * 0.84), Vector2(-w * 0.9, -height * 0.0625)])
 
 
 ## Full ramp mesh. `ridge` is the sampled path of the ridge line.
 ## `roll` (degrees) tilts the cross-section around the path; positive tips the right face down.
-static func build_mesh(ridge: PackedVector3Array, width: float, height: float, roll_deg := 0.0) -> ArrayMesh:
+static func build_mesh(ridge: PackedVector3Array, width: float, height: float, roll_deg := 0.0,
+		solid := false, base_depth := 0.0) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var n := ridge.size()
 	if n < 2:
 		return mesh
-	var prof := profile(width, height)
+	var prof := profile(width, height, solid, base_depth)
 	var pc := prof.size()
 	# frame at every sample
 	var rings: Array[PackedVector3Array] = []
@@ -103,7 +109,12 @@ static func build_mesh(ridge: PackedVector3Array, width: float, height: float, r
 			d += ridge[i].distance_to(ridge[i - 1])
 		dist.append(d)
 	# u along the cross-section: riding surface spans exactly 0..1 so textures can frame the edges
-	var ucoord := PackedFloat32Array([0.0, 0.5, 1.0, 1.05, 1.5, 1.95, 2.0])
+	var ucoord := PackedFloat32Array([0.0, 0.5, 1.0])
+	if solid:
+		for k in range(2, pc):                       # sides and bottom continue past 1 in proportion to their size
+			ucoord.append(ucoord[k] + prof[k].distance_to(prof[(k + 1) % pc]) / max(width, 0.01))
+	else:
+		ucoord = PackedFloat32Array([0.0, 0.5, 1.0, 1.05, 1.5, 1.95, 2.0])
 
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -119,6 +130,26 @@ static func build_mesh(ridge: PackedVector3Array, width: float, height: float, r
 			var v1 := dist[i + 1] / UV_METRES
 			_quad(st, q0, q1, q2, q3,
 				Vector2(ucoord[f], v0), Vector2(ucoord[f + 1], v0), Vector2(ucoord[f + 1], v1), Vector2(ucoord[f], v1))
+	if solid:
+		for end in [0, n - 1]:                       # solid cross-sections are convex: fan from the centre
+			var r: PackedVector3Array = rings[end]
+			var c := Vector3.ZERO
+			for q in r:
+				c += q
+			c /= r.size()
+			for k in pc:
+				var a := r[k]
+				var b := r[(k + 1) % pc]
+				var ua := Vector2(prof[k].x, prof[k].y) / UV_METRES
+				var ub := Vector2(prof[(k + 1) % pc].x, prof[(k + 1) % pc].y) / UV_METRES
+				st.set_smooth_group(-1)
+				var tri := [[c, Vector2.ZERO], [b, ub], [a, ua]] if end == 0 else [[c, Vector2.ZERO], [a, ua], [b, ub]]
+				for pair in tri:
+					st.set_uv(pair[1])
+					st.add_vertex(pair[0])
+		st.generate_normals()
+		st.commit(mesh)
+		return mesh
 	# end caps (two quads each: left half and right half of the hollow V)
 	for end in [0, n - 1]:
 		var r: PackedVector3Array = rings[end]

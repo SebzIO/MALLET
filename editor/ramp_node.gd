@@ -12,6 +12,8 @@ var width := 13.0                    ## metres edge to edge
 var height := 8.125                  ## ridge height above the edges (face steepness = height / (width / 2))
 var detail := 1.0                    ## segments per metre of path (smoothness / polygon count)
 var roll := 0.0                      ## degrees the cross-section is tilted around the path
+var solid := false                   ## closed flat bottom instead of the open V
+var base_depth := 0.0                ## solid only: how far the flat bottom sits below the face edges
 var color := DEFAULT_COLOR
 
 var _mesh_instance := MeshInstance3D.new()
@@ -37,7 +39,7 @@ func _ready() -> void:
 func rebuild() -> void:
 	var spacing: float = 1.0 / max(detail, 0.05)
 	var ridge := RampShape.sample_path(points, spacing)
-	var mesh := RampShape.build_mesh(ridge, width, height, roll)
+	var mesh := RampShape.build_mesh(ridge, width, height, roll, solid, base_depth)
 	_mesh_instance.mesh = mesh
 	_shape.shape = mesh.create_trimesh_shape() if mesh.get_surface_count() > 0 else null
 	triangle_count = 0
@@ -65,7 +67,7 @@ func to_dict() -> Dictionary:
 	var pts := []
 	for p in points:
 		pts.append([snappedf(p.x, 0.001), snappedf(p.y, 0.001), snappedf(p.z, 0.001)])
-	return {"points": pts, "width": width, "height": height, "detail": detail, "roll": roll,
+	return {"points": pts, "width": width, "height": height, "detail": detail, "roll": roll, "solid": solid, "base_depth": base_depth,
 		"color": color.to_html(false)}
 
 
@@ -77,6 +79,34 @@ func from_dict(data: Dictionary) -> void:
 	height = data.get("height", 8.125)
 	detail = data.get("detail", 1.0)
 	roll = data.get("roll", 0.0)
+	solid = data.get("solid", false)
+	base_depth = data.get("base_depth", 0.0)
 	color = Color.html(data.get("color", DEFAULT_COLOR.to_html(false)))
 	if is_inside_tree():
 		rebuild()
+
+
+func center() -> Vector3:
+	var c := Vector3.ZERO
+	for p in points:
+		c += p
+	return c / max(points.size(), 1)
+
+
+func translate_by(delta: Vector3) -> void:
+	var pts := points
+	for i in pts.size():
+		pts[i] += delta
+	points = pts
+	rebuild()
+
+
+## Turn the whole ramp around its centre (degrees, seen from above).
+func rotate_by(deg: float) -> void:
+	var c := center()
+	var b := Basis(Vector3.UP, deg_to_rad(deg))
+	var pts := points
+	for i in pts.size():
+		pts[i] = c + b * (pts[i] - c)
+	points = pts
+	rebuild()
