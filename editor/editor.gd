@@ -53,6 +53,11 @@ var _info: Label
 var _fields := {}
 var _updating_ui := false
 var _file_dialog: FileDialog
+var _export_dialog: ConfirmationDialog
+var _export_name: LineEdit
+var _export_dir: LineEdit
+var _dir_dialog: FileDialog
+const SETTINGS_PATH := "user://settings.cfg"
 
 
 func _ready() -> void:
@@ -124,7 +129,8 @@ func _build_ui() -> void:
 			["+ Finish (M)", func(): _add_entity("finish")], ["|", null],
 			["Extend", _extend_clicked], ["Add Bend", _bend_clicked], ["Duplicate", _duplicate_clicked],
 			["Delete", _delete_clicked], ["|", null], ["Undo", undo], ["Redo", redo], ["|", null],
-			["Frame (F)", _frame_clicked], ["1 / 4 Views (V)", _toggle_views], ["|", null], ["▶ Play (P)", _play_clicked]]:
+			["Frame (F)", _frame_clicked], ["1 / 4 Views (V)", _toggle_views], ["|", null], ["▶ Play (P)", _play_clicked],
+			["Export to SurfsUp", _export_clicked]]:
 		if spec[0] == "|":
 			bar.add_child(VSeparator.new())
 			continue
@@ -190,6 +196,7 @@ func _build_ui() -> void:
 	_file_dialog.current_dir = ProjectSettings.globalize_path("res://maps") if OS.has_feature("editor") else OS.get_executable_path().get_base_dir()
 	_file_dialog.file_selected.connect(_on_file_chosen)
 	_ui.add_child(_file_dialog)
+	_build_export_dialog()
 
 
 func _build_props(props: VBoxContainer) -> void:
@@ -965,3 +972,76 @@ func _on_play_stopped() -> void:
 		selected.set_selected(true)
 	var t := " Best time: %s" % PlayMode.format_time(play.best_time) if play.best_time > 0.0 else ""
 	_set_status("Back in the editor. Top speed %d u/s.%s" % [roundi(play.top_speed), t])
+
+
+# ================================================================================================= export
+func _build_export_dialog() -> void:
+	_export_dialog = ConfirmationDialog.new()
+	_export_dialog.title = "Export to SurfsUp"
+	_export_dialog.ok_button_text = "Export"
+	_export_dialog.min_size = Vector2i(560, 0)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	_export_dialog.add_child(box)
+	var l1 := Label.new()
+	l1.text = "Map name (letters, numbers, _ and - only). In SurfsUp, open the console (~) and type:  map <name>"
+	l1.autowrap_mode = TextServer.AUTOWRAP_WORD
+	box.add_child(l1)
+	_export_name = LineEdit.new()
+	box.add_child(_export_name)
+	var l2 := Label.new()
+	l2.text = "SurfsUp's Maps folder"
+	box.add_child(l2)
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	_export_dir = LineEdit.new()
+	_export_dir.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_export_dir)
+	var browse := Button.new()
+	browse.text = "Browse…"
+	browse.pressed.connect(func(): _dir_dialog.current_dir = _export_dir.text; _dir_dialog.popup_centered_ratio(0.6))
+	row.add_child(browse)
+	var note := Label.new()
+	note.text = "If SurfsUp is running and you are replacing a map you already loaded, restart SurfsUp before loading it again."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD
+	note.add_theme_color_override("font_color", Color(0.8, 0.8, 0.6))
+	box.add_child(note)
+	_export_dialog.confirmed.connect(_do_export)
+	_ui.add_child(_export_dialog)
+	_dir_dialog = FileDialog.new()
+	_dir_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_dir_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+	_dir_dialog.use_native_dialog = true
+	_dir_dialog.dir_selected.connect(func(d): _export_dir.text = d)
+	_ui.add_child(_dir_dialog)
+
+
+func _export_clicked() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	var default_name := current_path.get_file().get_basename() if current_path != "" else "surf_mymap"
+	_export_name.text = cfg.get_value("export", "name_" + current_path.md5_text(), default_name)
+	_export_dir.text = cfg.get_value("export", "maps_dir", SurfsUpExporter.guess_maps_dir())
+	_export_dialog.popup_centered()
+	_export_name.grab_focus()
+
+
+func _do_export() -> void:
+	var map_name := _export_name.text.strip_edges()
+	var dir := _export_dir.text.strip_edges()
+	var err := SurfsUpExporter.export_pack(_map_dict(), map_name, dir)
+	if err != "":
+		var a := AcceptDialog.new()
+		a.title = "Can't export yet"
+		a.dialog_text = err
+		_ui.add_child(a)
+		a.popup_centered()
+		_set_status("Export failed: " + err.get_slice("
+", 0))
+		return
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("export", "maps_dir", dir)
+	cfg.set_value("export", "name_" + current_path.md5_text(), map_name)
+	cfg.save(SETTINGS_PATH)
+	_set_status("Exported %s.pck to %s - in SurfsUp press ~ and type:  map %s" % [map_name, dir, map_name])
