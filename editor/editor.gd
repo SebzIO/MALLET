@@ -81,6 +81,16 @@ var _export_dialog: ConfirmationDialog
 var _export_name: LineEdit
 var _export_dir: LineEdit
 var _dir_dialog: FileDialog
+var _css_dialog: ConfirmationDialog
+var _css_name: LineEdit
+var _css_dir: LineEdit
+var _css_sky: OptionButton
+var _css_aa: SpinBox
+var _css_compile: CheckBox
+var _css_quality: OptionButton
+var _css_thread: Thread
+var _css_result := {}
+var _css_status := ""
 var welcome: WelcomeScreen
 # ramp generator (while _gen_ramp is set, the side panel shows the generator and the ramp is a live preview)
 var _gen_ramp: RampNode = null
@@ -185,7 +195,7 @@ func _build_ui_main() -> void:
 			["Extend", _extend_clicked], ["Add Bend", _bend_clicked], ["Duplicate", _duplicate_clicked],
 			["Delete", _delete_clicked], ["|", null], ["Undo", undo], ["Redo", redo], ["|", null],
 			["Frame (F)", _frame_clicked], ["1 / 4 Views (V)", _toggle_views], ["|", null], ["▶ Play (P)", _play_clicked],
-			["Export to SurfsUp", _export_clicked]]:
+			["Export to SurfsUp", _export_clicked], ["Export to CS:S", _css_clicked]]:
 		if spec[0] == "|":
 			bar.add_child(VSeparator.new())
 			continue
@@ -277,6 +287,7 @@ func _build_ui_main() -> void:
 	_file_dialog.file_selected.connect(_on_file_chosen)
 	_ui.add_child(_file_dialog)
 	_build_export_dialog()
+	_build_css_dialog()
 
 
 func _build_props(props: VBoxContainer) -> void:
@@ -417,7 +428,7 @@ func _build_props(props: VBoxContainer) -> void:
 	help.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
 	help.text = ("Drag yellow handles to reshape · drag the object to move it (Shift = up/down in 3D view)\n"
 		+ "Double-click a ramp to add a bend\nArrows / PgUp PgDn nudge · [ ] rotate\n"
-		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · P play\nSpace maximise the view under the mouse · V 3D / four views\nF frame · G snap\n"
+		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · I prop · P play\nR generate a ramp shape · L lock / unlock a point\nSpace maximise the view under the mouse · V 3D / four views\nF frame · G snap\n"
 		+ "Del delete · Ctrl+D duplicate · Ctrl+Z undo · Ctrl+S save")
 	props.add_child(help)
 
@@ -1267,6 +1278,7 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 
 
 func _process(delta: float) -> void:
+	_poll_css()
 	if play.active:
 		return
 	_arcs_timer -= delta
@@ -2242,6 +2254,139 @@ func _build_export_dialog() -> void:
 	_dir_dialog.use_native_dialog = true
 	_dir_dialog.dir_selected.connect(func(d): _export_dir.text = d)
 	_ui.add_child(_dir_dialog)
+
+
+# ------------------------------------------------------------------------------------------------ CS:S
+func _build_css_dialog() -> void:
+	_css_dialog = ConfirmationDialog.new()
+	_css_dialog.title = "Export to Counter-Strike: Source"
+	_css_dialog.ok_button_text = "Export"
+	_css_dialog.min_size = Vector2i(600, 0)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	_css_dialog.add_child(box)
+	var l1 := Label.new()
+	l1.text = "Map name (surf maps usually start with surf_). In CS:S, open the console (~) and type:  map <name>"
+	l1.autowrap_mode = TextServer.AUTOWRAP_WORD
+	box.add_child(l1)
+	_css_name = LineEdit.new()
+	box.add_child(_css_name)
+	var l2 := Label.new()
+	l2.text = "Folder for the Hammer file (.vmf) - you can open it in Hammer to keep working on it"
+	box.add_child(l2)
+	_css_dir = LineEdit.new()
+	box.add_child(_css_dir)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	box.add_child(grid)
+	var ls := Label.new()
+	ls.text = "Sky"
+	grid.add_child(ls)
+	_css_sky = OptionButton.new()
+	for sky in VmfExporter.SKY_CHOICES:
+		_css_sky.add_item(sky)
+	grid.add_child(_css_sky)
+	var la := Label.new()
+	la.text = "sv_airaccelerate (set when the map loads)"
+	grid.add_child(la)
+	_css_aa = SpinBox.new()
+	_css_aa.min_value = 10
+	_css_aa.max_value = 1000
+	_css_aa.value = 150
+	grid.add_child(_css_aa)
+	_css_compile = CheckBox.new()
+	_css_compile.text = "Compile it now with CS:S's own tools (vbsp, vvis, vrad) and put the .bsp in cstrike/maps"
+	box.add_child(_css_compile)
+	_css_quality = OptionButton.new()
+	_css_quality.add_item("Quick compile (fast lighting, for testing)")
+	_css_quality.add_item("Final compile (full lighting, slower)")
+	box.add_child(_css_quality)
+	var note := Label.new()
+	note.text = ("Zones use the surf timer names (map_start, map_end, s2_start...) so timer plugins pick them up. "
+		+ "Props aren't exported to CS:S yet. Source maps must fit in about 800 m on every side.")
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD
+	note.add_theme_color_override("font_color", Color(0.8, 0.8, 0.6))
+	box.add_child(note)
+	_css_dialog.confirmed.connect(_do_css_export)
+	_ui.add_child(_css_dialog)
+
+
+func _css_clicked() -> void:
+	if _css_thread and _css_thread.is_alive():
+		_set_status("A CS:S compile is still running...")
+		return
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	var base := current_path.get_file().get_basename() if current_path != "" else "mymap"
+	var default_name := base if base.begins_with("surf_") else "surf_" + base
+	_css_name.text = cfg.get_value("css", "name_" + current_path.md5_text(), default_name)
+	_css_dir.text = cfg.get_value("css", "dir", "D:/SurfForge_exports/css")
+	var sky: String = VmfExporter.SKIES.get(environment.get("preset", "day"), "sky_day01_01")
+	_css_sky.select(maxi(VmfExporter.SKY_CHOICES.find(sky), 0))
+	var css := VmfExporter.find_css()
+	_css_compile.disabled = css == ""
+	_css_compile.button_pressed = css != "" and cfg.get_value("css", "compile", true)
+	_css_compile.tooltip_text = "Found CS:S at " + css if css != "" else "Counter-Strike: Source wasn't found, so only the .vmf is written."
+	_css_dialog.popup_centered()
+
+
+func _do_css_export() -> void:
+	var map_name := _css_name.text.strip_edges()
+	if not SurfsUpExporter.valid_name(map_name):
+		_show_message("Can't export yet", "Map names can only use letters, numbers, _ and - (no spaces).")
+		return
+	var vmf := _css_dir.text.strip_edges().path_join(map_name + ".vmf")
+	var res := VmfExporter.export_vmf(_map_dict(), vmf, {"skyname": _css_sky.get_item_text(_css_sky.selected), "airaccelerate": int(_css_aa.value)})
+	if res["error"] != "":
+		_show_message("Can't export to CS:S yet", res["error"])
+		_set_status("CS:S export failed: " + res["error"])
+		return
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("css", "dir", _css_dir.text.strip_edges())
+	cfg.set_value("css", "name_" + current_path.md5_text(), map_name)
+	cfg.set_value("css", "compile", _css_compile.button_pressed)
+	cfg.save(SETTINGS_PATH)
+	var notes := "\n".join(res["warnings"])
+	if not _css_compile.button_pressed or _css_compile.disabled:
+		_show_message("Exported for CS:S", "Wrote %s (%d brushes).\n\n%s" % [vmf, res["brushes"], notes])
+		_set_status("Wrote %s - open it in Hammer or compile it with vbsp / vvis / vrad." % vmf.get_file())
+		return
+	var quality := "fast" if _css_quality.selected == 0 else "final"
+	_css_status = notes
+	_set_status("Compiling %s for CS:S (%d brushes)... this can take a minute; keep working meanwhile." % [map_name, res["brushes"]])
+	_css_thread = Thread.new()
+	_css_thread.start(func(): return VmfExporter.compile(vmf, VmfExporter.find_css(), quality))
+
+
+## Called every frame: picks up a finished CS:S compile.
+func _poll_css() -> void:
+	if _css_thread == null or _css_thread.is_alive():
+		return
+	var c: Dictionary = _css_thread.wait_to_finish()
+	_css_thread = null
+	var log_path: String = String(_css_dir.text).path_join(_css_name.text.strip_edges() + "_compile.log")
+	var f := FileAccess.open(log_path, FileAccess.WRITE)
+	if f:
+		f.store_string(c.get("log", ""))
+		f.close()
+	if c["error"] != "":
+		_show_message("CS:S compile failed", "%s\n\nThe full compile log is in %s" % [c["error"], log_path])
+		_set_status("CS:S compile failed: " + c["error"])
+		return
+	var name: String = c["bsp"].get_file().get_basename()
+	_show_message("Ready in CS:S", "Built %s.\n\nStart CS:S, open the console (~) and type:\n    map %s\n\n%s" % [c["bsp"], name, _css_status])
+	_set_status("CS:S map ready: in CS:S press ~ and type  map %s" % name)
+
+
+func _show_message(title: String, text: String) -> void:
+	var a := AcceptDialog.new()
+	a.title = title
+	a.dialog_text = text
+	_ui.add_child(a)
+	a.popup_centered()
+	a.confirmed.connect(a.queue_free)
+	a.canceled.connect(a.queue_free)
 
 
 func _export_clicked() -> void:

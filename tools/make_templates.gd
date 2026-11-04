@@ -90,11 +90,11 @@ func landing(ex: Array, speed: float, drop: float) -> Vector3:
 
 func template_first_surf() -> Dictionary:
 	var start := Vector3(0, 400, 0)
-	var c := course(start, 0.0, [[150, 40, 20, 40, 1], [140, 34, -30, 42, -1], [150, 34, 35, 44, 1], [140, 30, -25, 46, -1],
-		[160, 34, 15, 0, 0]], ["2b4ea3", "a33b2b", "2b8a4e", "7a3ba3", "c48a1c"], ["ceramic"])
+	var c := course(start, 0.0, [[150, 40, 35, 40, 1], [140, 34, 40, 42, -1], [150, 34, 40, 44, 1], [140, 30, 40, 46, -1],
+		[160, 34, 30, 0, 0]], ["2b4ea3", "a33b2b", "2b8a4e", "7a3ba3", "c48a1c"], ["ceramic"])
 	var fin := landing(c[1], c[2], 28.0)
 	return {"format": "surfforge-map", "version": 2,
-		"template": {"title": "First Surf", "description": "A classic linear surf: five glazed-ceramic ramps with gentle turns on a clear day. Every jump is makeable at 85% speed."},
+		"template": {"title": "First Surf", "description": "A classic surf: five glazed-ceramic ramps curving round in a big U on a clear day. Every jump is makeable at 85% speed."},
 		"environment": Look.preset_environment("day"), "ramps": c[0],
 		"entities": [{"kind": "start", "position": v3(start), "size": [20, 2, 26], "yaw": 0.0},
 			{"kind": "finish", "position": v3(fin), "size": [44, 2, 44], "yaw": 0.0}]}
@@ -125,7 +125,7 @@ func template_three_stages() -> Dictionary:
 
 func template_aurora() -> Dictionary:
 	var start := Vector3(0, 420, 0)
-	var c := course(start, 0.0, [[160, 44, 30, 42, 1], [150, 36, -40, 44, -1], [170, 40, 35, 0, 0]],
+	var c := course(start, 0.0, [[160, 44, 40, 42, 1], [150, 36, 45, 44, -1], [170, 40, 40, 0, 0]],
 		["26ff99", "1ae6ff", "d933e6"], ["aurora", "neon", "nebula"])
 	var ramps: Array = c[0]
 	var ex: Array = c[1]
@@ -142,7 +142,7 @@ func template_aurora() -> Dictionary:
 	var land := arc_at(ex[0], v, t)
 	var s := land + Vector3.UP.cross(ex[1]).normalized() * 3.0 + Vector3(0, 3.0 * tan(deg_to_rad(ANGLE)) - 0.6, 0)
 	var yaw_last := rad_to_deg(atan2(-ex[1].x, -ex[1].z))
-	var pts := ramp_points(s, yaw_last + 12.0, 170, 40, -30)
+	var pts := ramp_points(s, yaw_last, 170, 40, 40)
 	ramps.append(ramp(pts, "26ff99", "aurora"))
 	var ex2 := exit_of(pts)
 	# energy after the boost: the rider is faster than the drop alone explains

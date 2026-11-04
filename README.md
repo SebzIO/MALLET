@@ -50,7 +50,9 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
     kink (tangent lock at seam) and no step (settings blend in); unlock merges; undo/redo covers it
 11. Ghost replay ✅ race your best run (saved with the map), its path drawn coloured by speed
 12. Props ✅ (I) glTF models: place, turn, size, solid or decoration; exported with compressed textures
-13. Next: · then ghost replay · prop import (glTF) · CS:S export
+13. CS:S export ✅ Hammer .vmf (ramps as func_detail hull brushes, timer zones map_start / map_end / sN_start,
+    teleports, boosters, kill floor, sky, sun, sv_airaccelerate) and one-click compile with CS:S's vbsp/vvis/vrad
+14. Next: · then ghost replay · prop import (glTF) · CS:S export
 
 Templates live in `templates/` and are rebuilt (with every jump re-proven and fresh thumbnails) by
 `godot --path . --resolution 1600x900 -s res://tools/make_templates.gd`.
