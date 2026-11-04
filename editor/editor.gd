@@ -61,6 +61,7 @@ var _entity_props: VBoxContainer
 var _booster_props: VBoxContainer
 var _stage_props: VBoxContainer
 var _tex_box: VBoxContainer
+var _freeform_box: VBoxContainer
 var _status: Label
 var _info: Label
 var _fields := {}
@@ -87,6 +88,7 @@ var _gen_place_box: VBoxContainer
 var _gen_about: Label
 var _gen_warning: Label
 var _gen_shape_buttons := {}
+var _gen_base_freeform := false
 const SETTINGS_PATH := "user://settings.cfg"
 
 
@@ -260,19 +262,55 @@ func _build_props(props: VBoxContainer) -> void:
 	_ramp_props = VBoxContainer.new()
 	_ramp_props.add_theme_constant_override("separation", 6)
 	props.add_child(_ramp_props)
-	var style := OptionButton.new()
-	style.add_item("Hollow (open V underneath)", 0)
-	style.add_item("Solid (flat bottom)", 1)
-	style.focus_mode = Control.FOCUS_NONE
-	style.item_selected.connect(func(i): _edit_prop("solid", i == 1))
-	_add_row(_ramp_props, "Style", style)
-	_fields["solid"] = style
-	_add_slider(_ramp_props, "width", "Width (m)", 4.0, 60.0, 0.5)
-	_add_slider(_ramp_props, "height", "Height (m)", 2.0, 40.0, 0.25)
+	var shape := OptionButton.new()
+	shape.add_item("V ramp (surf either side)")
+	shape.add_item("Half ramp (surf the left side)")
+	shape.add_item("Half ramp (surf the right side)")
+	shape.focus_mode = Control.FOCUS_NONE
+	shape.item_selected.connect(func(i): _edit_prop("style", RampShape.STYLES[i]))
+	_add_row(_ramp_props, "Shape", shape)
+	_fields["style"] = shape
+	var body := OptionButton.new()
+	body.add_item("Hollow (open underneath)", 0)
+	body.add_item("Solid (flat bottom)", 1)
+	body.focus_mode = Control.FOCUS_NONE
+	body.item_selected.connect(func(i): _edit_prop("solid", i == 1))
+	_add_row(_ramp_props, "Body", body)
+	_fields["solid"] = body
+	_add_slider(_ramp_props, "angle", "Slope angle (°)", 30.0, 80.0, 0.5)
+	_add_slider(_ramp_props, "face_length", "Face length (m)", 2.0, 60.0, 0.25)
+	_fields["angle_label"] = _ramp_props.get_child(_fields["angle"][0].get_parent().get_index() - 1)
+	_fields["face_length_label"] = _ramp_props.get_child(_fields["face_length"][0].get_parent().get_index() - 1)
 	_add_slider(_ramp_props, "base_depth", "Base depth (m, solid only)", 0.0, 60.0, 0.5)
-	_add_slider(_ramp_props, "detail", "Smoothness (segments / m)", 0.1, 4.0, 0.05)
-	_add_slider(_ramp_props, "roll", "Tilt (°)", -45.0, 45.0, 1.0)
-	_add_slider(_ramp_props, "twist", "Twist along the ramp (°)", -180.0, 180.0, 1.0)
+	_add_slider(_ramp_props, "detail", "Smoothness (cross-sections / m)", 0.1, 4.0, 0.05)
+	var slice := OptionButton.new()
+	slice.add_item("Vertical slice (recommended)")
+	slice.add_item("Perpendicular to travel")
+	slice.focus_mode = Control.FOCUS_NONE
+	slice.tooltip_text = ("Vertical slice: the cross-section stays upright even where the ramp climbs or drops steeply, so it never\n"
+		+ "leans. Perpendicular: the cross-section tips with the slope. On steep stretches the two differ slightly: in a\n"
+		+ "vertical slice the face measured across the direction of travel is a little steeper than the slider says.")
+	slice.item_selected.connect(func(i): _edit_prop("slice", "vertical" if i == 0 else "perpendicular"))
+	_add_row(_ramp_props, "Angle measured in", slice)
+	_fields["slice"] = slice
+	var ff := CheckButton.new()
+	ff.text = "Freeform (advanced)"
+	ff.focus_mode = Control.FOCUS_NONE
+	ff.tooltip_text = "Off: both faces match, the cross-section stays upright, no twist. On: each face can differ and the ramp can twist."
+	ff.toggled.connect(func(on): _edit_prop("freeform", on))
+	_ramp_props.add_child(ff)
+	_fields["freeform"] = ff
+	_freeform_box = VBoxContainer.new()
+	_freeform_box.add_theme_constant_override("separation", 6)
+	_ramp_props.add_child(_freeform_box)
+	var ff_note := Label.new()
+	ff_note.text = "FREEFORM: the rules are off. Turning it off again makes both faces match the left one and removes twist."
+	ff_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ff_note.add_theme_color_override("font_color", Color(1.0, 0.65, 0.25))
+	_freeform_box.add_child(ff_note)
+	_add_slider(_freeform_box, "angle_right", "Right face angle (°)", 10.0, 89.0, 0.5)
+	_add_slider(_freeform_box, "face_length_right", "Right face length (m)", 2.0, 60.0, 0.25)
+	_add_slider(_freeform_box, "twist", "Twist along the ramp (°)", -180.0, 180.0, 1.0)
 	var look := OptionButton.new()
 	for k in Look.LOOK_ORDER:
 		look.add_item(Look.RAMP_LOOKS[k][0])
@@ -486,9 +524,15 @@ func _refresh_props() -> void:
 	_entity_props.visible = not is_ramp
 	if is_ramp:
 		var r := selected as RampNode
-		_fields["head"].text = "Ramp"
+		_fields["head"].text = "Ramp  ·  FREEFORM" if r.freeform else "Ramp"
+		_fields["style"].select(RampShape.STYLES.find(r.style))
 		_fields["solid"].select(1 if r.solid else 0)
-		for key in ["width", "height", "base_depth", "detail", "roll", "twist"]:
+		_fields["slice"].select(0 if r.slice == "vertical" else 1)
+		_fields["freeform"].set_pressed_no_signal(r.freeform)
+		_freeform_box.visible = r.freeform
+		_fields["angle_label"].text = "Left face angle (°)" if r.freeform else "Slope angle (°)"
+		_fields["face_length_label"].text = "Left face length (m)" if r.freeform else "Face length (m)"
+		for key in ["angle", "face_length", "base_depth", "detail", "angle_right", "face_length_right", "twist"]:
 			_set_field(key, r.get(key))
 		_fields["color"].color = r.color
 		_fields["look"].select(Look.LOOK_ORDER.find(r.look))
@@ -533,11 +577,23 @@ func _refresh_info() -> void:
 		return
 	if selected is RampNode:
 		var r := selected as RampNode
-		var face_angle := rad_to_deg(atan2(r.height, r.width * 0.5))
-		var surfable := "surfable" if face_angle > 45.6 else "too flat: players will stand on it"
+		var faces := []
+		if r.style != "half_right":
+			faces.append(["left" if r.freeform or r.style != "v" else "", r.angle])
+		if r.style == "half_right" or (r.style == "v" and r.freeform):
+			faces.append(["right", r.angle_right])
+		var face_text := ""
+		for f in faces:
+			var ok: bool = f[1] > 45.6 and f[1] < 89.5
+			face_text += "\nFace angle%s: %.1f° (%s)" % [(" (" + f[0] + ")") if f[0] != "" else "", f[1],
+				"surfable" if ok else ("too flat: players will stand on it" if f[1] <= 45.6 else "too steep")]
 		var drop := r.points[0].y - r.points[r.points.size() - 1].y
-		_info.text = ("Length: %.0f m\nDrop: %.0f m\nFace angle: %.1f° (%s)\nControl points: %d\nTriangles: %d"
-			% [r.length, drop, face_angle, surfable, r.points.size(), r.triangle_count])
+		_info.text = ("%sLength: %.0f m\nDrop: %.0f m\nWidth: %.1f m edge to edge%s\nControl points: %d\nTriangles: %d"
+			% ["FREEFORM is on: the upright rules are off for this ramp.\n\n" if r.freeform else "", r.length, drop,
+				r.geometry_width(), face_text, r.points.size(), r.triangle_count])
+		if not r.folds.is_empty():
+			_info.text = ("⚠ The bend is too tight for this face width in %d place(s): the inner edge folds over"
+				+ " (marked red). Widen the bend, or shorten the face.\n\n") % r.folds.size() + _info.text
 		for a in _arcs:
 			if a["ramp"] == r:
 				_info.text += ("\n\nJump off the end (from %s): ≈ %d u/s\n  full speed: %s\n  at %d%% speed: %s\n(no air strafing: good players can stretch this)"
@@ -740,6 +796,12 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 		var s := cam.unproject_position(e.global_position + Vector3(0, 4, 0))
 		ov.draw_string_outline(font, s + Vector2(-30, -6), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color(0, 0, 0, 0.85))
 		ov.draw_string(font, s + Vector2(-30, -6), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, EntityNode.KINDS[e.kind]["color"].lightened(0.35))
+	for r in ramps_root.get_children():                  # too-tight bends, on every ramp
+		for line in r.fold_lines:
+			for i in range(1, line.size()):
+				if cam.is_position_behind(line[i]) or cam.is_position_behind(line[i - 1]):
+					continue
+				ov.draw_line(cam.unproject_position(line[i - 1]), cam.unproject_position(line[i]), Color(1.0, 0.15, 0.1, 0.95), 3.0)
 	if selected == null:
 		return
 	if selected is EntityNode and selected.kind == "teleport":      # where does this teleport go?
@@ -1249,8 +1311,10 @@ func _generate_clicked() -> void:
 	_checkpoint()                                       # Cancel pops this again
 	var r := RampNode.new()
 	if _gen_source:                                     # carry the course's style on
-		for key in ["width", "height", "detail", "solid", "base_depth", "color", "look", "texture", "tex_scale"]:
+		for key in ["style", "angle", "face_length", "angle_right", "face_length_right", "slice", "freeform", "detail",
+				"solid", "base_depth", "color", "look", "texture", "tex_scale"]:
 			r.set(key, _gen_source.get(key))
+	_gen_base_freeform = r.freeform
 	# fallback placement: the middle of the 3D view, heading the way the camera looks
 	var cam := panes[0].camera as OrbitCamera
 	var fwd := -cam.global_basis.z
@@ -1308,7 +1372,9 @@ func _gen_placement() -> Array:
 		var ex := JumpCheck.exit_of(_gen_source.ridge)
 		var ref := _speed_reference(_gen_source)
 		var speed := JumpCheck.speed_at(ref[0], ref[1], ex[0].y) * SLOPPY   # aim so even a sloppy run makes it
-		var start := JumpCheck.next_ramp_start(ex[0], ex[1], speed, _gen_gap, _gen_side, r.width, r.height)
+		var sp := r.shape_spec()
+		var side := RampShape.landing_side(sp, _gen_side)
+		var start := JumpCheck.next_ramp_start(ex[0], ex[1], speed, _gen_gap, side, RampShape.face_slope(sp, side))
 		return [start, rad_to_deg(atan2(-ex[1].x, -ex[1].z))]
 	return [_gen_anchor, _gen_anchor_yaw]
 
@@ -1319,15 +1385,19 @@ func _gen_rebuild() -> void:
 	var place := _gen_placement()
 	var res := RampGenerator.generate(_gen_shape, _gen_values[_gen_shape], place[0], place[1])
 	_gen_ramp.points = res["points"]
-	_gen_ramp.twist = res["twist"]
-	_gen_ramp.roll = res["roll"]
+	_gen_ramp.freeform = _gen_base_freeform or _gen_shape == "corkscrew"   # twisting needs Freeform
+	_gen_ramp.twist = res["twist"] if _gen_ramp.freeform else 0.0
 	_gen_ramp.rebuild()
 	var warn := ""
 	var crest := RampGenerator.crest_above_start(_gen_ramp.points)
 	if crest > 0.0:
 		warn = "A crest is %.0f m above the start of the ramp: slow riders may not make it over. Add more drop or lower the waves." % crest
-	elif _gen_shape == "corkscrew" and absf(_gen_values["corkscrew"]["twist"]) > 38.0:
-		warn = "Past about 38° the riding face goes beyond vertical near the end: riders will slide off."
+	elif _gen_shape == "corkscrew" and _gen_ramp.angle_right + absf(_gen_values["corkscrew"]["twist"]) > 89.0:
+		warn = "With this much twist the riding face goes past vertical near the end: riders will slide off."
+	if _gen_shape == "corkscrew":
+		warn = ("Corkscrews need Freeform (the ramp rolls), so this ramp will be Freeform. " + warn).strip_edges()
+	if not _gen_ramp.folds.is_empty():
+		warn += ("\n" if warn != "" else "") + "Too tight for this face width: the inner edge folds (red). Use a bigger radius or fewer bends."
 	_gen_warning.text = warn
 	_gen_warning.visible = warn != ""
 	_map_changed()
@@ -1523,9 +1593,14 @@ func _edit_prop(key: String, value) -> void:
 		return
 	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])
 	if selected is RampNode:
-		selected.set(key, value)
-		selected.rebuild()
-		if key == "look":
+		var r := selected as RampNode
+		r.set(key, value)
+		if not r.freeform:                              # outside Freeform both faces always match, no twist
+			r.angle_right = r.angle
+			r.face_length_right = r.face_length
+			r.twist = 0.0
+		r.rebuild()
+		if key in ["look", "freeform", "style"]:
 			_refresh_props()
 	else:
 		var e := selected as EntityNode
@@ -1637,7 +1712,7 @@ func _play_clicked() -> void:
 			t = t.normalized()
 			var side := Vector3.UP.cross(t).normalized()
 			var out := 2.5
-			var pos := p0 + t * 3.0 + side * out + Vector3(0, -out * r.height / (r.width * 0.5) + 0.3, 0)
+			var pos := p0 + t * 3.0 + side * out + Vector3(0, -out * RampShape.face_slope(r.shape_spec(), -1.0) + 0.3, 0)
 			at = Transform3D(Basis(Vector3.UP, atan2(-t.x, -t.z)), pos)
 	_end_drag()
 	if selected:

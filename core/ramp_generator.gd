@@ -14,7 +14,7 @@ const SHAPES := {
 	"rollers": {"label": "Rollers", "about": "Rises and falls in waves on the way down: hills to pump over.",
 		"params": [["length", "Length (m)", 60.0, 800.0, 10.0, 300.0], ["waves", "Waves", 1.0, 10.0, 1.0, 3.0],
 			["wave_height", "Wave height (m)", 1.0, 60.0, 0.5, 8.0], ["drop", "Drop (m)", 0.0, 400.0, 5.0, 80.0]]},
-	"corkscrew": {"label": "Corkscrew", "about": "Starts level and rolls over as you ride it. A positive twist tips the right-hand face steeper and steeper (ride that one); the other face flattens out.",
+	"corkscrew": {"label": "Corkscrew", "about": "Freeform: starts level and rolls over as you ride it. A positive twist tips the right-hand face steeper and steeper (ride that one); the other face flattens out.",
 		"params": [["length", "Length (m)", 60.0, 800.0, 10.0, 220.0], ["twist", "Twist (°)", -80.0, 80.0, 1.0, 35.0],
 			["turn", "Turn (°)", -180.0, 180.0, 5.0, 0.0], ["drop", "Drop (m)", 0.0, 400.0, 5.0, 60.0]]},
 }
@@ -35,7 +35,7 @@ static func defaults(shape: String) -> Dictionary:
 	return d
 
 
-## Returns {"points": PackedVector3Array (world), "twist": float, "roll": float}. `yaw_deg` is the heading at the start
+## Returns {"points": PackedVector3Array (world), "twist": float}. `yaw_deg` is the heading at the start
 ## (0 = towards -Z, positive turns left, matching Node3D rotation about +Y).
 static func generate(shape: String, p: Dictionary, start: Vector3, yaw_deg: float) -> Dictionary:
 	var local := PackedVector3Array()
@@ -90,8 +90,7 @@ static func generate(shape: String, p: Dictionary, start: Vector3, yaw_deg: floa
 	var out := PackedVector3Array()
 	for q in local:
 		out.append(start + b * q)
-	# twist runs from roll - twist/2 to roll + twist/2, so a roll of twist/2 makes the corkscrew start level
-	return {"points": out, "twist": twist, "roll": twist / 2.0}
+	return {"points": out, "twist": twist}            # twist rolls the profile from level at the start to `twist`
 
 
 ## Highest point the rider must climb back over, measured against the height they started from (rollers):

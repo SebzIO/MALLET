@@ -76,12 +76,10 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			pts.append(Vector3(p[0], p[1], p[2]))
 		if pts.size() < 2:
 			continue
-		var w: float = rd.get("width", 13.0)
-		var h: float = rd.get("height", 8.125)
-		var detail: float = rd.get("detail", 1.0)
-		var ridge := RampShape.sample_path(pts, 1.0 / max(detail, 0.05))
-		var mesh := RampShape.build_mesh(ridge, w, h, rd.get("roll", 0.0), rd.get("solid", false), rd.get("base_depth", 0.0),
-			rd.get("twist", 0.0))
+		var sp := RampShape.spec(rd)
+		var geo := RampShape.build(pts, sp)
+		var ridge: PackedVector3Array = geo["ridge"]
+		var mesh: ArrayMesh = geo["mesh"]
 		var mat := Look.ramp_material(rd.get("look", "color"), Color.html(rd.get("color", "edebe3")), rd.get("texture", ""),
 			rd.get("tex_scale", 20.0))
 		mesh.surface_set_material(0, mat)
@@ -97,7 +95,7 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		cs.shape = mesh.create_trimesh_shape()
 		_add(root, body, cs)
 		for p in ridge:
-			lowest = min(lowest, p.y - h - rd.get("base_depth", 0.0))
+			lowest = min(lowest, p.y - RampShape.depth_below_spine(sp))
 		i += 1
 
 	# platforms + their zones
@@ -256,7 +254,7 @@ static func kill_floor_y(map: Dictionary) -> float:
 	var lowest := INF
 	for rd in map.get("ramps", []):
 		for p in rd.get("points", []):
-			lowest = min(lowest, p[1] - rd.get("height", 8.125) - rd.get("base_depth", 0.0) - 20.0)
+			lowest = min(lowest, p[1] - RampShape.depth_below_spine(RampShape.spec(rd)) - 20.0)
 	for ed in map.get("entities", []):
 		if ed.get("kind", "") in ["start", "finish", "stage"]:
 			lowest = min(lowest, ed["position"][1] - ed["size"][1])

@@ -5,8 +5,8 @@ extends SceneTree
 ## Ramps are placed where SurfsUp physics says riders land: speed from the drop since the plate (from 400 u/s),
 ## gravity 20.32, the same model the jump checker uses (matched the real controller within 1 m).
 
-const W := 13.0
-const H := 8.125
+const ANGLE := 56.0                 ## face angle of every template ramp (the editor default)
+const FACE := 10.5                  ## face length
 const AIM := 0.85                    ## the speed (fraction of ideal) each jump is aimed for
 var ed
 var failures := 0
@@ -38,7 +38,7 @@ func ramp(pts: Array, color: String, look := "ceramic") -> Dictionary:
 	var out := []
 	for p in pts:
 		out.append([snappedf(p.x, 0.01), snappedf(p.y, 0.01), snappedf(p.z, 0.01)])
-	return {"points": out, "width": W, "height": H, "detail": 1.0, "roll": 0.0, "color": color, "look": look}
+	return {"points": out, "angle": ANGLE, "face_length": FACE, "detail": 1.0, "color": color, "look": look}
 
 
 ## Where the rider leaves a ramp: [point, unit direction]. Mirrors JumpCheck.exit_of on the sampled ridge.
@@ -54,7 +54,7 @@ func arc_at(p0: Vector3, v0: Vector3, t: float) -> Vector3:
 
 ## The next ramp's ridge start, placed so the rider's arc meets the start of its face `gap` metres on.
 func next_start(ex: Array, speed: float, gap: float, side: float) -> Vector3:
-	return JumpCheck.next_ramp_start(ex[0], ex[1], speed, gap, side, W, H)
+	return JumpCheck.next_ramp_start(ex[0], ex[1], speed, gap, side, tan(deg_to_rad(ANGLE)))
 
 
 ## A course of ramps from a plate. Returns [ramps, last exit, speed at the last exit].
@@ -140,7 +140,7 @@ func template_aurora() -> Dictionary:
 	var vh := Vector2(v.x, v.z).length()
 	var t := 160.0 / vh
 	var land := arc_at(ex[0], v, t)
-	var s := land + Vector3.UP.cross(ex[1]).normalized() * 3.0 + Vector3(0, 3.0 * H / (W * 0.5) - 0.6, 0)
+	var s := land + Vector3.UP.cross(ex[1]).normalized() * 3.0 + Vector3(0, 3.0 * tan(deg_to_rad(ANGLE)) - 0.6, 0)
 	var yaw_last := rad_to_deg(atan2(-ex[1].x, -ex[1].z))
 	var pts := ramp_points(s, yaw_last + 12.0, 170, 40, -30)
 	ramps.append(ramp(pts, "26ff99", "aurora"))

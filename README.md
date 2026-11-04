@@ -43,7 +43,9 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
 6. Templates ✅ welcome screen with 4 ready-made, jump-checked maps (Blank, First Surf, Three Stages, Aurora Night)
 7. Ramp generators ✅ (R) spiral, S-curve, rollers, corkscrew with live preview; "continue from the selected ramp"
    places the new one where the jump lands (aimed so 85% speed still makes it); ramps gain a "twist along the ramp"
-8. Ghost replay · prop import (glTF) · CS:S export
+8. Profile rules ✅ upright cross-section (level, never rolls), slope angle + face length (56° default), half ramps,
+   vertical-slice / perpendicular option, too-tight bends marked red, Freeform for uneven faces and twist; no tilt
+9. Next: direction arrows + flip, keypoint locking into sections · then ghost replay · prop import (glTF) · CS:S export
 
 Templates live in `templates/` and are rebuilt (with every jump re-proven and fresh thumbnails) by
 `godot --path . --resolution 1600x900 -s res://tools/make_templates.gd`.

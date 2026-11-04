@@ -69,7 +69,7 @@ func _run() -> void:
 		ok = check_jump(shape, src, g) and ok
 		ok = ok and ed._gen_props.visible and g.points.size() >= 4
 		if shape == "corkscrew":
-			ok = ok and absf(g.twist - 35.0) < 0.01 and absf(g.roll - 17.5) < 0.01
+			ok = ok and g.freeform and absf(g.twist - 35.0) < 0.01
 		await shot("gen_" + shape)
 		ed._gen_cancel()
 		var clean: bool = ed.ramps_root.get_child_count() == 1 and ed._undo.size() == undo_before and ed.selected == src
