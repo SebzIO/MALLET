@@ -49,6 +49,10 @@ func _init(k: int, ed: Node) -> void:
 		camera.environment = env
 	viewport.add_child(camera)
 	camera.current = true
+	# never smooth editor cameras between physics ticks: the 3D image would trail the true camera that the
+	# overlay (outline, handles, arcs, grid) is drawn with. The setting doesn't inherit across the SubViewport.
+	viewport.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)  # the container only sizes its SubViewport, not Controls
 	overlay.clip_contents = true                         # handles/outlines/arcs never spill into neighbouring views
