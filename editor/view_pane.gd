@@ -50,6 +50,7 @@ func _init(k: int, ed: Node) -> void:
 	viewport.add_child(camera)
 	camera.current = true
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)  # the container only sizes its SubViewport, not Controls
 	overlay.clip_contents = true                         # handles/outlines/arcs never spill into neighbouring views
 	clip_contents = true
 	overlay.draw.connect(_draw_overlay)
@@ -151,6 +152,9 @@ func _ortho_nav(event: InputEvent) -> bool:
 
 
 func _process(_delta: float) -> void:
+	if overlay.size != size or overlay.position != Vector2.ZERO:
+		overlay.position = Vector2.ZERO
+		overlay.size = size
 	overlay.queue_redraw()
 
 

@@ -193,13 +193,18 @@ func _build_ui() -> void:
 		_view_grid.add_child(pane)
 	active_pane = panes[0]
 
+	# always shown at a fixed width (it used to pop in on selection and resize the views); scrolls when tall
 	_props_panel = PanelContainer.new()
-	_props_panel.custom_minimum_size = Vector2(300, 0)
+	_props_panel.custom_minimum_size = Vector2(310, 0)
 	middle.add_child(_props_panel)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_props_panel.add_child(scroll)
 	var margin := MarginContainer.new()
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 10)
-	_props_panel.add_child(margin)
+	scroll.add_child(margin)
 	var props := VBoxContainer.new()
 	props.add_theme_constant_override("separation", 8)
 	margin.add_child(props)
@@ -328,8 +333,11 @@ func _set_field(key: String, v: float) -> void:
 
 
 func _refresh_props() -> void:
-	_props_panel.visible = selected != null
 	if selected == null:
+		_ramp_props.visible = false
+		_entity_props.visible = false
+		_fields["head"].text = "Map"
+		_refresh_info()
 		return
 	_updating_ui = true
 	var is_ramp := selected is RampNode
@@ -369,6 +377,13 @@ func _refresh_props() -> void:
 
 func _refresh_info() -> void:
 	if selected == null:
+		var counts := {}
+		for e in entities_root.get_children():
+			counts[e.kind] = counts.get(e.kind, 0) + 1
+		_info.text = ("Nothing selected - click a ramp or platform in any view to edit it.\n\n"
+			+ "Ramps: %d\nStart: %s   Finish: %s\nStages: %d   Teleports: %d\nBoosters: %d   Kill zones: %d"
+			% [ramps_root.get_child_count(), "yes" if counts.has("start") else "missing", "yes" if counts.has("finish") else "missing",
+				counts.get("stage", 0), counts.get("teleport", 0), counts.get("booster", 0), counts.get("kill", 0)])
 		return
 	if selected is RampNode:
 		var r := selected as RampNode
