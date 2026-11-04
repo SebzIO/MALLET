@@ -6,7 +6,8 @@ extends SubViewportContainer
 ## Ortho views: right- or middle-drag pans, wheel zooms (towards the mouse).
 
 enum Kind { PERSPECTIVE, TOP, FRONT, SIDE }
-const NAMES := ["Perspective", "Top  (X / Z)", "Front  (X / Y)", "Side  (Z / Y)"]
+## Named like Hammer's views: Front looks down the X axis, Side looks across it (down Z here, Source's Y).
+const NAMES := ["Perspective", "Top  (X / Z)", "Front  (Z / Y)", "Side  (X / Y)"]
 const FAR := 6000.0
 
 var kind := Kind.PERSPECTIVE
@@ -74,8 +75,8 @@ func is_ortho() -> bool:
 func drag_plane(p: Vector3, vertical: bool) -> Plane:
 	match kind:
 		Kind.TOP: return Plane(Vector3.UP, p)
-		Kind.FRONT: return Plane(Vector3.BACK, p)
-		Kind.SIDE: return Plane(Vector3.RIGHT, p)
+		Kind.SIDE: return Plane(Vector3.BACK, p)
+		Kind.FRONT: return Plane(Vector3.RIGHT, p)
 	if vertical:
 		var n := camera.global_basis.z
 		n.y = 0.0
@@ -87,8 +88,8 @@ func drag_plane(p: Vector3, vertical: bool) -> Plane:
 func drag_axes(vertical: bool) -> Vector3:
 	match kind:
 		Kind.TOP: return Vector3(1, 0, 1)
-		Kind.FRONT: return Vector3(1, 1, 0)
-		Kind.SIDE: return Vector3(0, 1, 1)
+		Kind.SIDE: return Vector3(1, 1, 0)
+		Kind.FRONT: return Vector3(0, 1, 1)
 	return Vector3(0, 1, 0) if vertical else Vector3(1, 0, 1)
 
 
@@ -113,10 +114,10 @@ func _apply_ortho() -> void:
 		Kind.TOP:
 			camera.global_position = Vector3(c.x, FAR, c.z)
 			camera.look_at(Vector3(c.x, 0, c.z), Vector3.FORWARD)      # north (-Z) up the screen
-		Kind.FRONT:
+		Kind.SIDE:
 			camera.global_position = Vector3(c.x, c.y, FAR)
 			camera.look_at(Vector3(c.x, c.y, 0), Vector3.UP)
-		Kind.SIDE:
+		Kind.FRONT:
 			camera.global_position = Vector3(FAR, c.y, c.z)
 			camera.look_at(Vector3(0, c.y, c.z), Vector3.UP)
 	overlay.queue_redraw()
