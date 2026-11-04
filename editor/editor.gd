@@ -27,6 +27,11 @@ var play := PlayMode.new()
 var panes: Array[ViewPane] = []
 var active_pane: ViewPane
 var quad_view := true
+var environment := {}                ## the map's sky / sun / fog settings (see Look.ENV_PRESETS)
+var world_env: WorldEnvironment
+var sun: DirectionalLight3D
+var _map_props: VBoxContainer
+var _image_dialog: FileDialog
 var show_all_arcs := false
 var _arcs: Array = []                ## [{ramp, speed, ref, runs: [full, sloppy]}] from the jump checker
 var _arcs_timer := 0.0
@@ -55,6 +60,7 @@ var _ramp_props: VBoxContainer
 var _entity_props: VBoxContainer
 var _booster_props: VBoxContainer
 var _stage_props: VBoxContainer
+var _tex_box: VBoxContainer
 var _status: Label
 var _info: Label
 var _fields := {}
@@ -83,27 +89,12 @@ func _ready() -> void:
 
 # ================================================================================================= world
 func _build_world() -> void:
-	var env := WorldEnvironment.new()
-	var e := Environment.new()
-	var sky := Sky.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.32, 0.46, 0.68)
-	sky_mat.sky_horizon_color = Color(0.68, 0.74, 0.82)
-	sky_mat.ground_bottom_color = Color(0.18, 0.19, 0.22)
-	sky_mat.ground_horizon_color = Color(0.5, 0.53, 0.58)
-	sky.sky_material = sky_mat
-	e.background_mode = Environment.BG_SKY
-	e.sky = sky
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.environment = e
-	add_child(env)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-55, -35, 0)
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 1500.0
+	world_env = WorldEnvironment.new()
+	add_child(world_env)
+	sun = DirectionalLight3D.new()
 	add_child(sun)
+	environment = Look.default_environment()
+	_apply_environment()
 
 	var grid := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
@@ -246,11 +237,32 @@ func _build_props(props: VBoxContainer) -> void:
 	_add_slider(_ramp_props, "base_depth", "Base depth (m, solid only)", 0.0, 60.0, 0.5)
 	_add_slider(_ramp_props, "detail", "Smoothness (segments / m)", 0.1, 4.0, 0.05)
 	_add_slider(_ramp_props, "roll", "Tilt (°)", -45.0, 45.0, 1.0)
+	var look := OptionButton.new()
+	for k in Look.LOOK_ORDER:
+		look.add_item(Look.RAMP_LOOKS[k][0])
+	look.focus_mode = Control.FOCUS_NONE
+	look.item_selected.connect(func(i): _edit_prop("look", Look.LOOK_ORDER[i]))
+	_add_row(_ramp_props, "Look", look)
+	_fields["look"] = look
 	var cp := ColorPickerButton.new()
 	cp.custom_minimum_size = Vector2(0, 26)
 	cp.color_changed.connect(func(c): _edit_prop("color", c))
 	_add_row(_ramp_props, "Colour", cp)
 	_fields["color"] = cp
+	_fields["color_label"] = _ramp_props.get_child(cp.get_index() - 1)
+	_tex_box = VBoxContainer.new()
+	_ramp_props.add_child(_tex_box)
+	var pick := Button.new()
+	pick.text = "Choose image…"
+	pick.focus_mode = Control.FOCUS_NONE
+	pick.pressed.connect(func(): _image_dialog.popup_centered_ratio(0.6))
+	_tex_box.add_child(pick)
+	var tex_name := Label.new()
+	tex_name.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	tex_name.add_theme_font_size_override("font_size", 12)
+	_tex_box.add_child(tex_name)
+	_fields["tex_name"] = tex_name
+	_add_slider(_tex_box, "tex_scale", "Image size along the ramp (m)", 1.0, 200.0, 1.0)
 
 	_entity_props = VBoxContainer.new()
 	_entity_props.add_theme_constant_override("separation", 6)
@@ -282,6 +294,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_add_row(_booster_props, "Mode", mode)
 	_fields["mode"] = mode
 
+	_build_map_props(props)
 	props.add_child(HSeparator.new())
 	_info = Label.new()
 	_info.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -296,6 +309,86 @@ func _build_props(props: VBoxContainer) -> void:
 		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · P play\nSpace maximise the view under the mouse · V 3D / four views\nF frame · G snap\n"
 		+ "Del delete · Ctrl+D duplicate · Ctrl+Z undo · Ctrl+S save")
 	props.add_child(help)
+
+
+## Map panel (shown when nothing is selected): the map's sky, sun and fog.
+func _build_map_props(props: VBoxContainer) -> void:
+	_map_props = VBoxContainer.new()
+	_map_props.add_theme_constant_override("separation", 6)
+	props.add_child(_map_props)
+	var preset := OptionButton.new()
+	for k in Look.ENV_PRESETS:
+		preset.add_item(Look.ENV_PRESETS[k]["label"])
+	preset.add_item("Custom")
+	preset.focus_mode = Control.FOCUS_NONE
+	preset.item_selected.connect(func(i):
+		var keys := Look.ENV_PRESETS.keys()
+		if i < keys.size():
+			_checkpoint()
+			environment = Look.preset_environment(keys[i])
+			_apply_environment()
+			_refresh_props())
+	_add_row(_map_props, "Sky preset", preset)
+	_fields["env_preset"] = preset
+	for spec in [["sky_top", "Sky colour (top)"], ["sky_horizon", "Sky colour (horizon)"], ["ground", "Below the horizon"],
+			["sun_color", "Sun colour"], ["ambient_color", "Shadow fill colour"], ["fog_color", "Fog colour"]]:
+		var key: String = spec[0]
+		var c := ColorPickerButton.new()
+		c.custom_minimum_size = Vector2(0, 24)
+		c.color_changed.connect(func(col): _edit_env(key, col.to_html(false)))
+		_add_row(_map_props, spec[1], c)
+		_fields["env_" + key] = c
+	_add_slider(_map_props, "env_sun_yaw", "Sun direction (°)", -180.0, 180.0, 1.0)
+	_add_slider(_map_props, "env_sun_pitch", "Sun height (°)", 0.0, 90.0, 1.0)
+	_add_slider(_map_props, "env_sun_energy", "Sun brightness", 0.0, 3.0, 0.05)
+	_add_slider(_map_props, "env_ambient_energy", "Shadow fill brightness", 0.0, 3.0, 0.05)
+	_add_slider(_map_props, "env_stars", "Stars", 0.0, 1.0, 0.05)
+	_add_slider(_map_props, "env_aurora", "Aurora", 0.0, 1.0, 0.05)
+	_add_slider(_map_props, "env_nebula", "Nebula clouds", 0.0, 1.0, 0.05)
+	var fog := CheckButton.new()
+	fog.text = "Fog"
+	fog.focus_mode = Control.FOCUS_NONE
+	fog.toggled.connect(func(on): _edit_env("fog", on))
+	_map_props.add_child(fog)
+	_fields["env_fog"] = fog
+	_add_slider(_map_props, "env_fog_density", "Fog thickness", 0.0, 0.01, 0.0001)
+
+	_image_dialog = FileDialog.new()
+	_image_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_image_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	_image_dialog.use_native_dialog = true
+	_image_dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Images"])
+	_image_dialog.file_selected.connect(func(path): _edit_prop("texture", path); _refresh_props())
+	_ui.add_child(_image_dialog)
+
+
+func _apply_environment() -> void:
+	world_env.environment = Look.build_environment(environment)
+	Look.apply_sun(sun, environment)
+	sun.directional_shadow_max_distance = 1500.0
+
+
+func _edit_env(key: String, value) -> void:
+	if _updating_ui:
+		return
+	_checkpoint("env:" + key)
+	environment[key] = value
+	environment["preset"] = "custom"
+	_apply_environment()
+	_fields["env_preset"].select(Look.ENV_PRESETS.size())
+
+
+func _refresh_map_props() -> void:
+	_updating_ui = true
+	var keys := Look.ENV_PRESETS.keys()
+	var p: int = keys.find(environment.get("preset", "custom"))
+	_fields["env_preset"].select(p if p >= 0 else keys.size())
+	for key in ["sky_top", "sky_horizon", "ground", "sun_color", "ambient_color", "fog_color"]:
+		_fields["env_" + key].color = Color.html(environment[key])
+	for key in ["sun_yaw", "sun_pitch", "sun_energy", "ambient_energy", "stars", "aurora", "nebula", "fog_density"]:
+		_set_field("env_" + key, float(environment[key]))
+	_fields["env_fog"].button_pressed = bool(environment["fog"])
+	_updating_ui = false
 
 
 func _add_row(parent: Container, label: String, control: Control) -> void:
@@ -333,10 +426,12 @@ func _set_field(key: String, v: float) -> void:
 
 
 func _refresh_props() -> void:
+	_map_props.visible = selected == null
 	if selected == null:
 		_ramp_props.visible = false
 		_entity_props.visible = false
 		_fields["head"].text = "Map"
+		_refresh_map_props()
 		_refresh_info()
 		return
 	_updating_ui = true
@@ -350,6 +445,11 @@ func _refresh_props() -> void:
 		for key in ["width", "height", "base_depth", "detail", "roll"]:
 			_set_field(key, r.get(key))
 		_fields["color"].color = r.color
+		_fields["look"].select(Look.LOOK_ORDER.find(r.look))
+		_fields["color_label"].text = "Colour (%s)" % Look.RAMP_LOOKS[r.look][2]
+		_tex_box.visible = r.look == "texture"
+		_fields["tex_name"].text = r.texture.get_file() if r.texture != "" else "No image chosen (PNG / JPG / WebP)"
+		_set_field("tex_scale", r.tex_scale)
 	else:
 		var e := selected as EntityNode
 		_fields["head"].text = e.label()
@@ -449,10 +549,13 @@ func _map_dict() -> Dictionary:
 	var es := []
 	for e in entities_root.get_children():
 		es.append(e.to_dict())
-	return {"format": MAP_FORMAT, "version": MAP_VERSION, "ramps": rs, "entities": es}
+	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es}
 
 
 func _load_dict(data: Dictionary) -> void:
+	environment = Look.default_environment()
+	environment.merge(data.get("environment", {}), true)
+	_apply_environment()
 	_select(null)
 	for root in [ramps_root, entities_root]:
 		for c in root.get_children():
@@ -1090,12 +1193,17 @@ func _frame_clicked() -> void:
 
 func _edit_prop(key: String, value) -> void:
 	_map_changed()
+	if key.begins_with("env_"):
+		_edit_env(key.substr(4), value)
+		return
 	if selected == null or _updating_ui:
 		return
 	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])
 	if selected is RampNode:
 		selected.set(key, value)
 		selected.rebuild()
+		if key == "look":
+			_refresh_props()
 	else:
 		var e := selected as EntityNode
 		match key:

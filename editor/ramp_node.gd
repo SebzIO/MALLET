@@ -15,11 +15,14 @@ var roll := 0.0                      ## degrees the cross-section is tilted arou
 var solid := false                   ## closed flat bottom instead of the open V
 var base_depth := 0.0                ## solid only: how far the flat bottom sits below the face edges
 var color := DEFAULT_COLOR
+var look := "color"                  ## material preset (see Look.RAMP_LOOKS)
+var texture := ""                    ## look "texture": image file on disk
+var tex_scale := 20.0                ## look "texture": metres one copy of the image covers
+var _material_key := ""
 
 var _mesh_instance := MeshInstance3D.new()
 var _body := StaticBody3D.new()
 var _shape := CollisionShape3D.new()
-var _material := StandardMaterial3D.new()
 var _selected := false
 var triangle_count := 0
 var outline: Array[PackedVector3Array] = []   ## edge polylines for the selection outline
@@ -28,9 +31,6 @@ var ridge := PackedVector3Array()          ## the sampled ridge line (for the ju
 
 
 func _ready() -> void:
-	_material.roughness = 0.25
-	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_mesh_instance.material_override = _material
 	add_child(_mesh_instance)
 	_body.add_child(_shape)
 	_body.set_meta("ramp", self)
@@ -59,7 +59,11 @@ func set_selected(on: bool) -> void:
 
 
 func _update_material() -> void:
-	_material.albedo_color = color             # selection is shown with an outline, so the colour is always true
+	# selection is shown with an outline, so the material is always the ramp's real look
+	var key := "%s|%s|%s|%s" % [look, color.to_html(), texture, tex_scale]
+	if key != _material_key:
+		_material_key = key
+		_mesh_instance.material_override = Look.ramp_material(look, color, texture, tex_scale)
 
 
 ## Lines along each edge of the cross-section, plus the outline of both end caps.
@@ -94,7 +98,7 @@ func to_dict() -> Dictionary:
 	for p in points:
 		pts.append([snappedf(p.x, 0.001), snappedf(p.y, 0.001), snappedf(p.z, 0.001)])
 	return {"points": pts, "width": width, "height": height, "detail": detail, "roll": roll, "solid": solid, "base_depth": base_depth,
-		"color": color.to_html(false)}
+		"color": color.to_html(false), "look": look, "texture": texture, "tex_scale": tex_scale}
 
 
 func from_dict(data: Dictionary) -> void:
@@ -108,6 +112,9 @@ func from_dict(data: Dictionary) -> void:
 	solid = data.get("solid", false)
 	base_depth = data.get("base_depth", 0.0)
 	color = Color.html(data.get("color", DEFAULT_COLOR.to_html(false)))
+	look = data.get("look", "color")
+	texture = data.get("texture", "")
+	tex_scale = data.get("tex_scale", 20.0)
 	if is_inside_tree():
 		rebuild()
 

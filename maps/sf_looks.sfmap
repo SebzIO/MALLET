@@ -1,0 +1,256 @@
+{
+  "entities": [
+    {
+      "kind": "start",
+      "position": [
+        -84,
+        128,
+        15.0
+      ],
+      "size": [
+        20,
+        2,
+        26
+      ],
+      "yaw": -90.0
+    },
+    {
+      "kind": "finish",
+      "position": [
+        110,
+        60,
+        15.0
+      ],
+      "size": [
+        40,
+        2,
+        40
+      ],
+      "yaw": 0.0
+    }
+  ],
+  "environment": {
+    "ambient_color": "3a6a70",
+    "ambient_energy": 0.7,
+    "aurora": 1.0,
+    "fog": false,
+    "fog_color": "0b1d2b",
+    "fog_density": 0.0006,
+    "ground": "03060a",
+    "nebula": 0.0,
+    "preset": "aurora",
+    "sky_horizon": "0b1d2b",
+    "sky_top": "02060f",
+    "stars": 0.8,
+    "sun_color": "9fc0ff",
+    "sun_energy": 0.3,
+    "sun_pitch": 35.0,
+    "sun_yaw": 10.0
+  },
+  "format": "surfforge-map",
+  "ramps": [
+    {
+      "color": "edebe3",
+      "detail": 1.0,
+      "height": 12.5,
+      "look": "color",
+      "points": [
+        [
+          -60,
+          120,
+          -105.0
+        ],
+        [
+          0,
+          105,
+          -105.0
+        ],
+        [
+          60,
+          90,
+          -105.0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 20.0
+    },
+    {
+      "color": "21408f",
+      "detail": 1.0,
+      "height": 12.5,
+      "look": "ceramic",
+      "points": [
+        [
+          -60,
+          120,
+          -75.0
+        ],
+        [
+          0,
+          105,
+          -75.0
+        ],
+        [
+          60,
+          90,
+          -75.0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 20.0
+    },
+    {
+      "color": "ccd1db",
+      "detail": 1.0,
+      "height": 12.5,
+      "look": "steel",
+      "points": [
+        [
+          -60,
+          120,
+          -45.0
+        ],
+        [
+          0,
+          105,
+          -45.0
+        ],
+        [
+          60,
+          90,
+          -45.0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 20.0
+    },
+    {
+      "color": "9ea8b8",
+      "detail": 1.0,
+      "height": 12.5,
+      "look": "grid",
+      "points": [
+        [
+          -60,
+          120,
+          -15.0
+        ],
+        [
+          0,
+          105,
+          -15.0
+        ],
+        [
+          60,
+          90,
+          -15.0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 20.0
+    },
+    {
+      "color": "26ff99",
+      "detail": 1.0,
+      "height": 12.5,
+      "look": "aurora",
+      "points": [
+        [
+          -60,
+          120,
+          15.0
+        ],
+        [
+          0,
+          105,
+          15.0
+        ],
+        [
+          60,
+          90,
+          15.0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 20.0
+    },
+    {
+      "color": "d933e6",
+      "detail": 1.0,
+      "height": 12.5,
+      "look": "nebula",
+      "points": [
+        [
+          -60,
+          120,
+          45.0
+        ],
+        [
+          0,
+          105,
+          45.0
+        ],
+        [
+          60,
+          90,
+          45.0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 20.0
+    },
+    {
+      "color": "1ae6ff",
+      "detail": 1.0,
+      "height": 12.5,
+      "look": "neon",
+      "points": [
+        [
+          -60,
+          120,
+          75.0
+        ],
+        [
+          0,
+          105,
+          75.0
+        ],
+        [
+          60,
+          90,
+          75.0
+        ]
+      ],
+      "roll": 0.0,
+      "width": 20.0
+    },
+    {
+      "color": "ffffff",
+      "detail": 1.0,
+      "height": 12.5,
+      "look": "texture",
+      "points": [
+        [
+          -60,
+          120,
+          105.0
+        ],
+        [
+          0,
+          105,
+          105.0
+        ],
+        [
+          60,
+          90,
+          105.0
+        ]
+      ],
+      "roll": 0.0,
+      "tex_scale": 30.0,
+      "texture": "D:/SurfForge/tests/out/test_texture.png",
+      "width": 20.0
+    }
+  ],
+  "version": 2
+}

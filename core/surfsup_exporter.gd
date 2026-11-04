@@ -54,26 +54,15 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	root.name = map_name
 	var lowest := INF
 
+	var look_env: Dictionary = Look.default_environment()
+	look_env.merge(map.get("environment", {}), true)
 	var env := WorldEnvironment.new()
 	env.name = "WorldEnvironment"
-	var e := Environment.new()
-	var sky := Sky.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.32, 0.46, 0.68)
-	sky_mat.sky_horizon_color = Color(0.68, 0.74, 0.82)
-	sky_mat.ground_bottom_color = Color(0.18, 0.19, 0.22)
-	sky_mat.ground_horizon_color = Color(0.5, 0.53, 0.58)
-	sky.sky_material = sky_mat
-	e.background_mode = Environment.BG_SKY
-	e.sky = sky
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.environment = e
+	env.environment = Look.build_environment(look_env)
 	_add(root, root, env)
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
-	sun.rotation_degrees = Vector3(-55, -35, 0)
-	sun.shadow_enabled = true
+	Look.apply_sun(sun, look_env)
 	_add(root, root, sun)
 
 	# ramps: mesh + trimesh collision, one StaticBody each
@@ -92,10 +81,8 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		var detail: float = rd.get("detail", 1.0)
 		var ridge := RampShape.sample_path(pts, 1.0 / max(detail, 0.05))
 		var mesh := RampShape.build_mesh(ridge, w, h, rd.get("roll", 0.0), rd.get("solid", false), rd.get("base_depth", 0.0))
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color.html(rd.get("color", "edebe3"))
-		mat.roughness = 0.25
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var mat := Look.ramp_material(rd.get("look", "color"), Color.html(rd.get("color", "edebe3")), rd.get("texture", ""),
+			rd.get("tex_scale", 20.0))
 		mesh.surface_set_material(0, mat)
 		var body := StaticBody3D.new()
 		body.name = "Ramp%d" % i
