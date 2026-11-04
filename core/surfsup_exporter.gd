@@ -56,6 +56,7 @@ static func check(map: Dictionary) -> PackedStringArray:
 static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	var root := Node3D.new()
 	root.name = map_name
+	root.set_meta("made_with", SurfForgeVersion.full())
 	var lowest := INF
 
 	var look_env: Dictionary = Look.default_environment()

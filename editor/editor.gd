@@ -123,7 +123,7 @@ func _ready() -> void:
 	play.stopped.connect(_on_play_stopped)
 	play.ghost_recorded.connect(func(g): best_ghost = g)
 	_new_map()
-	get_window().title = "SurfForge"
+	_set_title("")
 	_show_welcome_if_main.call_deferred()
 
 
@@ -183,9 +183,15 @@ func _build_ui_main() -> void:
 	bar.add_theme_constant_override("v_separation", 2)
 	bar_panel.add_child(bar)
 	var title := Label.new()
-	title.text = "  SurfForge  "
+	title.text = "  SurfForge"
 	title.add_theme_font_size_override("font_size", 18)
 	bar.add_child(title)
+	var ver := Label.new()
+	ver.text = "%s  " % SurfForgeVersion.VERSION
+	ver.add_theme_font_size_override("font_size", 12)
+	ver.add_theme_color_override("font_color", Color(0.6, 0.64, 0.7))
+	ver.tooltip_text = SurfForgeVersion.full()
+	bar.add_child(ver)
 	for spec in [["New", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
 			["+ Ramp (N)", _add_ramp_clicked], ["✦ Generate (R)", _generate_clicked], ["+ Start (B)", func(): _add_entity("start")],
 			["+ Finish (M)", func(): _add_entity("finish")], ["+ Kill zone (K)", func(): _add_entity("kill")],
@@ -430,7 +436,7 @@ func _build_props(props: VBoxContainer) -> void:
 	help.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
 	help.text = ("Drag yellow handles to reshape · drag the object to move it (Shift = up/down in 3D view)\n"
 		+ "Double-click a ramp to add a bend\nArrows / PgUp PgDn nudge · [ ] rotate\n"
-		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · I prop · P play\nR generate a ramp shape · L lock / unlock a point\nSpace maximise the view under the mouse (again: back to four)\nF frame · G snap to grid\n"
+		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · I prop · P play\nR generate a ramp shape · L lock / unlock a point\nSpace maximise the view under the mouse (again: back to four)\nF frame · G snap to grid · F11 fullscreen\n"
 		+ "Del delete · Ctrl+D duplicate · Ctrl+Z undo · Ctrl+S save")
 	props.add_child(help)
 
@@ -1087,6 +1093,17 @@ func _do_unlock(k: int) -> void:
 	_set_status("Unlocked from point %d: that part is editable again (it takes the editable section's slope and face)." % at)
 
 
+func _set_title(map_name: String) -> void:
+	get_window().title = SurfForgeVersion.full() + ("  -  " + map_name if map_name != "" else "")
+
+
+## F11: fullscreen (no title bar - handy for recording) and back.
+func _toggle_fullscreen() -> void:
+	var w := get_window()
+	w.mode = Window.MODE_WINDOWED if w.mode == Window.MODE_FULLSCREEN else Window.MODE_FULLSCREEN
+	_set_status("Fullscreen - F11 to go back" if w.mode == Window.MODE_FULLSCREEN else "Windowed")
+
+
 ## L: lock the selected point, or unlock it if it already is a lock.
 func _lock_toggle() -> void:
 	if not selected is RampNode:
@@ -1438,6 +1455,7 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_O when ctrl: _open_clicked()
 		KEY_D when ctrl: _duplicate_clicked()
 		KEY_N: _add_ramp_clicked()
+		KEY_F11: _toggle_fullscreen()
 		KEY_I: _add_prop_clicked()
 		KEY_L: _lock_toggle()
 		KEY_R: _generate_clicked()
@@ -2095,7 +2113,7 @@ func _on_template_chosen(path: String) -> void:
 	_load_dict(data)
 	best_ghost = {}
 	current_path = ""
-	get_window().title = "SurfForge - new map"
+	_set_title("new map")
 	_frame_clicked()
 	var pv: Vector2 = Vector2(panes[0].viewport.size)
 	frame_course(panes[0].camera, pv.x / maxf(pv.y, 1.0))
@@ -2131,12 +2149,13 @@ func save_map(path: String) -> void:
 		_set_status("Could not save %s" % path)
 		return
 	var d := _map_dict()
+	d["made_with"] = SurfForgeVersion.full()
 	if not best_ghost.is_empty():
 		d["ghost"] = best_ghost                          # the best run travels with the map (editor only)
 	f.store_string(JSON.stringify(d, "  "))
 	f.close()
 	current_path = path
-	get_window().title = "SurfForge - " + path.get_file()
+	_set_title(path.get_file())
 	_set_status("Saved %s" % path)
 
 
@@ -2149,7 +2168,7 @@ func load_map(path: String) -> void:
 	_load_dict(data)
 	best_ghost = data.get("ghost", {})
 	current_path = path
-	get_window().title = "SurfForge - " + path.get_file()
+	_set_title(path.get_file())
 	_frame_clicked()
 	_set_status("Opened %s (%d ramps)" % [path.get_file(), ramps_root.get_child_count()])
 

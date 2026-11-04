@@ -63,6 +63,10 @@ func _ready() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
+	var ver := Label.new()
+	ver.text = SurfForgeVersion.full() + "   "
+	ver.add_theme_color_override("font_color", Color(0.55, 0.58, 0.64))
+	row.add_child(ver)
 	_close = Button.new()
 	_close.text = "  Keep the current map (Esc)  "
 	_close.pressed.connect(hide)
