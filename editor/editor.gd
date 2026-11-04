@@ -30,6 +30,7 @@ var quad_view := true
 var show_all_arcs := false
 var _arcs: Array = []                ## [{ramp, speed, ref, runs: [full, sloppy]}] from the jump checker
 var _arcs_timer := 0.0
+var _arcs_dirty := 2                 ## frames left to recompute arcs (2: physics needs a tick to see moved bodies)
 const SLOPPY := 0.85                 ## the second arc: a rider who has lost 15% of their speed
 
 var _undo: Array = []
@@ -67,6 +68,11 @@ const SETTINGS_PATH := "user://settings.cfg"
 
 
 func _ready() -> void:
+	# The editor draws handles, outlines and arcs from objects' true positions, so the 3D view must not be
+	# smoothed between physics ticks (that made outlines trail moving objects and the camera).
+	# Only the play-mode player uses physics interpolation, as in SurfsUp.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	play.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
 	_build_world()
 	_build_ui()
 	add_child(play)
@@ -160,7 +166,7 @@ func _build_ui() -> void:
 	arcs.text = "Jump arcs: all ramps"
 	arcs.focus_mode = Control.FOCUS_NONE
 	arcs.tooltip_text = "Off: arcs only for the selected ramp. On: every ramp's jump at once."
-	arcs.toggled.connect(func(on): show_all_arcs = on; _arcs_timer = 0.0)
+	arcs.toggled.connect(func(on): show_all_arcs = on; _map_changed())
 	bar.add_child(arcs)
 	var step := OptionButton.new()
 	for s in [1, 2, 4, 8, 16]:
@@ -480,6 +486,7 @@ func _all_objects() -> Array:
 # ================================================================================================= undo / redo
 ## Call before any change. `key` lets rapid repeats of the same edit (slider drags) share one undo step.
 func _checkpoint(key := "") -> void:
+	_map_changed()
 	var now := Time.get_ticks_msec() / 1000.0
 	if key != "" and key == _coalesce_key and now - _coalesce_time < 0.8:
 		_coalesce_time = now
@@ -498,6 +505,7 @@ func _snapshot() -> Dictionary:
 
 
 func _restore(s: Dictionary) -> void:
+	_map_changed()
 	_load_dict(s["map"])
 	var objs := _all_objects()
 	var sel: int = s["sel"]
@@ -527,6 +535,7 @@ func redo() -> void:
 
 # ================================================================================================= selection
 func _select(obj: Node3D, point := -1) -> void:
+	_map_changed()
 	if selected and is_instance_valid(selected):
 		selected.set_selected(false)
 		if selected is RampNode and selected.changed.is_connected(_refresh_info):
@@ -608,10 +617,18 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 
 
 func _process(delta: float) -> void:
+	if play.active:
+		return
 	_arcs_timer -= delta
-	if _arcs_timer <= 0.0 and not play.active:
-		_arcs_timer = 0.2
+	if _arcs_dirty > 0 or _arcs_timer <= 0.0:
+		_arcs_dirty = max(_arcs_dirty - 1, 0)
+		_arcs_timer = 0.5                         # safety refresh; changes trigger an immediate update
 		_update_arcs()
+
+
+## Anything that changes the map calls this so the jump arcs follow instantly.
+func _map_changed() -> void:
+	_arcs_dirty = 2
 
 
 ## Where the speed for a ramp comes from: the start or stage plate the rider most likely set off from - the
@@ -642,6 +659,10 @@ func _update_arcs() -> void:
 	var space := get_world_3d().direct_space_state
 	var volumes := entities_root.get_children().filter(func(x): return x.is_volume())
 	var kill_y := SurfsUpExporter.kill_floor_y(_map_dict())
+	var zones := []                                  # entering the finish / a stage zone counts, like in game
+	for e in entities_root.get_children():
+		if e.kind in ["finish", "stage"]:
+			zones.append([e.zone_aabb(), "reaches the " + e.label().to_lower() + (" zone" if e.kind == "finish" else ""), e])
 	for r in targets:
 		if r.ridge.size() < 2:
 			continue
@@ -650,7 +671,7 @@ func _update_arcs() -> void:
 		var speed := JumpCheck.speed_at(ref[0], ref[1], ex[0].y)
 		var runs := []
 		for f in [1.0, SLOPPY]:
-			runs.append(JumpCheck.fly(space, ex[0], ex[1] * speed * f, volumes, kill_y, [r._body.get_rid()]))
+			runs.append(JumpCheck.fly(space, ex[0], ex[1] * speed * f, volumes, kill_y, [r._body.get_rid()], zones))
 		_arcs.append({"ramp": r, "speed": speed, "ref": ref[2], "runs": runs})
 	if selected is RampNode:
 		_refresh_info()
@@ -818,6 +839,7 @@ func _set_drag_plane(mouse: Vector2, vertical: bool) -> void:
 
 
 func _drag_to(mouse: Vector2, vertical: bool) -> void:
+	_map_changed()
 	if vertical != _drag_vertical and not _drag_pane.is_ortho():
 		_set_drag_plane(mouse, vertical)
 		return
@@ -1052,6 +1074,7 @@ func _frame_clicked() -> void:
 
 
 func _edit_prop(key: String, value) -> void:
+	_map_changed()
 	if selected == null or _updating_ui:
 		return
 	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])

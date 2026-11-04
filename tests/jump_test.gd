@@ -66,7 +66,8 @@ func _run() -> void:
 		if i > 3 and (p.is_on_floor() or p.get_slide_collision_count() > 0):
 			landed = p.global_position
 			break
-	print("prediction vs SUCC: predicted landing %s, SUCC landed %s, horizontal gap %.1f m"
+	# note: the arc stops where it ENTERS the finish zone (10 m above the slab), SUCC lands on the slab itself
+	print("prediction vs SUCC: arc reaches the finish zone at %s, SUCC lands on the slab at %s, horizontal gap %.1f m"
 		% [predicted.snapped(Vector3.ONE * 0.1), landed.snapped(Vector3.ONE * 0.1), Vector2(predicted.x - landed.x, predicted.z - landed.z).length()])
 	ed.play.stop()
 	ed.show_all_arcs = true

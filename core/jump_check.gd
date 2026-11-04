@@ -28,8 +28,9 @@ static func exit_of(ridge: PackedVector3Array) -> Array:
 ## Flies from `from` with velocity `vel`. `volumes` are EntityNodes (kill / teleport / booster boxes) tested by
 ## containment; solid things are found with rays on collision layer 1 (ramps and platforms).
 ## Returns {points, outcome: "ramp"/"platform"/"teleport"/"booster"/"kill"/"floor"/"air", label, hit_point}.
+## `zones` are [AABB, label, object] goal areas (finish / stage zones) that count as a landing when entered.
 static func fly(space: PhysicsDirectSpaceState3D, from: Vector3, vel: Vector3, volumes: Array, kill_y: float,
-		ignore: Array = []) -> Dictionary:
+		ignore: Array = [], zones: Array = []) -> Dictionary:
 	var pts := PackedVector3Array([from])
 	var p := from
 	var v := vel
@@ -50,6 +51,10 @@ static func fly(space: PhysicsDirectSpaceState3D, from: Vector3, vel: Vector3, v
 				var e = c.get_meta("entity")
 				return {"points": pts, "outcome": "platform", "hit_point": hit.position, "label": "lands on the " + e.label().to_lower(), "target": e}
 			return {"points": pts, "outcome": "floor", "hit_point": hit.position, "label": "hits something", "target": null}
+		for z in zones:
+			if (z[0] as AABB).has_point(np):
+				pts.append(np)
+				return {"points": pts, "outcome": "platform", "hit_point": np, "label": z[1], "target": z[2]}
 		for vol in volumes:
 			if vol.contains(np):
 				pts.append(np)
