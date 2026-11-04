@@ -124,6 +124,7 @@ static func image_texture(path: String) -> Texture2D:
 		img.resize(int(img.get_width() * k), int(img.get_height() * k), Image.INTERPOLATE_LANCZOS)
 	img.generate_mipmaps()
 	var tex := PortableCompressedTexture2D.new()
+	tex.keep_compressed_buffer = true          # without this the image data is not saved into the map
 	tex.create_from_image(img, PortableCompressedTexture2D.COMPRESSION_MODE_LOSSY, false, 0.85)
 	_textures[path] = tex
 	return tex

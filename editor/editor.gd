@@ -18,6 +18,10 @@ const PICK_PIXELS := 12.0
 
 var ramps_root := Node3D.new()
 var entities_root := Node3D.new()
+var props_root := Node3D.new()
+var _prop_props: VBoxContainer
+var _prop_dialog: FileDialog
+var _prop_replace := false
 var selected: Node3D = null          ## a RampNode or an EntityNode
 var selected_point := -1
 var snap_enabled := true
@@ -141,6 +145,7 @@ func _build_world() -> void:
 	add_child(grid)
 	add_child(ramps_root)
 	add_child(entities_root)
+	add_child(props_root)
 
 
 # ================================================================================================= ui
@@ -176,7 +181,7 @@ func _build_ui_main() -> void:
 			["+ Ramp (N)", _add_ramp_clicked], ["✦ Generate (R)", _generate_clicked], ["+ Start (B)", func(): _add_entity("start")],
 			["+ Finish (M)", func(): _add_entity("finish")], ["+ Kill zone (K)", func(): _add_entity("kill")],
 			["+ Booster (J)", func(): _add_entity("booster")], ["+ Stage (T)", func(): _add_entity("stage")],
-			["+ Teleport (Y)", func(): _add_entity("teleport")], ["|", null],
+			["+ Teleport (Y)", func(): _add_entity("teleport")], ["+ Prop (I)", _add_prop_clicked], ["|", null],
 			["Extend", _extend_clicked], ["Add Bend", _bend_clicked], ["Duplicate", _duplicate_clicked],
 			["Delete", _delete_clicked], ["|", null], ["Undo", undo], ["Redo", redo], ["|", null],
 			["Frame (F)", _frame_clicked], ["1 / 4 Views (V)", _toggle_views], ["|", null], ["▶ Play (P)", _play_clicked],
@@ -368,6 +373,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_add_slider(_tex_box, "tex_scale", "Image size along the ramp (m)", 1.0, 200.0, 1.0)
 
 	_build_gen_props(props)
+	_build_prop_props(props)
 
 	_entity_props = VBoxContainer.new()
 	_entity_props.add_theme_constant_override("separation", 6)
@@ -536,10 +542,12 @@ func _refresh_props() -> void:
 		_map_props.visible = false
 		_ramp_props.visible = false
 		_entity_props.visible = false
+		_prop_props.visible = false
 		_fields["head"].text = "Generate a ramp"
 		_refresh_info()
 		return
 	_map_props.visible = selected == null
+	_prop_props.visible = false
 	if selected == null:
 		_ramp_props.visible = false
 		_entity_props.visible = false
@@ -550,7 +558,18 @@ func _refresh_props() -> void:
 	_updating_ui = true
 	var is_ramp := selected is RampNode
 	_ramp_props.visible = is_ramp
-	_entity_props.visible = not is_ramp
+	_entity_props.visible = selected is EntityNode
+	_prop_props.visible = selected is PropNode
+	if selected is PropNode:
+		var pr := selected as PropNode
+		_fields["head"].text = "Prop"
+		_fields["prop_file"].text = pr.source.get_file() if pr.source != "" else "(no model)"
+		_set_field("prop_size", pr.size)
+		_set_field("prop_yaw", pr.yaw)
+		_fields["prop_solid"].set_pressed_no_signal(pr.solid)
+		_updating_ui = false
+		_refresh_info()
+		return
 	if is_ramp:
 		var r := selected as RampNode
 		_fields["head"].text = "Ramp  ·  FREEFORM" if r.freeform else "Ramp"
@@ -635,6 +654,15 @@ func _refresh_info() -> void:
 			if a["ramp"] == r:
 				_info.text += ("\n\nJump off the end (from %s): ≈ %d u/s\n  full speed: %s\n  at %d%% speed: %s\n(no air strafing: good players can stretch this)"
 					% [a["ref"], roundi(a["speed"] * JumpCheck.U), a["runs"][0]["label"], roundi(SLOPPY * 100), a["runs"][1]["label"]])
+	elif selected is PropNode:
+		var pr := selected as PropNode
+		var sz := pr.world_size()
+		_info.text = ("%sModel: %s\nSize: %.1f x %.1f x %.1f m\nTriangles: %d\nPosition: (%.0f, %.0f, %.0f)\n\n%s"
+			% [("⚠ " + pr.error + "\n\n") if pr.error != "" else "", pr.source.get_file(), sz.x, sz.y, sz.z, pr.triangles,
+				pr.position.x, pr.position.y, pr.position.z,
+				"Solid: players (and jump arcs) hit it." if pr.solid else "Decoration: players fly straight through it."])
+		if pr.triangles > 200000:
+			_info.text += "\n\nThat's a heavy model: it may slow the game down. Consider a simpler version."
 	else:
 		var e := selected as EntityNode
 		var about := {
@@ -688,7 +716,11 @@ func _map_dict() -> Dictionary:
 	var es := []
 	for e in entities_root.get_children():
 		es.append(e.to_dict())
-	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es}
+	var ps := []
+	for pr in props_root.get_children():
+		ps.append(pr.to_dict())
+	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
+		"props": ps}
 
 
 func _load_dict(data: Dictionary) -> void:
@@ -698,7 +730,7 @@ func _load_dict(data: Dictionary) -> void:
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
 	_select(null)
-	for root in [ramps_root, entities_root]:
+	for root in [ramps_root, entities_root, props_root]:
 		for c in root.get_children():
 			root.remove_child(c)
 			c.queue_free()
@@ -710,6 +742,10 @@ func _load_dict(data: Dictionary) -> void:
 		var e := EntityNode.new()
 		entities_root.add_child(e)
 		e.from_dict(ed)
+	for pd in data.get("props", []):
+		var pr := PropNode.new()
+		props_root.add_child(pr)
+		pr.from_dict(pd)
 
 
 func _new_map() -> void:
@@ -740,7 +776,7 @@ func _make_ramp(a: Vector3, b: Vector3) -> RampNode:
 
 
 func _all_objects() -> Array:
-	return ramps_root.get_children() + entities_root.get_children()
+	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children()
 
 
 # ================================================================================================= undo / redo
@@ -1049,6 +1085,73 @@ func _lock_toggle() -> void:
 		_lock_clicked()
 
 
+func _build_prop_props(props: VBoxContainer) -> void:
+	_prop_props = VBoxContainer.new()
+	_prop_props.add_theme_constant_override("separation", 6)
+	_prop_props.visible = false
+	props.add_child(_prop_props)
+	var file := Label.new()
+	file.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	_prop_props.add_child(file)
+	_fields["prop_file"] = file
+	var replace := Button.new()
+	replace.text = "Replace model…"
+	replace.focus_mode = Control.FOCUS_NONE
+	replace.pressed.connect(func(): _prop_replace = true; _prop_dialog.popup_centered_ratio(0.6))
+	_prop_props.add_child(replace)
+	_add_slider(_prop_props, "prop_size", "Size (x)", 0.05, 50.0, 0.05)
+	_add_slider(_prop_props, "prop_yaw", "Facing (°)", -180.0, 180.0, 5.0)
+	var solid := CheckButton.new()
+	solid.text = "Solid (players collide with it)"
+	solid.focus_mode = Control.FOCUS_NONE
+	solid.toggled.connect(func(on): _edit_prop("prop_solid", on))
+	_prop_props.add_child(solid)
+	_fields["prop_solid"] = solid
+	var tip := Label.new()
+	tip.text = "glTF models (.glb / .gltf) from Blender, Sketchfab, Kenney, etc. Only the meshes, materials and textures are used. Drag to move, [ ] to turn."
+	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tip.add_theme_font_size_override("font_size", 12)
+	tip.add_theme_color_override("font_color", Color(0.6, 0.64, 0.7))
+	_prop_props.add_child(tip)
+	_prop_dialog = FileDialog.new()
+	_prop_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	_prop_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_prop_dialog.use_native_dialog = true
+	_prop_dialog.filters = PackedStringArray(["*.glb, *.gltf ; glTF model"])
+	_prop_dialog.file_selected.connect(_on_prop_file)
+	_ui.add_child(_prop_dialog)
+
+
+func _add_prop_clicked() -> void:
+	_prop_replace = false
+	_prop_dialog.popup_centered_ratio(0.6)
+
+
+func _on_prop_file(path: String) -> void:
+	if _prop_replace and selected is PropNode:
+		_checkpoint()
+		PropLoader.forget(path)
+		selected.source = path
+		selected.rebuild()
+		_refresh_props()
+		_set_status("Model replaced with %s." % path.get_file())
+		return
+	add_prop(path, _view_center())
+
+
+## Place a model at `at` (standing on that point).
+func add_prop(path: String, at: Vector3) -> PropNode:
+	_checkpoint()
+	PropLoader.forget(path)                             # pick up changes if the file was re-exported
+	var pr := PropNode.new()
+	props_root.add_child(pr)
+	pr.from_dict({"source": path, "position": [at.x, at.y, at.z]})
+	_select(pr)
+	_set_status(("Couldn't load the model: " + pr.error) if pr.error != "" else
+		"Added %s (%.0f m tall). Drag to place it, [ ] to turn, Size in the panel." % [path.get_file(), pr.world_size().y])
+	return pr
+
+
 ## Reverse a ramp's direction of travel without moving any of it: the points run the other way, and what was
 ## the left face is now the right face (half ramps and Freeform faces swap sides to stay where they are).
 func _flip_clicked() -> void:
@@ -1156,7 +1259,7 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			if selected.is_locked_point(i):
 				_draw_padlock(ov, s + Vector2(0, -HANDLE_RADIUS - 12), Color(1.0, 0.62, 0.15))
 	else:
-		var e := selected as EntityNode
+		var e: Node3D = selected
 		if not cam.is_position_behind(e.global_position):
 			var s := cam.unproject_position(e.global_position)
 			ov.draw_rect(Rect2(s - Vector2(6, 6), Vector2(12, 12)), Color(1, 0.85, 0.15), true)
@@ -1326,6 +1429,7 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_O when ctrl: _open_clicked()
 		KEY_D when ctrl: _duplicate_clicked()
 		KEY_N: _add_ramp_clicked()
+		KEY_I: _add_prop_clicked()
 		KEY_L: _lock_toggle()
 		KEY_R: _generate_clicked()
 		KEY_B: _add_entity("start")
@@ -1373,6 +1477,8 @@ func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
 			return hit.collider.get_meta("ramp")
 		if hit.collider.has_meta("entity"):
 			return hit.collider.get_meta("entity")
+		if hit.collider.has_meta("prop"):
+			return hit.collider.get_meta("prop")
 	# fallback: the ridge line on screen (thin ramps seen edge-on in the side views, clicks on the ridge seam)
 	var best: Node3D = null
 	var best_d := PICK_PIXELS
@@ -1818,6 +1924,15 @@ func _bend_clicked() -> void:
 
 
 func _duplicate_clicked() -> void:
+	if selected is PropNode:
+		_checkpoint()
+		var cp := PropNode.new()
+		props_root.add_child(cp)
+		cp.from_dict(selected.to_dict())
+		cp.translate_by(Vector3(maxf(selected.world_size().x, 4.0) + 4.0, 0, 0))
+		_select(cp)
+		_set_status("Duplicated prop.")
+		return
 	if selected is EntityNode and selected.is_volume():
 		_checkpoint()
 		var copy := EntityNode.new()
@@ -1930,6 +2045,15 @@ func _edit_prop(key: String, value) -> void:
 	if selected == null or _updating_ui:
 		return
 	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])
+	if selected is PropNode:
+		var pr := selected as PropNode
+		match key:
+			"prop_size": pr.size = value
+			"prop_yaw": pr.yaw = value
+			"prop_solid": pr.solid = value
+		pr.rebuild()
+		_refresh_info()
+		return
 	if selected is RampNode:
 		var r := selected as RampNode
 		r.set(key, value)

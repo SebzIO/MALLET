@@ -79,4 +79,15 @@ func _run() -> void:
 	var text := f.get_as_text()
 	print("scene: %d KB, embedded shaders: %d, embedded image: %s, references to res://core: %d" % [text.length() / 1024,
 		text.count("[sub_resource type=\"Shader\""), text.contains("PortableCompressedTexture2D"), text.count("res://core")])
+	# the image must really be in there: reload the exported scene and read the texture back
+	var ps: PackedScene = ResourceLoader.load("user://export/sf_look_test.tscn", "", ResourceLoader.CACHE_MODE_IGNORE)
+	var inst := ps.instantiate()
+	var tex_size := Vector2.ZERO
+	for body in inst.get_node("Ramps").get_children():
+		var mat = body.get_node("Mesh").mesh.surface_get_material(0)
+		if mat is StandardMaterial3D and mat.albedo_texture:
+			var back: Image = mat.albedo_texture.get_image()
+			tex_size = Vector2(back.get_size()) if back else Vector2.ZERO
+	inst.free()
+	print("image texture read back from the export: %s  %s" % [tex_size, "OK" if tex_size.x > 0 else "FAIL"])
 	quit()

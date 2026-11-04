@@ -42,6 +42,10 @@ static func check(map: Dictionary) -> PackedStringArray:
 		if stages[i] != i + 2:
 			out.append("Stage numbers must run 2, 3, 4... without gaps (stage %d is missing)." % (i + 2))
 			break
+	for pd in map.get("props", []):
+		var err: String = PropLoader.load_model(pd.get("source", ""))["error"]
+		if err != "":
+			out.append("A prop can't be exported: %s" % err)
 	for e in map.get("entities", []):
 		if e.get("kind", "") == "teleport" and not int(e.get("number", 2)) in stages:
 			out.append("A teleport goes to stage %d, but there is no stage %d plate." % [int(e.get("number", 2)), int(e.get("number", 2))])
@@ -227,6 +231,41 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			z.set_meta("freeze_gravity", true)
 			z.set_meta("boost_on_exit", false)
 			n_boost += 1
+
+	# props: the models' meshes (textures compressed) and, if solid, their collision
+	var props := Node3D.new()
+	props.name = "Props"
+	_add(root, root, props)
+	var pi := 0
+	for pd in map.get("props", []):
+		var src: String = pd.get("source", "")
+		var meshes := PropLoader.export_meshes(src)
+		if meshes.is_empty():
+			continue
+		var p: Array = pd.get("position", [0, 0, 0])
+		var size: float = pd.get("size", 1.0)
+		var holder: Node3D = StaticBody3D.new() if pd.get("solid", true) else Node3D.new()
+		holder.name = "Prop%d" % pi
+		holder.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(pd.get("yaw", 0.0))), Vector3(p[0], p[1], p[2]))
+		_add(root, props, holder)
+		var b := Basis().scaled(Vector3.ONE * size)
+		var mi_n := 0
+		for m in meshes:
+			var mi := MeshInstance3D.new()
+			mi.name = "Mesh%d" % mi_n
+			mi.mesh = m[0]
+			mi.transform = Transform3D(b, Vector3.ZERO) * (m[1] as Transform3D)
+			_add(root, holder, mi)
+			mi_n += 1
+		if holder is StaticBody3D:
+			var cs := CollisionShape3D.new()
+			cs.name = "Collision"
+			var shape := ConcavePolygonShape3D.new()
+			shape.set_faces(PropLoader.collision_faces(src, size))
+			shape.backface_collision = true
+			cs.shape = shape
+			_add(root, holder, cs)
+		pi += 1
 
 	var sp := Marker3D.new()
 	sp.name = "SpawnPoint"

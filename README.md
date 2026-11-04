@@ -48,7 +48,9 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
 9. Direction arrows ✅ (toggle, editor-only) with ramp start / end markers, Flip direction (the ramp stays put)
 10. Locking ✅ (L) freeze a ramp up to a point; the rest is a new section with its own slope/face, joined with no
     kink (tangent lock at seam) and no step (settings blend in); unlock merges; undo/redo covers it
-11. Next: · then ghost replay · prop import (glTF) · CS:S export
+11. Ghost replay ✅ race your best run (saved with the map), its path drawn coloured by speed
+12. Props ✅ (I) glTF models: place, turn, size, solid or decoration; exported with compressed textures
+13. Next: · then ghost replay · prop import (glTF) · CS:S export
 
 Templates live in `templates/` and are rebuilt (with every jump re-proven and fresh thumbnails) by
 `godot --path . --resolution 1600x900 -s res://tools/make_templates.gd`.
