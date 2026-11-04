@@ -24,6 +24,7 @@ var _selected := false
 var triangle_count := 0
 var outline: Array[PackedVector3Array] = []   ## edge polylines for the selection outline
 var length := 0.0
+var ridge := PackedVector3Array()          ## the sampled ridge line (for the jump checker)
 
 
 func _ready() -> void:
@@ -39,7 +40,7 @@ func _ready() -> void:
 
 func rebuild() -> void:
 	var spacing: float = 1.0 / max(detail, 0.05)
-	var ridge := RampShape.sample_path(points, spacing)
+	ridge = RampShape.sample_path(points, spacing)
 	var mesh := RampShape.build_mesh(ridge, width, height, roll, solid, base_depth)
 	_mesh_instance.mesh = mesh
 	_shape.shape = mesh.create_trimesh_shape() if mesh.get_surface_count() > 0 else null

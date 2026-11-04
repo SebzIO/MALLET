@@ -27,6 +27,10 @@ var play := PlayMode.new()
 var panes: Array[ViewPane] = []
 var active_pane: ViewPane
 var quad_view := true
+var show_all_arcs := false
+var _arcs: Array = []                ## [{ramp, speed, ref, runs: [full, sloppy]}] from the jump checker
+var _arcs_timer := 0.0
+const SLOPPY := 0.85                 ## the second arc: a rider who has lost 15% of their speed
 
 var _undo: Array = []
 var _redo: Array = []
@@ -152,6 +156,12 @@ func _build_ui() -> void:
 	snap.toggled.connect(func(on): snap_enabled = on; _set_status("Grid snap %s" % ("on" if on else "off")))
 	bar.add_child(snap)
 	_fields["snap_button"] = snap
+	var arcs := CheckButton.new()
+	arcs.text = "Jump arcs: all ramps"
+	arcs.focus_mode = Control.FOCUS_NONE
+	arcs.tooltip_text = "Off: arcs only for the selected ramp. On: every ramp's jump at once."
+	arcs.toggled.connect(func(on): show_all_arcs = on; _arcs_timer = 0.0)
+	bar.add_child(arcs)
 	var step := OptionButton.new()
 	for s in [1, 2, 4, 8, 16]:
 		step.add_item("%d m" % s, s)
@@ -361,6 +371,10 @@ func _refresh_info() -> void:
 		var drop := r.points[0].y - r.points[r.points.size() - 1].y
 		_info.text = ("Length: %.0f m\nDrop: %.0f m\nFace angle: %.1f° (%s)\nControl points: %d\nTriangles: %d"
 			% [r.length, drop, face_angle, surfable, r.points.size(), r.triangle_count])
+		for a in _arcs:
+			if a["ramp"] == r:
+				_info.text += ("\n\nJump off the end (from %s): ≈ %d u/s\n  full speed: %s\n  at %d%% speed: %s\n(no air strafing: good players can stretch this)"
+					% [a["ref"], roundi(a["speed"] * JumpCheck.U), a["runs"][0]["label"], roundi(SLOPPY * 100), a["runs"][1]["label"]])
 	else:
 		var e := selected as EntityNode
 		var about := {
@@ -541,6 +555,7 @@ func _stage_plate(n: int) -> EntityNode:
 func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 	if play.active:
 		return
+	_draw_arcs(pane, ov)
 	var cam := pane.camera
 	var font := ov.get_theme_default_font()
 	for e in entities_root.get_children():       # name tags: Start, Finish, Stage 2, -> Stage 3 ...
@@ -590,6 +605,77 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			var s := cam.unproject_position(e.global_position)
 			ov.draw_rect(Rect2(s - Vector2(6, 6), Vector2(12, 12)), Color(1, 0.85, 0.15), true)
 			ov.draw_rect(Rect2(s - Vector2(7, 7), Vector2(14, 14)), Color(0, 0, 0, 0.7), false, 1.5)
+
+
+func _process(delta: float) -> void:
+	_arcs_timer -= delta
+	if _arcs_timer <= 0.0 and not play.active:
+		_arcs_timer = 0.2
+		_update_arcs()
+
+
+## Where the speed for a ramp comes from: the start or stage plate the rider most likely set off from - the
+## nearest plate that is above this ramp's start. Returns [height, speed m/s, name].
+func _speed_reference(r: RampNode) -> Array:
+	var best: Array = []
+	var best_cost := INF
+	for e in entities_root.get_children():
+		if not e.kind in ["start", "stage"]:
+			continue
+		var above: float = e.position.y - r.points[0].y
+		if above < -2.0:
+			continue
+		var cost: float = above + Vector2(e.position.x - r.points[0].x, e.position.z - r.points[0].z).length() * 0.25
+		if cost < best_cost:
+			best_cost = cost
+			best = [e.position.y, JumpCheck.START_SPEED, e.label().to_lower()]
+	if best.is_empty():
+		best = [r.points[0].y, JumpCheck.START_SPEED, "the ramp's own start"]
+	return best
+
+
+func _update_arcs() -> void:
+	_arcs.clear()
+	var targets: Array = ramps_root.get_children() if show_all_arcs else ([selected] if selected is RampNode else [])
+	if targets.is_empty():
+		return
+	var space := get_world_3d().direct_space_state
+	var volumes := entities_root.get_children().filter(func(x): return x.is_volume())
+	var kill_y := SurfsUpExporter.kill_floor_y(_map_dict())
+	for r in targets:
+		if r.ridge.size() < 2:
+			continue
+		var ref := _speed_reference(r)
+		var ex := JumpCheck.exit_of(r.ridge)
+		var speed := JumpCheck.speed_at(ref[0], ref[1], ex[0].y)
+		var runs := []
+		for f in [1.0, SLOPPY]:
+			runs.append(JumpCheck.fly(space, ex[0], ex[1] * speed * f, volumes, kill_y, [r._body.get_rid()]))
+		_arcs.append({"ramp": r, "speed": speed, "ref": ref[2], "runs": runs})
+	if selected is RampNode:
+		_refresh_info()
+
+
+func _draw_arcs(pane: ViewPane, ov: Control) -> void:
+	var cam := pane.camera
+	for a in _arcs:
+		for k in a["runs"].size():
+			var run: Dictionary = a["runs"][k]
+			var ok := JumpCheck.good(run["outcome"])
+			var col := Color(0.35, 1.0, 0.45) if ok else Color(1.0, 0.3, 0.25)
+			if k == 1:
+				col = col.darkened(0.25)
+				col.a = 0.75
+			var pts: PackedVector3Array = run["points"]
+			for i in range(1, pts.size()):
+				if cam.is_position_behind(pts[i]) or cam.is_position_behind(pts[i - 1]):
+					continue
+				if k == 1 and i % 2 == 0:
+					continue                                 # the sloppy arc is dashed
+				ov.draw_line(cam.unproject_position(pts[i - 1]), cam.unproject_position(pts[i]), col, 2.0 if k == 0 else 1.5)
+			var end: Vector3 = run["hit_point"]
+			if not cam.is_position_behind(end):
+				ov.draw_circle(cam.unproject_position(end), 4.0 if k == 0 else 3.0, col)
 
 
 # ================================================================================================= view input
