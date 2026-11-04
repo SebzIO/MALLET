@@ -4,12 +4,14 @@ extends Node
 ## Same movement code and SurfsUp preset as the game, so what you feel here is what players feel.
 
 signal stopped
+signal ghost_recorded(ghost: Dictionary)   ## a new best run: {"time", "hz", "samples": [x, y, z, speed m/s, ...]}
 
 const SUCC_SCENE := "res://addons/SUCC/scenes/succ_character.tscn"
 const UNITS_PER_METRE := 39.37            # SurfsUp's HUD shows Source units/s
 const KEYS := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "jump": KEY_SPACE,
 	"crouch": KEY_CTRL, "sprint": KEY_SHIFT}
 const PRESPEED_CAP := 400.0                ## u/s: SurfsUp's default mode caps speed in the start zone
+const GHOST_HZ := 20.0                     ## best-run samples per second kept in the map file
 
 var active := false
 var player: SUCC
@@ -33,6 +35,14 @@ var _message_time := 0.0
 var _finish_box := AABB()
 var _flash := 0.0
 var _time_label := Label.new()
+
+var ghost: Dictionary = {}             ## the best run to race (empty = none)
+var show_ghost := true
+var _rec := PackedFloat32Array()       ## this run, every physics tick: x, y, z, speed
+var _rec_dt := 0.0
+var _ghost_node: Node3D = null
+var _ghost_label: Label3D = null
+var _last_delta := ""                  ## "+1.234 vs best" after a finish
 
 var _hud := CanvasLayer.new()
 var _speed_label := Label.new()
@@ -84,7 +94,7 @@ func _ensure_input_actions() -> void:
 ## `start_box` / `finish_box` are the start and finish zones (empty AABB = none): leaving the start starts the
 ## timer, entering the finish stops it.
 func start(at: Transform3D, start_box := AABB(), finish_box := AABB(), kill_y := -60.0, volumes: Array = [],
-		stages := {}) -> void:
+		stages := {}, best_ghost := {}) -> void:
 	if active:
 		return
 	spawn = at
@@ -94,7 +104,9 @@ func start(at: Transform3D, start_box := AABB(), finish_box := AABB(), kill_y :=
 	_volumes = volumes
 	_stages = stages
 	_inside.clear()
-	best_time = 0.0
+	ghost = best_ghost
+	best_time = float(ghost.get("time", 0.0))
+	_build_ghost()
 	player = load(SUCC_SCENE).instantiate()
 	add_child(player)
 	_place()
@@ -111,6 +123,9 @@ func stop() -> void:
 	_hud.visible = false
 	player.queue_free()
 	player = null
+	if _ghost_node:
+		_ghost_node.queue_free()
+		_ghost_node = null
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	stopped.emit()
 
@@ -124,6 +139,10 @@ func respawn() -> void:
 func _place() -> void:
 	run_state = Run.WAITING
 	run_time = 0.0
+	_rec = PackedFloat32Array()
+	_last_delta = ""
+	if not ghost.is_empty():
+		_build_ghost()                                  # a best set this session races you from the next run
 	_reached.clear()
 	_splits.clear()
 	_checkpoint = spawn
@@ -188,6 +207,8 @@ func _physics_process(delta: float) -> void:
 				run_time = 0.0
 		Run.RUNNING:
 			run_time += delta
+			_rec_dt = delta
+			_record()
 			if _finish_box.has_volume() and _finish_box.has_point(feet):
 				var missing := _stages.keys().filter(func(n): return not n in _reached)
 				if not missing.is_empty():
@@ -196,8 +217,94 @@ func _physics_process(delta: float) -> void:
 					return
 				run_state = Run.FINISHED
 				_flash = 3.0
+				_last_delta = "" if best_time <= 0.0 else "%+.3f vs best" % (run_time - best_time)
 				if best_time <= 0.0 or run_time < best_time:
 					best_time = run_time
+					_save_ghost()
+
+
+# ------------------------------------------------------------------------------------------------ ghost
+func _record() -> void:
+	var p := player.global_position
+	_rec.append_array([p.x, p.y, p.z, Vector2(player.velocity.x, player.velocity.z).length()])
+
+
+## Keep this run as the best: resampled to GHOST_HZ so it stays small in the map file.
+func _save_ghost() -> void:
+	var n := _rec.size() / 4
+	if n < 2:
+		return
+	var out := []
+	var count := int(run_time * GHOST_HZ) + 1
+	for k in count + 1:
+		var t := minf(k / GHOST_HZ, run_time)
+		var f := t / maxf(_rec_dt, 1e-4) - 1.0
+		var i := clampi(int(floor(f)), 0, n - 2)
+		var w := clampf(f - i, 0.0, 1.0)
+		for c in 4:
+			out.append(snappedf(lerpf(_rec[i * 4 + c], _rec[(i + 1) * 4 + c], w), 0.01))
+	ghost = {"time": run_time, "hz": GHOST_HZ, "samples": out}
+	ghost_recorded.emit(ghost)
+
+
+## Where the best run was `t` seconds in (and its speed). Static so the editor can draw the line too.
+static func ghost_at(g: Dictionary, t: float) -> Array:
+	var s: Array = g.get("samples", [])
+	var n := s.size() / 4
+	if n == 0:
+		return [Vector3.ZERO, 0.0]
+	var f := clampf(t * float(g.get("hz", GHOST_HZ)), 0.0, n - 1.0)
+	var i := mini(int(f), n - 2) if n > 1 else 0
+	var w := f - i
+	var j := mini(i + 1, n - 1)
+	var a := Vector3(s[i * 4], s[i * 4 + 1], s[i * 4 + 2])
+	var b := Vector3(s[j * 4], s[j * 4 + 1], s[j * 4 + 2])
+	return [a.lerp(b, w), lerpf(s[i * 4 + 3], s[j * 4 + 3], w)]
+
+
+func _build_ghost() -> void:
+	if _ghost_node:
+		_ghost_node.queue_free()
+	_ghost_node = null
+	if ghost.is_empty():
+		return
+	_ghost_node = Node3D.new()
+	var body := MeshInstance3D.new()
+	var cap := CapsuleMesh.new()
+	cap.radius = 0.45
+	cap.height = 1.8
+	body.mesh = cap
+	body.position.y = 0.9
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.45, 0.85, 1.0, 0.45)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	body.material_override = m
+	body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ghost_node.add_child(body)
+	_ghost_label = Label3D.new()
+	_ghost_label.text = "best  " + format_time(float(ghost["time"]))
+	_ghost_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_ghost_label.no_depth_test = true
+	_ghost_label.fixed_size = true
+	_ghost_label.pixel_size = 0.0012
+	_ghost_label.position.y = 2.6
+	_ghost_label.modulate = Color(0.6, 0.9, 1.0)
+	_ghost_label.outline_size = 8
+	_ghost_node.add_child(_ghost_label)
+	_ghost_node.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	add_child(_ghost_node)
+
+
+func _update_ghost() -> void:
+	if _ghost_node == null:
+		return
+	_ghost_node.visible = show_ghost
+	var t := run_time if run_state != Run.WAITING else 0.0
+	var at := ghost_at(ghost, t)
+	_ghost_node.global_position = at[0]
+	_ghost_label.text = "best  %s   %d u/s" % [format_time(float(ghost["time"])), roundi(at[1] * UNITS_PER_METRE)]
 
 
 ## SurfsUp booster: Add pushes along the arrow on top of your speed, Set replaces your speed with exactly this.
@@ -239,11 +346,13 @@ func _process(_delta: float) -> void:
 		return
 	var h := Vector2(player.velocity.x, player.velocity.z).length() * UNITS_PER_METRE
 	top_speed = max(top_speed, h)
+	_update_ghost()
 	_speed_label.text = "%d" % roundi(h)
 	match run_state:
 		Run.WAITING: _time_label.text = "leave the start zone to begin" if _start_box.has_volume() else ""
 		Run.RUNNING: _time_label.text = format_time(run_time)
-		Run.FINISHED: _time_label.text = "FINISHED  %s%s" % [format_time(run_time), "   (best!)" if is_equal_approx(run_time, best_time) else ""]
+		Run.FINISHED: _time_label.text = "FINISHED  %s%s" % [format_time(run_time),
+			"   (best!)" if is_equal_approx(run_time, best_time) else "   " + _last_delta]
 	_time_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5) if run_state == Run.FINISHED else Color.WHITE)
 	_message_time = maxf(_message_time - _delta, 0.0)
 	if _message_time > 0.0 and run_state != Run.FINISHED:
@@ -253,7 +362,8 @@ func _process(_delta: float) -> void:
 	if not _stages.is_empty():
 		var cur: int = _reached.max() if not _reached.is_empty() else 1
 		stage = "   ·   stage %d / %d" % [cur, _stages.size() + 1]
-	_info_label.text = "top %d u/s%s%s   ·   R restart   ·   Backspace checkpoint   ·   Esc editor" % [roundi(top_speed), stage, best]
+	_info_label.text = "top %d u/s%s%s   ·   R restart   ·   Backspace checkpoint%s   ·   Esc editor" % [roundi(top_speed), stage, best,
+		("   ·   G ghost " + ("on" if show_ghost else "off")) if not ghost.is_empty() else ""]
 
 
 ## Returns true if the event was a play-mode control.
@@ -269,5 +379,8 @@ func handle_input(event: InputEvent) -> bool:
 			return true
 		if event.keycode == KEY_BACKSPACE:
 			_to_checkpoint()
+			return true
+		if event.keycode == KEY_G:
+			show_ghost = not show_ghost
 			return true
 	return true            # while playing, the editor ignores everything else

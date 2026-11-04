@@ -33,6 +33,8 @@ var sun: DirectionalLight3D
 var _map_props: VBoxContainer
 var _image_dialog: FileDialog
 var show_all_arcs := false
+var best_ghost: Dictionary = {}         ## the map's best run in play mode (saved with the map, not in undo)
+var show_ghost_path := true
 var show_direction := true             ## editor guide: arrows along each ramp from its start to its end
 var _arcs: Array = []                ## [{ramp, speed, ref, runs: [full, sloppy]}] from the jump checker
 var _arcs_timer := 0.0
@@ -106,6 +108,7 @@ func _ready() -> void:
 	_build_ui()
 	add_child(play)
 	play.stopped.connect(_on_play_stopped)
+	play.ghost_recorded.connect(func(g): best_ghost = g)
 	_new_map()
 	get_window().title = "SurfForge"
 	_show_welcome_if_main.call_deferred()
@@ -207,6 +210,13 @@ func _build_ui_main() -> void:
 	arrows.tooltip_text = "Arrows along every ramp showing which way it is ridden (first point to last). Editor only: never exported."
 	arrows.toggled.connect(func(on): show_direction = on; _redraw_overlays())
 	bar.add_child(arrows)
+	var gp := CheckButton.new()
+	gp.text = "Best run"
+	gp.button_pressed = show_ghost_path
+	gp.focus_mode = Control.FOCUS_NONE
+	gp.tooltip_text = "Draw the path of your best play-mode run, coloured by speed (blue slow, red fast). Editor only."
+	gp.toggled.connect(func(on): show_ghost_path = on)
+	bar.add_child(gp)
 	var step := OptionButton.new()
 	for s in [1, 2, 4, 8, 16]:
 		step.add_item("%d m" % s, s)
@@ -594,10 +604,12 @@ func _refresh_info() -> void:
 		var counts := {}
 		for e in entities_root.get_children():
 			counts[e.kind] = counts.get(e.kind, 0) + 1
+		var best_txt := ("\n\nBest run: %s (saved with the map). Its path is drawn in the views; in play mode you race it (G hides it)."
+			% PlayMode.format_time(float(best_ghost["time"]))) if not best_ghost.is_empty() else "\n\nNo best run yet: press P and finish a run."
 		_info.text = ("Nothing selected - click a ramp or platform in any view to edit it.\n\n"
 			+ "Ramps: %d\nStart: %s   Finish: %s\nStages: %d   Teleports: %d\nBoosters: %d   Kill zones: %d"
 			% [ramps_root.get_child_count(), "yes" if counts.has("start") else "missing", "yes" if counts.has("finish") else "missing",
-				counts.get("stage", 0), counts.get("teleport", 0), counts.get("booster", 0), counts.get("kill", 0)])
+				counts.get("stage", 0), counts.get("teleport", 0), counts.get("booster", 0), counts.get("kill", 0)]) + best_txt
 		return
 	if selected is RampNode:
 		var r := selected as RampNode
@@ -702,6 +714,7 @@ func _load_dict(data: Dictionary) -> void:
 
 func _new_map() -> void:
 	_load_dict({})
+	best_ghost = {}
 	_undo.clear()
 	_redo.clear()
 	current_path = ""
@@ -862,6 +875,34 @@ func _draw_padlock(ov: Control, at: Vector2, col: Color) -> void:
 		var grow := 1.5 if pass_col.a > 0.75 and pass_col.r == 0.0 else 0.0
 		ov.draw_arc(at + Vector2(0, -2), 4.0, PI, TAU, 10, pass_col, 2.0 + grow * 2.0)
 		ov.draw_rect(Rect2(at + Vector2(-6 - grow, -2 - grow), Vector2(12 + grow * 2, 9 + grow * 2)), pass_col, true)
+
+
+## The best run's path, coloured by speed: blue slow -> green -> yellow -> red at its top speed.
+func _draw_ghost_path(cam: Camera3D, ov: Control) -> void:
+	var s: Array = best_ghost.get("samples", [])
+	var n := s.size() / 4
+	var top := 1.0
+	for i in n:
+		top = maxf(top, s[i * 4 + 3])
+	var prev := Vector2.INF
+	for i in n:
+		var p := Vector3(s[i * 4], s[i * 4 + 1], s[i * 4 + 2]) + Vector3(0, 0.9, 0)
+		if cam.is_position_behind(p):
+			prev = Vector2.INF
+			continue
+		var sp := cam.unproject_position(p)
+		if prev != Vector2.INF:
+			var f: float = s[i * 4 + 3] / top
+			var col := Color.from_hsv(lerpf(0.62, 0.0, f), 0.85, 1.0, 0.9)
+			ov.draw_line(prev, sp, col, 3.0)
+		prev = sp
+	var end := Vector3(s[(n - 1) * 4], s[(n - 1) * 4 + 1], s[(n - 1) * 4 + 2]) + Vector3(0, 3, 0)
+	if n > 0 and not cam.is_position_behind(end):
+		var font := ov.get_theme_default_font()
+		var at := cam.unproject_position(end)
+		var t := "best run  " + PlayMode.format_time(float(best_ghost.get("time", 0.0)))
+		ov.draw_string_outline(font, at + Vector2(-40, -8), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.85))
+		ov.draw_string(font, at + Vector2(-40, -8), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.6, 0.9, 1.0))
 
 
 func _redraw_overlays() -> void:
@@ -1072,6 +1113,8 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 				if cam.is_position_behind(line[i]) or cam.is_position_behind(line[i - 1]):
 					continue
 				ov.draw_line(cam.unproject_position(line[i - 1]), cam.unproject_position(line[i]), Color(1.0, 0.15, 0.1, 0.95), 3.0)
+	if show_ghost_path and not best_ghost.is_empty():
+		_draw_ghost_path(cam, ov)
 	if show_direction:
 		for r in ramps_root.get_children():
 			_draw_direction(cam, ov, r, r == selected)
@@ -1927,6 +1970,7 @@ func _on_template_chosen(path: String) -> void:
 	data.erase("template")
 	_checkpoint()                                       # Ctrl+Z brings back the map you had before
 	_load_dict(data)
+	best_ghost = {}
 	current_path = ""
 	get_window().title = "SurfForge - new map"
 	_frame_clicked()
@@ -1963,7 +2007,10 @@ func save_map(path: String) -> void:
 	if f == null:
 		_set_status("Could not save %s" % path)
 		return
-	f.store_string(JSON.stringify(_map_dict(), "  "))
+	var d := _map_dict()
+	if not best_ghost.is_empty():
+		d["ghost"] = best_ghost                          # the best run travels with the map (editor only)
+	f.store_string(JSON.stringify(d, "  "))
 	f.close()
 	current_path = path
 	get_window().title = "SurfForge - " + path.get_file()
@@ -1977,6 +2024,7 @@ func load_map(path: String) -> void:
 		return
 	_checkpoint()
 	_load_dict(data)
+	best_ghost = data.get("ghost", {})
 	current_path = path
 	get_window().title = "SurfForge - " + path.get_file()
 	_frame_clicked()
@@ -2019,14 +2067,14 @@ func _play_clicked() -> void:
 		if e.kind == "stage":
 			stages[e.number] = e
 	play.start(at, start.zone_aabb() if start else AABB(), finish.zone_aabb() if finish else AABB(),
-		SurfsUpExporter.kill_floor_y(_map_dict()), volumes, stages)
+		SurfsUpExporter.kill_floor_y(_map_dict()), volumes, stages, best_ghost)
 
 
 func _on_play_stopped() -> void:
 	_ui.visible = true
 	if selected:
 		selected.set_selected(true)
-	var t := " Best time: %s" % PlayMode.format_time(play.best_time) if play.best_time > 0.0 else ""
+	var t := " Best time: %s (its path is drawn in the views; G in play mode races it)." % PlayMode.format_time(play.best_time) if play.best_time > 0.0 else ""
 	_set_status("Back in the editor. Top speed %d u/s.%s" % [roundi(play.top_speed), t])
 
 
