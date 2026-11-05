@@ -21,6 +21,9 @@ const MAX_BRUSHES := 8192                ## Source's brush limit
 const RAMP_MATERIAL := "DEV/DEV_MEASUREGENERIC01B"
 const PLATFORM_MATERIAL := "DEV/DEV_MEASUREWALL01C"
 const SKY_MATERIAL := "TOOLS/TOOLSSKYBOX"
+## The closest stock CS:S texture for each block look (custom textures come with the material library).
+const BLOCK_MATERIALS := {"grid": "DEV/DEV_MEASUREGENERIC01B", "color": "DEV/DEV_MEASUREWALL01C", "steel": "DEV/DEV_MEASUREWALL01D",
+	"ceramic": "DEV/DEV_MEASUREWALL01A"}
 const TRIGGER_MATERIAL := "TOOLS/TOOLSTRIGGER"
 ## Closest stock CS:S sky for each sky preset (all of these ship with CS:S).
 const SKIES := {"day": "sky_day01_01", "sunset": "sky_day02_09", "overcast": "sky_day03_01", "night": "sky_borealis01",
@@ -79,6 +82,21 @@ func build(map: Dictionary, opts := {}) -> String:
 				lo = lo.min(q)
 				hi = hi.max(q)
 	var ents: Array = map.get("entities", [])
+	# blocks: every convex piece is one brush
+	var block_pieces := []
+	var cutters := []
+	for bd in map.get("blocks", []):
+		if BlockShape.spec(bd)["cutter"]:
+			cutters.append(bd)
+	for bd in map.get("blocks", []):
+		var bs := BlockShape.spec(bd)
+		if bs["cutter"]:
+			continue
+		for piece in BlockShape.world_pieces(bs, cutters):
+			block_pieces.append([piece, bs["look"]])
+			for q in Convex.points(piece):
+				lo = lo.min(q)
+				hi = hi.max(q)
 	for e in ents:
 		for c in _box_corners(e, true):
 			lo = lo.min(c)
@@ -113,6 +131,11 @@ func build(map: Dictionary, opts := {}) -> String:
 	for e in ents:
 		if e.get("kind", "") in ["start", "finish", "stage"]:
 			world.append(_solid(_hull(_box_corners(e, false).map(func(c): return src(c))), PLATFORM_MATERIAL))
+	for bp in block_pieces:
+		var pts := []
+		for q in Convex.points(bp[0]):
+			pts.append(src(q))
+		world.append(_solid(_hull(pts), BLOCK_MATERIALS.get(bp[1], PLATFORM_MATERIAL)))
 	var b_lo := -half + Vector3.ONE * SKY_THICK
 	var b_hi := half - Vector3.ONE * SKY_THICK
 	for i in 3:                                          # six walls of skybox around everything

@@ -233,6 +233,49 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			z.set_meta("boost_on_exit", false)
 			n_boost += 1
 
+	# blocks: a mesh and an exact convex collision shape per piece (cutters only cut, they aren't built)
+	var blocks := Node3D.new()
+	blocks.name = "Blocks"
+	_add(root, root, blocks)
+	var cutters := []
+	for bd in map.get("blocks", []):
+		if BlockShape.spec(bd)["cutter"]:
+			cutters.append(bd)
+	var bi := 0
+	for bd in map.get("blocks", []):
+		var bs := BlockShape.spec(bd)
+		if bs["cutter"]:
+			continue
+		var bxf := BlockShape.transform_of(bs)
+		var pieces := BlockShape.world_pieces(bs, cutters)
+		if pieces.is_empty():
+			continue
+		var body := StaticBody3D.new()
+		body.name = "Block%d" % bi
+		body.transform = bxf
+		_add(root, blocks, body)
+		var bm := BlockShape.mesh(pieces, bxf)
+		if bm.get_surface_count() > 0:
+			bm.surface_set_material(0, Look.ramp_material(bs["look"], Color.html(bs["color"])))
+		var bmi := MeshInstance3D.new()
+		bmi.name = "Mesh"
+		bmi.mesh = bm
+		_add(root, body, bmi)
+		var inv := bxf.affine_inverse()
+		var pn := 0
+		for piece in pieces:
+			var shape := ConvexPolygonShape3D.new()
+			var pts := PackedVector3Array()
+			for v in Convex.points(piece):
+				pts.append(inv * v)
+			shape.points = pts
+			var cs := CollisionShape3D.new()
+			cs.name = "Piece%d" % pn
+			cs.shape = shape
+			_add(root, body, cs)
+			pn += 1
+		bi += 1
+
 	# props: the models' meshes (textures compressed) and, if solid, their collision
 	var props := Node3D.new()
 	props.name = "Props"
@@ -298,6 +341,9 @@ static func kill_floor_y(map: Dictionary) -> float:
 	for ed in map.get("entities", []):
 		if ed.get("kind", "") in ["start", "finish", "stage"]:
 			lowest = min(lowest, ed["position"][1] - ed["size"][1])
+	for bd in map.get("blocks", []):
+		if not bd.get("cutter", false):
+			lowest = min(lowest, float(bd.get("position", [0, 0, 0])[1]) - 20.0)
 	return (0.0 if lowest == INF else lowest) - KILL_MARGIN
 
 

@@ -19,6 +19,15 @@ const PICK_PIXELS := 12.0
 var ramps_root := Node3D.new()
 var entities_root := Node3D.new()
 var props_root := Node3D.new()
+var blocks_root := Node3D.new()
+var _block_props: VBoxContainer
+var _blocks_dirty := false
+var _draw_mode := false                 ## Draw block tool: drag a rectangle in a 2D view to make a block
+var _draw_block: BlockNode = null
+var _draw_start := Vector3.ZERO
+var _draw_pane: ViewPane = null
+var _last_block := {"size": [16.0, 8.0, 16.0]}   ## new blocks take the last size used
+var _face := -1                          ## the block side being dragged (index into face_handles)
 var _prop_props: VBoxContainer
 var _prop_dialog: FileDialog
 var _prop_replace := false
@@ -50,7 +59,7 @@ var _redo: Array = []
 var _coalesce_key := ""
 var _coalesce_time := 0.0
 # drag state
-enum Drag { NONE, POINT, OBJECT }
+enum Drag { NONE, POINT, OBJECT, FACE }
 var _drag := Drag.NONE
 var _drag_pane: ViewPane
 var _drag_plane := Plane()
@@ -155,6 +164,7 @@ func _build_world() -> void:
 	add_child(ramps_root)
 	add_child(entities_root)
 	add_child(props_root)
+	add_child(blocks_root)
 
 
 # ================================================================================================= ui
@@ -198,6 +208,7 @@ func _build_ui_main() -> void:
 			["+ Finish (M)", func(): _add_entity("finish")], ["+ Kill zone (K)", func(): _add_entity("kill")],
 			["+ Booster (J)", func(): _add_entity("booster")], ["+ Stage (T)", func(): _add_entity("stage")],
 			["+ Teleport (Y)", func(): _add_entity("teleport")], ["+ Prop (I)", _add_prop_clicked], ["|", null],
+			["+ Block (O)", _add_block_clicked], ["Draw block (D)", _toggle_draw_mode], ["|", null],
 			["Extend", _extend_clicked], ["Add Bend", _bend_clicked], ["Duplicate", _duplicate_clicked],
 			["Delete", _delete_clicked], ["|", null], ["Undo", undo], ["Redo", redo], ["|", null],
 			["Frame (F)", _frame_clicked], ["|", null], ["▶ Play (P)", _play_clicked],
@@ -394,6 +405,7 @@ func _build_props(props: VBoxContainer) -> void:
 
 	_build_gen_props(props)
 	_build_prop_props(props)
+	_build_block_props(props)
 
 	_entity_props = VBoxContainer.new()
 	_entity_props.add_theme_constant_override("separation", 6)
@@ -563,11 +575,13 @@ func _refresh_props() -> void:
 		_ramp_props.visible = false
 		_entity_props.visible = false
 		_prop_props.visible = false
+		_block_props.visible = false
 		_fields["head"].text = "Generate a ramp"
 		_refresh_info()
 		return
 	_map_props.visible = selected == null
 	_prop_props.visible = false
+	_block_props.visible = false
 	if selected == null:
 		_ramp_props.visible = false
 		_entity_props.visible = false
@@ -580,6 +594,31 @@ func _refresh_props() -> void:
 	_ramp_props.visible = is_ramp
 	_entity_props.visible = selected is EntityNode
 	_prop_props.visible = selected is PropNode
+	_block_props.visible = selected is BlockNode
+	if selected is BlockNode:
+		var b := selected as BlockNode
+		_fields["head"].text = b.label()
+		_fields["block_shape"].select(BlockShape.SHAPES.find(b.data["shape"]))
+		var sz: Vector3 = b.size()
+		_set_field("block_x", sz.x)
+		_set_field("block_y", sz.y)
+		_set_field("block_z", sz.z)
+		_set_field("block_yaw", float(b.data["yaw"]))
+		_set_field("block_sides", float(b.data["sides"]))
+		_set_field("block_steps", float(b.data["steps"]))
+		_set_field("block_wall", float(b.data["wall"]))
+		_fields["block_hollow"].set_pressed_no_signal(bool(b.data["hollow"]))
+		_fields["block_cutter"].set_pressed_no_signal(b.is_cutter())
+		_fields["block_look"].select(Look.LOOK_ORDER.find(b.data["look"]))
+		_fields["block_color"].color = Color.html(b.data["color"])
+		_fields["block_sides_box"].visible = b.data["shape"] == "cylinder"
+		_fields["block_steps_box"].visible = b.data["shape"] == "stairs"
+		_fields["block_hollow"].visible = b.data["shape"] in ["box", "cylinder"] and not b.is_cutter()
+		_fields["block_wall_box"].visible = bool(b.data["hollow"]) and b.data["shape"] in ["box", "cylinder"] and not b.is_cutter()
+		_fields["block_look_box"].visible = not b.is_cutter()
+		_updating_ui = false
+		_refresh_info()
+		return
 	if selected is PropNode:
 		var pr := selected as PropNode
 		_fields["head"].text = "Prop"
@@ -673,6 +712,14 @@ func _refresh_info() -> void:
 			if a["ramp"] == r:
 				_info.text += ("\n\nJump off the end (from %s): ≈ %d u/s\n  full speed: %s\n  at %d%% speed: %s\n(no air strafing: good players can stretch this)"
 					% [a["ref"], roundi(a["speed"] * JumpCheck.U), a["runs"][0]["label"], roundi(SLOPPY * 100), a["runs"][1]["label"]])
+	elif selected is BlockNode:
+		var b := selected as BlockNode
+		var sz: Vector3 = b.size()
+		_info.text = ("%s\nSize: %.2f x %.2f x %.2f m\nPosition: (%.1f, %.1f, %.1f)\nPieces: %d (each is one brush in a CS:S export)\n\n%s" % [
+			BlockShape.LABELS[b.data["shape"]] + (" (hollow)" if b.data["hollow"] else ""), sz.x, sz.y, sz.z,
+			b.global_position.x, b.global_position.y, b.global_position.z, b.pieces.size(),
+			"CUTTER: cuts a hole wherever it overlaps a block. Move it and the hole moves. It isn't exported itself."
+				if b.is_cutter() else "Drag the small squares on its sides to resize it; drag the block itself to move it."])
 	elif selected is PropNode:
 		var pr := selected as PropNode
 		var sz := pr.world_size()
@@ -743,8 +790,11 @@ func _map_dict() -> Dictionary:
 	var ps := []
 	for pr in props_root.get_children():
 		ps.append(pr.to_dict())
+	var bs := []
+	for b in blocks_root.get_children():
+		bs.append(b.to_dict())
 	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
-		"props": ps}
+		"props": ps, "blocks": bs}
 
 
 func _load_dict(data: Dictionary) -> void:
@@ -754,7 +804,7 @@ func _load_dict(data: Dictionary) -> void:
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
 	_select(null)
-	for root in [ramps_root, entities_root, props_root]:
+	for root in [ramps_root, entities_root, props_root, blocks_root]:
 		for c in root.get_children():
 			root.remove_child(c)
 			c.queue_free()
@@ -770,6 +820,11 @@ func _load_dict(data: Dictionary) -> void:
 		var pr := PropNode.new()
 		props_root.add_child(pr)
 		pr.from_dict(pd)
+	for bd in data.get("blocks", []):
+		var b := BlockNode.new()
+		blocks_root.add_child(b)
+		b.from_dict(bd)
+	_rebuild_blocks()
 
 
 func _new_map() -> void:
@@ -800,7 +855,7 @@ func _make_ramp(a: Vector3, b: Vector3) -> RampNode:
 
 
 func _all_objects() -> Array:
-	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children()
+	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children() + blocks_root.get_children()
 
 
 # ================================================================================================= undo / redo
@@ -1198,6 +1253,176 @@ func add_prop(path: String, at: Vector3) -> PropNode:
 	return pr
 
 
+# ------------------------------------------------------------------------------------------------ blocks
+func _build_block_props(props: VBoxContainer) -> void:
+	_block_props = VBoxContainer.new()
+	_block_props.add_theme_constant_override("separation", 6)
+	_block_props.visible = false
+	props.add_child(_block_props)
+	var shape := OptionButton.new()
+	for k in BlockShape.SHAPES:
+		shape.add_item(BlockShape.LABELS[k])
+	shape.focus_mode = Control.FOCUS_NONE
+	shape.item_selected.connect(func(i): _edit_prop("block_shape", BlockShape.SHAPES[i]))
+	_add_row(_block_props, "Shape", shape)
+	_fields["block_shape"] = shape
+	_add_slider(_block_props, "block_x", "Width (m)", 0.25, 500.0, 0.25)
+	_add_slider(_block_props, "block_y", "Height (m)", 0.25, 500.0, 0.25)
+	_add_slider(_block_props, "block_z", "Depth (m)", 0.25, 500.0, 0.25)
+	_add_slider(_block_props, "block_yaw", "Facing (\u00b0)", -180.0, 180.0, 5.0)
+	var sides_box := VBoxContainer.new()
+	_block_props.add_child(sides_box)
+	_add_slider(sides_box, "block_sides", "Sides (smoothness)", 3.0, 64.0, 1.0)
+	_fields["block_sides_box"] = sides_box
+	var steps_box := VBoxContainer.new()
+	_block_props.add_child(steps_box)
+	_add_slider(steps_box, "block_steps", "Steps", 2.0, 64.0, 1.0)
+	_fields["block_steps_box"] = steps_box
+	var hollow := CheckButton.new()
+	hollow.text = "Hollow (a room with walls)"
+	hollow.focus_mode = Control.FOCUS_NONE
+	hollow.toggled.connect(func(on): _edit_prop("block_hollow", on))
+	_block_props.add_child(hollow)
+	_fields["block_hollow"] = hollow
+	var wall_box := VBoxContainer.new()
+	_block_props.add_child(wall_box)
+	_add_slider(wall_box, "block_wall", "Wall thickness (m)", 0.1, 10.0, 0.1)
+	_fields["block_wall_box"] = wall_box
+	var cutter := CheckButton.new()
+	cutter.text = "Cutter (cuts holes in blocks)"
+	cutter.focus_mode = Control.FOCUS_NONE
+	cutter.tooltip_text = "A cutter isn't built itself: it cuts its shape out of every block it overlaps - doorways, windows, tunnels. Move it and the hole moves."
+	cutter.toggled.connect(func(on): _edit_prop("block_cutter", on))
+	_block_props.add_child(cutter)
+	_fields["block_cutter"] = cutter
+	var look_box := VBoxContainer.new()
+	_block_props.add_child(look_box)
+	_fields["block_look_box"] = look_box
+	var look := OptionButton.new()
+	for k in Look.LOOK_ORDER:
+		if k != "texture":
+			look.add_item(Look.RAMP_LOOKS[k][0])
+	look.focus_mode = Control.FOCUS_NONE
+	look.item_selected.connect(func(i): _edit_prop("block_look", Look.LOOK_ORDER[i]))
+	_add_row(look_box, "Look", look)
+	_fields["block_look"] = look
+	var cp := ColorPickerButton.new()
+	cp.custom_minimum_size = Vector2(0, 26)
+	cp.color_changed.connect(func(c): _edit_prop("block_color", c))
+	_add_row(look_box, "Colour", cp)
+	_fields["block_color"] = cp
+
+
+## Blocks are cut by every cutter they overlap, so a change to any block can change others: rebuild them all.
+func _mark_blocks() -> void:
+	_blocks_dirty = true
+	_map_changed()
+
+
+func _rebuild_blocks() -> void:
+	_blocks_dirty = false
+	var cutters := []
+	for b in blocks_root.get_children():
+		if b.is_queued_for_deletion():
+			continue
+		if b.is_cutter():
+			cutters.append(b.data)
+	for b in blocks_root.get_children():
+		if not b.is_queued_for_deletion():
+			b.rebuild(cutters)
+
+
+func _add_block_clicked() -> void:
+	_checkpoint()
+	var c := _view_center()
+	var d := {"position": [c.x, maxf(c.y - _last_block["size"][1] * 0.5, 0.0), c.z], "size": _last_block["size"].duplicate()}
+	if snap_enabled:
+		d["position"] = [snappedf(c.x, snap_step), snappedf(d["position"][1], snap_step), snappedf(c.z, snap_step)]
+	var b := BlockNode.new()
+	blocks_root.add_child(b)
+	b.from_dict(d)
+	_rebuild_blocks()
+	_select(b)
+	_set_status("New block. Drag the squares on its sides to resize it, or use Draw block (D) to draw blocks in the 2D views.")
+
+
+func _toggle_draw_mode() -> void:
+	_draw_mode = not _draw_mode
+	_set_status("Draw block: drag a rectangle in the Top, Front or Side view. Esc or D to stop." if _draw_mode else "Draw block off.")
+
+
+func _draw_begin(pane: ViewPane, mouse: Vector2) -> void:
+	_checkpoint()
+	_draw_pane = pane
+	var hit = pane.drag_plane(_view_center(), false).intersects_ray(pane.ray(mouse)[0], pane.ray(mouse)[1])
+	if hit == null:
+		return
+	_draw_start = _snap_axes(hit, pane.drag_axes(false))
+	_draw_block = BlockNode.new()
+	blocks_root.add_child(_draw_block)
+	_draw_update(mouse)
+
+
+func _draw_update(mouse: Vector2) -> void:
+	var pane := _draw_pane
+	var hit = pane.drag_plane(_view_center(), false).intersects_ray(pane.ray(mouse)[0], pane.ray(mouse)[1])
+	if hit == null or _draw_block == null:
+		return
+	var a := _draw_start
+	var b: Vector3 = _snap_axes(hit, pane.drag_axes(false))
+	var axes := pane.drag_axes(false)
+	var last: Array = _last_block["size"]
+	var lo := a.min(b)
+	var hi := a.max(b)
+	var size := Vector3(maxf(hi.x - lo.x, 0.25), maxf(hi.y - lo.y, 0.25), maxf(hi.z - lo.z, 0.25))
+	var base := Vector3((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5)
+	# the axis the view looks along keeps the last size used (Hammer does the same)
+	for i in 3:
+		if axes[i] < 0.5:
+			size[i] = float(last[i])
+			if i == 1:
+				base.y = snappedf(_view_center().y - size.y * 0.5, snap_step if snap_enabled else 0.25)
+			else:
+				base[i] = a[i]
+	_draw_block.from_dict({"position": [base.x, base.y, base.z], "size": [size.x, size.y, size.z]})
+	_draw_block.rebuild([])
+	_set_status("Block %.2f x %.2f x %.2f m" % [size.x, size.y, size.z])
+
+
+func _draw_end() -> void:
+	if _draw_block == null:
+		return
+	var b := _draw_block
+	_draw_block = null
+	var sz: Vector3 = b.size()
+	if sz.x * sz.z < 1.0 and sz.y * sz.x < 1.0:
+		blocks_root.remove_child(b)
+		b.queue_free()
+		_undo.pop_back()
+		return
+	_last_block["size"] = b.data["size"].duplicate()
+	_rebuild_blocks()
+	_select(b)
+	_set_status("Block drawn. Keep drawing, or Esc / D to stop.")
+
+
+func _pick_face(pane: ViewPane, mouse: Vector2) -> int:
+	var best := -1
+	var best_d := PICK_PIXELS
+	var hs: Array = (selected as BlockNode).face_handles()
+	for i in hs.size():
+		var fh: Array = hs[i]
+		if pane.camera.is_position_behind(fh[0]):
+			continue
+		if pane.is_ortho() and absf((fh[1] as Vector3).dot(-pane.camera.global_basis.z)) > 0.5:
+			continue
+		var d := pane.camera.unproject_position(fh[0]).distance_to(mouse)
+		if d < best_d:
+			best_d = d
+			best = i
+	return best
+
+
 ## Reverse a ramp's direction of travel without moving any of it: the points run the other way, and what was
 ## the left face is now the right face (half ramps and Freeform faces swap sides to stay where they are).
 func _flip_clicked() -> void:
@@ -1301,6 +1526,16 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			ov.draw_circle(s, HANDLE_RADIUS, col)
 			if selected.is_locked_point(i):
 				_draw_padlock(ov, s + Vector2(0, -HANDLE_RADIUS - 12), Color(1.0, 0.62, 0.15))
+	elif selected is BlockNode:
+		for fh in (selected as BlockNode).face_handles():
+			if cam.is_position_behind(fh[0]):
+				continue
+			# in a 2D view only the sides seen edge-on can be dragged
+			if pane.is_ortho() and absf((fh[1] as Vector3).dot(-cam.global_basis.z)) > 0.5:
+				continue
+			var s := cam.unproject_position(fh[0])
+			ov.draw_rect(Rect2(s - Vector2(6, 6), Vector2(12, 12)), Color(0, 0, 0, 0.75), true)
+			ov.draw_rect(Rect2(s - Vector2(4.5, 4.5), Vector2(9, 9)), Color(1.0, 0.85, 0.15), true)
 	else:
 		var e: Node3D = selected
 		if not cam.is_position_behind(e.global_position):
@@ -1311,6 +1546,8 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 
 func _process(delta: float) -> void:
 	_poll_css()
+	if _blocks_dirty:
+		_rebuild_blocks()
 	if play.active:
 		return
 	_arcs_timer -= delta
@@ -1404,6 +1641,21 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 		if event.pressed:
 			_set_status("Generating a ramp: press Create (Enter) to keep it or Cancel (Esc) first.")
 		return true
+	if _draw_mode and pane.is_ortho() and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_draw_begin(pane, event.position)
+		else:
+			_draw_end()
+		return true
+	if _draw_mode and _draw_block and event is InputEventMouseMotion and pane == _draw_pane:
+		_draw_update(event.position)
+		return true
+	if selected is BlockNode and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var f := _pick_face(pane, event.position)
+		if f >= 0:
+			_face = f
+			_begin_drag(pane, Drag.FACE, event.position, false)
+			return true
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			if event.double_click and selected is RampNode:
@@ -1455,6 +1707,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_SPACE: _toggle_maximise_hovered()
 		get_viewport().set_input_as_handled()
 		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and _draw_mode:
+		_toggle_draw_mode()
+		return
 	if event is InputEventKey and event.pressed:
 		_handle_key(event)
 
@@ -1472,6 +1727,8 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_O when ctrl: _open_clicked()
 		KEY_D when ctrl: _duplicate_clicked()
 		KEY_N: _add_ramp_clicked()
+		KEY_O: _add_block_clicked()
+		KEY_D when not ctrl: _toggle_draw_mode()
 		KEY_F11: _toggle_fullscreen()
 		KEY_I: _add_prop_clicked()
 		KEY_L: _lock_toggle()
@@ -1521,6 +1778,8 @@ func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
 			return hit.collider.get_meta("entity")
 		if hit.collider.has_meta("prop"):
 			return hit.collider.get_meta("prop")
+		if hit.collider.has_meta("block"):
+			return hit.collider.get_meta("block")
 	# fallback: the ridge line on screen (thin ramps seen edge-on in the side views, clicks on the ridge seam)
 	var best: Node3D = null
 	var best_d := PICK_PIXELS
@@ -1548,6 +1807,8 @@ func _begin_drag(pane: ViewPane, kind: int, mouse: Vector2, vertical: bool, poin
 
 
 func _drag_anchor() -> Vector3:
+	if _drag == Drag.FACE:
+		return selected.face_handles()[_face][0]
 	return selected.points[selected_point] if _drag == Drag.POINT else selected.center()
 
 
@@ -1577,6 +1838,18 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 		_checkpoint()                                    # first real movement: the object is still in its pre-drag state
 		_drag_moved = true
 	selected.from_dict(_drag_origin)
+	if _drag == Drag.FACE:
+		var fh: Array = (selected as BlockNode).face_handles()[_face]
+		var amount: float = (hit - _drag_start_hit).dot(fh[1])
+		if snap_enabled:
+			amount = snappedf(amount, snap_step)
+		selected.from_dict(BlockNode.resized(_drag_origin, fh[2], fh[3], amount))
+		_last_block["size"] = selected.data["size"].duplicate()
+		_mark_blocks()
+		var sz: Vector3 = selected.size()
+		_set_status("Size %.2f x %.2f x %.2f m" % [sz.x, sz.y, sz.z])
+		_refresh_props()
+		return
 	if _drag == Drag.POINT:
 		var pts: PackedVector3Array = selected.points
 		var p: Vector3 = pts[selected_point] + delta
@@ -1587,6 +1860,8 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 	else:
 		delta = _snap_axes(delta, _drag_pane.drag_axes(_drag_vertical))
 		selected.translate_by(delta)
+		if selected is BlockNode:
+			_mark_blocks()
 		var c: Vector3 = selected.center()
 		_set_status("Moved by (%.0f, %.0f, %.0f) - centre now (%.0f, %.0f, %.0f)" % [delta.x, delta.y, delta.z, c.x, c.y, c.z])
 	_refresh_info()
@@ -1651,6 +1926,8 @@ func _nudge(key: int) -> void:
 		selected.rebuild()
 	else:
 		selected.translate_by(d)
+	if selected is BlockNode:
+		_mark_blocks()
 	_refresh_info()
 	_set_status("Nudged %s" % ["point" if selected is RampNode and selected_point >= 0 else "object"])
 
@@ -1660,6 +1937,8 @@ func _rotate_selected(deg: float) -> void:
 		return
 	_checkpoint("rotate")
 	selected.rotate_by(deg)
+	if selected is BlockNode:
+		_mark_blocks()
 	_refresh_props()
 	_set_status("Rotated %+.0f°" % deg)
 
@@ -1959,6 +2238,16 @@ func _bend_clicked() -> void:
 
 
 func _duplicate_clicked() -> void:
+	if selected is BlockNode:
+		_checkpoint()
+		var cb := BlockNode.new()
+		blocks_root.add_child(cb)
+		cb.from_dict(selected.to_dict())
+		cb.translate_by((selected as BlockNode).global_basis * Vector3(selected.size().x, 0, 0))
+		_rebuild_blocks()
+		_select(cb)
+		_set_status("Duplicated %s (placed alongside)." % cb.label().to_lower())
+		return
 	if selected is PropNode:
 		_checkpoint()
 		var cp := PropNode.new()
@@ -2012,6 +2301,8 @@ func _delete_clicked() -> void:
 	_select(null)
 	obj.get_parent().remove_child(obj)
 	obj.queue_free()
+	if obj is BlockNode:
+		_mark_blocks()
 	_set_status("Deleted.")
 
 
@@ -2080,6 +2371,30 @@ func _edit_prop(key: String, value) -> void:
 	if selected == null or _updating_ui:
 		return
 	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])
+	if selected is BlockNode:
+		var b := selected as BlockNode
+		var d: Dictionary = b.data.duplicate(true)
+		match key:
+			"block_shape": d["shape"] = value
+			"block_x": d = BlockNode.resized_centered(d, 0, value)
+			"block_y": d["size"][1] = value
+			"block_z": d = BlockNode.resized_centered(d, 2, value)
+			"block_yaw": d["yaw"] = value
+			"block_sides": d["sides"] = int(value)
+			"block_steps": d["steps"] = int(value)
+			"block_hollow": d["hollow"] = value
+			"block_wall": d["wall"] = value
+			"block_cutter": d["cutter"] = value
+			"block_look": d["look"] = value
+			"block_color": d["color"] = (value as Color).to_html(false)
+		b.from_dict(d)
+		if key in ["block_x", "block_y", "block_z"]:
+			_last_block["size"] = b.data["size"].duplicate()
+		_rebuild_blocks()
+		if key in ["block_shape", "block_hollow", "block_cutter"]:
+			_refresh_props()
+		_refresh_info()
+		return
 	if selected is PropNode:
 		var pr := selected as PropNode
 		match key:

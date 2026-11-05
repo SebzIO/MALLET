@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## Unreleased (0.2: structures)
+
+- Blocks: box, wedge, cylinder, stairs; + Block (O) or Draw block (D) - drag a rectangle in a 2D view, Hammer style;
+  resize by dragging the squares on a block's sides; move, turn, nudge, duplicate, undo.
+- Hollow blocks (rooms) with a wall thickness.
+- Cutters: a block that cuts its shape out of every block it overlaps (doorways, windows, tunnels), live.
+- Built from convex pieces: exact collision in SurfsUp, one Source brush per piece in CS:S (cuts use Hammer's carve).
+- Movie-quality demo tools: trained surf bot, director, Render demo.cmd.
+
 ## 0.1.0 preview — 2026-11-04
 
 The first tagged version.
