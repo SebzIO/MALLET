@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.4.0 preview — 2026-11-05: text
+
+- Text (Add > Text, X): flat signs you pass through, solid 3D letters you can stand on, and engravings cut into the
+  blocks they overlap (live). Any installed font by name, or a font file (.ttf / .otf / .woff).
+- Letter height, depth, alignment, facing and tilt; a library material or a colour; glow.
+- "Place on a surface": click a face and the text sits flush on it (embossed), facing out.
+- Exports: smooth letters with exact collision in SurfsUp; brushes in CS:S (func_detail for solid letters,
+  func_illusionary for signs), engravings carve the blocks' brushes.
+
 ## 0.3.0 preview — 2026-11-05: materials
 
 - Material library: 19 starter materials (CC0, from ambientCG) in 7 categories, each with colour, surface detail
