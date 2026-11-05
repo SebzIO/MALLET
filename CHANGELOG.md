@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.3.0 preview — 2026-11-05: materials
+
+- Material library: 19 starter materials (CC0, from ambientCG) in 7 categories, each with colour, surface detail
+  (normal map), roughness and, for metals, metalness; plus your own images ("+ Your own image" in the picker).
+- Materials on blocks: whole block, or any side on its own (top, bottom, front, back, left, right), with texture
+  size, shift and turn; textures line up across neighbouring blocks. Alt+click a face to paint it with the last
+  material picked.
+- Ramps can wear library materials too ("Library material" look).
+- SurfsUp export carries the textures inside the map; CS:S export converts the materials used to VTF / VMT with the
+  right surface sounds, compiles with them and packs them into the .bsp.
+
 ## 0.2.0 preview — 2026-11-05: structures
 
 - Blocks: box, wedge, cylinder, stairs; + Block (O) or Draw block (D) - drag a rectangle in a 2D view, Hammer style;

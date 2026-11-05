@@ -37,10 +37,12 @@ const RAMP_LOOKS := {
 	"nebula": ["Nebula", "ramp_nebula", "cloud colour"],
 	"neon": ["Neon edges", "ramp_neon", "glow colour"],
 	"texture": ["Image texture", "", "tint"],
+	"material": ["Library material", "", "tint"],
 }
-const LOOK_ORDER := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "neon", "texture"]
+const LOOK_ORDER := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "neon", "texture", "material"]
 
 static var _shaders := {}
+static var _ramp_mats := {}
 static var _textures := {}
 
 
@@ -131,7 +133,18 @@ static func image_texture(path: String) -> Texture2D:
 
 
 ## Material for a ramp. `texture_scale` = how many metres one copy of the image covers.
-static func ramp_material(look: String, color: Color, texture_path := "", texture_scale := 20.0) -> Material:
+static func ramp_material(look: String, color: Color, texture_path := "", texture_scale := 20.0, material_id := "",
+		face_length := 10.5) -> Material:
+	if look == "material" and MaterialLibrary.has(material_id):
+		# ramp UVs: u = 0..1 across the face, v = metres along / 20; size the library texture to the real world
+		var size := MaterialLibrary.world_size(material_id) * maxf(texture_scale / 20.0, 0.05)
+		var key := "%s|%s|%s|%s" % [material_id, color.to_html(), size, face_length]
+		if not _ramp_mats.has(key):
+			var m: StandardMaterial3D = MaterialLibrary.material(material_id, color).duplicate()
+			m.uv1_scale = Vector3(face_length / size, 20.0 / size, 1.0)
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			_ramp_mats[key] = m
+		return _ramp_mats[key]
 	var info: Array = RAMP_LOOKS.get(look, RAMP_LOOKS["color"])
 	if info[1] != "":
 		var m := ShaderMaterial.new()

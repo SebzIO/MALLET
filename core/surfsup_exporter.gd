@@ -86,7 +86,7 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		var ridge: PackedVector3Array = geo["ridge"]
 		var mesh: ArrayMesh = geo["mesh"]
 		var mat := Look.ramp_material(rd.get("look", "color"), Color.html(rd.get("color", "edebe3")), rd.get("texture", ""),
-			rd.get("tex_scale", 20.0))
+			rd.get("tex_scale", 20.0), rd.get("material", ""), float(sp["face_length"]))
 		mesh.surface_set_material(0, mat)
 		var body := StaticBody3D.new()
 		body.name = "Ramp%d" % i
@@ -254,9 +254,7 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		body.name = "Block%d" % bi
 		body.transform = bxf
 		_add(root, blocks, body)
-		var bm := BlockShape.mesh(pieces, bxf)
-		if bm.get_surface_count() > 0:
-			bm.surface_set_material(0, Look.ramp_material(bs["look"], Color.html(bs["color"])))
+		var bm: ArrayMesh = BlockShape.mesh_faces(pieces, bxf, bs)[0]
 		var bmi := MeshInstance3D.new()
 		bmi.name = "Mesh"
 		bmi.mesh = bm

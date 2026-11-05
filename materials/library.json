@@ -1,0 +1,237 @@
+{
+  "source": "ambientCG.com (CC0 1.0)",
+  "materials": [
+    {
+      "id": "Concrete034",
+      "name": "Smooth concrete",
+      "category": "Concrete & stone",
+      "size": 3.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Marble012",
+      "name": "White marble",
+      "category": "Concrete & stone",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "PaintedPlaster017",
+      "name": "White plaster",
+      "category": "Concrete & stone",
+      "size": 2.0,
+      "surface": "plaster",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "PavingStones138",
+      "name": "Cobblestones",
+      "category": "Concrete & stone",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Bricks104",
+      "name": "Red brick",
+      "category": "Brick",
+      "size": 1.5,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Bricks094",
+      "name": "Old brick",
+      "category": "Brick",
+      "size": 2.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Metal009",
+      "name": "Brushed metal",
+      "category": "Metal",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "metal": "metal.jpg"
+      }
+    },
+    {
+      "id": "Metal032",
+      "name": "Painted metal",
+      "category": "Metal",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "metal": "metal.jpg"
+      }
+    },
+    {
+      "id": "CorrugatedSteel009",
+      "name": "Corrugated steel",
+      "category": "Metal",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "metal": "metal.jpg"
+      }
+    },
+    {
+      "id": "Wood051",
+      "name": "Dark wood",
+      "category": "Wood",
+      "size": 2.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "WoodFloor051",
+      "name": "Parquet floor",
+      "category": "Wood",
+      "size": 2.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Planks037A",
+      "name": "Old planks",
+      "category": "Wood",
+      "size": 2.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "metal": "metal.jpg"
+      }
+    },
+    {
+      "id": "Tiles107",
+      "name": "White tiles",
+      "category": "Tiles",
+      "size": 2.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Tiles074",
+      "name": "Checkered marble",
+      "category": "Tiles",
+      "size": 2.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "RoofingTiles013A",
+      "name": "Slate roof",
+      "category": "Tiles",
+      "size": 2.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Asphalt031",
+      "name": "Asphalt",
+      "category": "Ground",
+      "size": 3.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Gravel043",
+      "name": "Gravel",
+      "category": "Ground",
+      "size": 2.0,
+      "surface": "gravel",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Grass004",
+      "name": "Grass",
+      "category": "Ground",
+      "size": 3.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "Plastic010",
+      "name": "Plain (tintable)",
+      "category": "Other",
+      "size": 2.0,
+      "surface": "plastic",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    }
+  ]
+}

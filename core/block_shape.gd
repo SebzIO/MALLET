@@ -12,7 +12,13 @@ const DEFAULTS := {
 	"shape": "box", "position": [0.0, 0.0, 0.0], "size": [16.0, 8.0, 16.0], "yaw": 0.0, "pitch": 0.0, "roll": 0.0,
 	"sides": 16, "steps": 8, "hollow": false, "wall": 1.0, "cutter": false,
 	"look": "grid", "color": "9aa3ad",
+	"material": "",                      ## library material for the whole block ("" = use look + colour)
+	"uv_scale": 1.0, "uv_offset": [0.0, 0.0], "uv_rot": 0.0,   ## texture size multiplier, shift (repeats), turn
+	"faces": {},                         ## per side: {slot: {material, uv_scale, uv_offset, uv_rot}} overriding the above
 }
+## The sides of a block, in its own space (front = -Z, the way it faces).
+const SLOTS := ["top", "bottom", "front", "back", "left", "right"]
+const SLOT_LABELS := {"top": "Top", "bottom": "Bottom", "front": "Front", "back": "Back", "left": "Left", "right": "Right"}
 
 
 static func spec(d: Dictionary) -> Dictionary:
@@ -160,6 +166,76 @@ static func mesh(pieces: Array, xf: Transform3D) -> ArrayMesh:
 	if tris > 0:
 		st.commit(m)
 	return m
+
+
+## Which side of the block a face belongs to, from its normal in the block's own space.
+static func slot_of(local_normal: Vector3) -> String:
+	if local_normal.y > 0.7:
+		return "top"
+	if local_normal.y < -0.7:
+		return "bottom"
+	if absf(local_normal.x) > absf(local_normal.z):
+		return "right" if local_normal.x > 0.0 else "left"
+	return "back" if local_normal.z > 0.0 else "front"
+
+
+## The material and texture placement for one side: the block's settings, overridden by that side's own.
+static func face_settings(s: Dictionary, slot: String) -> Dictionary:
+	var out := {"material": s.get("material", ""), "uv_scale": float(s.get("uv_scale", 1.0)),
+		"uv_offset": s.get("uv_offset", [0.0, 0.0]), "uv_rot": float(s.get("uv_rot", 0.0))}
+	var own: Dictionary = s.get("faces", {}).get(slot, {})
+	for k in own:
+		out[k] = own[k]
+	return out
+
+
+## Texture coordinates for a point on a face: world-aligned (so textures line up across blocks), sized to the
+## material's real-world size x the face's scale, then turned and shifted.
+static func face_uv(p: Vector3, n: Vector3, f: Dictionary) -> Vector2:
+	var metres := _uv(p, n) * UV_METRES
+	if f["material"] == "":
+		return metres / UV_METRES
+	var size := MaterialLibrary.world_size(f["material"]) * maxf(float(f["uv_scale"]), 0.01)
+	var uv := (metres / size).rotated(deg_to_rad(float(f["uv_rot"])))
+	return uv + Vector2(f["uv_offset"][0], f["uv_offset"][1])
+
+
+## The block's mesh with a surface per material (library materials per side, or the look + colour), in the
+## block's own space. Returns [ArrayMesh, Array of the surfaces' materials].
+static func mesh_faces(pieces: Array, xf: Transform3D, s: Dictionary) -> Array:
+	var inv := xf.affine_inverse()
+	var groups := {}                                     # material key -> [SurfaceTool, Material]
+	for piece in pieces:
+		for f in Convex.faces(piece):
+			var n: Vector3 = (f[0] as Plane).normal
+			var local_n: Vector3 = (inv.basis * n).normalized()
+			var fs := face_settings(s, slot_of(local_n))
+			var key: String = fs["material"] if fs["material"] != "" and MaterialLibrary.has(fs["material"]) else "look"
+			if not groups.has(key):
+				var st := SurfaceTool.new()
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+				var mat: Material = Look.ramp_material(s["look"], Color.html(s["color"])) if key == "look" \
+					else MaterialLibrary.material(key, Color.html(s["color"]))
+				groups[key] = [st, mat]
+			var st2: SurfaceTool = groups[key][0]
+			if key == "look":
+				fs["material"] = ""
+			var poly: Array = f[1]
+			for i in range(1, poly.size() - 1):
+				for v in [poly[0], poly[i + 1], poly[i]]:       # Godot winds front faces clockwise
+					st2.set_normal(local_n)
+					st2.set_uv(face_uv(v, n, fs))
+					st2.add_vertex(inv * (v as Vector3))
+	var m := ArrayMesh.new()
+	var mats := []
+	for key in groups:
+		var st3: SurfaceTool = groups[key][0]
+		st3.generate_tangents()
+		st3.commit(m)
+		mats.append(groups[key][1])
+	for i in mats.size():
+		m.surface_set_material(i, mats[i])
+	return [m, mats]
 
 
 static func _uv(p: Vector3, n: Vector3) -> Vector2:

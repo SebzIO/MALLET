@@ -28,6 +28,10 @@ var _draw_start := Vector3.ZERO
 var _draw_pane: ViewPane = null
 var _last_block := {"size": [16.0, 8.0, 16.0]}   ## new blocks take the last size used
 var _face := -1                          ## the block side being dragged (index into face_handles)
+var _block_side := "all"                 ## which side of the selected block the material controls edit
+var _paint := ""                         ## the material Alt+click paints onto a face (the last one picked)
+var _picker: PopupPanel
+var _picker_cb: Callable
 var _prop_props: VBoxContainer
 var _prop_dialog: FileDialog
 var _prop_replace := false
@@ -384,6 +388,13 @@ func _build_props(props: VBoxContainer) -> void:
 	_add_row(_ramp_props, "Colour", cp)
 	_fields["color"] = cp
 	_fields["color_label"] = _ramp_props.get_child(cp.get_index() - 1)
+	var rmat := Button.new()
+	rmat.focus_mode = Control.FOCUS_NONE
+	rmat.expand_icon = false
+	rmat.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	rmat.pressed.connect(func(): _open_picker(func(id): _edit_prop("material", id); _refresh_props()))
+	_ramp_props.add_child(rmat)
+	_fields["ramp_material"] = rmat
 	_tex_box = VBoxContainer.new()
 	_ramp_props.add_child(_tex_box)
 	var pick := Button.new()
@@ -612,6 +623,23 @@ func _refresh_props() -> void:
 		_fields["block_steps_box"].visible = b.data["shape"] == "stairs"
 		_fields["block_hollow"].visible = b.data["shape"] in ["box", "cylinder"] and not b.is_cutter()
 		_fields["block_wall_box"].visible = (bool(b.data["hollow"]) and b.data["shape"] in ["box", "cylinder"] or b.data["shape"] == "arch") and not b.is_cutter()
+		var fs := BlockShape.face_settings(b.data, _block_side) if _block_side != "all" else BlockShape.face_settings(b.data, "")
+		if _block_side == "all":
+			fs = {"material": b.data.get("material", ""), "uv_scale": float(b.data.get("uv_scale", 1.0)),
+				"uv_offset": b.data.get("uv_offset", [0.0, 0.0]), "uv_rot": float(b.data.get("uv_rot", 0.0))}
+		_fields["block_side"].select(0 if _block_side == "all" else BlockShape.SLOTS.find(_block_side) + 1)
+		var mbtn: Button = _fields["block_mat"]
+		mbtn.text = "  " + (MaterialLibrary.display_name(fs["material"]) if fs["material"] != "" else "No material (Look & colour below) \u2026")
+		mbtn.icon = MaterialLibrary.preview(fs["material"]) if fs["material"] != "" else null
+		_set_field("block_uv_scale", float(fs["uv_scale"]))
+		_set_field("block_uv_u", float(fs["uv_offset"][0]))
+		_set_field("block_uv_v", float(fs["uv_offset"][1]))
+		_set_field("block_uv_rot", float(fs["uv_rot"]))
+		for k in ["block_mat_head", "block_side", "block_mat", "block_uv_box"]:
+			var c: Control = _fields[k]
+			c.visible = not b.is_cutter()
+		_fields["block_side"].get_parent().get_child(_fields["block_side"].get_index() - 1).visible = not b.is_cutter()
+		_fields["block_uv_box"].visible = not b.is_cutter() and fs["material"] != ""
 		_fields["block_look_box"].visible = not b.is_cutter()
 		_updating_ui = false
 		_refresh_info()
@@ -645,7 +673,12 @@ func _refresh_props() -> void:
 		_fields["color"].color = r.color
 		_fields["look"].select(Look.LOOK_ORDER.find(r.look))
 		_fields["color_label"].text = "Colour (%s)" % Look.RAMP_LOOKS[r.look][2]
-		_tex_box.visible = r.look == "texture"
+		_tex_box.visible = r.look in ["texture", "material"]
+		_fields["tex_name"].visible = r.look == "texture"
+		var rmb: Button = _fields["ramp_material"]
+		rmb.visible = r.look == "material"
+		rmb.text = "  " + (MaterialLibrary.display_name(r.material) if r.material != "" else "Choose a material\u2026")
+		rmb.icon = MaterialLibrary.preview(r.material) if r.material != "" else null
 		_fields["tex_name"].text = r.texture.get_file() if r.texture != "" else "No image chosen (PNG / JPG / WebP)"
 		_set_field("tex_scale", r.tex_scale)
 	else:
@@ -955,6 +988,8 @@ func _group_of(obj: Node3D) -> Array:
 
 
 func _select(obj: Node3D, point := -1) -> void:
+	if obj != selected:
+		_block_side = "all"
 	_extra = []
 	_map_changed()
 	if selected and is_instance_valid(selected):
@@ -1392,6 +1427,34 @@ func _build_block_props(props: VBoxContainer) -> void:
 	cutter.toggled.connect(func(on): _edit_prop("block_cutter", on))
 	_block_props.add_child(cutter)
 	_fields["block_cutter"] = cutter
+	var mat_head := Label.new()
+	mat_head.text = "Material"
+	mat_head.add_theme_font_size_override("font_size", 15)
+	_block_props.add_child(mat_head)
+	_fields["block_mat_head"] = mat_head
+	var side := OptionButton.new()
+	side.add_item("All sides")
+	for sl in BlockShape.SLOTS:
+		side.add_item(BlockShape.SLOT_LABELS[sl] + " side")
+	side.focus_mode = Control.FOCUS_NONE
+	side.tooltip_text = "Pick a side to give it its own material and texture placement. Tip: Alt+click any face in a view to paint the last material you picked onto it."
+	side.item_selected.connect(func(i): _block_side = "all" if i == 0 else BlockShape.SLOTS[i - 1]; _refresh_props())
+	_add_row(_block_props, "Side", side)
+	_fields["block_side"] = side
+	var mb := Button.new()
+	mb.focus_mode = Control.FOCUS_NONE
+	mb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	mb.custom_minimum_size = Vector2(0, 40)
+	mb.pressed.connect(func(): _open_picker(func(id): _edit_prop("block_mat", id)))
+	_block_props.add_child(mb)
+	_fields["block_mat"] = mb
+	var uv_box := VBoxContainer.new()
+	_block_props.add_child(uv_box)
+	_fields["block_uv_box"] = uv_box
+	_add_slider(uv_box, "block_uv_scale", "Texture size (x)", 0.1, 10.0, 0.05)
+	_add_slider(uv_box, "block_uv_u", "Texture shift across", 0.0, 1.0, 0.01)
+	_add_slider(uv_box, "block_uv_v", "Texture shift up", 0.0, 1.0, 0.01)
+	_add_slider(uv_box, "block_uv_rot", "Texture turn (\u00b0)", -180.0, 180.0, 5.0)
 	var look_box := VBoxContainer.new()
 	_block_props.add_child(look_box)
 	_fields["block_look_box"] = look_box
@@ -1502,6 +1565,119 @@ func _draw_end() -> void:
 	_rebuild_blocks()
 	_select(b)
 	_set_status("Block drawn. Keep drawing, or Esc / D to stop.")
+
+
+## The material library: thumbnails by category. `cb` gets the chosen material id ("" = none).
+func _open_picker(cb: Callable) -> void:
+	_picker_cb = cb
+	if _picker == null:
+		_picker = PopupPanel.new()
+		var scroll := ScrollContainer.new()
+		scroll.custom_minimum_size = Vector2(560, 520)
+		_picker.add_child(scroll)
+		var box := VBoxContainer.new()
+		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(box)
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.11, 0.12, 0.15)
+		sb.set_content_margin_all(10)
+		sb.set_corner_radius_all(8)
+		_picker.add_theme_stylebox_override("panel", sb)
+		var row := HBoxContainer.new()
+		box.add_child(row)
+		var none := Button.new()
+		none.text = "No material (use the Look & colour)"
+		none.focus_mode = Control.FOCUS_NONE
+		none.pressed.connect(func(): _picker.hide(); _picker_cb.call(""))
+		row.add_child(none)
+		var own := Button.new()
+		own.text = "+ Your own image\u2026"
+		own.focus_mode = Control.FOCUS_NONE
+		own.tooltip_text = "Use any PNG / JPG / WebP as a material. It joins 'Your images' in this library."
+		own.pressed.connect(func(): _picker.hide(); _own_image_dialog().popup_centered_ratio(0.6))
+		row.add_child(own)
+		for cat in MaterialLibrary.categories():
+			var head := Label.new()
+			head.text = cat
+			head.add_theme_font_size_override("font_size", 15)
+			box.add_child(head)
+			var grid := GridContainer.new()
+			grid.columns = 4
+			box.add_child(grid)
+			for e in MaterialLibrary.entries():
+				if e["category"] != cat:
+					continue
+				var b := Button.new()
+				b.icon = MaterialLibrary.preview(e["id"])
+				b.text = e["name"]
+				b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+				b.expand_icon = true
+				b.custom_minimum_size = Vector2(128, 132)
+				b.focus_mode = Control.FOCUS_NONE
+				b.tooltip_text = "%s - one repeat covers %.1f m" % [e["name"], float(e["size"])]
+				var id: String = e["id"]
+				b.pressed.connect(func(): _picker.hide(); _picker_cb.call(id))
+				grid.add_child(b)
+				_fields["pick_" + id] = b
+		_ui.add_child(_picker)
+	_picker.popup_centered()
+
+
+func _own_image_dialog() -> FileDialog:
+	if not _fields.has("own_image_dialog"):
+		var d := FileDialog.new()
+		d.access = FileDialog.ACCESS_FILESYSTEM
+		d.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		d.use_native_dialog = true
+		d.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Images"])
+		d.file_selected.connect(func(path): add_own_material(path))
+		_ui.add_child(d)
+		_fields["own_image_dialog"] = d
+	return _fields["own_image_dialog"]
+
+
+## Add an image file to the library as a material and use it where the picker was opened from.
+func add_own_material(path: String) -> String:
+	var id := MaterialLibrary.add_user_image(path)
+	if id == "":
+		_set_status("Couldn't read %s as an image." % path.get_file())
+		return ""
+	if _picker:
+		_picker.queue_free()                            # rebuilt next time with the new one in it
+		_picker = null
+	_set_status("Added %s to your materials." % path.get_file())
+	if _picker_cb.is_valid():
+		_picker_cb.call(id)
+	return id
+
+
+## Alt+click: paint the last picked material onto the face under the mouse (that side of that block).
+func _paint_face(pane: ViewPane, mouse: Vector2) -> void:
+	var r := pane.ray(mouse)
+	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(r[0], r[0] + r[1] * 20000.0))
+	if hit.is_empty() or not hit.collider.has_meta("block"):
+		_set_status("Alt+click a block's face to paint it with the last material you picked.")
+		return
+	if _paint == "":
+		_set_status("Pick a material first (select a block, then Material), then Alt+click faces to paint them.")
+		return
+	var b: BlockNode = hit.collider.get_meta("block")
+	var slot := BlockShape.slot_of((b.global_basis.inverse() * (hit["normal"] as Vector3)).normalized())
+	_checkpoint()
+	var d: Dictionary = b.data.duplicate(true)
+	var f: Dictionary = d["faces"].get(slot, {})
+	f["material"] = _paint
+	d["faces"][slot] = f
+	if d["color"] == BlockShape.DEFAULTS["color"]:
+		d["color"] = "ffffff"
+	b.from_dict(d)
+	_rebuild_blocks()
+	if b != selected:
+		_select(b)
+	_block_side = slot
+	_refresh_props()
+	_set_status("Painted the %s side with %s." % [BlockShape.SLOT_LABELS[slot].to_lower(), MaterialLibrary.display_name(_paint)])
 
 
 func _pick_face(pane: ViewPane, mouse: Vector2) -> int:
@@ -1897,6 +2073,9 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 		return true
 	if _draw_mode and _draw_block and event is InputEventMouseMotion and pane == _draw_pane:
 		_draw_update(event.position)
+		return true
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and event.alt_pressed:
+		_paint_face(pane, event.position)
 		return true
 	if selected is BlockNode and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		var f := _pick_face(pane, event.position)
@@ -2696,11 +2875,35 @@ func _edit_prop(key: String, value) -> void:
 			"block_cutter": d["cutter"] = value
 			"block_look": d["look"] = value
 			"block_color": d["color"] = (value as Color).to_html(false)
+			"block_mat":
+				_paint = value
+				if _block_side == "all":
+					d["material"] = value
+					for sl in d["faces"]:                       # the whole block: drop the sides' own materials
+						d["faces"][sl].erase("material")
+					if value != "" and d["color"] == BlockShape.DEFAULTS["color"]:
+						d["color"] = "ffffff"                   # library materials look as photographed
+				else:
+					var f: Dictionary = d["faces"].get(_block_side, {})
+					f["material"] = value
+					d["faces"][_block_side] = f
+			"block_uv_scale", "block_uv_u", "block_uv_v", "block_uv_rot":
+				var target: Dictionary = d if _block_side == "all" else d["faces"].get(_block_side, {})
+				var off: Array = target.get("uv_offset", d.get("uv_offset", [0.0, 0.0])).duplicate()
+				match key:
+					"block_uv_scale": target["uv_scale"] = value
+					"block_uv_u": off[0] = value
+					"block_uv_v": off[1] = value
+					"block_uv_rot": target["uv_rot"] = value
+				if key in ["block_uv_u", "block_uv_v"]:
+					target["uv_offset"] = off
+				if _block_side != "all":
+					d["faces"][_block_side] = target
 		b.from_dict(d)
 		if key in ["block_x", "block_y", "block_z"]:
 			_last_block["size"] = b.data["size"].duplicate()
 		_rebuild_blocks()
-		if key in ["block_shape", "block_hollow", "block_cutter"]:
+		if key in ["block_shape", "block_hollow", "block_cutter", "block_mat"]:
 			_refresh_props()
 		_refresh_info()
 		return
@@ -2996,6 +3199,9 @@ func _do_css_export() -> void:
 	cfg.save(SETTINGS_PATH)
 	var notes := "\n".join(res["warnings"])
 	if not _css_compile.button_pressed or _css_compile.disabled:
+		var files := VmfExporter.write_materials(res.get("materials", []), vmf.get_base_dir())
+		if not files.is_empty():
+			notes += "\n\nThe map's textures are in %s/materials/surfforge - copy that materials folder into cstrike (or compile here, which packs them into the map)." % vmf.get_base_dir()
 		_show_message("Exported for CS:S", "Wrote %s (%d brushes).\n\n%s" % [vmf, res["brushes"], notes])
 		_set_status("Wrote %s - open it in Hammer or compile it with vbsp / vvis / vrad." % vmf.get_file())
 		return
@@ -3003,7 +3209,8 @@ func _do_css_export() -> void:
 	_css_status = notes
 	_set_status("Compiling %s for CS:S (%d brushes)... this can take a minute; keep working meanwhile." % [map_name, res["brushes"]])
 	_css_thread = Thread.new()
-	_css_thread.start(func(): return VmfExporter.compile(vmf, VmfExporter.find_css(), quality))
+	var mats: Array = res.get("materials", [])
+	_css_thread.start(func(): return VmfExporter.compile(vmf, VmfExporter.find_css(), quality, mats))
 
 
 ## Called every frame: picks up a finished CS:S compile.

@@ -37,6 +37,8 @@ var _off := Vector3.ZERO
 var _out := PackedStringArray()
 var warnings := PackedStringArray()
 var brushes := 0
+var used_materials := {}                 ## library material ids the map uses (become VTF / VMT files)
+const VTF_SIZE := 512                    ## custom textures are converted at this size for CS:S
 
 
 ## Writes the map as a .vmf. Returns {"error": "" or why not, "warnings": [...], "brushes": n, "path": path}.
@@ -51,7 +53,7 @@ static func export_vmf(map: Dictionary, path: String, opts := {}) -> Dictionary:
 		return {"error": "Can't write %s (%s)" % [path, error_string(FileAccess.get_open_error())], "warnings": [], "brushes": 0, "path": path}
 	f.store_string(text)
 	f.close()
-	return {"error": "", "warnings": ex.warnings, "brushes": ex.brushes, "path": path}
+	return {"error": "", "warnings": ex.warnings, "brushes": ex.brushes, "path": path, "materials": ex.used_materials.keys()}
 
 
 ## Source coordinates of a Godot point (centred on the map).
@@ -93,7 +95,7 @@ func build(map: Dictionary, opts := {}) -> String:
 		if bs["cutter"]:
 			continue
 		for piece in BlockShape.world_pieces(bs, cutters):
-			block_pieces.append([piece, bs["look"]])
+			block_pieces.append([piece, bs])
 			for q in Convex.points(piece):
 				lo = lo.min(q)
 				hi = hi.max(q)
@@ -119,8 +121,15 @@ func build(map: Dictionary, opts := {}) -> String:
 	# ---- world brushes
 	var world := PackedStringArray()
 	var details := PackedStringArray()
+	var ri := 0
 	for geo in ramps:                                    # ramps are func_detail: they don't cut up visibility
-		var rb := _ramp_brushes(geo)
+		var rd: Dictionary = map["ramps"][ri]
+		ri += 1
+		var rmat := RAMP_MATERIAL
+		if rd.get("look", "") == "material" and MaterialLibrary.has(rd.get("material", "")):
+			rmat = _mat_name(rd["material"])
+			used_materials[rd["material"]] = true
+		var rb := _ramp_brushes(geo, rmat)
 		if not rb.is_empty():
 			details.append("entity
 {
@@ -132,10 +141,7 @@ func build(map: Dictionary, opts := {}) -> String:
 		if e.get("kind", "") in ["start", "finish", "stage"]:
 			world.append(_solid(_hull(_box_corners(e, false).map(func(c): return src(c))), PLATFORM_MATERIAL))
 	for bp in block_pieces:
-		var pts := []
-		for q in Convex.points(bp[0]):
-			pts.append(src(q))
-		world.append(_solid(_hull(pts), BLOCK_MATERIALS.get(bp[1], PLATFORM_MATERIAL)))
+		world.append(_block_solid(bp[0], bp[1]))
 	var b_lo := -half + Vector3.ONE * SKY_THICK
 	var b_hi := half - Vector3.ONE * SKY_THICK
 	for i in 3:                                          # six walls of skybox around everything
@@ -256,7 +262,7 @@ func build(map: Dictionary, opts := {}) -> String:
 # ------------------------------------------------------------------------------------------------ ramps
 ## Brushes for one ramp: between consecutive cross-sections (at least MIN_SEGMENT apart, seams kept), one convex
 ## hull per convex piece of the profile.
-func _ramp_brushes(geo: Dictionary) -> PackedStringArray:
+func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL) -> PackedStringArray:
 	var out := PackedStringArray()
 	var rings: Array = geo["rings"]
 	var ridge: PackedVector3Array = geo["ridge"]
@@ -291,7 +297,7 @@ func _ramp_brushes(geo: Dictionary) -> PackedStringArray:
 				pts.append(src(b[k]))
 			var sides := _hull(pts)
 			if sides.size() >= 4:
-				out.append(_solid(sides, RAMP_MATERIAL))
+				out.append(_solid(sides, material))
 	return out
 
 
@@ -450,6 +456,136 @@ static func _nearest_plate(plates: Array, p: Vector3, above: bool) -> String:
 	return best
 
 
+# ------------------------------------------------------------------------------------------------ materials
+static func _mat_name(id: String) -> String:
+	return "surfforge/" + id.to_lower()
+
+
+## One block piece as a brush, each side with its block side's material and texture placement.
+func _block_solid(piece: Array, bs: Dictionary) -> String:
+	var pts := []
+	for q in Convex.points(piece):
+		pts.append(src(q))
+	var sides := _hull(pts)
+	if sides.size() < 4:
+		return ""
+	var inv := BlockShape.basis_of(bs).inverse()
+	var mats := []
+	var axes := []
+	for sd in sides:
+		var nrm_src: Vector3 = (sd[2] - sd[0]).cross(sd[1] - sd[0]).normalized()
+		var nrm := Vector3(nrm_src.x, nrm_src.z, -nrm_src.y)            # back to Godot space
+		var fs := BlockShape.face_settings(bs, BlockShape.slot_of((inv * nrm).normalized()))
+		if fs["material"] != "" and MaterialLibrary.has(fs["material"]):
+			used_materials[fs["material"]] = true
+			mats.append(_mat_name(fs["material"]))
+			axes.append(_material_axes(nrm, fs))
+		else:
+			mats.append(BLOCK_MATERIALS.get(bs["look"], PLATFORM_MATERIAL))
+			axes.append(_axes(nrm_src))
+	return _solid(sides, mats, axes)
+
+
+## Texture axes matching the editor: the same world-aligned projection, size, turn and shift, in Source units
+## ("[ax ay az shift] scale", scale = world units per texel).
+func _material_axes(nrm: Vector3, fs: Dictionary) -> Array:
+	var a := nrm.abs()
+	var u: Vector3
+	var v: Vector3
+	if a.y >= a.x and a.y >= a.z:
+		u = Vector3(1, 0, 0)
+		v = Vector3(0, -1, 0)
+	elif a.x >= a.z:
+		u = Vector3(0, -1, 0)
+		v = Vector3(0, 0, -1)
+	else:
+		u = Vector3(1, 0, 0)
+		v = Vector3(0, 0, -1)
+	var th := deg_to_rad(float(fs["uv_rot"]))
+	var u2 := u * cos(th) - v * sin(th)
+	var v2 := u * sin(th) + v * cos(th)
+	var size: float = MaterialLibrary.world_size(fs["material"]) * maxf(float(fs["uv_scale"]), 0.01)
+	var scale := size * U / VTF_SIZE
+	# the map is centred in Source space; shift textures back so they line up exactly as in the editor
+	var su: float = _off.dot(u2) / scale + float(fs["uv_offset"][0]) * VTF_SIZE
+	var sv: float = _off.dot(v2) / scale + float(fs["uv_offset"][1]) * VTF_SIZE
+	return ["[%s %s %s %s] %s" % [_n(u2.x), _n(u2.y), _n(u2.z), _n(fmod(su, VTF_SIZE)), _n(scale)],
+		"[%s %s %s %s] %s" % [_n(v2.x), _n(v2.y), _n(v2.z), _n(fmod(sv, VTF_SIZE)), _n(scale)]]
+
+
+## Write the library materials a map uses as Source files under `root` (materials/surfforge/<id>.vtf + .vmt).
+## Returns the written files as [path inside the game, file on disk].
+static func write_materials(ids: Array, root: String) -> Array:
+	var out := []
+	var dir := root.path_join("materials/surfforge")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for id in ids:
+		var img := MaterialLibrary.image(id, "color")
+		if img == null:
+			continue
+		var name: String = String(id).to_lower()
+		var vtf := dir.path_join(name + ".vtf")
+		var vmt := dir.path_join(name + ".vmt")
+		_write_vtf(img, vtf)
+		var f := FileAccess.open(vmt, FileAccess.WRITE)
+		f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"surfforge/%s\"\n\t\"$surfaceprop\" \"%s\"\n}\n" % [name,
+			MaterialLibrary.entry(id).get("surface", "concrete")])
+		f.close()
+		out.append(["materials/surfforge/%s.vtf" % name, vtf])
+		out.append(["materials/surfforge/%s.vmt" % name, vmt])
+	return out
+
+
+## A Valve texture file (VTF 7.2): DXT1-compressed with a full mipmap chain, smallest mip first.
+static func _write_vtf(src_img: Image, path: String) -> void:
+	var img: Image = src_img.duplicate()
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGB8)
+	img.resize(VTF_SIZE, VTF_SIZE, Image.INTERPOLATE_LANCZOS)
+	img.generate_mipmaps()
+	img.compress(Image.COMPRESS_S3TC, Image.COMPRESS_SOURCE_GENERIC)
+	var data := img.get_data()
+	var levels := img.get_mipmap_count() + 1
+	var chunks := []
+	var at := 0
+	for l in levels:
+		var w := maxi(VTF_SIZE >> l, 1)
+		var size := maxi((w + 3) / 4, 1) * maxi((w + 3) / 4, 1) * 8
+		chunks.append(data.slice(at, at + size))
+		at += size
+	var h := StreamPeerBuffer.new()
+	h.big_endian = false
+	h.put_data("VTF".to_ascii_buffer())
+	h.put_u8(0)
+	h.put_u32(7)
+	h.put_u32(2)
+	h.put_u32(80)                         # header size
+	h.put_u16(VTF_SIZE)
+	h.put_u16(VTF_SIZE)
+	h.put_u32(0)                          # flags
+	h.put_u16(1)                          # frames
+	h.put_u16(0)                          # first frame
+	h.put_u32(0)                          # padding
+	for k in 3:
+		h.put_float(0.5)                  # reflectivity
+	h.put_u32(0)                          # padding
+	h.put_float(1.0)                      # bumpmap scale
+	h.put_u32(13)                         # high-res format: DXT1
+	h.put_u8(levels)
+	h.put_u32(0xFFFFFFFF)                 # no low-res thumbnail
+	h.put_u8(0)
+	h.put_u8(0)
+	h.put_u16(1)                          # depth
+	while h.get_size() < 80:
+		h.put_u8(0)
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_buffer(h.data_array)
+	for l in range(levels - 1, -1, -1):  # smallest first
+		f.store_buffer(chunks[l])
+	f.close()
+
+
 # ------------------------------------------------------------------------------------------------ text
 func _next() -> int:
 	_id += 1
@@ -476,16 +612,20 @@ static func _axes(nrm: Vector3) -> Array:
 	return ["[1 0 0 0] 0.25", "[0 0 -1 0] 0.25"]
 
 
-func _solid(sides: Array, material: String) -> String:
+## A brush. `material` is one name for every side, or an Array of one per side; `side_axes` optionally gives each
+## side's texture axes.
+func _solid(sides: Array, material, side_axes: Array = []) -> String:
 	if sides.size() < 4:
 		return ""
 	brushes += 1
 	var t := PackedStringArray(["\tsolid\n\t{\n\t\t\"id\" \"%d\"\n" % _next()])
-	for sd in sides:
+	for si in sides.size():
+		var sd: Array = sides[si]
 		var nrm: Vector3 = (sd[2] - sd[0]).cross(sd[1] - sd[0]).normalized()
-		var ax := _axes(nrm)
+		var ax: Array = side_axes[si] if si < side_axes.size() else _axes(nrm)
+		var mat_name: String = material[si] if material is Array else material
 		t.append("\t\tside\n\t\t{\n\t\t\t\"id\" \"%d\"\n\t\t\t\"plane\" \"(%s) (%s) (%s)\"\n\t\t\t\"material\" \"%s\"\n\t\t\t\"uaxis\" \"%s\"\n\t\t\t\"vaxis\" \"%s\"\n\t\t\t\"rotation\" \"0\"\n\t\t\t\"lightmapscale\" \"16\"\n\t\t\t\"smoothing_groups\" \"0\"\n\t\t}\n"
-			% [_next(), _vec(sd[0]), _vec(sd[1]), _vec(sd[2]), material, ax[0], ax[1]])
+			% [_next(), _vec(sd[0]), _vec(sd[1]), _vec(sd[2]), mat_name, ax[0], ax[1]])
 	t.append("\t\teditor\n\t\t{\n\t\t\t\"color\" \"0 180 255\"\n\t\t\t\"visgroupshown\" \"1\"\n\t\t\t\"visgroupautoshown\" \"1\"\n\t\t}\n\t}\n")
 	return "".join(t)
 
@@ -523,10 +663,12 @@ static func find_css() -> String:
 
 ## Compile a .vmf with CS:S's own tools and copy the .bsp into cstrike/maps. Blocking: run it on a thread.
 ## `quality` "fast" (quick lighting) or "final". Returns {"error": "", "bsp": path, "log": text}.
-static func compile(vmf: String, css: String, quality := "fast") -> Dictionary:
+static func compile(vmf: String, css: String, quality := "fast", materials: Array = []) -> Dictionary:
 	var bin := css + "/bin/x64/" if FileAccess.file_exists(css + "/bin/x64/vbsp.exe") else css + "/bin/"
 	var game := css + "/cstrike"
 	var log := PackedStringArray()
+	# custom textures: into cstrike/materials/surfforge so vbsp / vrad find them, and packed into the map below
+	var packed := write_materials(materials, game) if not materials.is_empty() else []
 	var steps := [["vbsp.exe", ["-game", game, vmf]], ["vvis.exe", (["-fast"] if quality == "fast" else []) + ["-game", game, vmf]],
 		["vrad.exe", (["-fast"] if quality == "fast" else ["-final"]) + ["-game", game, vmf]]]
 	for st in steps:
@@ -541,6 +683,22 @@ static func compile(vmf: String, css: String, quality := "fast") -> Dictionary:
 	var bsp := vmf.get_basename() + ".bsp"
 	if not FileAccess.file_exists(bsp):
 		return {"error": "The compile finished but no .bsp was made. See the compile log.", "bsp": "", "log": "\n".join(log)}
+	if not packed.is_empty():
+		# pack the textures into the map so anyone who downloads it sees them
+		var list := vmf.get_basename() + "_pack.txt"
+		var lf := FileAccess.open(list, FileAccess.WRITE)
+		for pair in packed:
+			lf.store_string("%s\n%s\n" % [pair[0], ProjectSettings.globalize_path(pair[1])])
+		lf.close()
+		var pout := []
+		var packed_bsp := bsp.get_basename() + "_packed.bsp"
+		var code := OS.execute(bin + "bspzip.exe", PackedStringArray(["-game", game, "-addlist", bsp, list, packed_bsp]), pout, true)
+		log.append("==== bspzip (exit %d)\n%s" % [code, "".join(pout)])
+		if code == 0 and FileAccess.file_exists(packed_bsp):
+			DirAccess.remove_absolute(bsp)
+			DirAccess.rename_absolute(packed_bsp, bsp)
+		else:
+			return {"error": "Couldn't pack the textures into the map (bspzip exit %d)." % code, "bsp": "", "log": "\n".join(log)}
 	var dest := game + "/maps/" + bsp.get_file()
 	var err := DirAccess.copy_absolute(bsp, dest)
 	if err != OK:

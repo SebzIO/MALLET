@@ -39,7 +39,7 @@ func rebuild(cutters: Array = []) -> void:
 	var xf := BlockShape.transform_of(s)
 	transform = xf
 	pieces = BlockShape.world_pieces(s, cutters)
-	_mesh.mesh = BlockShape.mesh(pieces, xf)
+	_mesh.mesh = BlockShape.mesh_faces(pieces, xf, s)[0]
 	for c in _body.get_children():
 		_body.remove_child(c)
 		c.queue_free()
@@ -58,8 +58,10 @@ func rebuild(cutters: Array = []) -> void:
 
 
 func _update_material() -> void:
-	var key := "%s|%s|%s" % [data["look"], data["color"], is_cutter()]
-	if key == _material_key:
+	# solid blocks carry their materials on the mesh's surfaces (a material per side if need be)
+	var key := "cutter" if is_cutter() else "surfaces"
+	if key == _material_key and not is_cutter():
+		_mesh.material_override = null
 		return
 	_material_key = key
 	if is_cutter():
@@ -71,7 +73,7 @@ func _update_material() -> void:
 		_mesh.material_override = m
 		_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	else:
-		_mesh.material_override = Look.ramp_material(data["look"], Color.html(data["color"]))
+		_mesh.material_override = null
 		_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 

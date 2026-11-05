@@ -31,6 +31,7 @@ var height: float:
 var color := DEFAULT_COLOR
 var look := "color"                  ## material preset (see Look.RAMP_LOOKS)
 var texture := ""                    ## look "texture": image file on disk
+var material := ""                   ## look "material": a library material id
 var tex_scale := 20.0                ## look "texture": metres one copy of the image covers
 var _material_key := ""
 
@@ -91,10 +92,10 @@ func set_selected(on: bool) -> void:
 
 func _update_material() -> void:
 	# selection is shown with an outline, so the material is always the ramp's real look
-	var key := "%s|%s|%s|%s" % [look, color.to_html(), texture, tex_scale]
+	var key := "%s|%s|%s|%s|%s|%s" % [look, color.to_html(), texture, tex_scale, material, face_length]
 	if key != _material_key:
 		_material_key = key
-		_mesh_instance.material_override = Look.ramp_material(look, color, texture, tex_scale)
+		_mesh_instance.material_override = Look.ramp_material(look, color, texture, tex_scale, material, face_length)
 
 
 ## Lines along each edge of the cross-section and round both end caps (locked part and editable part kept
@@ -148,7 +149,7 @@ func to_dict() -> Dictionary:
 		"face_length_right": face_length_right, "slice": slice, "detail": detail, "freeform": freeform,
 		"frozen": frozen.duplicate(true), "seam_tangent_lock": seam_tangent_lock,
 		"solid": solid, "base_depth": base_depth, "color": color.to_html(false), "look": look, "texture": texture,
-		"tex_scale": tex_scale}
+		"tex_scale": tex_scale, "material": material}
 
 
 func from_dict(data: Dictionary) -> void:
@@ -165,6 +166,7 @@ func from_dict(data: Dictionary) -> void:
 	look = data.get("look", "color")
 	texture = data.get("texture", "")
 	tex_scale = data.get("tex_scale", 20.0)
+	material = data.get("material", "")
 	if is_inside_tree():
 		rebuild()
 
