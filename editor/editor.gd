@@ -20,6 +20,10 @@ var ramps_root := Node3D.new()
 var entities_root := Node3D.new()
 var props_root := Node3D.new()
 var blocks_root := Node3D.new()
+var texts_root := Node3D.new()
+var _text_props: VBoxContainer
+var _place_on_surface := false          ## the next click in a view puts the selected text on that face
+var _font_dialog: FileDialog
 var _block_props: VBoxContainer
 var _blocks_dirty := false
 var _draw_mode := false                 ## Draw block tool: drag a rectangle in a 2D view to make a block
@@ -175,6 +179,7 @@ func _build_world() -> void:
 	add_child(entities_root)
 	add_child(props_root)
 	add_child(blocks_root)
+	add_child(texts_root)
 
 
 # ================================================================================================= ui
@@ -223,7 +228,7 @@ func _build_ui_main() -> void:
 		["Start platform", KEY_B, func(): _add_entity("start")], ["Finish platform", KEY_M, func(): _add_entity("finish")],
 		["Stage plate", KEY_T, func(): _add_entity("stage")], ["Teleport", KEY_Y, func(): _add_entity("teleport")],
 		["Kill zone", KEY_K, func(): _add_entity("kill")], ["Booster", KEY_J, func(): _add_entity("booster")], [],
-		["Prop (glTF model)…", KEY_I, _add_prop_clicked]])
+		["Prop (glTF model)…", KEY_I, _add_prop_clicked], ["Text", KEY_X, _add_text_clicked]])
 	_menu(bar, "Edit ▾", [
 		["Copy", KEY_MASK_CTRL | KEY_C, _copy], ["Paste", KEY_MASK_CTRL | KEY_V, _paste_clicked],
 		["Duplicate", KEY_MASK_CTRL | KEY_D, _duplicate_clicked], ["Delete", KEY_DELETE, _delete_clicked], [],
@@ -412,6 +417,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_build_gen_props(props)
 	_build_prop_props(props)
 	_build_block_props(props)
+	_build_text_props(props)
 
 	_entity_props = VBoxContainer.new()
 	_entity_props.add_theme_constant_override("separation", 6)
@@ -582,12 +588,14 @@ func _refresh_props() -> void:
 		_entity_props.visible = false
 		_prop_props.visible = false
 		_block_props.visible = false
+		_text_props.visible = false
 		_fields["head"].text = "Generate a ramp"
 		_refresh_info()
 		return
 	_map_props.visible = selected == null
 	_prop_props.visible = false
 	_block_props.visible = false
+	_text_props.visible = false
 	if selected == null:
 		_ramp_props.visible = false
 		_entity_props.visible = false
@@ -601,6 +609,41 @@ func _refresh_props() -> void:
 	_entity_props.visible = selected is EntityNode
 	_prop_props.visible = selected is PropNode
 	_block_props.visible = selected is BlockNode
+	_text_props.visible = selected is TextNode
+	if selected is TextNode:
+		var tn := selected as TextNode
+		_fields["head"].text = tn.label()
+		var te: LineEdit = _fields["text_text"]
+		if te.text != tn.data["text"]:
+			te.text = tn.data["text"]
+		var fo: OptionButton = _fields["text_font"]
+		var fi := TextShape.FONTS.find(tn.data["font"])
+		if fi < 0:
+			fo.set_item_text(fo.item_count - 1, "Font file: " + String(tn.data["font"]).get_file())
+			fo.select(fo.item_count - 1)
+		else:
+			fo.set_item_text(fo.item_count - 1, "Load a font file\u2026")
+			fo.select(fi)
+		_fields["text_mode"].select(TextShape.MODES.find(tn.data["mode"]))
+		_fields["text_align"].select(["left", "center", "right"].find(tn.data["align"]))
+		_set_field("text_height", float(tn.data["height"]))
+		_set_field("text_depth", float(tn.data["depth"]))
+		_set_field("text_yaw", float(tn.data["yaw"]))
+		_set_field("text_pitch", float(tn.data["pitch"]))
+		_set_field("text_roll", float(tn.data["roll"]))
+		_set_field("text_glow", float(tn.data["glow"]))
+		_fields["text_solid"].set_pressed_no_signal(bool(tn.data["solid"]))
+		_fields["text_solid"].visible = tn.data["mode"] == "3d"
+		_fields["text_depth"][0].get_parent().visible = tn.data["mode"] != "flat"
+		_fields["text_depth"][0].get_parent().get_parent().get_child(_fields["text_depth"][0].get_parent().get_index() - 1).visible = tn.data["mode"] != "flat"
+		_fields["text_look_box"].visible = not tn.is_engraving()
+		var tb: Button = _fields["text_mat"]
+		tb.text = "  " + (MaterialLibrary.display_name(tn.data["material"]) if tn.data["material"] != "" else "Plain colour (pick a material\u2026)")
+		tb.icon = MaterialLibrary.preview(tn.data["material"]) if tn.data["material"] != "" else null
+		_fields["text_color"].color = Color.html(tn.data["color"])
+		_updating_ui = false
+		_refresh_info()
+		return
 	if selected is BlockNode:
 		var b := selected as BlockNode
 		_fields["head"].text = b.label()
@@ -742,6 +785,14 @@ func _refresh_info() -> void:
 			if a["ramp"] == r:
 				_info.text += ("\n\nJump off the end (from %s): ≈ %d u/s\n  full speed: %s\n  at %d%% speed: %s\n(no air strafing: good players can stretch this)"
 					% [a["ref"], roundi(a["speed"] * JumpCheck.U), a["runs"][0]["label"], roundi(SLOPPY * 100), a["runs"][1]["label"]])
+	elif selected is TextNode:
+		var tn := selected as TextNode
+		var n_pieces := TextShape.convex_polygons(TextShape.spec(tn.data)).size()
+		_info.text = "%s\n\"%s\"  -  %s, letters %.1f m tall\nConvex pieces: %d (each one is a brush in a CS:S export)\n\n%s" % [
+			TextShape.MODE_LABELS[tn.data["mode"]], tn.data["text"], tn.data["font"].get_file(), float(tn.data["height"]), n_pieces,
+			{"flat": "A sign: players pass through it. Place it on a wall with 'Place on a surface'.",
+			 "3d": "Solid letters - stand on them, surf around them. On a surface they look embossed.",
+			 "engrave": "Cuts the letters into every block it overlaps. Move it and the engraving moves."}[tn.data["mode"]]]
 	elif selected is BlockNode:
 		var b := selected as BlockNode
 		var sz: Vector3 = b.size()
@@ -823,8 +874,11 @@ func _map_dict() -> Dictionary:
 	var bs := []
 	for b in blocks_root.get_children():
 		bs.append(_with_group(b))
+	var ts := []
+	for t in texts_root.get_children():
+		ts.append(_with_group(t))
 	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
-		"props": ps, "blocks": bs}
+		"props": ps, "blocks": bs, "texts": ts}
 
 
 func _load_dict(data: Dictionary) -> void:
@@ -834,7 +888,7 @@ func _load_dict(data: Dictionary) -> void:
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
 	_select(null)
-	for root in [ramps_root, entities_root, props_root, blocks_root]:
+	for root in [ramps_root, entities_root, props_root, blocks_root, texts_root]:
 		for c in root.get_children():
 			root.remove_child(c)
 			c.queue_free()
@@ -858,6 +912,11 @@ func _load_dict(data: Dictionary) -> void:
 		blocks_root.add_child(b)
 		b.from_dict(bd)
 		_take_group(b, bd)
+	for td in data.get("texts", []):
+		var t := TextNode.new()
+		texts_root.add_child(t)
+		t.from_dict(td)
+		_take_group(t, td)
 	_rebuild_blocks()
 
 
@@ -889,7 +948,7 @@ func _make_ramp(a: Vector3, b: Vector3) -> RampNode:
 
 
 func _all_objects() -> Array:
-	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children() + blocks_root.get_children()
+	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children() + blocks_root.get_children() + texts_root.get_children()
 
 
 # ================================================================================================= undo / redo
@@ -1487,6 +1546,9 @@ func _rebuild_blocks() -> void:
 			continue
 		if b.is_cutter():
 			cutters.append(b.data)
+	for t in texts_root.get_children():
+		if not t.is_queued_for_deletion() and t.is_engraving():
+			cutters.append_array(TextShape.cut_pieces(TextShape.spec(t.data)))
 	for b in blocks_root.get_children():
 		if not b.is_queued_for_deletion():
 			b.rebuild(cutters)
@@ -1565,6 +1627,136 @@ func _draw_end() -> void:
 	_rebuild_blocks()
 	_select(b)
 	_set_status("Block drawn. Keep drawing, or Esc / D to stop.")
+
+
+# ------------------------------------------------------------------------------------------------ text
+func _build_text_props(props: VBoxContainer) -> void:
+	_text_props = VBoxContainer.new()
+	_text_props.add_theme_constant_override("separation", 6)
+	_text_props.visible = false
+	props.add_child(_text_props)
+	var te := LineEdit.new()
+	te.placeholder_text = "Type your text"
+	te.text_changed.connect(func(t): _edit_prop("text_text", t))
+	_add_row(_text_props, "Text", te)
+	_fields["text_text"] = te
+	var mode := OptionButton.new()
+	for m in TextShape.MODES:
+		mode.add_item(TextShape.MODE_LABELS[m])
+	mode.focus_mode = Control.FOCUS_NONE
+	mode.item_selected.connect(func(i): _edit_prop("text_mode", TextShape.MODES[i]))
+	_add_row(_text_props, "Kind", mode)
+	_fields["text_mode"] = mode
+	var place := Button.new()
+	place.text = "Place on a surface (then click a face)"
+	place.focus_mode = Control.FOCUS_NONE
+	place.pressed.connect(func(): _place_on_surface = true; _set_status("Click the face to put the text on (Esc cancels)."))
+	_text_props.add_child(place)
+	var font := OptionButton.new()
+	for f in TextShape.FONTS:
+		font.add_item(f)
+	font.add_item("Load a font file\u2026")
+	font.focus_mode = Control.FOCUS_NONE
+	font.item_selected.connect(func(i):
+		if i < TextShape.FONTS.size():
+			_edit_prop("text_font", TextShape.FONTS[i])
+		else:
+			_font_file_dialog().popup_centered_ratio(0.6))
+	_add_row(_text_props, "Font", font)
+	_fields["text_font"] = font
+	var align := OptionButton.new()
+	for a in ["Left", "Centre", "Right"]:
+		align.add_item(a)
+	align.focus_mode = Control.FOCUS_NONE
+	align.item_selected.connect(func(i): _edit_prop("text_align", ["left", "center", "right"][i]))
+	_add_row(_text_props, "Align", align)
+	_fields["text_align"] = align
+	_add_slider(_text_props, "text_height", "Letter height (m)", 0.25, 100.0, 0.25)
+	_add_slider(_text_props, "text_depth", "Depth (m)", 0.05, 20.0, 0.05)
+	_add_slider(_text_props, "text_yaw", "Facing (\u00b0)", -180.0, 180.0, 5.0)
+	_add_slider(_text_props, "text_pitch", "Tilt forward / back (\u00b0)", -90.0, 90.0, 1.0)
+	_add_slider(_text_props, "text_roll", "Tilt sideways (\u00b0)", -180.0, 180.0, 1.0)
+	var solid := CheckButton.new()
+	solid.text = "Solid (players collide with it)"
+	solid.focus_mode = Control.FOCUS_NONE
+	solid.toggled.connect(func(on): _edit_prop("text_solid", on))
+	_text_props.add_child(solid)
+	_fields["text_solid"] = solid
+	var look := VBoxContainer.new()
+	_text_props.add_child(look)
+	_fields["text_look_box"] = look
+	var mb := Button.new()
+	mb.focus_mode = Control.FOCUS_NONE
+	mb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	mb.custom_minimum_size = Vector2(0, 40)
+	mb.pressed.connect(func(): _open_picker(func(id): _edit_prop("text_mat", id)))
+	look.add_child(mb)
+	_fields["text_mat"] = mb
+	var cp := ColorPickerButton.new()
+	cp.custom_minimum_size = Vector2(0, 26)
+	cp.color_changed.connect(func(c): _edit_prop("text_color", c))
+	_add_row(look, "Colour", cp)
+	_fields["text_color"] = cp
+	_add_slider(look, "text_glow", "Glow", 0.0, 8.0, 0.1)
+
+
+func _font_file_dialog() -> FileDialog:
+	if _font_dialog == null:
+		_font_dialog = FileDialog.new()
+		_font_dialog.access = FileDialog.ACCESS_FILESYSTEM
+		_font_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_font_dialog.use_native_dialog = true
+		_font_dialog.filters = PackedStringArray(["*.ttf, *.otf, *.woff, *.woff2 ; Fonts"])
+		_font_dialog.file_selected.connect(func(path): _edit_prop("text_font", path))
+		_ui.add_child(_font_dialog)
+	return _font_dialog
+
+
+func _add_text_clicked() -> void:
+	_checkpoint()
+	var c := _view_center()
+	var cam := panes[0].camera as OrbitCamera
+	var t := TextNode.new()
+	texts_root.add_child(t)
+	# face the 3D view so it reads straight away
+	t.from_dict({"position": [c.x, c.y, c.z], "yaw": rad_to_deg(cam.yaw)})
+	_select(t)
+	_set_status("New text. Type in the panel; 'Place on a surface' sticks it onto a wall or floor.")
+
+
+## Put the selected text flat on the face that was clicked: facing out of it, upright where possible. Engravings
+## sit in the surface (they cut into it), everything else on it.
+func _place_text_on_surface(pane: ViewPane, mouse: Vector2) -> void:
+	_place_on_surface = false
+	if not selected is TextNode:
+		return
+	var r := pane.ray(mouse)
+	var q := PhysicsRayQueryParameters3D.create(r[0], r[0] + r[1] * 20000.0)
+	q.collision_mask = 1
+	q.exclude = [(selected as TextNode)._body.get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		_set_status("No surface there - try again with 'Place on a surface'.")
+		return
+	var z: Vector3 = (hit["normal"] as Vector3).normalized()
+	var x := Vector3.UP.cross(z)
+	if x.length() < 0.1:                                  # floor or ceiling: read along the camera's view
+		var f := -pane.camera.global_basis.z
+		x = Vector3(f.x, 0, f.z).cross(Vector3.UP) if Vector3(f.x, 0, f.z).length() > 0.1 else Vector3.RIGHT
+	x = x.normalized()
+	var y := z.cross(x).normalized()
+	var e := Basis(x, y, z).get_euler(EULER_ORDER_YXZ)
+	_checkpoint()
+	var d: Dictionary = selected.data.duplicate(true)
+	var p: Vector3 = hit["position"] + z * 0.005
+	d["position"] = [p.x, p.y, p.z]
+	d["pitch"] = rad_to_deg(e.x)
+	d["yaw"] = rad_to_deg(e.y)
+	d["roll"] = rad_to_deg(e.z)
+	selected.from_dict(d)
+	_mark_blocks()
+	_refresh_props()
+	_set_status("Text placed on the surface.")
 
 
 ## The material library: thumbnails by category. `cb` gets the chosen material id ("" = none).
@@ -1758,11 +1950,12 @@ func _kind_of(o: Node3D) -> String:
 	if o is RampNode: return "ramps"
 	if o is EntityNode: return "entities"
 	if o is PropNode: return "props"
+	if o is TextNode: return "texts"
 	return "blocks"
 
 
 func _clip_of(objs: Array) -> Dictionary:
-	var clip := {"surfforge_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": []}
+	var clip := {"surfforge_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": [], "texts": []}
 	for o in objs:
 		clip[_kind_of(o)].append(_with_group(o))
 	return clip
@@ -1806,7 +1999,7 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 	var made := []
 	var skipped := 0
 	var groups := {}                                     # pasted groups get fresh ids
-	for kind in ["ramps", "entities", "props", "blocks"]:
+	for kind in ["ramps", "entities", "props", "blocks", "texts"]:
 		for d in data.get(kind, []):
 			if kind == "entities" and d.get("kind", "") in ["start", "finish"] and _find_entity(d["kind"]):
 				skipped += 1
@@ -1822,6 +2015,9 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 				"props":
 					o = PropNode.new()
 					props_root.add_child(o)
+				"texts":
+					o = TextNode.new()
+					texts_root.add_child(o)
 				_:
 					o = BlockNode.new()
 					blocks_root.add_child(o)
@@ -2074,6 +2270,9 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 	if _draw_mode and _draw_block and event is InputEventMouseMotion and pane == _draw_pane:
 		_draw_update(event.position)
 		return true
+	if _place_on_surface and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		_place_text_on_surface(pane, event.position)
+		return true
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and event.alt_pressed:
 		_paint_face(pane, event.position)
 		return true
@@ -2159,6 +2358,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_SPACE: _toggle_maximise_hovered()
 		get_viewport().set_input_as_handled()
 		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and _place_on_surface:
+		_place_on_surface = false
+		_set_status("")
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and _draw_mode:
 		_toggle_draw_mode()
 		return
@@ -2186,6 +2389,7 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_A when ctrl: _set_selection(_all_objects())
 		KEY_N: _add_ramp_clicked()
 		KEY_O: _add_block_clicked()
+		KEY_X when not ctrl: _add_text_clicked()
 		KEY_D when not ctrl: _toggle_draw_mode()
 		KEY_F11: _toggle_fullscreen()
 		KEY_I: _add_prop_clicked()
@@ -2238,6 +2442,8 @@ func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
 			return hit.collider.get_meta("prop")
 		if hit.collider.has_meta("block"):
 			return hit.collider.get_meta("block")
+		if hit.collider.has_meta("text"):
+			return hit.collider.get_meta("text")
 	# fallback: the ridge line on screen (thin ramps seen edge-on in the side views, clicks on the ridge seam)
 	var best: Node3D = null
 	var best_d := PICK_PIXELS
@@ -2326,7 +2532,7 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 				o.from_dict(_drag_origins[o])
 			o.translate_by(delta)
 			any_block = any_block or o is BlockNode
-		if any_block:
+		if any_block or selection().any(func(o): return o is TextNode and o.is_engraving()):
 			_mark_blocks()
 		var c: Vector3 = selected.center()
 		_set_status("Moved by (%.0f, %.0f, %.0f) - centre now (%.0f, %.0f, %.0f)" % [delta.x, delta.y, delta.z, c.x, c.y, c.z])
@@ -2393,7 +2599,7 @@ func _nudge(key: int) -> void:
 	else:
 		for o in selection():
 			o.translate_by(d)
-	if selection().any(func(o): return o is BlockNode):
+	if selection().any(func(o): return o is BlockNode or o is TextNode):
 		_mark_blocks()
 	_refresh_info()
 	_set_status("Nudged %s" % ["point" if selected is RampNode and selected_point >= 0 else "object"])
@@ -2416,7 +2622,7 @@ func _rotate_selected(deg: float) -> void:
 			var c: Vector3 = o.center()
 			o.translate_by(pivot + b * (c - pivot) - c)
 			o.rotate_by(deg)
-	if objs.any(func(o): return o is BlockNode):
+	if objs.any(func(o): return o is BlockNode or o is TextNode):
 		_mark_blocks()
 	_refresh_props()
 	_set_status("Rotated %+.0f°" % deg)
@@ -2717,6 +2923,9 @@ func _bend_clicked() -> void:
 
 
 func _duplicate_clicked() -> void:
+	if selected is TextNode and selection().size() == 1:
+		_paste(_clip_of([selected]), (selected as TextNode).global_basis * Vector3(0, -float(selected.data["height"]) * 1.4, 0))
+		return
 	if selection().size() > 1:
 		_paste(_clip_of(selection()), Vector3(20, 0, 20))
 		return
@@ -2784,7 +2993,7 @@ func _delete_clicked() -> void:
 	for obj in objs:
 		obj.get_parent().remove_child(obj)
 		obj.queue_free()
-	if objs.any(func(o): return o is BlockNode):
+	if objs.any(func(o): return o is BlockNode or o is TextNode):
 		_mark_blocks()
 	if objs.size() > 1:
 		_set_status("Deleted %d objects." % objs.size())
@@ -2857,6 +3066,34 @@ func _edit_prop(key: String, value) -> void:
 	if selected == null or _updating_ui:
 		return
 	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])
+	if selected is TextNode:
+		var tn := selected as TextNode
+		var td: Dictionary = tn.data.duplicate(true)
+		match key:
+			"text_text": td["text"] = value
+			"text_font": td["font"] = value
+			"text_mode": td["mode"] = value
+			"text_align": td["align"] = value
+			"text_height": td["height"] = value
+			"text_depth": td["depth"] = value
+			"text_yaw": td["yaw"] = value
+			"text_pitch": td["pitch"] = value
+			"text_roll": td["roll"] = value
+			"text_glow": td["glow"] = value
+			"text_solid": td["solid"] = value
+			"text_mat":
+				td["material"] = value
+				if value != "" and td["color"] == TextShape.DEFAULTS["color"]:
+					td["color"] = "ffffff"
+			"text_color": td["color"] = (value as Color).to_html(false)
+		var was_engraving := tn.is_engraving()
+		tn.from_dict(td)
+		if was_engraving or tn.is_engraving():
+			_mark_blocks()
+		if key in ["text_mode", "text_font", "text_mat"]:
+			_refresh_props()
+		_refresh_info()
+		return
 	if selected is BlockNode:
 		var b := selected as BlockNode
 		var d: Dictionary = b.data.duplicate(true)

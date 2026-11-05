@@ -86,7 +86,7 @@ func build(map: Dictionary, opts := {}) -> String:
 	var ents: Array = map.get("entities", [])
 	# blocks: every convex piece is one brush
 	var block_pieces := []
-	var cutters := []
+	var cutters := SurfsUpExporter.engraving_cutters(map)
 	for bd in map.get("blocks", []):
 		if BlockShape.spec(bd)["cutter"]:
 			cutters.append(bd)
@@ -142,6 +142,27 @@ func build(map: Dictionary, opts := {}) -> String:
 			world.append(_solid(_hull(_box_corners(e, false).map(func(c): return src(c))), PLATFORM_MATERIAL))
 	for bp in block_pieces:
 		world.append(_block_solid(bp[0], bp[1]))
+	# text: solid 3D letters are func_detail, signs and see-through text func_illusionary (engravings only cut)
+	for td in map.get("texts", []):
+		var ts := TextShape.spec(td)
+		if ts["mode"] == "engrave" or String(ts["text"]).strip_edges() == "":
+			continue
+		var tmat := BLOCK_MATERIALS["color"]
+		if ts["material"] != "" and MaterialLibrary.has(ts["material"]):
+			tmat = _mat_name(ts["material"])
+			used_materials[ts["material"]] = true
+		var depth := maxf(TextShape.depth_of(ts), 2.0 / U)       # at least two units thick: thinner brushes break Source's compiler
+		var tb := PackedStringArray()
+		for piece in TextShape.pieces(ts, 0.0, depth):
+			var tp := []
+			for q in Convex.points(piece):
+				tp.append(src(q))
+			tb.append(_solid(_hull(tp), tmat))
+		if tb.is_empty():
+			continue
+		var cls := "func_detail" if ts["mode"] == "3d" and bool(ts["solid"]) else "func_illusionary"
+		details.append("entity\n{\n\t\"id\" \"%d\"\n\t\"classname\" \"%s\"\n%s}\n" % [_next(), cls, "".join(tb)])
+
 	var b_lo := -half + Vector3.ONE * SKY_THICK
 	var b_hi := half - Vector3.ONE * SKY_THICK
 	for i in 3:                                          # six walls of skybox around everything
@@ -340,7 +361,7 @@ static func _hull(points: Array) -> Array:
 					d = -d
 				var seen := false
 				for pl in planes:
-					if pl[0].dot(nrm) > 0.99999 and absf(pl[1] - d) < 0.05:
+					if pl[0].dot(nrm) > 0.9999 and absf(pl[1] - d) < 0.1:
 						seen = true
 						break
 				if not seen:
@@ -361,8 +382,8 @@ static func _hull(points: Array) -> Array:
 					if area > best_area:
 						best_area = area
 						best = [on[i], on[j], on[k]]
-		if best.is_empty() or best_area < 0.5:
-			continue
+		if best.is_empty() or best_area < 1e-4:
+			return []                                    # a face we can't describe would leave the brush open: drop it
 		if (best[2] - best[0]).cross(best[1] - best[0]).dot(pl[0]) < 0.0:
 			best = [best[0], best[2], best[1]]
 		# nearly coplanar facets (a quad split in two) can pick the same three points: one face is enough
@@ -371,7 +392,10 @@ static func _hull(points: Array) -> Array:
 		var repeat := false
 		for other in sides:
 			var on2: Vector3 = (other[2] - other[0]).cross(other[1] - other[0]).normalized()
-			if on2.dot(fn) > 0.999999 and absf(on2.dot(other[0]) - fd) < 0.01:
+			var d2: float = on2.dot(other[0])
+			# the same face if its three points already lie on another side (a thin triangle of nearly-in-line
+			# points can come out a hair tilted; Source would round the two together)
+			if on2.dot(fn) > 0.999 and absf(on2.dot(best[0]) - d2) < 0.05 and absf(on2.dot(best[1]) - d2) < 0.05 					and absf(on2.dot(best[2]) - d2) < 0.05:
 				repeat = true
 				break
 		if not repeat:

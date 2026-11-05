@@ -138,6 +138,9 @@ static func world_pieces(s: Dictionary, cutters: Array = []) -> Array:
 		return pieces
 	var cuts: Array = []
 	for c in cutters:
+		if c is Array:                                   # a ready-made world-space piece (an engraved letter)
+			cuts.append(c)
+			continue
 		var cs := spec(c)
 		var cxf := transform_of(cs)
 		for p in local_pieces(cs):

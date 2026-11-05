@@ -1,0 +1,224 @@
+class_name TextShape
+extends RefCounted
+## Text as geometry. The letters lie in the text's own XY plane (reading left to right along +X, up along +Y) and are
+## extruded towards the viewer along +Z, from z = 0 (the back, sitting on a surface) to z = depth.
+##   flat     a sign: a hair-thin layer of letters, no collision
+##   3d       solid letters you can stand on (embossed when placed on a surface)
+##   engrave  the letters are cut into any block they overlap (like a cutter)
+## Letter shapes come from Godot's TextMesh (any installed font or a font file); for collision and CS:S brushes the
+## letters are split into convex pieces, merged as far as they stay convex to keep the count down.
+
+const MODES := ["flat", "3d", "engrave"]
+const MODE_LABELS := {"flat": "Flat sign (2D)", "3d": "3D letters", "engrave": "Engraved into blocks"}
+const FONTS := ["Arial", "Arial Black", "Impact", "Segoe UI", "Verdana", "Tahoma", "Georgia", "Times New Roman",
+	"Courier New", "Trebuchet MS", "Comic Sans MS"]
+const FLAT_DEPTH := 0.02
+const DEFAULTS := {
+	"text": "SURF", "font": "Arial Black", "height": 4.0, "depth": 0.6, "mode": "3d", "align": "center",
+	"position": [0.0, 0.0, 0.0], "yaw": 0.0, "pitch": 0.0, "roll": 0.0, "material": "", "color": "f2f2f2",
+	"glow": 0.0, "solid": true,
+}
+
+static var _fonts := {}
+static var _polys := {}
+
+
+static func spec(d: Dictionary) -> Dictionary:
+	var s := DEFAULTS.duplicate(true)
+	for k in DEFAULTS:
+		if d.has(k):
+			s[k] = d[k]
+	if not s["mode"] in MODES:
+		s["mode"] = "3d"
+	return s
+
+
+static func depth_of(s: Dictionary) -> float:
+	return FLAT_DEPTH if s["mode"] == "flat" else maxf(float(s["depth"]), 0.05)
+
+
+static func transform_of(s: Dictionary) -> Transform3D:
+	var p: Array = s["position"]
+	var b := Basis.from_euler(Vector3(deg_to_rad(float(s["pitch"])), deg_to_rad(float(s["yaw"])), deg_to_rad(float(s["roll"]))), EULER_ORDER_YXZ)
+	return Transform3D(b, Vector3(p[0], p[1], p[2]))
+
+
+## An installed font by name, or a font file (.ttf / .otf / .woff).
+static func font(name: String) -> Font:
+	if _fonts.has(name):
+		return _fonts[name]
+	var f: Font
+	if name.get_extension().to_lower() in ["ttf", "otf", "woff", "woff2"] and FileAccess.file_exists(name):
+		var ff := FontFile.new()
+		ff.load_dynamic_font(name)
+		f = ff
+	else:
+		var sf := SystemFont.new()
+		sf.font_names = PackedStringArray([name, "Arial", "Segoe UI"])
+		f = sf
+	_fonts[name] = f
+	return f
+
+
+## A TextMesh for these settings (letters about `height` metres tall, centred on the origin, z -depth/2..+depth/2).
+static func text_mesh(s: Dictionary, depth: float) -> TextMesh:
+	var tm := TextMesh.new()
+	tm.text = String(s["text"]) if String(s["text"]) != "" else " "
+	tm.font = font(s["font"])
+	tm.font_size = 64
+	tm.pixel_size = float(s["height"]) / 64.0
+	tm.depth = depth
+	tm.curve_step = 2.0                                  # smooth enough, and far fewer pieces than the default
+	tm.horizontal_alignment = {"left": HORIZONTAL_ALIGNMENT_LEFT, "right": HORIZONTAL_ALIGNMENT_RIGHT}.get(s["align"], HORIZONTAL_ALIGNMENT_CENTER)
+	return tm
+
+
+## The letters as convex 2D polygons (metres, in the text's plane). Cached.
+static func convex_polygons(s: Dictionary) -> Array:
+	var key := "%s|%s|%s|%s" % [s["text"], s["font"], s["height"], s["align"]]
+	if _polys.has(key):
+		return _polys[key]
+	var arr := text_mesh(s, 1.0).get_mesh_arrays()
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+	var index = arr[Mesh.ARRAY_INDEX]
+	var count: int = (index.size() if index else verts.size()) / 3
+	var tris: Array = []
+	for t in count:
+		var ids: Array = [index[t * 3], index[t * 3 + 1], index[t * 3 + 2]] if index else [t * 3, t * 3 + 1, t * 3 + 2]
+		if normals[ids[0]].z < 0.9:
+			continue                                     # only the front face: the letter shapes themselves
+		var tri := [Vector2(verts[ids[0]].x, verts[ids[0]].y), Vector2(verts[ids[1]].x, verts[ids[1]].y), Vector2(verts[ids[2]].x, verts[ids[2]].y)]
+		if absf((tri[1] - tri[0]).cross(tri[2] - tri[0])) < 1e-8:
+			continue
+		if (tri[1] - tri[0]).cross(tri[2] - tri[0]) < 0.0:
+			tri = [tri[0], tri[2], tri[1]]               # counter-clockwise
+		tris.append(tri)
+	var polys := _merge_convex(tris)
+	_polys[key] = polys
+	return polys
+
+
+## Hertel-Mehlhorn: merge neighbouring polygons across shared edges as long as the result stays convex.
+static func _merge_convex(tris: Array) -> Array:
+	var polys: Array = tris.duplicate(true)
+	var changed := true
+	while changed:
+		changed = false
+		var edges := {}                                  # rounded edge -> [polygon index, edge index]
+		for pi in polys.size():
+			var p: Array = polys[pi]
+			if p.is_empty():
+				continue
+			for ei in p.size():
+				var a: Vector2 = p[ei]
+				var b: Vector2 = p[(ei + 1) % p.size()]
+				var k := _edge_key(b, a)                 # the neighbour runs the same edge the other way
+				if edges.has(k):
+					var other: Array = edges[k]
+					var merged := _join(polys[other[0]], other[1], p, ei)
+					if not merged.is_empty() and _convex(merged):
+						polys[other[0]] = merged
+						polys[pi] = []
+						changed = true
+						break
+				edges[_edge_key(a, b)] = [pi, ei]
+			if changed:
+				break                                    # the edge table is stale now: start a fresh pass
+	return polys.filter(func(p): return not p.is_empty())
+
+
+static func _edge_key(a: Vector2, b: Vector2) -> String:
+	return "%d,%d>%d,%d" % [roundi(a.x * 10000), roundi(a.y * 10000), roundi(b.x * 10000), roundi(b.y * 10000)]
+
+
+## Join polygon p (whose edge pe runs a->b) with q (whose edge qe runs b->a) into one polygon.
+static func _join(p: Array, pe: int, q: Array, qe: int) -> Array:
+	# p's edge runs x -> y and q's runs y -> x. Walk p from y all the way round to x, then q's other corners.
+	var out: Array = []
+	var n := p.size()
+	for i in n:
+		out.append(p[(pe + 1 + i) % n])                  # y ... x
+	var m := q.size()
+	for i in m - 2:
+		out.append(q[(qe + 2 + i) % m])                  # the corners of q that aren't on the shared edge
+	return out
+
+
+static func _convex(poly: Array) -> bool:
+	var n := poly.size()
+	if n < 3:
+		return false
+	var area := 0.0
+	for i in n:
+		if (poly[i] as Vector2).distance_to(poly[(i + 1) % n]) < 1e-6:
+			return false                                 # a repeated corner: not a proper polygon
+		area += (poly[i] as Vector2).cross(poly[(i + 1) % n])
+	if area <= 1e-9:
+		return false
+	for i in n:
+		var a: Vector2 = poly[i]
+		var b: Vector2 = poly[(i + 1) % n]
+		var c: Vector2 = poly[(i + 2) % n]
+		if (b - a).cross(c - b) < -1e-7:
+			return false
+	return true
+
+
+## The letters as world-space convex pieces: z from `z0` to `z1` in the text's own space.
+static func pieces(s: Dictionary, z0: float, z1: float) -> Array:
+	var xf := transform_of(s)
+	var out: Array = []
+	for poly in convex_polygons(s):
+		var base: Array = []
+		for p in poly:
+			base.append(Vector3(p.x, p.y, z0))
+		out.append(Convex.transformed(Convex.extrude(base, Vector3(0, 0, z1 - z0)), xf))
+	return out
+
+
+## The pieces that collide / become brushes for this text (none for an engraving, which only cuts).
+static func solid_pieces(s: Dictionary) -> Array:
+	if s["mode"] == "engrave":
+		return []
+	return pieces(s, 0.0, depth_of(s))
+
+
+## The pieces an engraving cuts out of blocks: the letters from `depth` behind the surface to just in front of it.
+static func cut_pieces(s: Dictionary) -> Array:
+	if s["mode"] != "engrave":
+		return []
+	return pieces(s, -maxf(float(s["depth"]), 0.05), 0.05)
+
+
+## The visible mesh (in the text's own space) - smooth curved letters straight from the font.
+static func mesh(s: Dictionary) -> Mesh:
+	var d := depth_of(s)
+	var tm := text_mesh(s, d)
+	var arr := tm.get_mesh_arrays()
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	for i in verts.size():
+		verts[i] += Vector3(0, 0, d * 0.5)               # back face on z = 0
+	arr[Mesh.ARRAY_VERTEX] = verts
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return m
+
+
+static func material(s: Dictionary) -> Material:
+	var c := Color.html(s["color"])
+	var m: StandardMaterial3D
+	if s["material"] != "" and MaterialLibrary.has(s["material"]):
+		m = MaterialLibrary.material(s["material"], c).duplicate()
+		m.uv1_triplanar = true                           # text has no texture layout of its own: project it
+		m.uv1_world_triplanar = true
+		m.uv1_scale = Vector3.ONE / MaterialLibrary.world_size(s["material"])
+	else:
+		m = StandardMaterial3D.new()
+		m.albedo_color = c
+		m.roughness = 0.45
+	if float(s["glow"]) > 0.0:
+		m.emission_enabled = true
+		m.emission = c
+		m.emission_energy_multiplier = float(s["glow"])
+	return m

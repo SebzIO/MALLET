@@ -237,7 +237,7 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	var blocks := Node3D.new()
 	blocks.name = "Blocks"
 	_add(root, root, blocks)
-	var cutters := []
+	var cutters := engraving_cutters(map)
 	for bd in map.get("blocks", []):
 		if BlockShape.spec(bd)["cutter"]:
 			cutters.append(bd)
@@ -273,6 +273,42 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			_add(root, body, cs)
 			pn += 1
 		bi += 1
+
+	# text: the letters' mesh, and for solid 3D text an exact convex collision shape per piece (engravings only cut)
+	var texts := Node3D.new()
+	texts.name = "Texts"
+	_add(root, root, texts)
+	var ti := 0
+	for td in map.get("texts", []):
+		var ts := TextShape.spec(td)
+		if ts["mode"] == "engrave" or String(ts["text"]).strip_edges() == "":
+			continue
+		var txf := TextShape.transform_of(ts)
+		var solid: bool = ts["mode"] == "3d" and bool(ts["solid"])
+		var holder: Node3D = StaticBody3D.new() if solid else Node3D.new()
+		holder.name = "Text%d" % ti
+		holder.transform = txf
+		_add(root, texts, holder)
+		var tmi := MeshInstance3D.new()
+		tmi.name = "Mesh"
+		tmi.mesh = TextShape.mesh(ts)
+		tmi.material_override = TextShape.material(ts)
+		_add(root, holder, tmi)
+		if solid:
+			var tinv := txf.affine_inverse()
+			var tn := 0
+			for piece in TextShape.solid_pieces(ts):
+				var shape := ConvexPolygonShape3D.new()
+				var pts := PackedVector3Array()
+				for v in Convex.points(piece):
+					pts.append(tinv * v)
+				shape.points = pts
+				var cs := CollisionShape3D.new()
+				cs.name = "Piece%d" % tn
+				cs.shape = shape
+				_add(root, holder, cs)
+				tn += 1
+		ti += 1
 
 	# props: the models' meshes (textures compressed) and, if solid, their collision
 	var props := Node3D.new()
@@ -331,6 +367,14 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 
 
 ## Height of the automatic kill floor: KILL_MARGIN below the lowest ramp or platform.
+## Every engraved text's letters, as convex pieces that cut the blocks they overlap.
+static func engraving_cutters(map: Dictionary) -> Array:
+	var out := []
+	for td in map.get("texts", []):
+		out.append_array(TextShape.cut_pieces(TextShape.spec(td)))
+	return out
+
+
 static func kill_floor_y(map: Dictionary) -> float:
 	var lowest := INF
 	for rd in map.get("ramps", []):
