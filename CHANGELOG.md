@@ -3,7 +3,7 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
-## Unreleased (0.2: structures)
+## 0.2.0 preview — 2026-11-05: structures
 
 - Blocks: box, wedge, cylinder, stairs; + Block (O) or Draw block (D) - drag a rectangle in a 2D view, Hammer style;
   resize by dragging the squares on a block's sides; move, turn, nudge, duplicate, undo.
