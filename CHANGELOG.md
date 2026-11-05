@@ -3,6 +3,11 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.5.2 preview — 2026-11-05: engraving spike fix
+
+- Engraving into a block could leave a piece shooting far out of the block (a tall spike). A speed-up in 0.5.1
+  dropped planes it thought were unused; it now only drops them when the piece is provably unchanged.
+
 ## 0.5.1 preview — 2026-11-05: engraving speed fix
 
 - Engraving text into a block froze the editor for 30 s or more. It now takes about half a second: corner points

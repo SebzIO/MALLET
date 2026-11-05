@@ -210,21 +210,29 @@ static func _boxed(piece: Array) -> Array:
 	if box.size.x <= 0.01 or box.size.y <= 0.01 or box.size.z <= 0.01:
 		return []
 	var kept: Array = []
-	for pl in piece:                                             # planes that only graze a corner or an edge add
-		var plane: Plane = pl                                    # nothing but cost: drop them
+	for pl in piece:
+		var plane: Plane = pl
+		var deepest := 0.0
 		var touching := 0
 		for p in pts:
-			if absf(plane.distance_to(p)) < EPS * 10.0:
+			var dist := plane.distance_to(p)
+			deepest = maxf(deepest, -dist)
+			if absf(dist) < EPS * 10.0:
 				touching += 1
-		if touching >= 3:
+		if touching >= 3 and deepest < 0.02:
+			return []                                            # a sliver (thinner than 2 cm across): drop it
+		if touching > 0:
 			kept.append(plane)
-	for plane in kept:                                           # a sliver (thinner than 2 cm somewhere across): drop it
-		var deepest := 0.0
-		for p in pts:
-			deepest = maxf(deepest, -plane.distance_to(p))
-		if deepest < 0.02:
-			return []
-	return [kept, box]
+	# planes nowhere near the piece only cost time later (carving adds lots) - but only drop them if the piece
+	# without them is provably the same: Godot's corner finder can miss a corner, and dropping the plane that
+	# bounds it would send that piece shooting off into the distance
+	if kept.size() < piece.size():
+		for v in points(kept):
+			for pl in piece:
+				if (pl as Plane).distance_to(v) > EPS * 10.0:
+					return [piece, box]
+		return [kept, box]
+	return [piece, box]
 
 
 static func _carve_boxed(e: Array, cutter: Array, cbox: AABB) -> Array:
