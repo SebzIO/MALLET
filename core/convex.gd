@@ -53,6 +53,35 @@ static func from_points(points: Array) -> Array:
 	return planes
 
 
+## Outward planes from known faces (each three points on a face), oriented away from `inside`. Much faster than
+## searching the hull when the shape's faces are known (cylinders, cones, spheres).
+static func from_faces(faces: Array, inside: Vector3) -> Array:
+	var planes: Array = []
+	for f in faces:
+		var nrm: Vector3 = (f[1] - f[0]).cross(f[2] - f[0])
+		if nrm.length() < 1e-9:
+			continue
+		var pl := Plane(nrm.normalized(), (f[0] as Vector3).dot(nrm.normalized()))
+		if pl.distance_to(inside) > 0.0:
+			pl = Plane(-pl.normal, -pl.d)
+		planes.append(pl)
+	return planes
+
+
+## A convex polygon (points in order) pushed along `dir`: a prism.
+static func extrude(poly: Array, dir: Vector3) -> Array:
+	var c := Vector3.ZERO
+	for p in poly:
+		c += p
+	c = c / poly.size() + dir * 0.5
+	var faces: Array = [[poly[0], poly[1], poly[2]], [poly[0] + dir, poly[1] + dir, poly[2] + dir]]
+	for i in poly.size():
+		var a: Vector3 = poly[i]
+		var b: Vector3 = poly[(i + 1) % poly.size()]
+		faces.append([a, b, a + dir])
+	return from_faces(faces, c)
+
+
 ## The corner points of a piece.
 static func points(piece: Array) -> PackedVector3Array:
 	return Geometry3D.compute_convex_mesh_points(piece)

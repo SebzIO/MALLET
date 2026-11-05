@@ -52,6 +52,15 @@ func _init() -> void:
 	check("cylinder close to pi r^2 h", absf(total(cyl) - PI * 25.0 * 4.0) < PI * 25.0 * 4.0 * 0.01, "(%.1f m3)" % total(cyl))
 	var w := BlockShape.local_pieces(BlockShape.spec({"shape": "wedge", "size": [4, 3, 6]}))
 	check("wedge is half a box", absf(total(w) - 36.0) < 0.01)
+	var arch := BlockShape.local_pieces(BlockShape.spec({"shape": "arch", "size": [10, 10, 2], "wall": 2.0, "sides": 24}))
+	var opening := (6.0 * 5.0 + PI * 9.0 / 2.0) * 2.0          # doorway 6 m wide: 5 m straight sides, then a half circle r 3; 2 m deep
+	check("arch: a wall minus its round-topped doorway", absf(total(arch) - (200.0 - opening)) < 1.0, "(%.1f m3, %d pieces)" % [total(arch), arch.size()])
+	var pyr := BlockShape.local_pieces(BlockShape.spec({"shape": "pyramid", "size": [6, 6, 6]}))
+	check("pyramid is a third of its box", absf(total(pyr) - 72.0) < 0.01)
+	var sph := BlockShape.local_pieces(BlockShape.spec({"shape": "sphere", "size": [10, 10, 10], "sides": 32}))
+	check("sphere close to 4/3 pi r^3", absf(total(sph) - 4.0 / 3.0 * PI * 125.0) < 4.0 / 3.0 * PI * 125.0 * 0.03, "(%.0f m3)" % total(sph))
+	var tilted := BlockShape.world_pieces(BlockShape.spec({"size": [4, 2, 6], "pitch": 30.0, "roll": 20.0, "yaw": 45.0}))
+	check("tilted block keeps its volume", absf(total(tilted) - 48.0) < 0.01)
 	# mesh faces point outwards: each triangle's winding normal agrees with the face normal it came from
 	var m := BlockShape.mesh(BlockShape.world_pieces(wall, [door]), Transform3D.IDENTITY)
 	var arr := m.surface_get_arrays(0)

@@ -33,6 +33,12 @@ var _prop_dialog: FileDialog
 var _prop_replace := false
 var selected: Node3D = null          ## a RampNode or an EntityNode
 var selected_point := -1
+var _extra: Array = []                  ## other selected objects (Ctrl+click, box select, groups); `selected` leads
+var _drag_origins := {}                 ## every dragged object's state before the drag
+var _marquee_pane: ViewPane = null      ## box selection in a 2D view
+var _marquee_a := Vector2.ZERO
+var _marquee_b := Vector2.ZERO
+var _marquee_add := false
 var snap_enabled := true
 var snap_step := 4.0
 var current_path := ""
@@ -204,23 +210,32 @@ func _build_ui_main() -> void:
 	ver.tooltip_text = SurfForgeVersion.full()
 	bar.add_child(ver)
 	for spec in [["New", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
-			["+ Ramp (N)", _add_ramp_clicked], ["✦ Generate (R)", _generate_clicked], ["+ Start (B)", func(): _add_entity("start")],
-			["+ Finish (M)", func(): _add_entity("finish")], ["+ Kill zone (K)", func(): _add_entity("kill")],
-			["+ Booster (J)", func(): _add_entity("booster")], ["+ Stage (T)", func(): _add_entity("stage")],
-			["+ Teleport (Y)", func(): _add_entity("teleport")], ["+ Prop (I)", _add_prop_clicked], ["|", null],
-			["+ Block (O)", _add_block_clicked], ["Draw block (D)", _toggle_draw_mode], ["|", null],
-			["Extend", _extend_clicked], ["Add Bend", _bend_clicked], ["Duplicate", _duplicate_clicked],
-			["Delete", _delete_clicked], ["|", null], ["Undo", undo], ["Redo", redo], ["|", null],
-			["Frame (F)", _frame_clicked], ["|", null], ["▶ Play (P)", _play_clicked],
-			["Export to SurfsUp", _export_clicked], ["Export to CS:S", _css_clicked]]:
-		if spec[0] == "|":
-			bar.add_child(VSeparator.new())
-			continue
-		var b := Button.new()
-		b.text = spec[0]
-		b.focus_mode = Control.FOCUS_NONE
-		b.pressed.connect(spec[1])
-		bar.add_child(b)
+			["Undo", undo], ["Redo", redo], ["|", null]]:
+		_bar_item(bar, spec)
+	# Add: everything you can put in a map, each with its key
+	_menu(bar, "Add ▾", [
+		["Ramp", KEY_N, _add_ramp_clicked], ["Generate a ramp shape…", KEY_R, _generate_clicked], [],
+		["Block", KEY_O, _add_block_clicked], ["Draw blocks (drag in a 2D view)", KEY_D, _toggle_draw_mode, "draw"], [],
+		["Start platform", KEY_B, func(): _add_entity("start")], ["Finish platform", KEY_M, func(): _add_entity("finish")],
+		["Stage plate", KEY_T, func(): _add_entity("stage")], ["Teleport", KEY_Y, func(): _add_entity("teleport")],
+		["Kill zone", KEY_K, func(): _add_entity("kill")], ["Booster", KEY_J, func(): _add_entity("booster")], [],
+		["Prop (glTF model)…", KEY_I, _add_prop_clicked]])
+	_menu(bar, "Edit ▾", [
+		["Copy", KEY_MASK_CTRL | KEY_C, _copy], ["Paste", KEY_MASK_CTRL | KEY_V, _paste_clicked],
+		["Duplicate", KEY_MASK_CTRL | KEY_D, _duplicate_clicked], ["Delete", KEY_DELETE, _delete_clicked], [],
+		["Select all", KEY_MASK_CTRL | KEY_A, func(): _set_selection(_all_objects())],
+		["Group", KEY_MASK_CTRL | KEY_G, _group], ["Ungroup", KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_G, _ungroup], [],
+		["Extend ramp", KEY_NONE, _extend_clicked], ["Add bend to ramp", KEY_NONE, _bend_clicked],
+		["Turn left 15°", KEY_BRACKETLEFT, func(): _rotate_selected(-15.0)],
+		["Turn right 15°", KEY_BRACKETRIGHT, func(): _rotate_selected(15.0)]])
+	_menu(bar, "View ▾", [
+		["Frame selection", KEY_F, _frame_clicked], ["Fullscreen", KEY_F11, _toggle_fullscreen], [],
+		["Jump arcs: all ramps", KEY_NONE, func(): show_all_arcs = not show_all_arcs; _sync_view_menu(); _map_changed(), "arcs"],
+		["Direction arrows", KEY_NONE, func(): show_direction = not show_direction; _sync_view_menu(), "arrows"],
+		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"]])
+	bar.add_child(VSeparator.new())
+	_bar_item(bar, ["▶ Play (P)", _play_clicked])
+	_menu(bar, "Export ▾", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked]])
 	bar.add_child(VSeparator.new())
 	var snap := CheckButton.new()
 	snap.text = "Snap to grid"
@@ -231,35 +246,15 @@ func _build_ui_main() -> void:
 	bar.add_child(snap)
 	_fields["snap_button"] = snap
 	var step := OptionButton.new()
-	for s in [1, 2, 4, 8, 16]:
-		step.add_item("every %d m" % s, s)
+	for sz in [1, 2, 4, 8, 16]:
+		step.add_item("every %d m" % sz, sz)
 	step.select(2)
 	step.focus_mode = Control.FOCUS_NONE
 	step.tooltip_text = "Grid size: how far apart the snap points are (also the arrow-key nudge step)."
 	step.item_selected.connect(func(i): snap_step = float(step.get_item_id(i)); _set_status("Snap grid: every %d m" % int(snap_step)))
 	bar.add_child(step)
 	_fields["snap_step"] = step
-	bar.add_child(VSeparator.new())
-	var arcs := CheckButton.new()
-	arcs.text = "Jump arcs: all ramps"
-	arcs.focus_mode = Control.FOCUS_NONE
-	arcs.tooltip_text = "Off: arcs only for the selected ramp. On: every ramp's jump at once."
-	arcs.toggled.connect(func(on): show_all_arcs = on; _map_changed())
-	bar.add_child(arcs)
-	var arrows := CheckButton.new()
-	arrows.text = "Direction arrows"
-	arrows.button_pressed = show_direction
-	arrows.focus_mode = Control.FOCUS_NONE
-	arrows.tooltip_text = "Arrows along every ramp showing which way it is ridden (first point to last). Editor only: never exported."
-	arrows.toggled.connect(func(on): show_direction = on; _redraw_overlays())
-	bar.add_child(arrows)
-	var gp := CheckButton.new()
-	gp.text = "Best run"
-	gp.button_pressed = show_ghost_path
-	gp.focus_mode = Control.FOCUS_NONE
-	gp.tooltip_text = "Draw the path of your best play-mode run, coloured by speed (blue slow, red fast). Editor only."
-	gp.toggled.connect(func(on): show_ghost_path = on)
-	bar.add_child(gp)
+	_sync_view_menu()
 
 	var middle := HBoxContainer.new()
 	middle.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -604,6 +599,8 @@ func _refresh_props() -> void:
 		_set_field("block_y", sz.y)
 		_set_field("block_z", sz.z)
 		_set_field("block_yaw", float(b.data["yaw"]))
+		_set_field("block_pitch", float(b.data.get("pitch", 0.0)))
+		_set_field("block_roll", float(b.data.get("roll", 0.0)))
 		_set_field("block_sides", float(b.data["sides"]))
 		_set_field("block_steps", float(b.data["steps"]))
 		_set_field("block_wall", float(b.data["wall"]))
@@ -611,10 +608,10 @@ func _refresh_props() -> void:
 		_fields["block_cutter"].set_pressed_no_signal(b.is_cutter())
 		_fields["block_look"].select(Look.LOOK_ORDER.find(b.data["look"]))
 		_fields["block_color"].color = Color.html(b.data["color"])
-		_fields["block_sides_box"].visible = b.data["shape"] == "cylinder"
+		_fields["block_sides_box"].visible = b.data["shape"] in ["cylinder", "arch", "cone", "sphere"]
 		_fields["block_steps_box"].visible = b.data["shape"] == "stairs"
 		_fields["block_hollow"].visible = b.data["shape"] in ["box", "cylinder"] and not b.is_cutter()
-		_fields["block_wall_box"].visible = bool(b.data["hollow"]) and b.data["shape"] in ["box", "cylinder"] and not b.is_cutter()
+		_fields["block_wall_box"].visible = (bool(b.data["hollow"]) and b.data["shape"] in ["box", "cylinder"] or b.data["shape"] == "arch") and not b.is_cutter()
 		_fields["block_look_box"].visible = not b.is_cutter()
 		_updating_ui = false
 		_refresh_info()
@@ -783,16 +780,16 @@ func set_active_pane(p: ViewPane) -> void:
 func _map_dict() -> Dictionary:
 	var rs := []
 	for r in ramps_root.get_children():
-		rs.append(r.to_dict())
+		rs.append(_with_group(r))
 	var es := []
 	for e in entities_root.get_children():
-		es.append(e.to_dict())
+		es.append(_with_group(e))
 	var ps := []
 	for pr in props_root.get_children():
-		ps.append(pr.to_dict())
+		ps.append(_with_group(pr))
 	var bs := []
 	for b in blocks_root.get_children():
-		bs.append(b.to_dict())
+		bs.append(_with_group(b))
 	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
 		"props": ps, "blocks": bs}
 
@@ -812,18 +809,22 @@ func _load_dict(data: Dictionary) -> void:
 		var r := RampNode.new()
 		ramps_root.add_child(r)
 		r.from_dict(rd)
+		_take_group(r, rd)
 	for ed in data.get("entities", []):
 		var e := EntityNode.new()
 		entities_root.add_child(e)
 		e.from_dict(ed)
+		_take_group(e, ed)
 	for pd in data.get("props", []):
 		var pr := PropNode.new()
 		props_root.add_child(pr)
 		pr.from_dict(pd)
+		_take_group(pr, pd)
 	for bd in data.get("blocks", []):
 		var b := BlockNode.new()
 		blocks_root.add_child(b)
 		b.from_dict(bd)
+		_take_group(b, bd)
 	_rebuild_blocks()
 
 
@@ -909,7 +910,52 @@ func redo() -> void:
 
 
 # ================================================================================================= selection
+## Everything selected, the lead object first.
+func selection() -> Array:
+	var out := []
+	if selected and is_instance_valid(selected):
+		out.append(selected)
+	for o in _extra:
+		if is_instance_valid(o) and not o.is_queued_for_deletion() and o != selected:
+			out.append(o)
+	return out
+
+
+## Select `obj` and the rest of its group; with `add`, add them to (or, if already there, take them out of) the
+## current selection.
+func _select_with_group(obj: Node3D, add := false) -> void:
+	var members := _group_of(obj)
+	if add:
+		var cur := selection()
+		if obj in cur:
+			for m in members:
+				cur.erase(m)
+		else:
+			for m in members:
+				if not m in cur:
+					cur.append(m)
+		_set_selection(cur)
+		return
+	_select(obj)
+	_extra = members.filter(func(m): return m != obj)
+	_refresh_props()
+
+
+func _set_selection(objs: Array) -> void:
+	_select(objs[0] if not objs.is_empty() else null)
+	_extra = objs.slice(1)
+	_refresh_props()
+
+
+func _group_of(obj: Node3D) -> Array:
+	if obj == null or not obj.has_meta("group"):
+		return [obj] if obj else []
+	var g = obj.get_meta("group")
+	return _all_objects().filter(func(o): return o.has_meta("group") and o.get_meta("group") == g)
+
+
 func _select(obj: Node3D, point := -1) -> void:
+	_extra = []
 	_map_changed()
 	if selected and is_instance_valid(selected):
 		selected.set_selected(false)
@@ -1154,6 +1200,55 @@ func _do_unlock(k: int) -> void:
 	_set_status("Unlocked from point %d: that part is editable again (it takes the editable section's slope and face)." % at)
 
 
+## A toolbar button (or a separator for "|").
+func _bar_item(bar: Container, spec: Array) -> void:
+	if spec[0] == "|":
+		bar.add_child(VSeparator.new())
+		return
+	var b := Button.new()
+	b.text = spec[0]
+	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(spec[1])
+	bar.add_child(b)
+
+
+## A toolbar menu. Items are [label, shortcut shown, action, optional check id] or [] for a separator; the
+## shortcuts are only shown here, the keys themselves are handled with the rest of the keyboard.
+func _menu(bar: Container, title: String, items: Array) -> MenuButton:
+	var mb := MenuButton.new()
+	mb.text = title
+	mb.flat = false
+	mb.focus_mode = Control.FOCUS_NONE
+	var pm := mb.get_popup()
+	var actions := {}
+	for it in items:
+		if it.is_empty():
+			pm.add_separator()
+			continue
+		var id := actions.size()
+		if it.size() > 3:
+			pm.add_check_item(it[0], id)
+			_fields["menu_" + it[3]] = [pm, pm.get_item_index(id)]
+		else:
+			pm.add_item(it[0], id)
+		if it[1] != KEY_NONE:
+			pm.set_item_accelerator(pm.get_item_index(id), it[1])
+		actions[id] = it[2]
+	pm.id_pressed.connect(func(id): actions[id].call())
+	bar.add_child(mb)
+	_fields["menu_" + title.get_slice(" ", 0)] = mb
+	return mb
+
+
+## Tick the View and Add menus' check items to match the current settings.
+func _sync_view_menu() -> void:
+	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["draw", _draw_mode]]:
+		if _fields.has("menu_" + pair[0]):
+			var m: Array = _fields["menu_" + pair[0]]
+			(m[0] as PopupMenu).set_item_checked(m[1], pair[1])
+	_redraw_overlays()
+
+
 ## Presentation mode (for videos and screenshots): only the 3D view, no toolbar, panel or status line.
 func set_presentation(on: bool) -> void:
 	_fields["toolbar"].visible = not on
@@ -1270,6 +1365,8 @@ func _build_block_props(props: VBoxContainer) -> void:
 	_add_slider(_block_props, "block_y", "Height (m)", 0.25, 500.0, 0.25)
 	_add_slider(_block_props, "block_z", "Depth (m)", 0.25, 500.0, 0.25)
 	_add_slider(_block_props, "block_yaw", "Facing (\u00b0)", -180.0, 180.0, 5.0)
+	_add_slider(_block_props, "block_pitch", "Tilt forward / back (\u00b0)", -90.0, 90.0, 1.0)
+	_add_slider(_block_props, "block_roll", "Tilt sideways (\u00b0)", -90.0, 90.0, 1.0)
 	var sides_box := VBoxContainer.new()
 	_block_props.add_child(sides_box)
 	_add_slider(sides_box, "block_sides", "Sides (smoothness)", 3.0, 64.0, 1.0)
@@ -1348,6 +1445,7 @@ func _add_block_clicked() -> void:
 
 func _toggle_draw_mode() -> void:
 	_draw_mode = not _draw_mode
+	_sync_view_menu()
 	_set_status("Draw block: drag a rectangle in the Top, Front or Side view. Esc or D to stop." if _draw_mode else "Draw block off.")
 
 
@@ -1423,6 +1521,149 @@ func _pick_face(pane: ViewPane, mouse: Vector2) -> int:
 	return best
 
 
+# ------------------------------------------------------------------------------------------------ selection tools
+func _finish_marquee() -> void:
+	var pane := _marquee_pane
+	_marquee_pane = null
+	var r := Rect2(_marquee_a, Vector2.ZERO).expand(_marquee_b)
+	if r.size.length() < 4.0:                            # just a click on empty space
+		if not _marquee_add:
+			_select(null)
+		return
+	var hits := []
+	for o in _all_objects():
+		var c: Vector3 = o.center()
+		if not pane.camera.is_position_behind(c) and r.has_point(pane.camera.unproject_position(c)):
+			for m in _group_of(o):
+				if not m in hits:
+					hits.append(m)
+	var cur := selection() if _marquee_add else []
+	for h in hits:
+		if not h in cur:
+			cur.append(h)
+	_set_selection(cur)
+	_set_status("%d selected" % cur.size())
+
+
+func _with_group(o: Node3D) -> Dictionary:
+	var d: Dictionary = o.to_dict()
+	if o.has_meta("group"):
+		d["group"] = o.get_meta("group")
+	return d
+
+
+func _take_group(o: Node3D, d: Dictionary) -> void:
+	if d.has("group"):
+		o.set_meta("group", d["group"])
+
+
+## Ctrl+G: the selected objects become one group (clicking any of them selects them all).
+func _group() -> void:
+	var objs := selection()
+	if objs.size() < 2:
+		_set_status("Select two or more objects to group them (Ctrl+click or drag a box in a 2D view).")
+		return
+	_checkpoint()
+	var id := "g%d" % Time.get_ticks_usec()
+	for o in objs:
+		o.set_meta("group", id)
+	_set_status("Grouped %d objects. Clicking any of them now selects them all; Ctrl+Shift+G to ungroup." % objs.size())
+
+
+func _ungroup() -> void:
+	_checkpoint()
+	for o in selection():
+		if o.has_meta("group"):
+			o.remove_meta("group")
+	_set_status("Ungrouped.")
+
+
+func _kind_of(o: Node3D) -> String:
+	if o is RampNode: return "ramps"
+	if o is EntityNode: return "entities"
+	if o is PropNode: return "props"
+	return "blocks"
+
+
+func _clip_of(objs: Array) -> Dictionary:
+	var clip := {"surfforge_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": []}
+	for o in objs:
+		clip[_kind_of(o)].append(_with_group(o))
+	return clip
+
+
+## Ctrl+C: the selection goes on the system clipboard (so it pastes into another map, or another SurfForge).
+func _copy() -> void:
+	if selection().is_empty():
+		return
+	DisplayServer.clipboard_set(JSON.stringify(_clip_of(selection())))
+	_set_status("Copied %d object(s). Ctrl+V pastes them (also into another map)." % selection().size())
+
+
+## Ctrl+V: paste in the middle of the 3D view.
+func _paste_clicked() -> void:
+	var data = JSON.parse_string(DisplayServer.clipboard_get())
+	if typeof(data) != TYPE_DICTIONARY or not data.has("surfforge_clipboard"):
+		_set_status("Nothing to paste: copy something in SurfForge first (Ctrl+C).")
+		return
+	# centre of what was copied
+	var objs := _paste(data, Vector3.ZERO, true)
+	if objs.is_empty():
+		return
+	var mid := Vector3.ZERO
+	for o in objs:
+		mid += o.center()
+	mid /= objs.size()
+	var to := _view_center()
+	if snap_enabled:
+		to = to.snapped(Vector3.ONE * snap_step)
+	for o in objs:
+		o.translate_by(to - mid)
+	_rebuild_blocks()
+	_map_changed()
+
+
+## Add copies of clipboard objects, moved by `offset`. Start and finish platforms are skipped if the map has
+## them already (a map has one of each). Returns the new objects, selected.
+func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
+	_checkpoint()
+	var made := []
+	var skipped := 0
+	var groups := {}                                     # pasted groups get fresh ids
+	for kind in ["ramps", "entities", "props", "blocks"]:
+		for d in data.get(kind, []):
+			if kind == "entities" and d.get("kind", "") in ["start", "finish"] and _find_entity(d["kind"]):
+				skipped += 1
+				continue
+			var o: Node3D
+			match kind:
+				"ramps":
+					o = RampNode.new()
+					ramps_root.add_child(o)
+				"entities":
+					o = EntityNode.new()
+					entities_root.add_child(o)
+				"props":
+					o = PropNode.new()
+					props_root.add_child(o)
+				_:
+					o = BlockNode.new()
+					blocks_root.add_child(o)
+			o.from_dict(d)
+			if d.has("group"):
+				if not groups.has(d["group"]):
+					groups[d["group"]] = "g%d_%d" % [Time.get_ticks_usec(), groups.size()]
+				o.set_meta("group", groups[d["group"]])
+			if offset != Vector3.ZERO:
+				o.translate_by(offset)
+			made.append(o)
+	_rebuild_blocks()
+	_set_selection(made)
+	if not quiet or skipped > 0:
+		_set_status("Pasted %d object(s)%s." % [made.size(), (" (left out %d start/finish: a map has one of each)" % skipped) if skipped else ""])
+	return made
+
+
 ## Reverse a ramp's direction of travel without moving any of it: the points run the other way, and what was
 ## the left face is now the right face (half ramps and Freeform faces swap sides to stay where they are).
 func _flip_clicked() -> void:
@@ -1468,6 +1709,10 @@ func _stage_plate(n: int) -> EntityNode:
 func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 	if play.active:
 		return
+	if _marquee_pane == pane:
+		var r := Rect2(_marquee_a, Vector2.ZERO).expand(_marquee_b)
+		ov.draw_rect(r, Color(0.3, 0.75, 1.0, 0.12), true)
+		ov.draw_rect(r, Color(0.3, 0.75, 1.0, 0.9), false, 1.5)
 	_draw_arcs(pane, ov)
 	var cam := pane.camera
 	var font := ov.get_theme_default_font()
@@ -1502,6 +1747,9 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			for k in segs:
 				if k % 2 == 0:
 					ov.draw_line(a.lerp(b, float(k) / segs), a.lerp(b, float(k + 1) / segs), Color(0.85, 0.5, 1.0), 2.0)
+	for o in selection():
+		if o != selected:
+			_draw_lines(cam, ov, o.outline if o is RampNode else o.outline_lines(), Color(0.55, 0.85, 1.0, 0.7), 1.5)
 	var lines: Array[PackedVector3Array] = selected.outline if selected is RampNode else selected.outline_lines()
 	_draw_lines(cam, ov, lines, Color(0.3, 0.75, 1.0, 0.95), 2.0)   # selection outline (keeps the real colour visible)
 	if selected is RampNode:                       # the locked part: muted
@@ -1672,19 +1920,44 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 				_begin_drag(pane, Drag.POINT, event.position, event.shift_pressed, hp)
 				return true
 			var obj := _pick_object(pane, event.position)
-			if obj != selected:
-				_select(obj)
+			var ctrl: bool = event.ctrl_pressed or event.meta_pressed
+			if obj and ctrl:
+				_select_with_group(obj, true)            # Ctrl+click: add to / take out of the selection
+				_set_status("%d selected" % selection().size())
+				return true
+			if obj == null:
+				if pane.is_ortho():                      # drag on empty space in a 2D view: box select
+					_marquee_pane = pane
+					_marquee_a = event.position
+					_marquee_b = event.position
+					_marquee_add = ctrl
+					return true
+				_select(null)
+				_set_status("")
+				return true
+			if obj in selection() and selection().size() > 1:
+				var rest := selection()                  # keep the whole selection, lead with this one
+				rest.erase(obj)
+				selected = obj
+				_extra = rest
+			elif obj != selected:
+				_select_with_group(obj)
 			elif obj is RampNode:
 				selected_point = -1
-			if obj:
-				_begin_drag(pane, Drag.OBJECT, event.position, event.shift_pressed)
-				_set_status("Selected %s - drag to move it" % ("ramp" if obj is RampNode else obj.label().to_lower()))
-			else:
-				_set_status("")
+			_begin_drag(pane, Drag.OBJECT, event.position, event.shift_pressed)
+			var n := selection().size()
+			_set_status(("%d selected - drag to move them together" % n) if n > 1 else
+				"Selected %s - drag to move it" % ("ramp" if obj is RampNode else obj.label().to_lower()))
+			return true
+		elif _marquee_pane:
+			_finish_marquee()
 			return true
 		elif _drag != Drag.NONE:
 			_end_drag()
 			return true
+	elif event is InputEventMouseMotion and _marquee_pane and pane == _marquee_pane:
+		_marquee_b = event.position
+		return true
 	elif event is InputEventMouseMotion and _drag != Drag.NONE and pane == _drag_pane:
 		_drag_to(event.position, event.shift_pressed)
 		return true
@@ -1726,6 +1999,12 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_S when ctrl: _save_clicked()
 		KEY_O when ctrl: _open_clicked()
 		KEY_D when ctrl: _duplicate_clicked()
+		KEY_C when ctrl: _copy()
+		KEY_V when ctrl: _paste_clicked()
+		KEY_G when ctrl:
+			if e.shift_pressed: _ungroup()
+			else: _group()
+		KEY_A when ctrl: _set_selection(_all_objects())
 		KEY_N: _add_ramp_clicked()
 		KEY_O: _add_block_clicked()
 		KEY_D when not ctrl: _toggle_draw_mode()
@@ -1820,6 +2099,9 @@ func _set_drag_plane(mouse: Vector2, vertical: bool) -> void:
 	var hit = _drag_plane.intersects_ray(r[0], r[1])
 	_drag_start_hit = hit if hit != null else anchor
 	_drag_origin = selected.to_dict()                    # re-based so switching Shift mid-drag doesn't jump
+	_drag_origins = {}
+	for o in selection():
+		_drag_origins[o] = o.to_dict()
 
 
 func _drag_to(mouse: Vector2, vertical: bool) -> void:
@@ -1859,8 +2141,13 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 		_set_status("Point %d: (%.0f, %.0f, %.0f)" % [selected_point, pts[selected_point].x, pts[selected_point].y, pts[selected_point].z])
 	else:
 		delta = _snap_axes(delta, _drag_pane.drag_axes(_drag_vertical))
-		selected.translate_by(delta)
-		if selected is BlockNode:
+		var any_block := false
+		for o in selection():
+			if o != selected:
+				o.from_dict(_drag_origins[o])
+			o.translate_by(delta)
+			any_block = any_block or o is BlockNode
+		if any_block:
 			_mark_blocks()
 		var c: Vector3 = selected.center()
 		_set_status("Moved by (%.0f, %.0f, %.0f) - centre now (%.0f, %.0f, %.0f)" % [delta.x, delta.y, delta.z, c.x, c.y, c.z])
@@ -1925,8 +2212,9 @@ func _nudge(key: int) -> void:
 		selected.points = pts
 		selected.rebuild()
 	else:
-		selected.translate_by(d)
-	if selected is BlockNode:
+		for o in selection():
+			o.translate_by(d)
+	if selection().any(func(o): return o is BlockNode):
 		_mark_blocks()
 	_refresh_info()
 	_set_status("Nudged %s" % ["point" if selected is RampNode and selected_point >= 0 else "object"])
@@ -1936,8 +2224,20 @@ func _rotate_selected(deg: float) -> void:
 	if selected == null:
 		return
 	_checkpoint("rotate")
-	selected.rotate_by(deg)
-	if selected is BlockNode:
+	var objs := selection()
+	if objs.size() == 1:
+		selected.rotate_by(deg)
+	else:
+		var pivot := Vector3.ZERO
+		for o in objs:
+			pivot += o.center()
+		pivot /= objs.size()
+		var b := Basis(Vector3.UP, deg_to_rad(deg))
+		for o in objs:
+			var c: Vector3 = o.center()
+			o.translate_by(pivot + b * (c - pivot) - c)
+			o.rotate_by(deg)
+	if objs.any(func(o): return o is BlockNode):
 		_mark_blocks()
 	_refresh_props()
 	_set_status("Rotated %+.0f°" % deg)
@@ -2238,6 +2538,9 @@ func _bend_clicked() -> void:
 
 
 func _duplicate_clicked() -> void:
+	if selection().size() > 1:
+		_paste(_clip_of(selection()), Vector3(20, 0, 20))
+		return
 	if selected is BlockNode:
 		_checkpoint()
 		var cb := BlockNode.new()
@@ -2297,12 +2600,16 @@ func _delete_clicked() -> void:
 		selected_point = -1
 		_set_status("Removed control point.")
 		return
-	var obj := selected
+	var objs := selection()
 	_select(null)
-	obj.get_parent().remove_child(obj)
-	obj.queue_free()
-	if obj is BlockNode:
+	for obj in objs:
+		obj.get_parent().remove_child(obj)
+		obj.queue_free()
+	if objs.any(func(o): return o is BlockNode):
 		_mark_blocks()
+	if objs.size() > 1:
+		_set_status("Deleted %d objects." % objs.size())
+		return
 	_set_status("Deleted.")
 
 
@@ -2380,6 +2687,8 @@ func _edit_prop(key: String, value) -> void:
 			"block_y": d["size"][1] = value
 			"block_z": d = BlockNode.resized_centered(d, 2, value)
 			"block_yaw": d["yaw"] = value
+			"block_pitch": d["pitch"] = value
+			"block_roll": d["roll"] = value
 			"block_sides": d["sides"] = int(value)
 			"block_steps": d["steps"] = int(value)
 			"block_hollow": d["hollow"] = value

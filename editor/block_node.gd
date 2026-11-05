@@ -122,11 +122,11 @@ static func resized(d: Dictionary, axis: int, sgn: float, amount: float) -> Dict
 	var new_len := maxf(sz[axis] + amount, 0.25)
 	var grow := new_len - sz[axis]
 	sz[axis] = new_len
-	var b := Basis(Vector3.UP, deg_to_rad(float(d["yaw"])))
+	var b := BlockShape.basis_of(BlockShape.spec(d))
 	var pos := Vector3(d["position"][0], d["position"][1], d["position"][2])
 	if axis == 1:
 		if sgn < 0.0:
-			pos.y -= grow                               # moving the bottom down
+			pos -= b * Vector3(0, grow, 0)              # moving the bottom down
 	else:
 		var shift := Vector3.ZERO
 		shift[axis] = grow * 0.5 * sgn
@@ -137,7 +137,7 @@ static func resized(d: Dictionary, axis: int, sgn: float, amount: float) -> Dict
 
 
 func center() -> Vector3:
-	return global_position + Vector3(0, size().y * 0.5, 0)
+	return global_transform * Vector3(0, size().y * 0.5, 0)
 
 
 func translate_by(delta: Vector3) -> void:

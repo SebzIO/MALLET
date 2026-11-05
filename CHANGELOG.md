@@ -10,6 +10,11 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - Hollow blocks (rooms) with a wall thickness.
 - Cutters: a block that cuts its shape out of every block it overlaps (doorways, windows, tunnels), live.
 - Built from convex pieces: exact collision in SurfsUp, one Source brush per piece in CS:S (cuts use Hammer's carve).
+- More shapes: arch (doorway), pyramid, cone, sphere; blocks tilt on any axis (forward / back, sideways).
+- Multi-select: Ctrl+click, or drag a box on empty space in a 2D view; move, turn ([ ]), nudge, delete, duplicate
+  the whole selection. Groups (Ctrl+G / Ctrl+Shift+G): clicking one member selects the group; saved with the map.
+- Copy / paste (Ctrl+C / Ctrl+V) through the system clipboard, so it works between maps.
+- Toolbar on one row: Add, Edit, View and Export menus that show every shortcut.
 - Movie-quality demo tools: trained surf bot, director, Render demo.cmd.
 
 ## 0.1.0 preview — 2026-11-04
