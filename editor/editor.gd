@@ -177,6 +177,7 @@ func _build_ui_main() -> void:
 	_ui.add_child(root)
 
 	var bar_panel := PanelContainer.new()
+	_fields["toolbar"] = bar_panel
 	root.add_child(bar_panel)
 	var bar := HFlowContainer.new()                    # wraps onto a second row on narrower windows
 	bar.add_theme_constant_override("h_separation", 5)
@@ -713,13 +714,18 @@ func _toggle_maximise_hovered() -> void:
 	for p in panes:
 		if p.visible and p.get_global_rect().has_point(mouse):
 			hovered = p
+	maximise_pane(hovered)
+
+
+## Fill the editor with `pane`, or (if one view already fills it) go back to four views.
+func maximise_pane(pane: ViewPane) -> void:
 	var maximised: bool = panes.filter(func(p): return p.visible).size() == 1
 	for p in panes:
-		p.visible = maximised or p == hovered
+		p.visible = maximised or p == pane
 	_view_grid.columns = 2 if maximised else 1
 	quad_view = maximised
-	active_pane = hovered
-	_set_status("Four views" if maximised else "%s view - Space to go back to four views" % ViewPane.NAMES[hovered.kind].get_slice(" ", 0))
+	active_pane = pane
+	_set_status("Four views" if maximised else "%s view - Space to go back to four views" % ViewPane.NAMES[pane.kind].get_slice(" ", 0))
 
 
 func set_active_pane(p: ViewPane) -> void:
@@ -1091,6 +1097,17 @@ func _do_unlock(k: int) -> void:
 	_refresh_props()
 	_map_changed()
 	_set_status("Unlocked from point %d: that part is editable again (it takes the editable section's slope and face)." % at)
+
+
+## Presentation mode (for videos and screenshots): only the 3D view, no toolbar, panel or status line.
+func set_presentation(on: bool) -> void:
+	_fields["toolbar"].visible = not on
+	_props_panel.visible = not on
+	_status.get_parent().visible = not on if _status.get_parent() is PanelContainer else true
+	_status.visible = not on
+	for i in panes.size():
+		panes[i].visible = (i == 0) if on else (quad_view or i == 0)
+	_view_grid.columns = 1 if on else (2 if quad_view else 1)
 
 
 func _set_title(map_name: String) -> void:
