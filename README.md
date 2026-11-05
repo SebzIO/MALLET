@@ -58,7 +58,9 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
     with snapping to the face's centre lines
 17. Lights, water, prefabs ✅ (0.5) point + spot lights, water and deadly liquids, glowing blocks, 7 starter
     prefabs + save your own (Edit > Save selection as prefab)
-18. Next: more toward 1.0 (decided with you)
+18. Build mode ✅ (0.6) first-person, Sauerbraten-style cube building: wheel cubes out / in, 1/8 face and corner
+    pushes, grid, textures, rotate / flip / copy / paste, undo; exports to SurfsUp and CS:S (docs/BUILD_MODE.md)
+19. Next: build mode phase 2 (cube materials, texture placement, heightmap, entities from first person)
 
 Prefabs live in `prefabs/` and are rebuilt by `godot --headless --path . -s res://tools/make_prefabs.gd`.
 

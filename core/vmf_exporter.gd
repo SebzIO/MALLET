@@ -103,6 +103,11 @@ func build(map: Dictionary, opts := {}) -> String:
 			for q in Convex.points(piece):
 				lo = lo.min(q)
 				hi = hi.max(q)
+	var cube_world := CubeWorld.from_dict(map.get("cubes", {}))
+	if cube_world.count() > 0:
+		var cb := cube_world.bounds()
+		lo = lo.min(cb.position)
+		hi = hi.max(cb.end)
 	for e in ents:
 		for c in _box_corners(e, true):
 			lo = lo.min(c)
@@ -149,6 +154,8 @@ func build(map: Dictionary, opts := {}) -> String:
 			world.append(_water_solid(bp[0]))
 		else:
 			world.append(_block_solid(bp[0], bp[1]))
+	for k in cube_world.leaves:                          # build mode's cubes: one brush each
+		world.append(_cube_solid(cube_world, k))
 	# text: solid 3D letters are func_detail, signs and see-through text func_illusionary
 	for td in map.get("texts", []):
 		var ts := TextShape.spec(td)
@@ -552,6 +559,31 @@ func _block_solid(piece: Array, bs: Dictionary) -> String:
 			axes.append(_material_axes(nrm, fs))
 		else:
 			mats.append(BLOCK_MATERIALS.get(bs["look"], PLATFORM_MATERIAL))
+			axes.append(_axes(nrm_src))
+	return _solid(sides, mats, axes)
+
+
+## One cube from build mode as a brush, each side with its own texture.
+func _cube_solid(w: CubeWorld, k: Vector4i) -> String:
+	var pts := []
+	for q in w.cube_points(k):
+		pts.append(src(q))
+	var sides := _hull(pts)
+	if sides.size() < 4:
+		return ""
+	var tex: PackedStringArray = w.leaves[k][1]
+	var mats := []
+	var axes := []
+	for sd in sides:
+		var nrm_src: Vector3 = (sd[2] - sd[0]).cross(sd[1] - sd[0]).normalized()
+		var nrm := Vector3(nrm_src.x, nrm_src.z, -nrm_src.y)            # back to Godot space
+		var id: String = tex[CubeWorld.orient_of(nrm)]
+		if id != "" and MaterialLibrary.has(id):
+			used_materials[id] = true
+			mats.append(_mat_name(id))
+			axes.append(_material_axes(nrm, {"material": id, "uv_scale": 1.0, "uv_offset": [0.0, 0.0], "uv_rot": 0.0}))
+		else:
+			mats.append(BLOCK_MATERIALS.get("grid", PLATFORM_MATERIAL))
 			axes.append(_axes(nrm_src))
 	return _solid(sides, mats, axes)
 

@@ -22,6 +22,8 @@ var props_root := Node3D.new()
 var blocks_root := Node3D.new()
 var texts_root := Node3D.new()
 var lights_root := Node3D.new()
+var cubes := CubeWorldNode.new()         ## cubes built in build mode (E)
+var build := BuildMode.new()
 var _light_props: VBoxContainer
 var _prefab_popup: PopupPanel
 var _prefab_name_dialog: ConfirmationDialog
@@ -186,6 +188,10 @@ func _build_world() -> void:
 	add_child(blocks_root)
 	add_child(texts_root)
 	add_child(lights_root)
+	add_child(cubes)
+	build.setup(self, cubes)
+	add_child(build)
+	build.stopped.connect(_on_build_stopped)
 
 
 # ================================================================================================= ui
@@ -253,6 +259,7 @@ func _build_ui_main() -> void:
 		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"]])
 	bar.add_child(VSeparator.new())
 	_bar_item(bar, ["▶ Play (P)", _play_clicked])
+	_bar_item(bar, ["Build (E)", _build_clicked])
 	_menu(bar, "Export ▾", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked]])
 	bar.add_child(VSeparator.new())
 	var snap := CheckButton.new()
@@ -933,7 +940,7 @@ func _map_dict() -> Dictionary:
 	for l in lights_root.get_children():
 		ls.append(_with_group(l))
 	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
-		"props": ps, "blocks": bs, "texts": ts, "lights": ls}
+		"props": ps, "blocks": bs, "texts": ts, "lights": ls, "cubes": cubes.world.to_dict()}
 
 
 func _load_dict(data: Dictionary) -> void:
@@ -972,6 +979,7 @@ func _load_dict(data: Dictionary) -> void:
 		texts_root.add_child(t)
 		t.from_dict(td)
 		_take_group(t, td)
+	cubes.load_dict(data.get("cubes", {}))
 	for ld in data.get("lights", []):
 		var l := LightNode.new()
 		lights_root.add_child(l)
@@ -2828,6 +2836,7 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_T: _add_entity("stage")
 		KEY_Y: _add_entity("teleport")
 		KEY_P: _play_clicked()
+		KEY_E: _build_clicked()
 		KEY_SPACE: _toggle_maximise_hovered()
 		KEY_DELETE, KEY_BACKSPACE: _delete_clicked()
 		KEY_F: _frame_clicked()
@@ -3757,6 +3766,21 @@ func _play_clicked() -> void:
 			stages[e.number] = e
 	play.start(at, start.zone_aabb() if start else AABB(), finish.zone_aabb() if finish else AABB(),
 		SurfsUpExporter.kill_floor_y(_map_dict()), volumes, stages, best_ghost)
+
+
+## Build mode: first-person building with cubes, Sauerbraten style. Starts from where the 3D view looks from.
+func _build_clicked() -> void:
+	if play.active or build.active:
+		return
+	_checkpoint()                                        # one editor undo step takes back a whole build session
+	_ui.visible = false
+	build.start((panes[0].camera as Camera3D).global_transform)
+
+
+func _on_build_stopped() -> void:
+	_ui.visible = true
+	_map_changed()
+	_set_status("Back from build mode: %d cubes in the map. Ctrl+Z here undoes the whole session; E goes back in." % cubes.world.count())
 
 
 func _on_play_stopped() -> void:

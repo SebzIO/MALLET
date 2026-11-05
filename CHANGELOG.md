@@ -3,6 +3,19 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.6.0 preview — 2026-11-05: build mode (Sauerbraten-style)
+
+- Build mode (E, or Build in the toolbar): fly around in first person and build with cubes in real time, the way
+  Cube 2: Sauerbraten's editor works (its ideas re-implemented; see docs/BUILD_MODE.md for what its code does and how
+  it maps here). Mouse wheel pulls cubes out of the face you aim at (or out of thin air) and pushes them back in;
+  F / Q + wheel push a face or a corner 1/8 at a time for slopes and bevels; G + wheel grid (0.125 - 64 m); Y + wheel
+  and F2 textures (the material library), 0 all faces; R + wheel rotate, X flip; drag to select, right click to
+  extend, C / V copy / paste, Delete, Z / U undo, I redo. E or Esc back to the editor (Ctrl+Z there undoes the
+  whole session).
+- Cubes are convex like Source brushes: they save with the map, you can stand and surf on them in play mode, and
+  they export to SurfsUp (exact collision per cube) and CS:S (a brush per cube, textured per side).
+- A map can be built from blocks or cubes alone: the exporters no longer insist on a ramp.
+
 ## 0.5.4 preview — 2026-11-05: handling fixes
 
 - Text updates instantly while typing and while changing its size (was 0.3 - 0.5 s a keystroke): letter shapes

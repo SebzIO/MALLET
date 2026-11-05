@@ -29,8 +29,8 @@ static func check(map: Dictionary) -> PackedStringArray:
 		out.append("The map needs a start platform (press B).")
 	if not "finish" in kinds:
 		out.append("The map needs a finish platform (press M).")
-	if map.get("ramps", []).is_empty():
-		out.append("The map has no ramps.")
+	if map.get("ramps", []).is_empty() and map.get("blocks", []).is_empty() and map.get("cubes", {}).is_empty():
+		out.append("The map has nothing to surf on yet (no ramps, blocks or cubes).")
 	var stages := []
 	for e in map.get("entities", []):
 		if e.get("kind", "") == "stage":
@@ -280,6 +280,33 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			pn += 1
 		bi += 1
 
+	# cubes (build mode): a mesh per 16 m chunk and an exact convex collision shape per cube
+	var cw := CubeWorld.from_dict(map.get("cubes", {}))
+	if cw.count() > 0:
+		var cube_root := Node3D.new()
+		cube_root.name = "Cubes"
+		_add(root, root, cube_root)
+		var ci := 0
+		for ck in cw.render_chunks():
+			var got := cw.chunk_mesh(ck)
+			var body := StaticBody3D.new()
+			body.name = "Chunk%d" % ci
+			_add(root, cube_root, body)
+			var cmi := MeshInstance3D.new()
+			cmi.name = "Mesh"
+			cmi.mesh = got[0]
+			_add(root, body, cmi)
+			var pn := 0
+			for k in cw._render[ck]:
+				var shape := ConvexPolygonShape3D.new()
+				shape.points = cw.cube_points(k)
+				var ccs := CollisionShape3D.new()
+				ccs.name = "Cube%d" % pn
+				ccs.shape = shape
+				_add(root, body, ccs)
+				pn += 1
+			ci += 1
+
 	# lights
 	var lights := Node3D.new()
 	lights.name = "Lights"
@@ -398,6 +425,9 @@ static func kill_floor_y(map: Dictionary) -> float:
 	for bd in map.get("blocks", []):
 		if not bd.get("cutter", false):
 			lowest = min(lowest, float(bd.get("position", [0, 0, 0])[1]) - 20.0)
+	var cubes_low := CubeWorld.from_dict(map.get("cubes", {})).lowest()
+	if cubes_low != INF:
+		lowest = min(lowest, cubes_low - 20.0)
 	return (0.0 if lowest == INF else lowest) - KILL_MARGIN
 
 
