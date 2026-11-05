@@ -21,6 +21,8 @@ const MAX_BRUSHES := 8192                ## Source's brush limit
 const RAMP_MATERIAL := "DEV/DEV_MEASUREGENERIC01B"
 const PLATFORM_MATERIAL := "DEV/DEV_MEASUREWALL01C"
 const SKY_MATERIAL := "TOOLS/TOOLSSKYBOX"
+const WATER_MATERIAL := "LIQUIDS/AZTECWATER"
+const NODRAW := "TOOLS/TOOLSNODRAW"
 ## The closest stock CS:S texture for each block look (custom textures come with the material library).
 const BLOCK_MATERIALS := {"grid": "DEV/DEV_MEASUREGENERIC01B", "color": "DEV/DEV_MEASUREWALL01C", "steel": "DEV/DEV_MEASUREWALL01D",
 	"ceramic": "DEV/DEV_MEASUREWALL01A"}
@@ -38,6 +40,7 @@ var _out := PackedStringArray()
 var warnings := PackedStringArray()
 var brushes := 0
 var used_materials := {}                 ## library material ids the map uses (become VTF / VMT files)
+var glowing_materials := {}              ## ...of which these also get a self-lit version
 const VTF_SIZE := 512                    ## custom textures are converted at this size for CS:S
 
 
@@ -53,7 +56,8 @@ static func export_vmf(map: Dictionary, path: String, opts := {}) -> Dictionary:
 		return {"error": "Can't write %s (%s)" % [path, error_string(FileAccess.get_open_error())], "warnings": [], "brushes": 0, "path": path}
 	f.store_string(text)
 	f.close()
-	return {"error": "", "warnings": ex.warnings, "brushes": ex.brushes, "path": path, "materials": ex.used_materials.keys()}
+	return {"error": "", "warnings": ex.warnings, "brushes": ex.brushes, "path": path, "materials": ex.used_materials.keys(),
+		"glowing": ex.glowing_materials.keys()}
 
 
 ## Source coordinates of a Godot point (centred on the map).
@@ -141,7 +145,10 @@ func build(map: Dictionary, opts := {}) -> String:
 		if e.get("kind", "") in ["start", "finish", "stage"]:
 			world.append(_solid(_hull(_box_corners(e, false).map(func(c): return src(c))), PLATFORM_MATERIAL))
 	for bp in block_pieces:
-		world.append(_block_solid(bp[0], bp[1]))
+		if bp[1].get("water", false):
+			world.append(_water_solid(bp[0]))
+		else:
+			world.append(_block_solid(bp[0], bp[1]))
 	# text: solid 3D letters are func_detail, signs and see-through text func_illusionary (engravings only cut)
 	for td in map.get("texts", []):
 		var ts := TextShape.spec(td)
@@ -223,6 +230,31 @@ func build(map: Dictionary, opts := {}) -> String:
 				entities.append(_brush_entity({"classname": "trigger_push", "spawnflags": "1", "pushdir": "%s %s 0" % [_n(pitch), _n(yaw)],
 					"speed": _n(float(e.get("strength", 1000.0)))}, hull))
 				boosters += 1
+	for bd in map.get("blocks", []):
+		var wb := BlockShape.spec(bd)
+		if wb.get("water", false) and wb.get("deadly", false):
+			var wxf := BlockShape.transform_of(wb)
+			var wsz := Vector3(wb["size"][0], wb["size"][1], wb["size"][2])
+			var corners := []
+			for i in 8:
+				corners.append(src(wxf * Vector3(wsz.x * (0.5 if i & 1 else -0.5), wsz.y if i & 2 else 0.0, wsz.z * (0.5 if i & 4 else -0.5))))
+			var wtop := wxf * Vector3(0, wsz.y, 0)
+			entities.append(_brush_entity({"classname": "trigger_teleport", "spawnflags": "1", "target": _nearest_plate(plates, wtop, true)}, _hull(corners)))
+	for ld in map.get("lights", []):
+		var ls := LightNode.spec(ld)
+		var lc := Color.html(ls["color"])
+		var lp: Array = ls["position"]
+		var lkv := {"classname": "light_spot" if ls["kind"] == "spot" else "light",
+			"_light": "%d %d %d %d" % [lc.r8, lc.g8, lc.b8, int(float(ls["energy"]) * 120.0)],
+			"_zero_percent_distance": _n(float(ls["range"]) * U), "_fifty_percent_distance": _n(float(ls["range"]) * U * 0.35)}
+		if ls["kind"] == "spot":
+			var dir := LightNode.basis_of(ls) * Vector3.FORWARD
+			var sd := Vector3(dir.x, -dir.z, dir.y)
+			lkv["pitch"] = _n(-rad_to_deg(asin(clampf(sd.z, -1.0, 1.0))))
+			lkv["angles"] = "0 %s 0" % _n(rad_to_deg(atan2(sd.y, sd.x)))
+			lkv["_cone"] = _n(float(ls["angle"]) * 0.5)
+			lkv["_inner_cone"] = _n(float(ls["angle"]) * 0.35)
+		entities.append(_point_entity(lkv, src(Vector3(lp[0], lp[1], lp[2]))))
 	if kept_speed > 0:
 		warnings.append("%d teleport(s) keep the player's speed in SurfsUp; CS:S teleports stop the player instead." % kept_speed)
 	if boosters > 0:
@@ -400,6 +432,16 @@ static func _hull(points: Array) -> Array:
 				break
 		if not repeat:
 			sides.append(best)
+	if sides.size() < 4:
+		return []
+	# a sliver (a carve can leave one a hair thick) comes out of Source's rounding open or inside out: drop it
+	for sd in sides:
+		var sn: Vector3 = (sd[2] - sd[0]).cross(sd[1] - sd[0]).normalized()
+		var deepest := 0.0
+		for p in pts:
+			deepest = maxf(deepest, sn.dot(sd[0]) - sn.dot(p))
+		if deepest < 0.5:
+			return []
 	return sides
 
 
@@ -502,12 +544,29 @@ func _block_solid(piece: Array, bs: Dictionary) -> String:
 		var fs := BlockShape.face_settings(bs, BlockShape.slot_of((inv * nrm).normalized()))
 		if fs["material"] != "" and MaterialLibrary.has(fs["material"]):
 			used_materials[fs["material"]] = true
-			mats.append(_mat_name(fs["material"]))
+			if float(bs.get("glow", 0.0)) > 0.0:
+				glowing_materials[fs["material"]] = true
+				mats.append(_mat_name(fs["material"]) + "_glow")
+			else:
+				mats.append(_mat_name(fs["material"]))
 			axes.append(_material_axes(nrm, fs))
 		else:
 			mats.append(BLOCK_MATERIALS.get(bs["look"], PLATFORM_MATERIAL))
 			axes.append(_axes(nrm_src))
 	return _solid(sides, mats, axes)
+
+
+## A water brush: the water surface on top, nothing drawn on the other sides (Source draws the volume itself).
+func _water_solid(piece: Array) -> String:
+	var pts := []
+	for q in Convex.points(piece):
+		pts.append(src(q))
+	var sides := _hull(pts)
+	var mats := []
+	for sd in sides:
+		var nrm: Vector3 = (sd[2] - sd[0]).cross(sd[1] - sd[0]).normalized()
+		mats.append(WATER_MATERIAL if nrm.z > 0.7 else NODRAW)
+	return _solid(sides, mats)
 
 
 ## Texture axes matching the editor: the same world-aligned projection, size, turn and shift, in Source units
@@ -555,6 +614,13 @@ static func write_materials(ids: Array, root: String) -> Array:
 		f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"surfforge/%s\"\n\t\"$surfaceprop\" \"%s\"\n}\n" % [name,
 			MaterialLibrary.entry(id).get("surface", "concrete")])
 		f.close()
+		# a self-lit version for glowing blocks (the same texture, shining)
+		var gvmt := dir.path_join(name + "_glow.vmt")
+		var g := FileAccess.open(gvmt, FileAccess.WRITE)
+		g.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"surfforge/%s\"\n\t\"$selfillum\" \"1\"\n\t\"$surfaceprop\" \"%s\"\n}\n" % [name,
+			MaterialLibrary.entry(id).get("surface", "concrete")])
+		g.close()
+		out.append(["materials/surfforge/%s_glow.vmt" % name, gvmt])
 		out.append(["materials/surfforge/%s.vtf" % name, vtf])
 		out.append(["materials/surfforge/%s.vmt" % name, vmt])
 	return out

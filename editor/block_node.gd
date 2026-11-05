@@ -30,6 +30,8 @@ func size() -> Vector3:
 
 
 func label() -> String:
+	if bool(data.get("water", false)):
+		return "Deadly liquid" if bool(data.get("deadly", false)) else "Water"
 	return "Cutter" if is_cutter() else "Block"
 
 
@@ -53,7 +55,7 @@ func rebuild(cutters: Array = []) -> void:
 		var cs := CollisionShape3D.new()
 		cs.shape = shape
 		_body.add_child(cs)
-	_body.collision_layer = PICK_ONLY_LAYER if is_cutter() else 1
+	_body.collision_layer = PICK_ONLY_LAYER if is_cutter() or bool(data.get("water", false)) else 1
 	_update_material()
 
 

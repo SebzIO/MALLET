@@ -1,0 +1,120 @@
+{
+  "blocks": [
+    {
+      "group": "prefab_lava_pit",
+      "material": "PavingStones138",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        20.0,
+        0.5,
+        20.0
+      ]
+    },
+    {
+      "group": "prefab_lava_pit",
+      "material": "PavingStones138",
+      "position": [
+        0.0,
+        0.0,
+        -9.25
+      ],
+      "shape": "box",
+      "size": [
+        20.0,
+        2.0,
+        1.5
+      ]
+    },
+    {
+      "group": "prefab_lava_pit",
+      "material": "PavingStones138",
+      "position": [
+        0.0,
+        0.0,
+        9.25
+      ],
+      "shape": "box",
+      "size": [
+        20.0,
+        2.0,
+        1.5
+      ]
+    },
+    {
+      "group": "prefab_lava_pit",
+      "material": "PavingStones138",
+      "position": [
+        -9.25,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        1.5,
+        2.0,
+        17.0
+      ]
+    },
+    {
+      "group": "prefab_lava_pit",
+      "material": "PavingStones138",
+      "position": [
+        9.25,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        1.5,
+        2.0,
+        17.0
+      ]
+    },
+    {
+      "clarity": 0.0,
+      "deadly": true,
+      "glow": 2.5,
+      "group": "prefab_lava_pit",
+      "material": "",
+      "position": [
+        0.0,
+        0.5,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        17.0,
+        1.0,
+        17.0
+      ],
+      "water": true,
+      "water_color": "ff5a10"
+    }
+  ],
+  "description": "deadly glowing lava in a stone rim",
+  "entities": [],
+  "lights": [
+    {
+      "color": "ff6a20",
+      "energy": 3.0,
+      "group": "prefab_lava_pit",
+      "kind": "point",
+      "position": [
+        0.0,
+        4.0,
+        0.0
+      ],
+      "range": 30.0
+    }
+  ],
+  "name": "Lava pit",
+  "props": [],
+  "ramps": [],
+  "surfforge_clipboard": 1,
+  "texts": []
+}

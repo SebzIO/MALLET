@@ -1,0 +1,105 @@
+{
+  "blocks": [
+    {
+      "group": "prefab_pool",
+      "material": "Tiles107",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        24.0,
+        1.0,
+        16.0
+      ]
+    },
+    {
+      "group": "prefab_pool",
+      "material": "Tiles107",
+      "position": [
+        0.0,
+        0.0,
+        -7.5
+      ],
+      "shape": "box",
+      "size": [
+        24.0,
+        3.0,
+        1.0
+      ]
+    },
+    {
+      "group": "prefab_pool",
+      "material": "Tiles107",
+      "position": [
+        0.0,
+        0.0,
+        7.5
+      ],
+      "shape": "box",
+      "size": [
+        24.0,
+        3.0,
+        1.0
+      ]
+    },
+    {
+      "group": "prefab_pool",
+      "material": "Tiles107",
+      "position": [
+        -11.5,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        1.0,
+        3.0,
+        14.0
+      ]
+    },
+    {
+      "group": "prefab_pool",
+      "material": "Tiles107",
+      "position": [
+        11.5,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        1.0,
+        3.0,
+        14.0
+      ]
+    },
+    {
+      "clarity": 0.7,
+      "group": "prefab_pool",
+      "material": "",
+      "position": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        22.0,
+        1.60000002384186,
+        14.0
+      ],
+      "water": true,
+      "water_color": "2a8fb5"
+    }
+  ],
+  "description": "a tiled pool full of water",
+  "entities": [],
+  "lights": [],
+  "name": "Pool",
+  "props": [],
+  "ramps": [],
+  "surfforge_clipboard": 1,
+  "texts": []
+}

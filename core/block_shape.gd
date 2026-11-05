@@ -15,6 +15,10 @@ const DEFAULTS := {
 	"material": "",                      ## library material for the whole block ("" = use look + colour)
 	"uv_scale": 1.0, "uv_offset": [0.0, 0.0], "uv_rot": 0.0,   ## texture size multiplier, shift (repeats), turn
 	"faces": {},                         ## per side: {slot: {material, uv_scale, uv_offset, uv_rot}} overriding the above
+	"glow": 0.0,                         ## makes the block's surfaces shine (neon, lamps, lava)
+	"water": false,                      ## a water volume: a moving see-through surface, players pass through
+	"deadly": false,                     ## water only: touching it sends players back (lava, acid)
+	"water_color": "1f6b8c", "clarity": 0.55,
 }
 ## The sides of a block, in its own space (front = -Z, the way it faces).
 const SLOTS := ["top", "bottom", "front", "back", "left", "right"]
@@ -207,6 +211,8 @@ static func face_uv(p: Vector3, n: Vector3, f: Dictionary) -> Vector2:
 ## block's own space. Returns [ArrayMesh, Array of the surfaces' materials].
 static func mesh_faces(pieces: Array, xf: Transform3D, s: Dictionary) -> Array:
 	var inv := xf.affine_inverse()
+	if s.get("water", false):
+		return _water_mesh(pieces, inv, s)
 	var groups := {}                                     # material key -> [SurfaceTool, Material]
 	for piece in pieces:
 		for f in Convex.faces(piece):
@@ -219,6 +225,8 @@ static func mesh_faces(pieces: Array, xf: Transform3D, s: Dictionary) -> Array:
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
 				var mat: Material = Look.ramp_material(s["look"], Color.html(s["color"])) if key == "look" \
 					else MaterialLibrary.material(key, Color.html(s["color"]))
+				if float(s.get("glow", 0.0)) > 0.0 and mat is StandardMaterial3D:
+					mat = _glowing(mat, float(s["glow"]))
 				groups[key] = [st, mat]
 			var st2: SurfaceTool = groups[key][0]
 			if key == "look":
@@ -239,6 +247,51 @@ static func mesh_faces(pieces: Array, xf: Transform3D, s: Dictionary) -> Array:
 	for i in mats.size():
 		m.surface_set_material(i, mats[i])
 	return [m, mats]
+
+
+static func _glowing(mat: StandardMaterial3D, glow: float) -> StandardMaterial3D:
+	var g: StandardMaterial3D = mat.duplicate()
+	g.emission_enabled = true
+	g.emission = mat.albedo_color
+	g.emission_energy_multiplier = glow
+	if mat.albedo_texture:
+		g.emission_texture = mat.albedo_texture       # the texture itself shines (a lit sign, a lamp)
+		g.emission = Color.WHITE * mat.albedo_color
+	return g
+
+
+## Water: just the upward faces, with the moving water surface.
+static func _water_mesh(pieces: Array, inv: Transform3D, s: Dictionary) -> Array:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var any := false
+	for piece in pieces:
+		for f in Convex.faces(piece):
+			var n: Vector3 = (f[0] as Plane).normal
+			if n.y < 0.7:
+				continue
+			var poly: Array = f[1]
+			for i in range(1, poly.size() - 1):
+				for v in [poly[0], poly[i + 1], poly[i]]:
+					st.set_normal(inv.basis * n)
+					st.set_uv(Vector2((v as Vector3).x, (v as Vector3).z))
+					st.add_vertex(inv * (v as Vector3))
+			any = true
+	var m := ArrayMesh.new()
+	var mat := water_material(s)
+	if any:
+		st.commit(m)
+		m.surface_set_material(0, mat)
+	return [m, [mat]]
+
+
+static func water_material(s: Dictionary) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = Look.shader("water")
+	mat.set_shader_parameter("tint", Color.html(s.get("water_color", "1f6b8c")))
+	mat.set_shader_parameter("clarity", float(s.get("clarity", 0.55)))
+	mat.set_shader_parameter("glow", float(s.get("glow", 0.0)))
+	return mat
 
 
 static func _uv(p: Vector3, n: Vector3) -> Vector2:

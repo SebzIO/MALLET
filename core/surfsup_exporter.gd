@@ -250,10 +250,16 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		var pieces := BlockShape.world_pieces(bs, cutters)
 		if pieces.is_empty():
 			continue
-		var body := StaticBody3D.new()
-		body.name = "Block%d" % bi
+		var water: bool = bs.get("water", false)
+		var body: Node3D = Node3D.new() if water else StaticBody3D.new()
+		body.name = ("Water%d" if water else "Block%d") % bi
 		body.transform = bxf
 		_add(root, blocks, body)
+		if water and bs.get("deadly", false):
+			# lava / acid: a kill zone filling the volume
+			var kz := _zone(root, "Deadly%d" % bi, "kill", bxf * Transform3D(Basis(), Vector3(0, float(bs["size"][1]) * 0.5, 0)),
+				Vector3(bs["size"][0], bs["size"][1], bs["size"][2]))
+			kz.set_meta("kill_kind", "killbox")
 		var bm: ArrayMesh = BlockShape.mesh_faces(pieces, bxf, bs)[0]
 		var bmi := MeshInstance3D.new()
 		bmi.name = "Mesh"
@@ -261,7 +267,7 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		_add(root, body, bmi)
 		var inv := bxf.affine_inverse()
 		var pn := 0
-		for piece in pieces:
+		for piece in (pieces if not water else []):
 			var shape := ConvexPolygonShape3D.new()
 			var pts := PackedVector3Array()
 			for v in Convex.points(piece):
@@ -273,6 +279,20 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			_add(root, body, cs)
 			pn += 1
 		bi += 1
+
+	# lights
+	var lights := Node3D.new()
+	lights.name = "Lights"
+	_add(root, root, lights)
+	var li := 0
+	for ld in map.get("lights", []):
+		var ls := LightNode.spec(ld)
+		var l := LightNode.make_light(ls)
+		l.name = "Light%d" % li
+		var lp: Array = ls["position"]
+		l.transform = Transform3D(LightNode.basis_of(ls), Vector3(lp[0], lp[1], lp[2]))
+		_add(root, lights, l)
+		li += 1
 
 	# text: the letters' mesh, and for solid 3D text an exact convex collision shape per piece (engravings only cut)
 	var texts := Node3D.new()

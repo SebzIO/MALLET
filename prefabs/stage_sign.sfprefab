@@ -1,0 +1,75 @@
+{
+  "blocks": [
+    {
+      "group": "prefab_stage_sign",
+      "material": "Wood051",
+      "position": [
+        -6.0,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        0.600000023841858,
+        9.0,
+        0.600000023841858
+      ]
+    },
+    {
+      "group": "prefab_stage_sign",
+      "material": "Wood051",
+      "position": [
+        6.0,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        0.600000023841858,
+        9.0,
+        0.600000023841858
+      ]
+    },
+    {
+      "group": "prefab_stage_sign",
+      "material": "Planks037A",
+      "position": [
+        0.0,
+        5.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        14.0,
+        4.0,
+        0.5
+      ]
+    }
+  ],
+  "description": "a board with a glowing STAGE 1 on it",
+  "entities": [],
+  "lights": [],
+  "name": "Stage sign",
+  "props": [],
+  "ramps": [],
+  "surfforge_clipboard": 1,
+  "texts": [
+    {
+      "align": "center",
+      "color": "7fe0ff",
+      "depth": 0.3,
+      "font": "Arial Black",
+      "glow": 2.0,
+      "group": "prefab_stage_sign",
+      "height": 2.4,
+      "mode": "3d",
+      "position": [
+        0.0,
+        5.8,
+        0.26
+      ],
+      "solid": false,
+      "text": "STAGE 1"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "blocks": [
+    {
+      "group": "prefab_gateway",
+      "material": "PavingStones138",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "shape": "arch",
+      "sides": 16,
+      "size": [
+        16.0,
+        18.0,
+        3.0
+      ],
+      "wall": 2.0
+    },
+    {
+      "group": "prefab_gateway",
+      "material": "Concrete034",
+      "position": [
+        -7.0,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        3.59999990463257,
+        1.0,
+        3.59999990463257
+      ]
+    },
+    {
+      "group": "prefab_gateway",
+      "material": "Concrete034",
+      "position": [
+        7.0,
+        0.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        3.59999990463257,
+        1.0,
+        3.59999990463257
+      ]
+    },
+    {
+      "group": "prefab_gateway",
+      "material": "Concrete034",
+      "position": [
+        0.0,
+        18.0,
+        0.0
+      ],
+      "shape": "box",
+      "size": [
+        17.0,
+        1.0,
+        3.59999990463257
+      ]
+    }
+  ],
+  "description": "a stone arch on two pillars",
+  "entities": [],
+  "lights": [],
+  "name": "Gateway",
+  "props": [],
+  "ramps": [],
+  "surfforge_clipboard": 1,
+  "texts": []
+}

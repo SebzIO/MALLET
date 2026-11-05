@@ -3,6 +3,19 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.5.0 preview — 2026-11-05: lights, water, prefabs
+
+- Lights (Add > Light, U; Add > Spot light): colour, brightness, reach, shadows; spot lights get a cone width, facing
+  and tilt. They light the editor view straight away. SurfsUp: real lights. CS:S: light / light_spot entities
+  (baked when the map compiles).
+- Water (Add > Water, H): a block you can resize like any other, with a moving see-through surface, a colour and a
+  clarity. Tick Deadly for lava or acid: touching it sends players back. SurfsUp has no swimming, so water there is
+  scenery (deadly water is a kill zone); in CS:S it's real water (deadly water is a trigger_teleport).
+- Glow on blocks (neon, lamps): the block's surfaces shine; in CS:S its materials get self-illumination.
+- Prefabs: Add > Prefab drops a ready-made piece into the middle of the view - 7 starters (small house, tower,
+  gateway, lamp post, pool, lava pit, stage sign). Edit > Save selection as prefab keeps your own for any map.
+- CS:S export: paper-thin sliver brushes (left over from cuts) are now left out instead of failing the compile.
+
 ## 0.4.0 preview — 2026-11-05: text
 
 - Text (Add > Text, X): flat signs you pass through, solid 3D letters you can stand on, and engravings cut into the

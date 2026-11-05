@@ -1,0 +1,75 @@
+{
+  "blocks": [
+    {
+      "group": "prefab_lamp_post",
+      "material": "Metal032",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "shape": "cylinder",
+      "sides": 12,
+      "size": [
+        1.20000004768372,
+        0.400000005960464,
+        1.20000004768372
+      ]
+    },
+    {
+      "group": "prefab_lamp_post",
+      "material": "Metal032",
+      "position": [
+        0.0,
+        0.400000005960464,
+        0.0
+      ],
+      "shape": "cylinder",
+      "sides": 8,
+      "size": [
+        0.400000005960464,
+        6.0,
+        0.400000005960464
+      ]
+    },
+    {
+      "color": "ffe2a8",
+      "glow": 3.0,
+      "group": "prefab_lamp_post",
+      "material": "",
+      "position": [
+        0.0,
+        6.19999980926514,
+        0.0
+      ],
+      "shape": "sphere",
+      "sides": 12,
+      "size": [
+        1.20000004768372,
+        1.20000004768372,
+        1.20000004768372
+      ]
+    }
+  ],
+  "description": "a post with a warm light",
+  "entities": [],
+  "lights": [
+    {
+      "color": "ffd9a0",
+      "energy": 3.0,
+      "group": "prefab_lamp_post",
+      "kind": "point",
+      "position": [
+        0.0,
+        6.80000019073486,
+        0.0
+      ],
+      "range": 22.0
+    }
+  ],
+  "name": "Lamp post",
+  "props": [],
+  "ramps": [],
+  "surfforge_clipboard": 1,
+  "texts": []
+}

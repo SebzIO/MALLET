@@ -21,6 +21,10 @@ var entities_root := Node3D.new()
 var props_root := Node3D.new()
 var blocks_root := Node3D.new()
 var texts_root := Node3D.new()
+var lights_root := Node3D.new()
+var _light_props: VBoxContainer
+var _prefab_popup: PopupPanel
+var _prefab_name_dialog: ConfirmationDialog
 var _text_props: VBoxContainer
 var _place_on_surface := false          ## the next click in a view puts the selected text on that face
 var _font_dialog: FileDialog
@@ -180,6 +184,7 @@ func _build_world() -> void:
 	add_child(props_root)
 	add_child(blocks_root)
 	add_child(texts_root)
+	add_child(lights_root)
 
 
 # ================================================================================================= ui
@@ -228,12 +233,15 @@ func _build_ui_main() -> void:
 		["Start platform", KEY_B, func(): _add_entity("start")], ["Finish platform", KEY_M, func(): _add_entity("finish")],
 		["Stage plate", KEY_T, func(): _add_entity("stage")], ["Teleport", KEY_Y, func(): _add_entity("teleport")],
 		["Kill zone", KEY_K, func(): _add_entity("kill")], ["Booster", KEY_J, func(): _add_entity("booster")], [],
-		["Prop (glTF model)…", KEY_I, _add_prop_clicked], ["Text", KEY_X, _add_text_clicked]])
+		["Prop (glTF model)…", KEY_I, _add_prop_clicked], ["Text", KEY_X, _add_text_clicked], [],
+		["Light", KEY_U, func(): _add_light("point")], ["Spot light", KEY_NONE, func(): _add_light("spot")],
+		["Water", KEY_H, _add_water_clicked], [], ["Prefab\u2026", KEY_NONE, _open_prefabs]])
 	_menu(bar, "Edit ▾", [
 		["Copy", KEY_MASK_CTRL | KEY_C, _copy], ["Paste", KEY_MASK_CTRL | KEY_V, _paste_clicked],
 		["Duplicate", KEY_MASK_CTRL | KEY_D, _duplicate_clicked], ["Delete", KEY_DELETE, _delete_clicked], [],
 		["Select all", KEY_MASK_CTRL | KEY_A, func(): _set_selection(_all_objects())],
-		["Group", KEY_MASK_CTRL | KEY_G, _group], ["Ungroup", KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_G, _ungroup], [],
+		["Group", KEY_MASK_CTRL | KEY_G, _group], ["Ungroup", KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_G, _ungroup],
+		["Save selection as prefab\u2026", KEY_NONE, _save_prefab_clicked], [],
 		["Extend ramp", KEY_NONE, _extend_clicked], ["Add bend to ramp", KEY_NONE, _bend_clicked],
 		["Turn left 15°", KEY_BRACKETLEFT, func(): _rotate_selected(-15.0)],
 		["Turn right 15°", KEY_BRACKETRIGHT, func(): _rotate_selected(15.0)]])
@@ -418,6 +426,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_build_prop_props(props)
 	_build_block_props(props)
 	_build_text_props(props)
+	_build_light_props(props)
 
 	_entity_props = VBoxContainer.new()
 	_entity_props.add_theme_constant_override("separation", 6)
@@ -589,6 +598,7 @@ func _refresh_props() -> void:
 		_prop_props.visible = false
 		_block_props.visible = false
 		_text_props.visible = false
+		_light_props.visible = false
 		_fields["head"].text = "Generate a ramp"
 		_refresh_info()
 		return
@@ -596,6 +606,7 @@ func _refresh_props() -> void:
 	_prop_props.visible = false
 	_block_props.visible = false
 	_text_props.visible = false
+	_light_props.visible = false
 	if selected == null:
 		_ramp_props.visible = false
 		_entity_props.visible = false
@@ -610,6 +621,22 @@ func _refresh_props() -> void:
 	_prop_props.visible = selected is PropNode
 	_block_props.visible = selected is BlockNode
 	_text_props.visible = selected is TextNode
+	_light_props.visible = selected is LightNode
+	if selected is LightNode:
+		var ln := selected as LightNode
+		_fields["head"].text = ln.label()
+		_fields["light_kind"].select(LightNode.KINDS.find(ln.data["kind"]))
+		_fields["light_color"].color = Color.html(ln.data["color"])
+		_set_field("light_energy", float(ln.data["energy"]))
+		_set_field("light_range", float(ln.data["range"]))
+		_set_field("light_angle", float(ln.data["angle"]))
+		_set_field("light_yaw", float(ln.data["yaw"]))
+		_set_field("light_pitch", float(ln.data["pitch"]))
+		_fields["light_shadows"].set_pressed_no_signal(bool(ln.data["shadows"]))
+		_fields["light_spot_box"].visible = ln.data["kind"] == "spot"
+		_updating_ui = false
+		_refresh_info()
+		return
 	if selected is TextNode:
 		var tn := selected as TextNode
 		_fields["head"].text = tn.label()
@@ -684,6 +711,22 @@ func _refresh_props() -> void:
 		_fields["block_side"].get_parent().get_child(_fields["block_side"].get_index() - 1).visible = not b.is_cutter()
 		_fields["block_uv_box"].visible = not b.is_cutter() and fs["material"] != ""
 		_fields["block_look_box"].visible = not b.is_cutter()
+		var is_water: bool = b.data.get("water", false)
+		_fields["block_water_box"].visible = is_water
+		_fields["block_water_color"].color = Color.html(b.data.get("water_color", "1f6b8c"))
+		_set_field("block_clarity", float(b.data.get("clarity", 0.55)))
+		_set_field("block_glow", float(b.data.get("glow", 0.0)))
+		_fields["block_deadly"].set_pressed_no_signal(bool(b.data.get("deadly", false)))
+		if is_water:
+			for k in ["block_mat_head", "block_side", "block_mat", "block_uv_box", "block_cutter", "block_hollow", "block_wall_box"]:
+				(_fields[k] as Control).visible = false
+			_fields["block_side"].get_parent().get_child(_fields["block_side"].get_index() - 1).visible = false
+			for c in (_fields["block_look_box"] as Container).get_children():
+				c.visible = c == _fields["block_glow"][0].get_parent() or c.get_index() == _fields["block_glow"][0].get_parent().get_index() - 1
+		else:
+			_fields["block_cutter"].visible = true
+			for c in (_fields["block_look_box"] as Container).get_children():
+				c.visible = true
 		_updating_ui = false
 		_refresh_info()
 		return
@@ -785,6 +828,10 @@ func _refresh_info() -> void:
 			if a["ramp"] == r:
 				_info.text += ("\n\nJump off the end (from %s): ≈ %d u/s\n  full speed: %s\n  at %d%% speed: %s\n(no air strafing: good players can stretch this)"
 					% [a["ref"], roundi(a["speed"] * JumpCheck.U), a["runs"][0]["label"], roundi(SLOPPY * 100), a["runs"][1]["label"]])
+	elif selected is LightNode:
+		var ln := selected as LightNode
+		_info.text = "%s\nReaches %.0f m. Lights the editor view straight away.\n\nSurfsUp: a real light. CS:S: a %s entity (lighting is baked when the map compiles)." % [
+			ln.label(), float(ln.data["range"]), "light_spot" if ln.data["kind"] == "spot" else "light"]
 	elif selected is TextNode:
 		var tn := selected as TextNode
 		var n_pieces := TextShape.convex_polygons(TextShape.spec(tn.data)).size()
@@ -877,8 +924,11 @@ func _map_dict() -> Dictionary:
 	var ts := []
 	for t in texts_root.get_children():
 		ts.append(_with_group(t))
+	var ls := []
+	for l in lights_root.get_children():
+		ls.append(_with_group(l))
 	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
-		"props": ps, "blocks": bs, "texts": ts}
+		"props": ps, "blocks": bs, "texts": ts, "lights": ls}
 
 
 func _load_dict(data: Dictionary) -> void:
@@ -888,7 +938,7 @@ func _load_dict(data: Dictionary) -> void:
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
 	_select(null)
-	for root in [ramps_root, entities_root, props_root, blocks_root, texts_root]:
+	for root in [ramps_root, entities_root, props_root, blocks_root, texts_root, lights_root]:
 		for c in root.get_children():
 			root.remove_child(c)
 			c.queue_free()
@@ -917,6 +967,11 @@ func _load_dict(data: Dictionary) -> void:
 		texts_root.add_child(t)
 		t.from_dict(td)
 		_take_group(t, td)
+	for ld in data.get("lights", []):
+		var l := LightNode.new()
+		lights_root.add_child(l)
+		l.from_dict(ld)
+		_take_group(l, ld)
 	_rebuild_blocks()
 
 
@@ -948,7 +1003,7 @@ func _make_ramp(a: Vector3, b: Vector3) -> RampNode:
 
 
 func _all_objects() -> Array:
-	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children() + blocks_root.get_children() + texts_root.get_children()
+	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children() + blocks_root.get_children() + texts_root.get_children() + lights_root.get_children()
 
 
 # ================================================================================================= undo / redo
@@ -1530,6 +1585,28 @@ func _build_block_props(props: VBoxContainer) -> void:
 	cp.color_changed.connect(func(c): _edit_prop("block_color", c))
 	_add_row(look_box, "Colour", cp)
 	_fields["block_color"] = cp
+	_add_slider(look_box, "block_glow", "Glow", 0.0, 8.0, 0.1)
+	var water_box := VBoxContainer.new()
+	_block_props.add_child(water_box)
+	_fields["block_water_box"] = water_box
+	var wc := ColorPickerButton.new()
+	wc.custom_minimum_size = Vector2(0, 26)
+	wc.color_changed.connect(func(c): _edit_prop("block_water_color", c))
+	_add_row(water_box, "Water colour", wc)
+	_fields["block_water_color"] = wc
+	_add_slider(water_box, "block_clarity", "Clarity", 0.0, 1.0, 0.05)
+	var deadly := CheckButton.new()
+	deadly.text = "Deadly (sends players back - lava, acid)"
+	deadly.focus_mode = Control.FOCUS_NONE
+	deadly.toggled.connect(func(on): _edit_prop("block_deadly", on))
+	water_box.add_child(deadly)
+	_fields["block_deadly"] = deadly
+	var wnote := Label.new()
+	wnote.text = "SurfsUp has no swimming: water is something to look at (or, if deadly, to avoid). In CS:S it's real water."
+	wnote.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	wnote.add_theme_font_size_override("font_size", 12)
+	wnote.add_theme_color_override("font_color", Color(0.6, 0.64, 0.7))
+	water_box.add_child(wnote)
 
 
 ## Blocks are cut by every cutter they overlap, so a change to any block can change others: rebuild them all.
@@ -1627,6 +1704,160 @@ func _draw_end() -> void:
 	_rebuild_blocks()
 	_select(b)
 	_set_status("Block drawn. Keep drawing, or Esc / D to stop.")
+
+
+# ------------------------------------------------------------------------------------------------ lights, water, prefabs
+func _build_light_props(props: VBoxContainer) -> void:
+	_light_props = VBoxContainer.new()
+	_light_props.add_theme_constant_override("separation", 6)
+	_light_props.visible = false
+	props.add_child(_light_props)
+	var kind := OptionButton.new()
+	kind.add_item("Point light (shines all around)")
+	kind.add_item("Spot light (a cone)")
+	kind.focus_mode = Control.FOCUS_NONE
+	kind.item_selected.connect(func(i): _edit_prop("light_kind", LightNode.KINDS[i]))
+	_add_row(_light_props, "Kind", kind)
+	_fields["light_kind"] = kind
+	var cp := ColorPickerButton.new()
+	cp.custom_minimum_size = Vector2(0, 26)
+	cp.color_changed.connect(func(c): _edit_prop("light_color", c))
+	_add_row(_light_props, "Colour", cp)
+	_fields["light_color"] = cp
+	_add_slider(_light_props, "light_energy", "Brightness", 0.0, 16.0, 0.1)
+	_add_slider(_light_props, "light_range", "Reach (m)", 1.0, 400.0, 1.0)
+	var spot := VBoxContainer.new()
+	_light_props.add_child(spot)
+	_fields["light_spot_box"] = spot
+	_add_slider(spot, "light_angle", "Cone width (\u00b0)", 5.0, 170.0, 1.0)
+	_add_slider(spot, "light_yaw", "Facing (\u00b0)", -180.0, 180.0, 5.0)
+	_add_slider(spot, "light_pitch", "Tilt (\u00b0, down is negative)", -90.0, 90.0, 1.0)
+	var sh := CheckButton.new()
+	sh.text = "Casts shadows"
+	sh.focus_mode = Control.FOCUS_NONE
+	sh.toggled.connect(func(on): _edit_prop("light_shadows", on))
+	_light_props.add_child(sh)
+	_fields["light_shadows"] = sh
+
+
+func _add_light(kind: String) -> void:
+	_checkpoint()
+	var c := _view_center()
+	var l := LightNode.new()
+	lights_root.add_child(l)
+	l.from_dict({"kind": kind, "position": [c.x, c.y + 6.0, c.z]})
+	_select(l)
+	_set_status("New %s. Colour, brightness and reach are in the panel." % l.label().to_lower())
+
+
+func _add_water_clicked() -> void:
+	_checkpoint()
+	var c := _view_center()
+	var b := BlockNode.new()
+	blocks_root.add_child(b)
+	b.from_dict({"position": [c.x, c.y - 3.0, c.z], "size": [40.0, 6.0, 40.0], "water": true})
+	_rebuild_blocks()
+	_select(b)
+	_set_status("New water. Resize it like a block; tick Deadly for lava or acid.")
+
+
+## Add > Prefab: the starter prefabs and yours, each dropped in the middle of the 3D view.
+func _open_prefabs() -> void:
+	if _prefab_popup:
+		_prefab_popup.queue_free()
+	_prefab_popup = PopupPanel.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.11, 0.12, 0.15)
+	sb.set_content_margin_all(10)
+	_prefab_popup.add_theme_stylebox_override("panel", sb)
+	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(460, 0)
+	_prefab_popup.add_child(box)
+	var head := Label.new()
+	head.text = "Prefabs - click one to drop it into the map"
+	head.add_theme_font_size_override("font_size", 16)
+	box.add_child(head)
+	var mine_header := false
+	for pf in Prefabs.list():
+		if not pf["builtin"] and not mine_header:
+			mine_header = true
+			var h := Label.new()
+			h.text = "Yours"
+			box.add_child(h)
+		var b := Button.new()
+		b.text = pf["name"] + ("  -  " + pf["description"] if pf["description"] != "" else "")
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.focus_mode = Control.FOCUS_NONE
+		var path: String = pf["path"]
+		b.pressed.connect(func(): _prefab_popup.hide(); place_prefab(path))
+		box.add_child(b)
+		_fields["prefab_" + String(pf["name"])] = b
+	if not mine_header:
+		var tip := Label.new()
+		tip.text = "Make your own: select some objects, then Edit > Save selection as prefab."
+		tip.add_theme_color_override("font_color", Color(0.6, 0.64, 0.7))
+		box.add_child(tip)
+	_ui.add_child(_prefab_popup)
+	_prefab_popup.popup_centered()
+
+
+func place_prefab(path: String) -> Array:
+	var data := Prefabs.read(path)
+	if data.is_empty():
+		return []
+	var objs := _paste(data, Vector3.ZERO, true)
+	if objs.is_empty():
+		return []
+	var mid := Vector3.ZERO
+	for o in objs:
+		mid += o.center()
+	mid /= objs.size()
+	var to := _view_center()
+	if snap_enabled:
+		to = to.snapped(Vector3.ONE * snap_step)
+	for o in objs:
+		o.translate_by(to - mid)
+	_rebuild_blocks()
+	_map_changed()
+	_set_status("Placed the prefab '%s' (%d objects, selected - drag to move them)." % [data.get("name", "?"), objs.size()])
+	return objs
+
+
+func _save_prefab_clicked() -> void:
+	if selection().is_empty():
+		_set_status("Select what you want to keep as a prefab first.")
+		return
+	if _prefab_name_dialog == null:
+		_prefab_name_dialog = ConfirmationDialog.new()
+		_prefab_name_dialog.title = "Save as prefab"
+		var box := VBoxContainer.new()
+		_prefab_name_dialog.add_child(box)
+		var l := Label.new()
+		l.text = "Name"
+		box.add_child(l)
+		var name_edit := LineEdit.new()
+		box.add_child(name_edit)
+		_fields["prefab_name"] = name_edit
+		var l2 := Label.new()
+		l2.text = "Description (optional)"
+		box.add_child(l2)
+		var desc := LineEdit.new()
+		box.add_child(desc)
+		_fields["prefab_desc"] = desc
+		_prefab_name_dialog.confirmed.connect(func(): save_prefab(_fields["prefab_name"].text, _fields["prefab_desc"].text))
+		_ui.add_child(_prefab_name_dialog)
+	_fields["prefab_name"].text = ""
+	_fields["prefab_desc"].text = ""
+	_prefab_name_dialog.popup_centered(Vector2i(420, 0))
+
+
+func save_prefab(name: String, description := "") -> String:
+	if name.strip_edges() == "":
+		_set_status("A prefab needs a name.")
+		return ""
+	var path := Prefabs.save(name, _clip_of(selection()), description)
+	_set_status("Saved the prefab '%s' (%d objects). Add > Prefab drops it into any map." % [name, selection().size()])
+	return path
 
 
 # ------------------------------------------------------------------------------------------------ text
@@ -1951,11 +2182,12 @@ func _kind_of(o: Node3D) -> String:
 	if o is EntityNode: return "entities"
 	if o is PropNode: return "props"
 	if o is TextNode: return "texts"
+	if o is LightNode: return "lights"
 	return "blocks"
 
 
 func _clip_of(objs: Array) -> Dictionary:
-	var clip := {"surfforge_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": [], "texts": []}
+	var clip := {"surfforge_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": [], "texts": [], "lights": []}
 	for o in objs:
 		clip[_kind_of(o)].append(_with_group(o))
 	return clip
@@ -1999,7 +2231,7 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 	var made := []
 	var skipped := 0
 	var groups := {}                                     # pasted groups get fresh ids
-	for kind in ["ramps", "entities", "props", "blocks", "texts"]:
+	for kind in ["ramps", "entities", "props", "blocks", "texts", "lights"]:
 		for d in data.get(kind, []):
 			if kind == "entities" and d.get("kind", "") in ["start", "finish"] and _find_entity(d["kind"]):
 				skipped += 1
@@ -2018,6 +2250,9 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 				"texts":
 					o = TextNode.new()
 					texts_root.add_child(o)
+				"lights":
+					o = LightNode.new()
+					lights_root.add_child(o)
 				_:
 					o = BlockNode.new()
 					blocks_root.add_child(o)
@@ -2389,6 +2624,8 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_A when ctrl: _set_selection(_all_objects())
 		KEY_N: _add_ramp_clicked()
 		KEY_O: _add_block_clicked()
+		KEY_U: _add_light("point")
+		KEY_H: _add_water_clicked()
 		KEY_X when not ctrl: _add_text_clicked()
 		KEY_D when not ctrl: _toggle_draw_mode()
 		KEY_F11: _toggle_fullscreen()
@@ -2444,6 +2681,8 @@ func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
 			return hit.collider.get_meta("block")
 		if hit.collider.has_meta("text"):
 			return hit.collider.get_meta("text")
+		if hit.collider.has_meta("light"):
+			return hit.collider.get_meta("light")
 	# fallback: the ridge line on screen (thin ramps seen edge-on in the side views, clicks on the ridge seam)
 	var best: Node3D = null
 	var best_d := PICK_PIXELS
@@ -2923,6 +3162,9 @@ func _bend_clicked() -> void:
 
 
 func _duplicate_clicked() -> void:
+	if selected is LightNode and selection().size() == 1:
+		_paste(_clip_of([selected]), Vector3(10, 0, 0))
+		return
 	if selected is TextNode and selection().size() == 1:
 		_paste(_clip_of([selected]), (selected as TextNode).global_basis * Vector3(0, -float(selected.data["height"]) * 1.4, 0))
 		return
@@ -3066,6 +3308,23 @@ func _edit_prop(key: String, value) -> void:
 	if selected == null or _updating_ui:
 		return
 	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])
+	if selected is LightNode:
+		var ln := selected as LightNode
+		var ld: Dictionary = ln.data.duplicate(true)
+		match key:
+			"light_kind": ld["kind"] = value
+			"light_color": ld["color"] = (value as Color).to_html(false)
+			"light_energy": ld["energy"] = value
+			"light_range": ld["range"] = value
+			"light_angle": ld["angle"] = value
+			"light_yaw": ld["yaw"] = value
+			"light_pitch": ld["pitch"] = value
+			"light_shadows": ld["shadows"] = value
+		ln.from_dict(ld)
+		if key == "light_kind":
+			_refresh_props()
+		_refresh_info()
+		return
 	if selected is TextNode:
 		var tn := selected as TextNode
 		var td: Dictionary = tn.data.duplicate(true)
@@ -3112,6 +3371,10 @@ func _edit_prop(key: String, value) -> void:
 			"block_cutter": d["cutter"] = value
 			"block_look": d["look"] = value
 			"block_color": d["color"] = (value as Color).to_html(false)
+			"block_glow": d["glow"] = value
+			"block_water_color": d["water_color"] = (value as Color).to_html(false)
+			"block_clarity": d["clarity"] = value
+			"block_deadly": d["deadly"] = value
 			"block_mat":
 				_paint = value
 				if _block_side == "all":
@@ -3140,7 +3403,7 @@ func _edit_prop(key: String, value) -> void:
 		if key in ["block_x", "block_y", "block_z"]:
 			_last_block["size"] = b.data["size"].duplicate()
 		_rebuild_blocks()
-		if key in ["block_shape", "block_hollow", "block_cutter", "block_mat"]:
+		if key in ["block_shape", "block_hollow", "block_cutter", "block_mat", "block_deadly"]:
 			_refresh_props()
 		_refresh_info()
 		return
