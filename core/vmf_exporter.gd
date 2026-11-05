@@ -90,7 +90,7 @@ func build(map: Dictionary, opts := {}) -> String:
 	var ents: Array = map.get("entities", [])
 	# blocks: every convex piece is one brush
 	var block_pieces := []
-	var cutters := SurfsUpExporter.engraving_cutters(map)
+	var cutters := []
 	for bd in map.get("blocks", []):
 		if BlockShape.spec(bd)["cutter"]:
 			cutters.append(bd)
@@ -149,10 +149,10 @@ func build(map: Dictionary, opts := {}) -> String:
 			world.append(_water_solid(bp[0]))
 		else:
 			world.append(_block_solid(bp[0], bp[1]))
-	# text: solid 3D letters are func_detail, signs and see-through text func_illusionary (engravings only cut)
+	# text: solid 3D letters are func_detail, signs and see-through text func_illusionary
 	for td in map.get("texts", []):
 		var ts := TextShape.spec(td)
-		if ts["mode"] == "engrave" or String(ts["text"]).strip_edges() == "":
+		if String(ts["text"]).strip_edges() == "":
 			continue
 		var tmat := BLOCK_MATERIALS["color"]
 		if ts["material"] != "" and MaterialLibrary.has(ts["material"]):

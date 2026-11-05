@@ -54,7 +54,8 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
     teleports, boosters, kill floor, sky, sun, sv_airaccelerate) and one-click compile with CS:S's vbsp/vvis/vrad
 14. Structures ✅ (0.2) blocks, shapes, hollow rooms, live cutters, multi-select, groups, copy/paste
 15. Materials ✅ (0.3) starter library + your own images, per-side materials, Alt+click painting, CS:S packing
-16. Text ✅ (0.4) flat signs, solid 3D letters, live engravings, any font, place on a surface
+16. Text ✅ (0.4) flat signs, solid 3D letters (embossed on a surface), multi-line, any font, place on a surface
+    with snapping to the face's centre lines
 17. Lights, water, prefabs ✅ (0.5) point + spot lights, water and deadly liquids, glowing blocks, 7 starter
     prefabs + save your own (Edit > Save selection as prefab)
 18. Next: more toward 1.0 (decided with you)

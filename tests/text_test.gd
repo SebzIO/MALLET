@@ -1,6 +1,6 @@
 extends SceneTree
-## Text: solid 3D letters you can stand on, a flat sign you pass through, an engraving that cuts into a wall (and
-## follows when moved), "place on a surface", a font file from disk, save / load, both exports and a CS:S compile.
+## Text: solid 3D letters you can stand on, a flat sign you pass through, old engraved text loading as 3D letters,
+## "place on a surface", a font file from disk, save / load, both exports and a CS:S compile.
 ## Screenshot: text.png
 ## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/text_test.gd -- <out>
 
@@ -50,7 +50,7 @@ func _run() -> void:
 	var bar := text({"text": "I", "font": "Arial Black", "height": 8.0, "depth": 2.0, "mode": "3d", "position": [60, 40, -100],
 		"pitch": -90.0})
 	var sign := text({"text": "STAGE 2", "font": "Impact", "height": 3.0, "mode": "flat", "position": [0, 52, -97.9]})
-	var eng := text({"text": "O", "font": "Arial Black", "height": 8.0, "depth": 1.0, "mode": "engrave", "position": [0, 44, -98]})
+	var old := text({"text": "O", "font": "Arial Black", "height": 8.0, "depth": 1.0, "mode": "engrave", "position": [0, 44, -98]})
 	ed._rebuild_blocks()
 	await settle()
 	var top := ray(Vector3(60, 60, -100), Vector3(60, 20, -100))
@@ -58,25 +58,7 @@ func _run() -> void:
 		"(hit at %.2f)" % (top["position"].y if not top.is_empty() else -1.0))
 	var through := ray(Vector3(0, 52.8, -90), Vector3(0, 52.8, -97.95))
 	check("a flat sign isn't solid", through.is_empty() or through["collider"].has_meta("block"))
-	# engraving: inside the O's ring the wall is cut 1 m deep; in its hole (the middle) it isn't
-	var ring_x: float = eng.local_box.position.x + eng.local_box.size.x * 0.12
-	var in_stroke := ray(Vector3(ring_x, 44 + 4.0 * 0.5 * 0.0 + eng.local_box.get_center().y, -80), Vector3(ring_x, 44 + eng.local_box.get_center().y, -110))
-	var in_hole := ray(Vector3(0, 44 + eng.local_box.get_center().y, -80), Vector3(0, 44 + eng.local_box.get_center().y, -110))
-	check("engraving cuts the letter 1 m into the wall", not in_stroke.is_empty() and absf(in_stroke["position"].z - (-99.0)) < 0.1,
-		"(stroke hit at z %.2f)" % (in_stroke["position"].z if not in_stroke.is_empty() else 0.0))
-	check("...but leaves the O's middle alone", not in_hole.is_empty() and absf(in_hole["position"].z - (-98.0)) < 0.05,
-		"(hole hit at z %.2f)" % (in_hole["position"].z if not in_hole.is_empty() else 0.0))
-	var pieces_before: int = wall.pieces.size()
-	ed._select(eng)
-	ed._checkpoint()
-	eng.translate_by(Vector3(12, 0, 0))
-	ed._mark_blocks()
-	await settle()
-	var old_spot := ray(Vector3(ring_x, 44 + eng.local_box.get_center().y, -80), Vector3(ring_x, 44 + eng.local_box.get_center().y, -110))
-	check("moving the engraving moves the cut", not old_spot.is_empty() and absf(old_spot["position"].z - (-98.0)) < 0.05)
-	ed.undo()
-	await settle()
-	check("wall carved into many convex pieces", pieces_before > 10, "(%d)" % pieces_before)
+	check("old engraved text loads as 3D letters, the wall stays whole", old.data["mode"] == "3d" and wall.pieces.size() == 1)
 
 	# place on a surface: the top of the wall, facing up
 	var tag := text({"text": "GO", "font": "Impact", "height": 2.0, "depth": 0.3, "mode": "3d", "position": [0, 100, 0]})
@@ -95,6 +77,38 @@ func _run() -> void:
 	check("place on a surface: on the wall top, letters facing up", absf(tag.global_position.y - 56.0) < 0.05 and up.dot(Vector3.UP) > 0.99,
 		"(y %.2f, facing %s)" % [tag.global_position.y, up.snapped(Vector3.ONE * 0.01)])
 
+	# multi-line: a second line makes the text taller, and each line is aligned
+	var one := text({"text": "AB", "height": 2.0, "position": [0, 100, 0]})
+	var two := text({"text": "AB
+CD", "height": 2.0, "position": [0, 120, 0]})
+	await settle()
+	check("multi-line text: two lines are about twice as tall", two.local_box.size.y > one.local_box.size.y * 1.7,
+		"(%.2f vs %.2f m)" % [two.local_box.size.y, one.local_box.size.y])
+	# centring on a face: the wall's front face is 40 x 16, centre (0, 48, -98)
+	var sn := text({"text": "MID", "height": 2.0, "depth": 0.3, "position": [0, 0, 0]})
+	await settle()
+	var put := func(x: float, y: float) -> void:
+		var bc: Vector3 = sn.local_box.get_center()
+		sn.from_dict(sn.data.merged({"position": [x - bc.x, y - bc.y, -97.995]}, true))
+	put.call(0.4, 48.3)
+	await settle()
+	var r1: String = ed._centre_text_on_face(sn)
+	var c1: Vector3 = sn.center()
+	check("near the middle of a face: snaps to its centre", r1 == "centre" and absf(c1.x) < 0.01 and absf(c1.y - 48.0) < 0.01,
+		"(%s, %.2f, %.2f)" % [r1, c1.x, c1.y])
+	put.call(6.0, 48.4)
+	await settle()
+	var r2: String = ed._centre_text_on_face(sn)
+	var c2: Vector3 = sn.center()
+	check("off to one side: only the middle line snaps", r2.begins_with("middle") and absf(c2.x - 6.0) < 0.01 and absf(c2.y - 48.0) < 0.01,
+		"(%s, %.2f, %.2f)" % [r2, c2.x, c2.y])
+	put.call(10.0, 55.0)
+	await settle()
+	check("far from both centre lines: left alone", ed._centre_text_on_face(sn) == "")
+	for t in [one, two, sn]:
+		t.queue_free()
+	await settle()
+
 	# a font file from disk
 	var impact := "C:/Windows/Fonts/impact.ttf"
 	if FileAccess.file_exists(impact):
@@ -112,7 +126,7 @@ func _run() -> void:
 	# exports
 	var map: Dictionary = ed._map_dict()
 	var scene: Node = SurfsUpExporter.build_scene(map, "sf_text")
-	check("SurfsUp export: every text but the engraving", scene.get_node("Texts").get_child_count() == n - 1)
+	check("SurfsUp export: every text", scene.get_node("Texts").get_child_count() == n)
 	scene.free()
 	var css := VmfExporter.find_css()
 	if css != "":
@@ -126,7 +140,7 @@ func _run() -> void:
 				bad += 1
 				if bad <= 4:
 					print("      ", line.strip_edges())
-		check("CS:S: letters and the engraved wall compile cleanly", res["error"] == "" and c["error"] == "" and bad == 0,
+		check("CS:S: letters and the wall compile cleanly", res["error"] == "" and c["error"] == "" and bad == 0,
 			"(%d brushes) %s %s" % [res["brushes"], res["error"], c["error"]])
 	var cam := ed.panes[0].camera as OrbitCamera
 	cam.focus = Vector3(15, 48, -100)

@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.5.3 preview — 2026-11-05: multi-line text, centring; engraving removed
+
+- Multi-line text: the text box takes Enter for a new line; left / centre / right alignment applies per line.
+- Centring text on a surface: drag text along a block's face (or place it with "Place on a surface") and it snaps
+  to the face's centre lines - left-to-right and top-to-bottom on their own, both together = dead centre. Drag
+  further and it lets go.
+- Engraving text into blocks is gone. As convex brushes (what CS:S needs) one word meant hundreds of pieces,
+  visible seams and a slow editor. Old engraved text now loads as 3D letters (raised from the surface instead).
+
 ## 0.5.2 preview — 2026-11-05: engraving spike fix
 
 - Engraving into a block could leave a piece shooting far out of the block (a tall spike). A speed-up in 0.5.1

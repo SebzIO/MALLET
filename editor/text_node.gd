@@ -1,6 +1,6 @@
 class_name TextNode
 extends Node3D
-## Text in the map: a flat sign, solid 3D letters, or an engraving cut into the blocks it overlaps.
+## Text in the map: a flat sign or solid 3D letters.
 
 const PICK_ONLY_LAYER := 1 << 19
 
@@ -18,11 +18,7 @@ func _ready() -> void:
 
 
 func label() -> String:
-	return "Engraving" if data["mode"] == "engrave" else "Text"
-
-
-func is_engraving() -> bool:
-	return data["mode"] == "engrave"
+	return "Text"
 
 
 func rebuild() -> void:
@@ -31,22 +27,14 @@ func rebuild() -> void:
 	transform = xf
 	_mesh.mesh = TextShape.mesh(s)
 	local_box = _mesh.mesh.get_aabb()
-	if is_engraving():
-		var m := StandardMaterial3D.new()                # shown see-through: the cut it makes is what you see
-		m.albedo_color = Color(1.0, 0.55, 0.15, 0.35)
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_mesh.material_override = m
-		_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	else:
-		_mesh.material_override = TextShape.material(s)
-		_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if s["mode"] == "3d" else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_mesh.material_override = TextShape.material(s)
+	_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if s["mode"] == "3d" else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for c in _body.get_children():
 		_body.remove_child(c)
 		c.queue_free()
 	# collision: the letters' convex pieces (solid 3D letters); otherwise just for clicking in the editor
 	var inv := xf.affine_inverse()
-	var pcs := TextShape.pieces(s, -0.05 if is_engraving() else 0.0, maxf(TextShape.depth_of(s), 0.05))
+	var pcs := TextShape.pieces(s, 0.0, maxf(TextShape.depth_of(s), 0.05))
 	for p in pcs:
 		var shape := ConvexPolygonShape3D.new()
 		var pts := PackedVector3Array()

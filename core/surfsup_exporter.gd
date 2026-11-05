@@ -237,7 +237,7 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	var blocks := Node3D.new()
 	blocks.name = "Blocks"
 	_add(root, root, blocks)
-	var cutters := engraving_cutters(map)
+	var cutters := []
 	for bd in map.get("blocks", []):
 		if BlockShape.spec(bd)["cutter"]:
 			cutters.append(bd)
@@ -294,14 +294,14 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		_add(root, lights, l)
 		li += 1
 
-	# text: the letters' mesh, and for solid 3D text an exact convex collision shape per piece (engravings only cut)
+	# text: the letters' mesh, and for solid 3D text an exact convex collision shape per piece 
 	var texts := Node3D.new()
 	texts.name = "Texts"
 	_add(root, root, texts)
 	var ti := 0
 	for td in map.get("texts", []):
 		var ts := TextShape.spec(td)
-		if ts["mode"] == "engrave" or String(ts["text"]).strip_edges() == "":
+		if String(ts["text"]).strip_edges() == "":
 			continue
 		var txf := TextShape.transform_of(ts)
 		var solid: bool = ts["mode"] == "3d" and bool(ts["solid"])
@@ -387,14 +387,6 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 
 
 ## Height of the automatic kill floor: KILL_MARGIN below the lowest ramp or platform.
-## Every engraved text's letters, as convex pieces that cut the blocks they overlap.
-static func engraving_cutters(map: Dictionary) -> Array:
-	var out := []
-	for td in map.get("texts", []):
-		out.append_array(TextShape.cut_pieces(TextShape.spec(td)))
-	return out
-
-
 static func kill_floor_y(map: Dictionary) -> float:
 	var lowest := INF
 	for rd in map.get("ramps", []):

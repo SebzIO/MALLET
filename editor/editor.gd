@@ -640,7 +640,7 @@ func _refresh_props() -> void:
 	if selected is TextNode:
 		var tn := selected as TextNode
 		_fields["head"].text = tn.label()
-		var te: LineEdit = _fields["text_text"]
+		var te: TextEdit = _fields["text_text"]
 		if te.text != tn.data["text"]:
 			te.text = tn.data["text"]
 		var fo: OptionButton = _fields["text_font"]
@@ -663,7 +663,6 @@ func _refresh_props() -> void:
 		_fields["text_solid"].visible = tn.data["mode"] == "3d"
 		_fields["text_depth"][0].get_parent().visible = tn.data["mode"] != "flat"
 		_fields["text_depth"][0].get_parent().get_parent().get_child(_fields["text_depth"][0].get_parent().get_index() - 1).visible = tn.data["mode"] != "flat"
-		_fields["text_look_box"].visible = not tn.is_engraving()
 		var tb: Button = _fields["text_mat"]
 		tb.text = "  " + (MaterialLibrary.display_name(tn.data["material"]) if tn.data["material"] != "" else "Plain colour (pick a material\u2026)")
 		tb.icon = MaterialLibrary.preview(tn.data["material"]) if tn.data["material"] != "" else null
@@ -838,8 +837,7 @@ func _refresh_info() -> void:
 		_info.text = "%s\n\"%s\"  -  %s, letters %.1f m tall\nConvex pieces: %d (each one is a brush in a CS:S export)\n\n%s" % [
 			TextShape.MODE_LABELS[tn.data["mode"]], tn.data["text"], tn.data["font"].get_file(), float(tn.data["height"]), n_pieces,
 			{"flat": "A sign: players pass through it. Place it on a wall with 'Place on a surface'.",
-			 "3d": "Solid letters - stand on them, surf around them. On a surface they look embossed.",
-			 "engrave": "Cuts the letters into every block it overlaps. Move it and the engraving moves."}[tn.data["mode"]]]
+			 "3d": "Solid letters - stand on them, surf around them. On a surface they look embossed."}[tn.data["mode"]]]
 	elif selected is BlockNode:
 		var b := selected as BlockNode
 		var sz: Vector3 = b.size()
@@ -1623,9 +1621,6 @@ func _rebuild_blocks() -> void:
 			continue
 		if b.is_cutter():
 			cutters.append(b.data)
-	for t in texts_root.get_children():
-		if not t.is_queued_for_deletion() and t.is_engraving():
-			cutters.append_array(TextShape.cut_pieces(TextShape.spec(t.data)))
 	for b in blocks_root.get_children():
 		if not b.is_queued_for_deletion():
 			b.rebuild(cutters)
@@ -1866,9 +1861,11 @@ func _build_text_props(props: VBoxContainer) -> void:
 	_text_props.add_theme_constant_override("separation", 6)
 	_text_props.visible = false
 	props.add_child(_text_props)
-	var te := LineEdit.new()
-	te.placeholder_text = "Type your text"
-	te.text_changed.connect(func(t): _edit_prop("text_text", t))
+	var te := TextEdit.new()                             # multi-line: Enter starts a new line
+	te.placeholder_text = "Type your text (Enter for a new line)"
+	te.custom_minimum_size = Vector2(0, 74)
+	te.scroll_fit_content_height = true
+	te.text_changed.connect(func(): _edit_prop("text_text", te.text))
 	_add_row(_text_props, "Text", te)
 	_fields["text_text"] = te
 	var mode := OptionButton.new()
@@ -1955,8 +1952,7 @@ func _add_text_clicked() -> void:
 	_set_status("New text. Type in the panel; 'Place on a surface' sticks it onto a wall or floor.")
 
 
-## Put the selected text flat on the face that was clicked: facing out of it, upright where possible. Engravings
-## sit in the surface (they cut into it), everything else on it.
+## Put the selected text flat on the face that was clicked: facing out of it, upright where possible.
 func _place_text_on_surface(pane: ViewPane, mouse: Vector2) -> void:
 	_place_on_surface = false
 	if not selected is TextNode:
@@ -1985,9 +1981,82 @@ func _place_text_on_surface(pane: ViewPane, mouse: Vector2) -> void:
 	d["yaw"] = rad_to_deg(e.y)
 	d["roll"] = rad_to_deg(e.z)
 	selected.from_dict(d)
+	var centred := _centre_text_on_face(selected)
 	_mark_blocks()
 	_refresh_props()
-	_set_status("Text placed on the surface.")
+	_set_status("Text placed on the surface%s. Drag it along the face; it snaps to the face's centre lines." % (
+		(" (snapped to the %s)" % centred) if centred != "" else ""))
+
+
+## If the text lies flat on a block's face, snap it onto that face's centre lines when it's close to them (each
+## direction on its own, like design apps). Returns what it snapped to ("centre", "middle line", ...) or "".
+func _centre_text_on_face(t: TextNode) -> String:
+	var xf := t.global_transform
+	var out_dir := xf.basis.z.normalized()                # text faces out along its +Z
+	var box := t.local_box
+	var mid := xf * Vector3(box.get_center().x, box.get_center().y, 0.0)
+	var q := PhysicsRayQueryParameters3D.create(mid + out_dir * 0.3, mid - out_dir * 0.3)
+	q.collision_mask = 1 | BlockNode.PICK_ONLY_LAYER
+	q.exclude = [t._body.get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty() or not hit["collider"].has_meta("block"):
+		return ""
+	var b: BlockNode = hit["collider"].get_meta("block")
+	# the face under the text: same direction, and the hit point inside it
+	var poly: Array = []
+	for piece in b.pieces:
+		for f in Convex.faces(piece):
+			var pl: Plane = f[0]
+			if pl.normal.dot(out_dir) > 0.999 and absf(pl.distance_to(hit["position"])) < 0.05:
+				if _poly_has(f[1], hit["position"], pl.normal):
+					poly = f[1]
+		if not poly.is_empty():
+			break
+	if poly.is_empty():
+		return ""
+	var fc := Vector3.ZERO
+	for v in poly:
+		fc += v
+	fc /= poly.size()
+	var ax := xf.basis.x.normalized()
+	var ay := xf.basis.y.normalized()
+	var size_x := 0.0
+	var size_y := 0.0
+	for v in poly:
+		size_x = maxf(size_x, absf((v - fc).dot(ax)) * 2.0)
+		size_y = maxf(size_y, absf((v - fc).dot(ay)) * 2.0)
+	var dx := (fc - mid).dot(ax)
+	var dy := (fc - mid).dot(ay)
+	var fix := Vector3.ZERO
+	var got := []
+	if absf(dx) > 1e-4 and absf(dx) < maxf(0.75, size_x * 0.06):
+		fix += ax * dx
+		got.append("x")
+	elif absf(dx) <= 1e-4:
+		got.append("x")
+	if absf(dy) > 1e-4 and absf(dy) < maxf(0.75, size_y * 0.06):
+		fix += ay * dy
+		got.append("y")
+	elif absf(dy) <= 1e-4:
+		got.append("y")
+	if fix != Vector3.ZERO:
+		t.translate_by(fix)
+	if got.size() == 2:
+		return "centre"
+	if got.has("x"):
+		return "centre line (left to right)"
+	if got.has("y"):
+		return "middle line (top to bottom)"
+	return ""
+
+
+static func _poly_has(poly: Array, p: Vector3, n: Vector3) -> bool:
+	for i in poly.size():
+		var a: Vector3 = poly[i]
+		var c: Vector3 = poly[(i + 1) % poly.size()]
+		if (c - a).cross(p - a).dot(n) < -1e-4:
+			return false
+	return true
 
 
 ## The material library: thumbnails by category. `cb` gets the chosen material id ("" = none).
@@ -2771,10 +2840,14 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 				o.from_dict(_drag_origins[o])
 			o.translate_by(delta)
 			any_block = any_block or o is BlockNode
-		if any_block or selection().any(func(o): return o is TextNode and o.is_engraving()):
+		if any_block:
 			_mark_blocks()
 		var c: Vector3 = selected.center()
-		_set_status("Moved by (%.0f, %.0f, %.0f) - centre now (%.0f, %.0f, %.0f)" % [delta.x, delta.y, delta.z, c.x, c.y, c.z])
+		var centred := _centre_text_on_face(selected) if selected is TextNode and selection().size() == 1 else ""
+		if centred != "":
+			_set_status("Snapped to the %s of the face (drag further to let go)" % centred)
+		else:
+			_set_status("Moved by (%.0f, %.0f, %.0f) - centre now (%.0f, %.0f, %.0f)" % [delta.x, delta.y, delta.z, c.x, c.y, c.z])
 	_refresh_info()
 
 
@@ -3345,10 +3418,7 @@ func _edit_prop(key: String, value) -> void:
 				if value != "" and td["color"] == TextShape.DEFAULTS["color"]:
 					td["color"] = "ffffff"
 			"text_color": td["color"] = (value as Color).to_html(false)
-		var was_engraving := tn.is_engraving()
 		tn.from_dict(td)
-		if was_engraving or tn.is_engraving():
-			_mark_blocks()
 		if key in ["text_mode", "text_font", "text_mat"]:
 			_refresh_props()
 		_refresh_info()

@@ -142,9 +142,6 @@ static func world_pieces(s: Dictionary, cutters: Array = []) -> Array:
 		return pieces
 	var cuts: Array = []
 	for c in cutters:
-		if c is Array:                                   # a ready-made world-space piece (an engraved letter)
-			cuts.append(c)
-			continue
 		var cs := spec(c)
 		var cxf := transform_of(cs)
 		for p in local_pieces(cs):
@@ -213,7 +210,7 @@ static func mesh_faces(pieces: Array, xf: Transform3D, s: Dictionary) -> Array:
 	var inv := xf.affine_inverse()
 	if s.get("water", false):
 		return _water_mesh(pieces, inv, s)
-	# a carved block (engraved text) can have 15 000 faces: build plain arrays rather than vertex by vertex
+	# plain arrays rather than vertex by vertex: a block with several cutters through it can have thousands of faces
 	var groups := {}                                     # material key -> [verts, normals, tangents, uvs, Material]
 	var settings := {}                                   # side -> its settings (the same for every face on it)
 	for piece in pieces:
@@ -278,7 +275,7 @@ static func mesh_faces(pieces: Array, xf: Transform3D, s: Dictionary) -> Array:
 
 
 ## A flat face's tangent (the direction its texture's u runs, in block space), worked out from its UVs. Every face
-## is flat, so this is exact - and SurfaceTool.generate_tangents takes a minute on a carved block (engraved text).
+## is flat, so this is exact - and SurfaceTool.generate_tangents takes a minute on a carved block (many cutters).
 static func _face_tangent(poly: Array, n: Vector3, fs: Dictionary, inv: Transform3D, local_n: Vector3) -> Plane:
 	var p0: Vector3 = poly[0]
 	var p1: Vector3 = poly[1]

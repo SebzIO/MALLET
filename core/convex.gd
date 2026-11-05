@@ -177,7 +177,7 @@ static func carve(piece: Array, cutter: Array) -> Array:
 
 
 ## Carve every piece by every cutter. Each piece carries its bounding box, so cutters that don't reach a piece
-## cost almost nothing (engraved text is ~100 cutters, and a carve can leave hundreds of pieces).
+## cost almost nothing (a map can have many cutters, and a carve can leave many pieces).
 static func carve_all(pieces: Array, cutters: Array) -> Array:
 	var result: Array = []
 	for p in pieces:

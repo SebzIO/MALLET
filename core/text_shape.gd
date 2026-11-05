@@ -4,12 +4,13 @@ extends RefCounted
 ## extruded towards the viewer along +Z, from z = 0 (the back, sitting on a surface) to z = depth.
 ##   flat     a sign: a hair-thin layer of letters, no collision
 ##   3d       solid letters you can stand on (embossed when placed on a surface)
-##   engrave  the letters are cut into any block they overlap (like a cutter)
+## (Engraving into blocks was tried in 0.4 and dropped in 0.5.3: as convex brushes it means hundreds of pieces per
+## word, visible seams and a slow editor. Old engraved text loads as 3D letters.)
 ## Letter shapes come from Godot's TextMesh (any installed font or a font file); for collision and CS:S brushes the
 ## letters are split into convex pieces, merged as far as they stay convex to keep the count down.
 
-const MODES := ["flat", "3d", "engrave"]
-const MODE_LABELS := {"flat": "Flat sign (2D)", "3d": "3D letters", "engrave": "Engraved into blocks"}
+const MODES := ["flat", "3d"]
+const MODE_LABELS := {"flat": "Flat sign (2D)", "3d": "3D letters"}
 const FONTS := ["Arial", "Arial Black", "Impact", "Segoe UI", "Verdana", "Tahoma", "Georgia", "Times New Roman",
 	"Courier New", "Trebuchet MS", "Comic Sans MS"]
 const FLAT_DEPTH := 0.02
@@ -177,18 +178,9 @@ static func pieces(s: Dictionary, z0: float, z1: float) -> Array:
 	return out
 
 
-## The pieces that collide / become brushes for this text (none for an engraving, which only cuts).
+## The pieces that collide / become brushes for this text.
 static func solid_pieces(s: Dictionary) -> Array:
-	if s["mode"] == "engrave":
-		return []
 	return pieces(s, 0.0, depth_of(s))
-
-
-## The pieces an engraving cuts out of blocks: the letters from `depth` behind the surface to just in front of it.
-static func cut_pieces(s: Dictionary) -> Array:
-	if s["mode"] != "engrave":
-		return []
-	return pieces(s, -maxf(float(s["depth"]), 0.05), 0.05)
 
 
 ## The visible mesh (in the text's own space) - smooth curved letters straight from the font.
