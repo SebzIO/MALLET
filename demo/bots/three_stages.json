@@ -1,0 +1,18 @@
+{
+  "map": "res://templates/3_three_stages.sfmap",
+  "params": {
+    "air_lead": 1.3833826482296,
+    "damp": 0.204338778648525,
+    "deep": 3.94740091823041,
+    "end": 0.223397719487548,
+    "flick_at": 0.872655492071062,
+    "land_in": 11.3187679108232,
+    "land_out": 1.39718092530966,
+    "ramps": {
+
+    },
+    "top": 1.94054799973965
+  },
+  "result": "FINISHED in 0:33.333, 6 ramps",
+  "score": 12000.0
+}

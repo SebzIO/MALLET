@@ -1,0 +1,18 @@
+{
+  "map": "res://templates/4_aurora_night.sfmap",
+  "params": {
+    "air_lead": 2.94078060984612,
+    "damp": 0.310047283675522,
+    "deep": 3.2259267680347,
+    "end": 0.328028636798263,
+    "flick_at": 0.709781901650131,
+    "land_in": 9.27047812566161,
+    "land_out": 0.580265341419727,
+    "ramps": {
+
+    },
+    "top": 2.21388836838305
+  },
+  "result": "FINISHED in 0:16.600, 4 ramps",
+  "score": 12502.0
+}
