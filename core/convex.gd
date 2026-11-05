@@ -84,7 +84,17 @@ static func extrude(poly: Array, dir: Vector3) -> Array:
 
 ## The corner points of a piece.
 static func points(piece: Array) -> PackedVector3Array:
-	return Geometry3D.compute_convex_mesh_points(piece)
+	# Godot lists a corner once for every set of three planes meeting there, so a carved piece (many planes) can
+	# repeat each corner dozens of times: keep one of each
+	var raw := Geometry3D.compute_convex_mesh_points(piece)
+	var out := PackedVector3Array()
+	var seen := {}
+	for p in raw:
+		var k := Vector3i(roundi(p.x * 1000.0), roundi(p.y * 1000.0), roundi(p.z * 1000.0))
+		if not seen.has(k):
+			seen[k] = true
+			out.append(p)
+	return out
 
 
 ## Is there anything left of this piece (a real volume, not a sliver)?
@@ -105,18 +115,29 @@ static func faces(piece: Array) -> Array:
 	for pl in piece:
 		var plane: Plane = pl
 		var on: Array = []
+		var c := Vector3.ZERO
 		for p in pts:
 			if absf(plane.distance_to(p)) < EPS * 10.0:
 				on.append(p)
+				c += p
 		if on.size() < 3:
 			continue
-		var c := Vector3.ZERO
-		for p in on:
-			c += p
 		c /= on.size()
 		var u: Vector3 = (on[0] - c).normalized()
 		var v := plane.normal.cross(u)
-		on.sort_custom(func(a, b): return atan2((a - c).dot(v), (a - c).dot(u)) < atan2((b - c).dot(v), (b - c).dot(u)))
+		var angles: Array = []
+		for p in on:
+			angles.append(atan2((p - c).dot(v), (p - c).dot(u)))
+		for i in range(1, on.size()):                           # insertion sort: a face has a handful of corners
+			var ang: float = angles[i]
+			var pt: Vector3 = on[i]
+			var j := i - 1
+			while j >= 0 and float(angles[j]) > ang:
+				angles[j + 1] = angles[j]
+				on[j + 1] = on[j]
+				j -= 1
+			angles[j + 1] = ang
+			on[j + 1] = pt
 		out.append([plane, on])
 	return out
 
@@ -149,28 +170,76 @@ static func aabb(piece: Array) -> AABB:
 
 ## Hammer's carve: what's left of `piece` outside the convex `cutter`, as convex pieces.
 static func carve(piece: Array, cutter: Array) -> Array:
-	if not aabb(piece).grow(-0.001).intersects(aabb(cutter)):
-		return [piece]
 	var out: Array = []
-	var rest: Array = piece.duplicate()
+	for e in _carve_boxed(_boxed(piece), cutter, aabb(cutter)):
+		out.append(e[0])
+	return out
+
+
+## Carve every piece by every cutter. Each piece carries its bounding box, so cutters that don't reach a piece
+## cost almost nothing (engraved text is ~100 cutters, and a carve can leave hundreds of pieces).
+static func carve_all(pieces: Array, cutters: Array) -> Array:
+	var result: Array = []
+	for p in pieces:
+		var e := _boxed(p)
+		if not e.is_empty():
+			result.append(e)
+	for c in cutters:
+		var cbox := aabb(c)
+		var next: Array = []
+		for e in result:
+			if not (e[1] as AABB).grow(-0.001).intersects(cbox):
+				next.append(e)
+			else:
+				next.append_array(_carve_boxed(e, c, cbox))
+		result = next
+	var out: Array = []
+	for e in result:
+		out.append(e[0])
+	return out
+
+
+## [piece with only the planes that touch it, its box], or [] when nothing is left of it.
+static func _boxed(piece: Array) -> Array:
+	var pts := points(piece)
+	if pts.size() < 4:
+		return []
+	var box := AABB(pts[0], Vector3.ZERO)
+	for p in pts:
+		box = box.expand(p)
+	if box.size.x <= 0.01 or box.size.y <= 0.01 or box.size.z <= 0.01:
+		return []
+	var kept: Array = []
+	for pl in piece:                                             # planes that only graze a corner or an edge add
+		var plane: Plane = pl                                    # nothing but cost: drop them
+		var touching := 0
+		for p in pts:
+			if absf(plane.distance_to(p)) < EPS * 10.0:
+				touching += 1
+		if touching >= 3:
+			kept.append(plane)
+	for plane in kept:                                           # a sliver (thinner than 2 cm somewhere across): drop it
+		var deepest := 0.0
+		for p in pts:
+			deepest = maxf(deepest, -plane.distance_to(p))
+		if deepest < 0.02:
+			return []
+	return [kept, box]
+
+
+static func _carve_boxed(e: Array, cutter: Array, cbox: AABB) -> Array:
+	if not (e[1] as AABB).grow(-0.001).intersects(cbox):
+		return [e]
+	var out: Array = []
+	var rest: Array = (e[0] as Array).duplicate()
 	for pl in cutter:
 		var plane: Plane = pl
 		var outside: Array = rest.duplicate()
 		outside.append(Plane(-plane.normal, -plane.d))           # the part in front of this cutter face
-		if solid(outside):
-			out.append(outside)
+		var o := _boxed(outside)
+		if not o.is_empty():
+			out.append(o)
 		rest.append(plane)                                       # carry on with the part behind it
 		if not solid(rest):
 			return out                                           # the cutter only clipped an edge: done
 	return out                                                   # what's left in `rest` is inside the cutter
-
-
-## Carve every piece by every cutter.
-static func carve_all(pieces: Array, cutters: Array) -> Array:
-	var result := pieces
-	for c in cutters:
-		var next: Array = []
-		for p in result:
-			next.append_array(carve(p, c))
-		result = next
-	return result

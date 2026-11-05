@@ -213,40 +213,92 @@ static func mesh_faces(pieces: Array, xf: Transform3D, s: Dictionary) -> Array:
 	var inv := xf.affine_inverse()
 	if s.get("water", false):
 		return _water_mesh(pieces, inv, s)
-	var groups := {}                                     # material key -> [SurfaceTool, Material]
+	# a carved block (engraved text) can have 15 000 faces: build plain arrays rather than vertex by vertex
+	var groups := {}                                     # material key -> [verts, normals, tangents, uvs, Material]
+	var settings := {}                                   # side -> its settings (the same for every face on it)
 	for piece in pieces:
 		for f in Convex.faces(piece):
 			var n: Vector3 = (f[0] as Plane).normal
 			var local_n: Vector3 = (inv.basis * n).normalized()
-			var fs := face_settings(s, slot_of(local_n))
-			var key: String = fs["material"] if fs["material"] != "" and MaterialLibrary.has(fs["material"]) else "look"
+			var slot := slot_of(local_n)
+			if not settings.has(slot):
+				var fs0 := face_settings(s, slot)
+				var key0: String = fs0["material"] if fs0["material"] != "" and MaterialLibrary.has(fs0["material"]) else "look"
+				if key0 == "look":
+					fs0["material"] = ""
+				settings[slot] = [fs0, key0]
+			var fs: Dictionary = settings[slot][0]
+			var key: String = settings[slot][1]
 			if not groups.has(key):
-				var st := SurfaceTool.new()
-				st.begin(Mesh.PRIMITIVE_TRIANGLES)
-				var mat: Material = Look.ramp_material(s["look"], Color.html(s["color"])) if key == "look" \
-					else MaterialLibrary.material(key, Color.html(s["color"]))
+				var mat: Material = Look.ramp_material(s["look"], Color.html(s["color"])) if key == "look" 					else MaterialLibrary.material(key, Color.html(s["color"]))
 				if float(s.get("glow", 0.0)) > 0.0 and mat is StandardMaterial3D:
 					mat = _glowing(mat, float(s["glow"]))
-				groups[key] = [st, mat]
-			var st2: SurfaceTool = groups[key][0]
-			if key == "look":
-				fs["material"] = ""
+				groups[key] = [PackedVector3Array(), PackedVector3Array(), PackedFloat32Array(), PackedVector2Array(), mat]
+			var g: Array = groups[key]
+			var verts: PackedVector3Array = g[0]
+			var normals: PackedVector3Array = g[1]
+			var tangents: PackedFloat32Array = g[2]
+			var uvs: PackedVector2Array = g[3]
+			g[0] = null                                  # drop the group's references so appends don't copy
+			g[1] = null
+			g[2] = null
+			g[3] = null
 			var poly: Array = f[1]
+			var tangent := _face_tangent(poly, n, fs, inv, local_n)
+			var luv: Array = []
+			var lpos: Array = []
+			for v in poly:
+				luv.append(face_uv(v, n, fs))
+				lpos.append(inv * (v as Vector3))
 			for i in range(1, poly.size() - 1):
-				for v in [poly[0], poly[i + 1], poly[i]]:       # Godot winds front faces clockwise
-					st2.set_normal(local_n)
-					st2.set_uv(face_uv(v, n, fs))
-					st2.add_vertex(inv * (v as Vector3))
+				for j in [0, i + 1, i]:                          # Godot winds front faces clockwise
+					verts.append(lpos[j])
+					normals.append(local_n)
+					tangents.append_array([tangent.normal.x, tangent.normal.y, tangent.normal.z, tangent.d])
+					uvs.append(luv[j])
+			g[0] = verts
+			g[1] = normals
+			g[2] = tangents
+			g[3] = uvs
 	var m := ArrayMesh.new()
 	var mats := []
 	for key in groups:
-		var st3: SurfaceTool = groups[key][0]
-		st3.generate_tangents()
-		st3.commit(m)
-		mats.append(groups[key][1])
+		var g: Array = groups[key]
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = g[0]
+		arrays[Mesh.ARRAY_NORMAL] = g[1]
+		arrays[Mesh.ARRAY_TANGENT] = g[2]
+		arrays[Mesh.ARRAY_TEX_UV] = g[3]
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mats.append(g[4])
 	for i in mats.size():
 		m.surface_set_material(i, mats[i])
 	return [m, mats]
+
+
+## A flat face's tangent (the direction its texture's u runs, in block space), worked out from its UVs. Every face
+## is flat, so this is exact - and SurfaceTool.generate_tangents takes a minute on a carved block (engraved text).
+static func _face_tangent(poly: Array, n: Vector3, fs: Dictionary, inv: Transform3D, local_n: Vector3) -> Plane:
+	var p0: Vector3 = poly[0]
+	var p1: Vector3 = poly[1]
+	var p2: Vector3 = poly[poly.size() - 1]
+	var uv0 := face_uv(p0, n, fs)
+	var e1 := p1 - p0
+	var e2 := p2 - p0
+	var d1 := face_uv(p1, n, fs) - uv0
+	var d2 := face_uv(p2, n, fs) - uv0
+	var det := d1.x * d2.y - d2.x * d1.y
+	if absf(det) < 1e-9:
+		var any := local_n.cross(Vector3.UP if absf(local_n.y) < 0.9 else Vector3.RIGHT).normalized()
+		return Plane(any, 1.0)
+	var t := (e1 * d2.y - e2 * d1.y) / det
+	var b := (e2 * d1.x - e1 * d2.x) / det
+	t = inv.basis * t
+	b = inv.basis * b
+	t = (t - local_n * local_n.dot(t)).normalized()
+	var w := -1.0 if local_n.cross(t).dot(b) < 0.0 else 1.0
+	return Plane(t, w)
 
 
 static func _glowing(mat: StandardMaterial3D, glow: float) -> StandardMaterial3D:

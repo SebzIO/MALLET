@@ -3,6 +3,13 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.5.1 preview — 2026-11-05: engraving speed fix
+
+- Engraving text into a block froze the editor for 30 s or more. It now takes about half a second: corner points
+  are no longer repeated dozens of times (a carved block was 3 million vertices, now ~65 000), texture tangents are
+  worked out per face instead of by a slow general routine, and cuts skip pieces they can't reach.
+- Carved blocks drop paper-thin sliver pieces (under 2 cm), which the physics engine couldn't use anyway.
+
 ## 0.5.0 preview — 2026-11-05: lights, water, prefabs
 
 - Lights (Add > Light, U; Add > Spot light): colour, brightness, reach, shadows; spot lights get a cone width, facing
