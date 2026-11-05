@@ -46,6 +46,7 @@ var _prop_replace := false
 var selected: Node3D = null          ## a RampNode or an EntityNode
 var selected_point := -1
 var _extra: Array = []                  ## other selected objects (Ctrl+click, box select, groups); `selected` leads
+var _text_surface := {}                ## while dragging text that sits on a block face: that face (see _text_face)
 var _drag_origins := {}                 ## every dragged object's state before the drag
 var _marquee_pane: ViewPane = null      ## box selection in a 2D view
 var _marquee_a := Vector2.ZERO
@@ -328,6 +329,7 @@ func _build_props(props: VBoxContainer) -> void:
 	head.add_theme_font_size_override("font_size", 20)
 	props.add_child(head)
 	_fields["head"] = head
+	_build_position_box(props)
 
 	_ramp_props = VBoxContainer.new()
 	_ramp_props.add_theme_constant_override("separation", 6)
@@ -833,9 +835,14 @@ func _refresh_info() -> void:
 			ln.label(), float(ln.data["range"]), "light_spot" if ln.data["kind"] == "spot" else "light"]
 	elif selected is TextNode:
 		var tn := selected as TextNode
-		var n_pieces := TextShape.convex_polygons(TextShape.spec(tn.data)).size()
-		_info.text = "%s\n\"%s\"  -  %s, letters %.1f m tall\nConvex pieces: %d (each one is a brush in a CS:S export)\n\n%s" % [
-			TextShape.MODE_LABELS[tn.data["mode"]], tn.data["text"], tn.data["font"].get_file(), float(tn.data["height"]), n_pieces,
+		var pieces_txt := "working it out…"
+		if tn.pieces_pending():
+			if not tn.pieces_ready.is_connected(_refresh_info):
+				tn.pieces_ready.connect(_refresh_info, CONNECT_ONE_SHOT)
+		else:
+			pieces_txt = str(TextShape.convex_polygons(TextShape.spec(tn.data)).size())
+		_info.text = "%s\n\"%s\"  -  %s, letters %.1f m tall\nConvex pieces: %s (each one is a brush in a CS:S export)\n\n%s" % [
+			TextShape.MODE_LABELS[tn.data["mode"]], String(tn.data["text"]).replace("\n", " / "), tn.data["font"].get_file(), float(tn.data["height"]), pieces_txt,
 			{"flat": "A sign: players pass through it. Place it on a wall with 'Place on a surface'.",
 			 "3d": "Solid letters - stand on them, surf around them. On a surface they look embossed."}[tn.data["mode"]]]
 	elif selected is BlockNode:
@@ -1701,6 +1708,86 @@ func _draw_end() -> void:
 	_set_status("Block drawn. Keep drawing, or Esc / D to stop.")
 
 
+# ------------------------------------------------------------------------------------------------ position fields
+## Position of the selection as three numbers you can drag without limit (or click to type). For text lying on a
+## block face: Across and Up on that face, measured from its centre (type 0 to centre it).
+var _pos_box: GridContainer
+var _pos_fields: Array = []
+var _pos_labels: Array = []
+var _pos_state := {}                                ## what the fields show: {obj, center, face}
+
+
+func _build_position_box(props: VBoxContainer) -> void:
+	_pos_box = GridContainer.new()
+	_pos_box.columns = 2
+	_pos_box.add_theme_constant_override("h_separation", 8)
+	props.add_child(_pos_box)
+	for i in 3:
+		var l := Label.new()
+		l.custom_minimum_size = Vector2(56, 0)
+		_pos_box.add_child(l)
+		_pos_labels.append(l)
+		var dn := DragNumber.new()
+		dn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		dn.drag_started.connect(func(): _checkpoint())
+		dn.changed_by.connect(func(a): _move_selection_along(i, a))
+		dn.typed.connect(func(v): _checkpoint(); _move_selection_along(i, v - _pos_value(i)))
+		_pos_box.add_child(dn)
+		_pos_fields.append(dn)
+	_pos_box.visible = false
+
+
+## The direction field i moves along: world X / Y / Z, or the face's across / up / out for text on a face.
+func _pos_axis(i: int) -> Vector3:
+	var face: Dictionary = _pos_state.get("face", {})
+	if not face.is_empty():
+		return [face["ax"], face["ay"], face["normal"]][i]
+	return [Vector3.RIGHT, Vector3.UP, Vector3.BACK][i]
+
+
+func _pos_value(i: int) -> float:
+	var c: Vector3 = _pos_state.get("center", Vector3.ZERO)
+	var face: Dictionary = _pos_state.get("face", {})
+	if not face.is_empty():
+		return (c - (face["centre"] as Vector3)).dot(_pos_axis(i))
+	return c[i]
+
+
+func _move_selection_along(i: int, amount: float) -> void:
+	if selected == null or amount == 0.0:
+		return
+	var d := _pos_axis(i) * amount
+	var any_block := false
+	for o in selection():
+		o.translate_by(d)
+		any_block = any_block or o is BlockNode
+	if any_block:
+		_mark_blocks()
+	_map_changed()
+	_pos_state["center"] = selected.center()
+	_refresh_info()
+
+
+func _refresh_position() -> void:
+	var obj = selected if selected != null and selected.has_method("center") and selected.has_method("translate_by") else null
+	_pos_box.visible = obj != null and _gen_ramp == null
+	if obj == null:
+		_pos_state = {}
+		return
+	var c: Vector3 = obj.center()
+	if _pos_state.get("obj") != obj or not (_pos_state.get("center", Vector3.INF) as Vector3).is_equal_approx(c):
+		var face := {}
+		if obj is TextNode and selection().size() == 1:
+			face = _text_face(obj)
+		_pos_state = {"obj": obj, "center": c, "face": face}
+		var names := ["Across", "Up", "Out"] if not face.is_empty() else ["X", "Y", "Z"]
+		for i in 3:
+			_pos_labels[i].text = names[i]
+			_pos_labels[i].visible = i < 2 or face.is_empty()
+			_pos_fields[i].visible = i < 2 or face.is_empty()
+			_pos_fields[i].show_value(_pos_value(i))
+
+
 # ------------------------------------------------------------------------------------------------ lights, water, prefabs
 func _build_light_props(props: VBoxContainer) -> void:
 	_light_props = VBoxContainer.new()
@@ -1899,7 +1986,7 @@ func _build_text_props(props: VBoxContainer) -> void:
 	align.item_selected.connect(func(i): _edit_prop("text_align", ["left", "center", "right"][i]))
 	_add_row(_text_props, "Align", align)
 	_fields["text_align"] = align
-	_add_slider(_text_props, "text_height", "Letter height (m)", 0.25, 100.0, 0.25)
+	_add_slider(_text_props, "text_height", "Text size (letter height, m)", 0.25, 100.0, 0.25)
 	_add_slider(_text_props, "text_depth", "Depth (m)", 0.05, 20.0, 0.05)
 	_add_slider(_text_props, "text_yaw", "Facing (\u00b0)", -180.0, 180.0, 5.0)
 	_add_slider(_text_props, "text_pitch", "Tilt forward / back (\u00b0)", -90.0, 90.0, 1.0)
@@ -1988,9 +2075,9 @@ func _place_text_on_surface(pane: ViewPane, mouse: Vector2) -> void:
 		(" (snapped to the %s)" % centred) if centred != "" else ""))
 
 
-## If the text lies flat on a block's face, snap it onto that face's centre lines when it's close to them (each
-## direction on its own, like design apps). Returns what it snapped to ("centre", "middle line", ...) or "".
-func _centre_text_on_face(t: TextNode) -> String:
+## The block face a text lies flat on: {block, poly, normal, centre, ax, ay, size_x, size_y} (ax / ay: the text's
+## own across / up directions; sizes: the face's extent along them), or {} if it isn't on one.
+func _text_face(t: TextNode) -> Dictionary:
 	var xf := t.global_transform
 	var out_dir := xf.basis.z.normalized()                # text faces out along its +Z
 	var box := t.local_box
@@ -2000,46 +2087,76 @@ func _centre_text_on_face(t: TextNode) -> String:
 	q.exclude = [t._body.get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty() or not hit["collider"].has_meta("block"):
-		return ""
+		return {}
 	var b: BlockNode = hit["collider"].get_meta("block")
-	# the face under the text: same direction, and the hit point inside it
 	var poly: Array = []
 	for piece in b.pieces:
 		for f in Convex.faces(piece):
 			var pl: Plane = f[0]
-			if pl.normal.dot(out_dir) > 0.999 and absf(pl.distance_to(hit["position"])) < 0.05:
-				if _poly_has(f[1], hit["position"], pl.normal):
-					poly = f[1]
+			if pl.normal.dot(out_dir) > 0.999 and absf(pl.distance_to(hit["position"])) < 0.05 					and _poly_has(f[1], hit["position"], pl.normal):
+				poly = f[1]
 		if not poly.is_empty():
 			break
 	if poly.is_empty():
-		return ""
+		return {}
 	var fc := Vector3.ZERO
 	for v in poly:
 		fc += v
 	fc /= poly.size()
 	var ax := xf.basis.x.normalized()
 	var ay := xf.basis.y.normalized()
-	var size_x := 0.0
-	var size_y := 0.0
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
 	for v in poly:
-		size_x = maxf(size_x, absf((v - fc).dot(ax)) * 2.0)
-		size_y = maxf(size_y, absf((v - fc).dot(ay)) * 2.0)
+		var p2 := Vector2((v - fc).dot(ax), (v - fc).dot(ay))
+		lo = lo.min(p2)
+		hi = hi.max(p2)
+	fc += ax * (lo.x + hi.x) * 0.5 + ay * (lo.y + hi.y) * 0.5     # the middle of the face's extent
+	return {"block": b, "poly": poly, "normal": out_dir, "centre": fc, "ax": ax, "ay": ay,
+		"size_x": hi.x - lo.x, "size_y": hi.y - lo.y}
+
+
+## While dragging text on a face: no drifting off it (out of its plane, or past its edges).
+func _keep_on_face(t: TextNode, face: Dictionary, origin: Dictionary) -> void:
+	var n: Vector3 = face["normal"]
+	var p0 := Vector3(origin["position"][0], origin["position"][1], origin["position"][2])
+	var p := Vector3(t.data["position"][0], t.data["position"][1], t.data["position"][2])
+	var fix := -n * (p - p0).dot(n)                       # back onto the face's plane
+	var box := t.local_box
+	var mid := t.global_transform * Vector3(box.get_center().x, box.get_center().y, 0.0) + fix
+	var off := mid - (face["centre"] as Vector3)
+	for k in [["ax", "size_x", box.size.x], ["ay", "size_y", box.size.y]]:
+		var a: Vector3 = face[k[0]]
+		var lim: float = maxf(face[k[1]] * 0.5 - float(k[2]) * 0.5, 0.0)   # the whole text stays on the face
+		var d := off.dot(a)
+		if absf(d) > lim:
+			fix -= a * (d - signf(d) * lim)
+	if fix.length() > 1e-6:
+		t.translate_by(fix)
+
+
+## If the text lies flat on a block's face, snap it onto that face's centre lines when it's close to them (each
+## direction on its own, like design apps). Returns what it snapped to ("centre", "middle line", ...) or "".
+func _centre_text_on_face(t: TextNode) -> String:
+	var face := _text_face(t)
+	if face.is_empty():
+		return ""
+	var box := t.local_box
+	var mid := t.global_transform * Vector3(box.get_center().x, box.get_center().y, 0.0)
+	var fc: Vector3 = face["centre"]
+	var ax: Vector3 = face["ax"]
+	var ay: Vector3 = face["ay"]
 	var dx := (fc - mid).dot(ax)
 	var dy := (fc - mid).dot(ay)
 	var fix := Vector3.ZERO
 	var got := []
-	if absf(dx) > 1e-4 and absf(dx) < maxf(0.75, size_x * 0.06):
+	if absf(dx) < maxf(0.75, float(face["size_x"]) * 0.06):
 		fix += ax * dx
 		got.append("x")
-	elif absf(dx) <= 1e-4:
-		got.append("x")
-	if absf(dy) > 1e-4 and absf(dy) < maxf(0.75, size_y * 0.06):
+	if absf(dy) < maxf(0.75, float(face["size_y"]) * 0.06):
 		fix += ay * dy
 		got.append("y")
-	elif absf(dy) <= 1e-4:
-		got.append("y")
-	if fix != Vector3.ZERO:
+	if fix.length() > 1e-6:
 		t.translate_by(fix)
 	if got.size() == 2:
 		return "centre"
@@ -2472,6 +2589,7 @@ func _process(delta: float) -> void:
 	_poll_css()
 	if _blocks_dirty:
 		_rebuild_blocks()
+	_refresh_position()
 	if play.active:
 		return
 	_arcs_timer -= delta
@@ -2584,7 +2702,9 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 		var f := _pick_face(pane, event.position)
 		if f >= 0:
 			_face = f
-			_begin_drag(pane, Drag.FACE, event.position, false)
+			# top and bottom handles move up and down: drag them on an upright plane (a level one can't go up)
+			var up_down := absf(((selected as BlockNode).face_handles()[f][1] as Vector3).y) > 0.7
+			_begin_drag(pane, Drag.FACE, event.position, up_down)
 			return true
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
@@ -2641,7 +2761,7 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 		_marquee_b = event.position
 		return true
 	elif event is InputEventMouseMotion and _drag != Drag.NONE and pane == _drag_pane:
-		_drag_to(event.position, event.shift_pressed)
+		_drag_to(event.position, _drag_vertical if _drag == Drag.FACE else event.shift_pressed)
 		return true
 	return false
 
@@ -2788,6 +2908,13 @@ func _set_drag_plane(mouse: Vector2, vertical: bool) -> void:
 	_drag_vertical = vertical
 	var anchor := _drag_anchor()
 	_drag_plane = _drag_pane.drag_plane(anchor, vertical)
+	# text on a block face stays on it: in the 3D view the mouse is followed across the face itself
+	_text_surface = _text_face(selected) if _drag == Drag.OBJECT and selected is TextNode and selection().size() == 1 else {}
+	if not _text_surface.is_empty() and not _drag_pane.is_ortho():
+		var n: Vector3 = _text_surface["normal"]
+		var look := -_drag_pane.camera.global_basis.z
+		if absf(look.dot(n)) > 0.15:                     # (seen edge-on, the view's own plane works better)
+			_drag_plane = Plane(n, anchor)
 	var r := _drag_pane.ray(mouse)
 	var hit = _drag_plane.intersects_ray(r[0], r[1])
 	_drag_start_hit = hit if hit != null else anchor
@@ -2807,6 +2934,10 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 	if hit == null:
 		return
 	var delta: Vector3 = (hit - _drag_start_hit) * _drag_pane.drag_axes(_drag_vertical)
+	if not _text_surface.is_empty():
+		delta = hit - _drag_start_hit
+		if _drag_pane.is_ortho():
+			delta *= _drag_pane.drag_axes(false)
 	if not _drag_moved:
 		if delta.length() < 0.01:
 			return
@@ -2833,7 +2964,7 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 		selected.rebuild()
 		_set_status("Point %d: (%.0f, %.0f, %.0f)" % [selected_point, pts[selected_point].x, pts[selected_point].y, pts[selected_point].z])
 	else:
-		delta = _snap_axes(delta, _drag_pane.drag_axes(_drag_vertical))
+		delta = _snap_axes(delta, Vector3.ONE if not _text_surface.is_empty() else _drag_pane.drag_axes(_drag_vertical))
 		var any_block := false
 		for o in selection():
 			if o != selected:
@@ -2843,6 +2974,8 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 		if any_block:
 			_mark_blocks()
 		var c: Vector3 = selected.center()
+		if not _text_surface.is_empty():
+			_keep_on_face(selected, _text_surface, _drag_origin)
 		var centred := _centre_text_on_face(selected) if selected is TextNode and selection().size() == 1 else ""
 		if centred != "":
 			_set_status("Snapped to the %s of the face (drag further to let go)" % centred)

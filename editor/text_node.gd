@@ -9,6 +9,8 @@ var _mesh := MeshInstance3D.new()
 var _body := StaticBody3D.new()
 var local_box := AABB()
 
+signal pieces_ready
+
 
 func _ready() -> void:
 	add_child(_mesh)
@@ -29,22 +31,74 @@ func rebuild() -> void:
 	local_box = _mesh.mesh.get_aabb()
 	_mesh.material_override = TextShape.material(s)
 	_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if s["mode"] == "3d" else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_build_collision(s)
+
+
+## Collision from the letters' convex pieces (solid 3D letters stand on them; otherwise they're for clicking). Splitting
+## letters into convex pieces takes a moment for long text, so it happens on a worker thread: until it's done, a
+## box around the text stands in.
+func _build_collision(s: Dictionary) -> void:
 	for c in _body.get_children():
 		_body.remove_child(c)
 		c.queue_free()
-	# collision: the letters' convex pieces (solid 3D letters); otherwise just for clicking in the editor
-	var inv := xf.affine_inverse()
-	var pcs := TextShape.pieces(s, 0.0, maxf(TextShape.depth_of(s), 0.05))
-	for p in pcs:
-		var shape := ConvexPolygonShape3D.new()
-		var pts := PackedVector3Array()
-		for v in Convex.points(p):
-			pts.append(inv * v)
-		shape.points = pts
-		var cs := CollisionShape3D.new()
-		cs.shape = shape
-		_body.add_child(cs)
+	var unit = TextShape.cached_unit_polygons(s)
+	if unit == null:
+		var box := BoxShape3D.new()
+		box.size = local_box.size.max(Vector3.ONE * 0.05)
+		var cs0 := CollisionShape3D.new()
+		cs0.shape = box
+		cs0.position = local_box.get_center()
+		_body.add_child(cs0)
+		_request_pieces(s)
+	else:
+		var h := float(s["height"])
+		var d := maxf(TextShape.depth_of(s), 0.05)
+		for poly in unit:
+			var pts := PackedVector3Array()
+			for p in poly:
+				pts.append(Vector3(p.x * h, p.y * h, 0.0))
+				pts.append(Vector3(p.x * h, p.y * h, d))
+			var shape := ConvexPolygonShape3D.new()
+			shape.points = pts
+			var cs := CollisionShape3D.new()
+			cs.shape = shape
+			_body.add_child(cs)
 	_body.collision_layer = 1 if s["mode"] == "3d" and bool(s["solid"]) else PICK_ONLY_LAYER
+
+
+## True while the letters' convex pieces are still being worked out.
+func pieces_pending() -> bool:
+	return TextShape.cached_unit_polygons(TextShape.spec(data)) == null
+
+
+var _working := false
+var _wanted := {}
+
+
+func _request_pieces(s: Dictionary) -> void:
+	_wanted = s.duplicate(true)
+	if _working:
+		return                                           # the one running now will start the latest when it's done
+	_working = true
+	var sd: Dictionary = _wanted
+	var me: WeakRef = weakref(self)
+	WorkerThreadPool.add_task(func():
+		var polys := TextShape.unit_polygons(sd)
+		TextNode._pieces_done.call_deferred(me, sd, polys))
+
+
+static func _pieces_done(me: WeakRef, sd: Dictionary, polys: Array) -> void:
+	TextShape.store_unit_polygons(sd, polys)
+	var node: TextNode = me.get_ref()
+	if node == null:
+		return
+	node._working = false
+	var now := TextShape.spec(node.data)
+	if TextShape.cached_unit_polygons(now) == null:
+		node._request_pieces(now)                        # typed on while that ran: do the latest
+	elif node.is_inside_tree():
+		node._build_collision(now)
+		node.pieces_ready.emit()
 
 
 func set_selected(_on: bool) -> void:

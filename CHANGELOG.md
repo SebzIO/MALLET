@@ -3,6 +3,19 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.5.4 preview — 2026-11-05: handling fixes
+
+- Text updates instantly while typing and while changing its size (was 0.3 - 0.5 s a keystroke): letter shapes
+  are split into convex pieces about 10x faster, cached independent of size, and worked out on a worker thread
+  (a box stands in for clicking until they're ready).
+- Text on a block face stays on it while dragged - in the 3D view and the 2D views - and can't be dragged past the
+  face's edges; it still snaps to the face's centre lines.
+- Block top and bottom handles work in the 3D view (they were dragged on a level plane, so they couldn't move).
+- Position fields in the panel for whatever is selected: drag a number left / right to move it as far as you like
+  (Shift: fine, Ctrl: fast), or click to type. For text on a face they're Across / Up from the face's centre, so
+  typing 0 centres it.
+- "Letter height" is now "Text size (letter height, m)".
+
 ## 0.5.3 preview — 2026-11-05: multi-line text, centring; engraving removed
 
 - Multi-line text: the text box takes Enter for a new line; left / centre / right alignment applies per line.

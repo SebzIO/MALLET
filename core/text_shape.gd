@@ -74,11 +74,41 @@ static func text_mesh(s: Dictionary, depth: float) -> TextMesh:
 	return tm
 
 
-## The letters as convex 2D polygons (metres, in the text's plane). Cached.
+## The letters as convex 2D polygons (metres, in the text's plane). Worked out once per text / font / alignment at
+## 1 m letters and scaled, so changing the letter height costs nothing.
 static func convex_polygons(s: Dictionary) -> Array:
-	var key := "%s|%s|%s|%s" % [s["text"], s["font"], s["height"], s["align"]]
-	if _polys.has(key):
-		return _polys[key]
+	var unit = cached_unit_polygons(s)
+	if unit == null:
+		unit = unit_polygons(s)
+		_polys[_poly_key(s)] = unit
+	var h := float(s["height"])
+	var out: Array = []
+	for poly in unit:
+		var scaled: Array = []
+		for p in poly:
+			scaled.append(p * h)
+		out.append(scaled)
+	return out
+
+
+static func _poly_key(s: Dictionary) -> String:
+	return "%s|%s|%s" % [s["text"], s["font"], s["align"]]
+
+
+## The cached 1 m polygons, or null if they haven't been worked out yet.
+static func cached_unit_polygons(s: Dictionary):
+	return _polys.get(_poly_key(s))
+
+
+## Remember polygons worked out elsewhere (on a worker thread).
+static func store_unit_polygons(s: Dictionary, polys: Array) -> void:
+	_polys[_poly_key(s)] = polys
+
+
+## The convex polygons for 1 m letters. Doesn't touch the cache, so it can run on a worker thread.
+static func unit_polygons(s0: Dictionary) -> Array:
+	var s := s0.duplicate()
+	s["height"] = 1.0
 	var arr := text_mesh(s, 1.0).get_mesh_arrays()
 	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
@@ -95,37 +125,40 @@ static func convex_polygons(s: Dictionary) -> Array:
 		if (tri[1] - tri[0]).cross(tri[2] - tri[0]) < 0.0:
 			tri = [tri[0], tri[2], tri[1]]               # counter-clockwise
 		tris.append(tri)
-	var polys := _merge_convex(tris)
-	_polys[key] = polys
-	return polys
+	return _merge_convex(tris)
 
 
 ## Hertel-Mehlhorn: merge neighbouring polygons across shared edges as long as the result stays convex.
 static func _merge_convex(tris: Array) -> Array:
 	var polys: Array = tris.duplicate(true)
 	var changed := true
-	while changed:
+	while changed:                                       # a few passes; each merges as much as it can
 		changed = false
 		var edges := {}                                  # rounded edge -> [polygon index, edge index]
 		for pi in polys.size():
 			var p: Array = polys[pi]
 			if p.is_empty():
 				continue
+			var merged_here := false
 			for ei in p.size():
 				var a: Vector2 = p[ei]
 				var b: Vector2 = p[(ei + 1) % p.size()]
 				var k := _edge_key(b, a)                 # the neighbour runs the same edge the other way
 				if edges.has(k):
 					var other: Array = edges[k]
-					var merged := _join(polys[other[0]], other[1], p, ei)
-					if not merged.is_empty() and _convex(merged):
-						polys[other[0]] = merged
-						polys[pi] = []
-						changed = true
-						break
-				edges[_edge_key(a, b)] = [pi, ei]
-			if changed:
-				break                                    # the edge table is stale now: start a fresh pass
+					var q: Array = polys[other[0]]
+					# the entry may be stale (that polygon grew this pass): check the edge is still there
+					if q.size() > other[1] and _edge_key(q[other[1]], q[(other[1] + 1) % q.size()]) == k:
+						var merged := _join(q, other[1], p, ei)
+						if not merged.is_empty() and _convex(merged):
+							polys[other[0]] = merged
+							polys[pi] = []
+							changed = true
+							merged_here = true
+							break
+			if not merged_here:
+				for ei in p.size():
+					edges[_edge_key(p[ei], p[(ei + 1) % p.size()])] = [pi, ei]
 	return polys.filter(func(p): return not p.is_empty())
 
 
