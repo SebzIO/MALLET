@@ -210,5 +210,34 @@ func _run() -> void:
 			and not pane.is_grabbing() and root.get_mouse_position().distance_to(start) < 2.0
 			and (pane != persp or not (persp.camera as OrbitCamera).flying()), "(at %s)" % root.get_mouse_position())
 
+	# ---- 0.9.2: real key presses while flying (they used to reach the menus' shortcuts, which skipped the check)
+	ed._load_dict({})
+	if ed._draw_mode:
+		ed._toggle_draw_mode()
+	(persp.camera as OrbitCamera)._orbiting = true
+	for k in [KEY_D, KEY_E, KEY_N, KEY_B, KEY_O]:
+		var ke := InputEventKey.new()
+		ke.keycode = k
+		ke.physical_keycode = k
+		ke.pressed = true
+		Input.parse_input_event(ke)
+		Input.flush_buffered_events()
+		var ku := ke.duplicate()
+		ku.pressed = false
+		Input.parse_input_event(ku)
+		Input.flush_buffered_events()
+	await frames(1)
+	(persp.camera as OrbitCamera)._orbiting = false
+	check("flying: real D / E / N / B / O presses do nothing but fly", not ed._draw_mode and not ed.build.active
+		and ed._all_objects().is_empty(), "(draw %s, build %s, %d objects)" % [ed._draw_mode, ed.build.active, ed._all_objects().size()])
+	var kn := InputEventKey.new()
+	kn.keycode = KEY_N
+	kn.physical_keycode = KEY_N
+	kn.pressed = true
+	Input.parse_input_event(kn)
+	Input.flush_buffered_events()
+	await frames(1)
+	check("not flying: a real N press still adds a ramp (once)", ed.ramps_root.get_child_count() == 1, "(%d ramps)" % ed.ramps_root.get_child_count())
+
 	print("FIXES 0.9: ", "PASS" if ok else "FAIL")
 	quit()

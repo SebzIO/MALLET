@@ -3,6 +3,11 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.9.2 preview — 2026-11-06: no shortcuts while flying, for real
+
+- Flying with right mouse + WASD no longer sets off D (Draw blocks), N, B, O or any other menu key: the menus ran
+  their own copies of the shortcuts before the editor could tell you were flying. The menus now only show the keys.
+
 ## 0.9.1 preview — 2026-11-06: the mouse stays put while you look around
 
 - Right-drag (orbit / fly with WASD) and middle-drag (pan) in any view hold on to the mouse: the cursor is hidden

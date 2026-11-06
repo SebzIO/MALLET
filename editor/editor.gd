@@ -1543,6 +1543,7 @@ func _menu(bar: Container, title: String, items: Array) -> MenuButton:
 	mb.text = title
 	mb.flat = false
 	mb.focus_mode = Control.FOCUS_NONE
+	mb.set_disable_shortcuts(true)                       # (else the menus run their keys first, even while flying)
 	var pm := mb.get_popup()
 	var actions := {}
 	for it in items:
