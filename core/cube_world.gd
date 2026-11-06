@@ -752,18 +752,46 @@ func push_face(sel: Dictionary, dir: int, only_corner := -1) -> Dictionary:
 	return _push_corners(sel, dir, func(_cell: Vector3i, n: int) -> bool: return only_corner < 0 or n == quad[only_corner])
 
 
-## Wheel with corners selected (middle mouse drag): push just the selected corners. `rect` = [a0, a1, b0, b1] ticks
-## along the face's two axes (inclusive): every face corner inside it moves.
+## Wheel with corners selected (middle mouse drag): reshape just the selected corners of the cubes already in the
+## selection - it only ever shapes, never adds: no new cubes, nothing grows past a cube's own side, empty spots
+## stay empty. `rect` = [a0, a1, b0, b1] ticks along the face's two axes (inclusive). In each column of the box the
+## outermost cube there (on the face's side) is the one shaped, so cubes at different heights are both reached.
 func push_corner_rect(sel: Dictionary, rect: Array, dir: int) -> Dictionary:
 	var o: int = sel["orient"]
 	var d := o >> 1
 	var a := (d + 1) % 3
 	var b := (d + 2) % 3
-	var g := size_of(sel["p"])
-	return _push_corners(sel, dir, func(cell: Vector3i, n: int) -> bool:
-		var pa: int = cell[a] + (g if (n >> a) & 1 else 0)
-		var pb: int = cell[b] + (g if (n >> b) & 1 else 0)
-		return pa >= rect[0] and pa <= rect[1] and pb >= rect[2] and pb <= rect[3])
+	var p: int = sel["p"]
+	var g := size_of(p)
+	var s: Vector3i = sel["s"]
+	for i in s[a]:
+		for j in s[b]:
+			for depth in s[d]:
+				var c := Vector3i.ZERO
+				c[a] = i
+				c[b] = j
+				c[d] = (s[d] - 1 - depth) if o & 1 else depth   # from the face's side inwards
+				var cell: Vector3i = (sel["o"] as Vector3i) + c * g
+				var st := cell_state(cell, p)
+				if st.is_empty():
+					continue
+				if not st[0] is Vector4i:
+					break                                    # made of smaller cubes: pick a smaller grid
+				var k: Vector4i = st[0]
+				var v: Array = leaves[k]
+				var nc: PackedByteArray = (v[0] as PackedByteArray).duplicate()
+				for n in face_corners(o):
+					var pa: int = cell[a] + (g if (n >> a) & 1 else 0)
+					var pb: int = cell[b] + (g if (n >> b) & 1 else 0)
+					if pa >= rect[0] and pa <= rect[1] and pb >= rect[2] and pb <= rect[3]:
+						_nudge(nc, o, n, dir)                # (pulling stops at the cube's own side)
+				if nc != v[0]:
+					if is_empty_shape(nc):
+						_put(k, null)
+					elif is_valid_shape(nc):
+						_put(k, _v(nc, v[1], _blend_of(v)))
+				break                                        # only the outermost cube of the column
+	return sel
 
 
 func _push_corners(sel: Dictionary, dir: int, pick: Callable) -> Dictionary:

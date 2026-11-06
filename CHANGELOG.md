@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.8.4 preview — 2026-11-05: corner selection only shapes
+
+- Middle drag + wheel (corner selection) now only shapes cubes that are already there: it never creates a cube,
+  never grows one past its own side, and leaves empty spots empty. The selection runs exactly from the cube you
+  started on to the cube you end on (it used to take in the neighbours around it), it only changes the selected
+  cubes, and dragging onto another cube - even one at a different height - still adds it. It can't start in empty
+  space.
+
 ## 0.8.3 preview — 2026-11-05: Outliner rename fix
 
 - Double-clicking a row renames that row (it could open the name box on another row - the list's keyboard cursor

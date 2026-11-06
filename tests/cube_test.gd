@@ -270,6 +270,48 @@ func _run() -> void:
 		CubeWorld.corner(c1, 2).y == 4 and CubeWorld.corner(c1, 3).y == 4 and CubeWorld.corner(c0, 2).y == 8 and CubeWorld.corner(c0, 3).y == 4
 		and CubeWorld.corner(c2, 2).y == 4 and CubeWorld.corner(c2, 3).y == 8)
 
+	# ---- corner selection only shapes: no new cubes, only the selected ones, back up to the side and no further
+	w.clear()
+	w.begin()
+	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3, Vector3i(3, 1, 1)))
+	w.commit()
+	var just_mid := CubeWorld.make_sel(Vector3i(8, 0, 0), p, 3)
+	w.begin()
+	for i in 4:
+		w.push_corner_rect(just_mid, [0, 8, 0, 24], 1)           # a rectangle wider than the one cube selected
+	w.commit()
+	var m1: PackedByteArray = w.leaves[Vector4i(8, 0, 0, 0)][0]
+	var n0: PackedByteArray = w.leaves[Vector4i(0, 0, 0, 0)][0]
+	var n2: PackedByteArray = w.leaves[Vector4i(16, 0, 0, 0)][0]
+	check("corner selection shapes only the selected cube (neighbours untouched)", CubeWorld.corner(m1, 2).y == 4 and CubeWorld.corner(m1, 3).y == 4
+		and n0 == CubeWorld.FULL and n2 == CubeWorld.FULL)
+	w.begin()
+	for i in 6:
+		w.push_corner_rect(just_mid, [0, 8, 0, 24], -1)          # pull: back up to the cube's top, then nothing
+	w.commit()
+	check("pulling corners back stops at the cube's own side, and adds nothing", w.leaves[Vector4i(8, 0, 0, 0)][0] == CubeWorld.FULL
+		and w.count() == 3)
+	var with_gap := CubeWorld.make_sel(Vector3i(16, 0, 0), p, 3, Vector3i(3, 1, 1))   # one cube, then two empty cells
+	w.begin()
+	for i in 5:
+		w.push_corner_rect(with_gap, [0, 8, 16, 40], -1)
+	w.commit()
+	check("corner pulls never create cubes (empty cells stay empty)", w.count() == 3 and not w.leaves.has(Vector4i(24, 0, 0, 0))
+		and not w.leaves.has(Vector4i(16, 8, 0, 0)))
+	# two cubes at different heights in one selection: each column's top cube is shaped
+	w.clear()
+	w.begin()
+	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3, Vector3i(2, 1, 1)))
+	w.pull(CubeWorld.make_sel(Vector3i(8, 0, 0), p, 3))       # a second layer on the right one
+	w.commit()
+	var tall := CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3, Vector3i(2, 2, 1))
+	w.begin()
+	for i in 2:
+		w.push_corner_rect(tall, [0, 8, 0, 16], 1)
+	w.commit()
+	check("cubes at different heights: each column's top cube is shaped", CubeWorld.corner(w.leaves[Vector4i(0, 0, 0, 0)][0], 2).y == 6
+		and CubeWorld.corner(w.leaves[Vector4i(8, 8, 0, 0)][0], 3).y == 6 and w.leaves[Vector4i(8, 0, 0, 0)][0] == CubeWorld.FULL)
+
 	# ---- heightmap: raise a hill in a flat 9 x 9 floor, then smooth it
 	w.clear()
 	w.begin()

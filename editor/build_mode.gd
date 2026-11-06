@@ -15,7 +15,7 @@ const HELP := [
 	["Mouse wheel", "pull cubes out / push them in"],
 	["F + wheel", "push / pull the face 1/8 at a time"],
 	["Q + wheel", "push / pull the corner you aim at"],
-	["Middle drag + wheel", "select corners, then push them"],
+	["Middle drag + wheel", "select corners of cubes, then shape them"],
 	["G + wheel", "grid size"], ["Ctrl (hold)", "aim at the cube itself (passthrough)"],
 	["Y + wheel  /  Y", "change texture  /  pick up the one you aim at"],
 	["O / P + wheel", "shift the texture across / up"],
@@ -261,10 +261,12 @@ func _mouse_button(e: InputEventMouseButton) -> void:
 			else:
 				_left_up()
 		MOUSE_BUTTON_MIDDLE:
-			if e.pressed and not target.is_empty():
+			if e.pressed and _on_cube(target):
 				_drag = "corners"
 				_drag_from = target.duplicate()
 				_update_corner_drag()
+			elif e.pressed:
+				say("Corner selection starts on a cube (it shapes cubes that are there)")
 			elif not e.pressed and _drag == "corners":
 				_drag = ""
 		MOUSE_BUTTON_RIGHT:
@@ -809,27 +811,21 @@ static func _corner_point(t: Dictionary) -> Vector2i:
 	return Vector2i(cell[a] + (g if (n >> a) & 1 else 0), cell[b] + (g if (n >> b) & 1 else 0))
 
 
+## Middle drag: the cubes from the one you started on to the one you're on now, and the corners between the corner
+## you started at and the one you're nearest. Only ever over cubes (it's for shaping what's there): aiming at empty
+## space, another object or another side doesn't change it.
 func _update_corner_drag() -> void:
-	if target.is_empty() or target["sel"].get("model") != _drag_from["sel"].get("model") or target["sel"]["orient"] != _drag_from["sel"]["orient"]:
+	if not _on_cube(target) or not _on_cube(_drag_from) or target["sel"].get("model") != _drag_from["sel"].get("model") 			or target["sel"]["orient"] != _drag_from["sel"]["orient"] or target["sel"]["p"] != _drag_from["sel"]["p"]:
 		return
 	var p0 := _corner_point(_drag_from)
 	var p1 := _corner_point(target)
 	corners = [mini(p0.x, p1.x), maxi(p0.x, p1.x), mini(p0.y, p1.y), maxi(p0.y, p1.y)]
-	# every cube sharing those corners: the cells around the corner rectangle, on the face's layer
-	var fs: Dictionary = _drag_from["sel"]
-	var o: int = fs["orient"]
-	var d := o >> 1
-	var a := (d + 1) % 3
-	var b := (d + 2) % 3
-	var g := CubeWorld.size_of(fs["p"])
-	var lo: Vector3i = fs["o"]
-	lo[a] = corners[0] - g
-	lo[b] = corners[2] - g
-	var size := Vector3i.ONE
-	size[a] = (corners[1] - corners[0]) / g + 2
-	size[b] = (corners[3] - corners[2]) / g + 2
-	sel = CubeWorld.make_sel(lo, fs["p"], o, size)
-	sel["model"] = fs.get("model")
+	sel = _bounds(_drag_from["sel"], target["sel"])
+	sel["orient"] = _drag_from["sel"]["orient"]
+
+
+static func _on_cube(t: Dictionary) -> bool:
+	return not t.is_empty() and t.get("on_cube", false)
 
 
 # ------------------------------------------------------------------------------------------------ moving cubes (editcut)
@@ -1372,7 +1368,7 @@ func update_target() -> void:
 	var ts := CubeWorld.make_sel(cell, p, orient)
 	ts["model"] = fm
 	var ent_first := ent != null and (hit.is_empty() or (ehit["position"] as Vector3).distance_to(from) <= from.distance_to(hit["position"]) + 0.05)
-	target = {"model": fm, "sel": ts, "corner": corner, "hit": not hit.is_empty(), "point": point,
+	target = {"model": fm, "sel": ts, "corner": corner, "hit": not hit.is_empty(), "point": point, "on_cube": hm != null,
 		"local": lp / CubeWorld.TICK, "entity": ent if ent_first else null}
 
 
