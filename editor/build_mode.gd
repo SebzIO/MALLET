@@ -1486,11 +1486,21 @@ func _first_occupied(m: CubeModelNode, from_w: Vector3, dir_w: Vector3, max_d: f
 			tdelta[i] = g / absf(d[i])
 	var t := t0
 	var axis := -1
+	var inside := false                                  # the camera is inside cubes: aim at the face you'd leave by
+	var last := Vector3i.ZERO
 	for n in 6000:
 		if t > t1:
 			break
 		var ct := cell * int(g)
-		if w.cell_occupied(ct, p):
+		var occ := w.cell_occupied(ct, p)
+		if n == 0 and occ and t0 <= 0.0:
+			inside = true
+		if inside:
+			if not occ:                                  # out in the open: the last cube's side facing this way
+				return {"cell": last, "orient": axis * 2 + (1 if step[axis] > 0 else 0), "point": (o + d * t) * CubeWorld.TICK,
+					"inside": true}
+			last = ct
+		elif occ:
 			var orient := axis * 2 + (1 if step[axis] < 0 else 0) if axis >= 0 else CubeWorld.orient_of(-d)
 			return {"cell": ct, "orient": orient, "point": (o + d * t) * CubeWorld.TICK}
 		axis = 0 if tmax.x <= tmax.y and tmax.x <= tmax.z else (1 if tmax.y <= tmax.z else 2)
@@ -1529,7 +1539,7 @@ func _draw() -> void:
 			for seg in (target["entity"] as Node3D).outline_lines():
 				for i in range(0, seg.size() - 1):
 					_line(seg[i], seg[i + 1], Color(1.0, 0.6, 0.2, 0.6))
-		else:
+		elif not (target["hit"] and _true_face(xf, ts, Color(1.0, 0.85, 0.2))):
 			_face_rect(xf, ts, Color(1.0, 0.85, 0.2) if target["hit"] else Color(1.0, 0.85, 0.2, 0.5))
 		if Input.is_key_pressed(KEY_Q) or _drag == "corners":
 			var g := CubeWorld.metres(ts["p"])
@@ -1653,6 +1663,52 @@ func _box(xf: Transform3D, lo: Vector3, hi: Vector3, c: Color) -> void:
 		p.append(xf * Vector3(hi.x if i & 1 else lo.x, hi.y if i & 2 else lo.y, hi.z if i & 4 else lo.z))
 	for e in [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]]:
 		_line(p[e[0]], p[e[1]], c)
+
+
+## The aimed face as the cubes really are there (pushed in, sloped, cut), not the cell's full square. False when it
+## can't be drawn that way (empty cell, a bigger cube around it) - then the cell's square is drawn instead.
+func _true_face(xf: Transform3D, s: Dictionary, c: Color) -> bool:
+	var m = s.get("model")
+	if m == null or not is_instance_valid(m) or s.get("s", Vector3i.ONE) != Vector3i.ONE:
+		return false
+	var w: CubeWorld = (m as CubeModelNode).world
+	var p: int = s["p"]
+	var g := CubeWorld.size_of(p)
+	var o: int = s["orient"]
+	var keys := w.leaves_in(s["o"], Vector3i(g, g, g))
+	if keys.is_empty():
+		return false
+	var lift := Vector3(CubeWorld.orient_step(o)) * 0.01   # (just off the face, so it isn't hidden in it)
+	var drew := false
+	for k in keys:
+		if k.w > p:
+			return false
+		var v: Array = w.leaves[k]
+		var origin := Vector3(k.x, k.y, k.z) * CubeWorld.TICK
+		var unit := CubeWorld.metres(k.w) / 8.0
+		var polys := []
+		var cut: Array = v[3] if v.size() > 3 else []
+		if not cut.is_empty():
+			for f in CubeWorld.cut_faces(cut):
+				if int(f[0]) == o:
+					polys.append(Array(f[2]))
+		else:
+			var poly := []
+			for n in CubeWorld.face_corners(o):
+				poly.append(CubeWorld.corner(v[0], n))
+			polys.append(poly)
+		for poly in polys:
+			var pts := []
+			for q in poly:
+				var wp: Vector3 = xf * (origin + (q as Vector3) * unit + lift)
+				if pts.is_empty() or not (pts[pts.size() - 1] as Vector3).is_equal_approx(wp):
+					pts.append(wp)
+			if pts.size() < 3:
+				continue                                 # (squashed flat: nothing to show on this side)
+			for i in pts.size():
+				_line(pts[i], pts[(i + 1) % pts.size()], c)
+			drew = true
+	return drew
 
 
 func _face_rect(xf: Transform3D, s: Dictionary, c: Color, fill := Color(0, 0, 0, 0)) -> void:

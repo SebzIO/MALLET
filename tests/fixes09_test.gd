@@ -120,5 +120,39 @@ func _run() -> void:
 	ed.clear_best_run()
 	check("#4 clearing forgets it (and hides the button)", ed.best_ghost.is_empty() and not ed._fields["clear_best"].visible)
 
+	# ---- #11: inside a block in build mode, aim at the side you're looking out through
+	ed._load_dict({})
+	var cm := CubeModelNode.new()
+	ed.cube_models_root.add_child(cm)
+	cm.world.set_cell(Vector3i(0, 0, 0), 2, CubeWorld.FULL, CubeWorld.blank_tex())   # a 4 m block (32 ticks)
+	await frames(2)
+	var bm = ed.build
+	var found: Dictionary = bm._first_occupied(cm, Vector3(1.0, 1.5, 2.0), Vector3(1, 0, 0), 600.0, 0)
+	check("#11 from inside, aim at the face you look out through (+x side)", not found.is_empty()
+		and found["cell"] == Vector3i(24, 8, 16) and found["orient"] == 1, "(%s)" % found)
+	found = bm._first_occupied(cm, Vector3(1.0, 1.5, 2.0), Vector3(0, -1, 0), 600.0, 0)
+	check("#11 looking down from inside: the bottom face", not found.is_empty() and found["cell"] == Vector3i(8, 0, 16) and found["orient"] == 2, "(%s)" % found)
+	found = bm._first_occupied(cm, Vector3(1.0, 1.5, 9.0), Vector3(0, 0, -1), 600.0, 0)
+	check("#11 from outside it's still the face you look into", not found.is_empty() and found["cell"] == Vector3i(8, 8, 24) and found["orient"] == 5, "(%s)" % found)
+
+	# ---- #12: the aimed face is drawn where the cube's face really is (pushed down half way)
+	var half := CubeWorld.FULL.duplicate()
+	for n in [2, 3, 6, 7]:                                # the top corners down to 4 of 8
+		half[n * 3 + 1] = 4
+	cm.world.set_cell(Vector3i(0, 32, 0), 0, half, CubeWorld.blank_tex())
+	var ts := CubeWorld.make_sel(Vector3i(0, 32, 0), 0, 3)
+	ts["model"] = cm
+	bm._im.clear_surfaces()
+	bm._im.surface_begin(Mesh.PRIMITIVE_LINES)
+	var drew: bool = bm._true_face(cm.global_transform, ts, Color.YELLOW)
+	bm._line(Vector3.ZERO, Vector3.ZERO, Color.BLACK)
+	bm._im.surface_end()
+	var ys := []
+	for v in (bm._im.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+		if v != Vector3.ZERO:
+			ys.append(snappedf(v.y, 0.01))
+	check("#12 the yellow outline sits on the real (pushed-down) top", drew and not ys.is_empty() and ys.max() < 4.6 and ys.min() > 4.4,
+		"(heights %s; the cell's top would be 5.0)" % [ys.slice(0, 4)])
+
 	print("FIXES 0.9: ", "PASS" if ok else "FAIL")
 	quit()
