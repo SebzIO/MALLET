@@ -63,7 +63,10 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
 19. Cube objects + the rest of Sauerbraten's editor ✅ (0.7) materials, texture settings, corner selection,
     heightmap, blend painting, entities from first person, play from here (docs/BUILD_MODE.md)
 20. Outliner ✅ (0.8) names, folders (nested), select / move whole folders, hide, find
-21. Next: decided with you
+21. Required before 1.0 (planned, not started): playtest builds - Export > Test build makes a small download that
+    drops testers onto the map, and their runs (routes, deaths, times) reach SurfForge live through a relay
+    server on the user's VPS, several testers at once (docs/PLAYTEST.md)
+22. Next: decided with you
 
 Prefabs live in `prefabs/` and are rebuilt by `godot --headless --path . -s res://tools/make_prefabs.gd`.
 
