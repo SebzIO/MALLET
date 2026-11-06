@@ -7,6 +7,11 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 
 - Build mode: Ctrl+P plays a proper run from the map's start plate, like Play in the editor (P still plays from
   where you stand). Esc in play mode brings you back to build mode where you were.
+- Build mode heightmap: raising or lowering terrain no longer leaves floating sheets, overhangs or hidden gaps.
+  Like Sauerbraten, each column's corners are kept within one layer of cubes (one corner may reach diagonally
+  into the next), a change spreads out to the neighbouring columns, a cube on a slope only covers the part that's
+  solid underneath, and the cubes under a raised part are made whole again. Hills now rise in Sauerbraten's
+  stepped way: pulling one spot up past a layer lifts the ground around it to that layer too.
 
 ## 0.8.9 preview — 2026-11-06: exact cube splits
 

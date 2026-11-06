@@ -8,7 +8,7 @@ func _init() -> void:
 func _run() -> void:
 	var w := CubeWorld.new()
 	var c: PackedByteArray
-	for s in load("res://tests/split_accuracy_test.gd").new().shapes():
+	for s in load("res://tests/split_accuracy_test.gd").shapes():
 		if s[0] == "two-way 6,2":
 			c = s[1]
 	w.set_cell(Vector3i.ZERO, 3, c, CubeWorld.blank_tex("ambientcg/Tiles101"))

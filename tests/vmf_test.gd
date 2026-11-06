@@ -52,7 +52,7 @@ func _run() -> void:
 	maps["sf_every_object"] = every
 	# sloped cubes with smaller cubes pushed out of them: the exact cut pieces must make valid brushes
 	var cw := CubeWorld.new()
-	var shapes: Array = load("res://tests/split_accuracy_test.gd").new().shapes()
+	var shapes: Array = load("res://tests/split_accuracy_test.gd").shapes()
 	var at := 0
 	for s in shapes:
 		if s[0] in ["slope 3/8", "slope 5/8", "two-way 6,2", "corner 5/8", "lean 7/8"]:

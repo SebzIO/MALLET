@@ -15,7 +15,7 @@ func _init() -> void:
 	call_deferred("_run")
 
 
-func shapes() -> Array:
+static func shapes() -> Array:   ## (static: other tests use these shapes without running this test)
 	var out := []
 	for k in range(1, 9):                       # ramp: top-front edge pushed down k / 8
 		var c := CubeWorld.FULL.duplicate()

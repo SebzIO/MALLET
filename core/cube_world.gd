@@ -1483,6 +1483,15 @@ func cube_in_mat(k: Vector4i, m: String) -> bool:
 ## brush centred on `center` (ticks, a corner point of the grid) - dir 1 lowers, -1 raises. `around_y` (ticks) is
 ## roughly where the surface is. Raising past a cube's top builds new cubes; lowering past its bottom digs them away.
 func hmap_edit(center: Vector3i, around_y: int, p: int, brush: Array, dir: int) -> void:
+	_top_cache = {}                                      # column tops don't change until the columns are written
+	_hmap_edit(center, around_y, p, brush, dir)
+	_top_cache = null
+
+
+var _top_cache = null                                    ## column -> top cube (or null) while a heightmap edit reads
+
+
+func _hmap_edit(center: Vector3i, around_y: int, p: int, brush: Array, dir: int) -> void:
 	var g := size_of(p)
 	var step := g / 8
 	var pts := {}                                        # Vector2i corner point (ticks) -> current height (ticks)
@@ -1522,6 +1531,21 @@ func hmap_edit(center: Vector3i, around_y: int, p: int, brush: Array, dir: int) 
 					new_h[pt] = int(pts[pt]) - dir * w * step
 	if new_h.is_empty():
 		return
+	# Sauerbraten's ripple: no column's corners may cross into the next layer of cubes (except one corner, diagonally,
+	# with the two beside it exactly on the boundary) - otherwise a cube built on top would have nothing under part of
+	# it (the floating sheets). Raising pulls the low corners up to the layer; lowering pulls the high ones down; each
+	# change ripples out to the columns sharing that corner.
+	var heights := pts.duplicate()
+	for pt in new_h:
+		heights[pt] = new_h[pt]
+	_hmap_ripple(heights, pts, new_h.keys(), around_y, p, dir < 0, reach + 16)
+	_top_cache = null                                    # (writing changes the tops)
+	new_h.clear()
+	for pt in heights:
+		if heights[pt] != pts[pt]:
+			new_h[pt] = heights[pt]
+	if new_h.is_empty():
+		return
 	# rewrite every column touching a moved point
 	var cols := {}
 	for pt in new_h:
@@ -1543,6 +1567,87 @@ func hmap_edit(center: Vector3i, around_y: int, p: int, brush: Array, dir: int) 
 			_write_column(col, hs, around_y, p)
 
 
+## Sauerbraten's hmap ripple (pullhmap) on corner heights (ticks, Vector2i point -> int), starting from the columns
+## around `changed`; `up` = raising (pull low corners up), else pull high corners down. Heights of points not yet in
+## `h` are read as needed (and noted in `orig`); columns more than `limit` cells from the first point are left alone.
+func _hmap_ripple(h: Dictionary, orig: Dictionary, changed: Array, around_y: int, p: int, up: bool, limit: int) -> void:
+	var g := size_of(p)
+	if changed.is_empty():
+		return
+	var origin: Vector2i = changed[0]
+	var queue := []
+	var queued := {}
+	for pt in changed:
+		for di in [-1, 0]:
+			for dj in [-1, 0]:
+				var col := Vector2i(pt.x + di * g, pt.y + dj * g)
+				if not queued.has(col):
+					queued[col] = true
+					queue.append(col)
+	var guard := 0
+	while not queue.is_empty() and guard < 20000:
+		guard += 1
+		var col: Vector2i = queue.pop_front()
+		queued.erase(col)
+		if absi(col.x - origin.x) > limit * g or absi(col.y - origin.y) > limit * g:
+			continue
+		if _column_top(col, around_y, p) == null:
+			continue                                     # not terrain: nothing to keep in shape
+		var cp := [col, col + Vector2i(g, 0), col + Vector2i(0, g), col + Vector2i(g, g)]   # index = x + 2 z
+		var o := []
+		var ok := true
+		for q in cp:
+			if not h.has(q):
+				var sh = _surface_height(q, around_y, p)
+				if sh == null:
+					ok = false
+					break
+				h[q] = sh
+				orig[q] = sh                             # (read as it was)
+			o.append(int(h[q]))
+		if not ok:
+			continue
+		var before := o.duplicate()
+		if up:
+			var q := 0
+			for i in 4:
+				if o[i] > o[q]:
+					q = i
+			var par := floori(float(o[q] - g / 8) / g) * g   # the bottom of the layer the highest corner is in
+			if o[q ^ 3] < par and not (o[q ^ 1] > par or o[q ^ 2] > par):
+				o[q ^ 3] = maxi(o[q ^ 3], par - g)       # dual layer: the opposite corner may go one layer lower
+				o[q ^ 1] = par
+				o[q ^ 2] = par
+			else:
+				for i in 4:
+					o[i] = maxi(o[i], par)
+		else:
+			var q := 0
+			for i in 4:
+				if o[i] < o[q]:
+					q = i
+			var par := floori(float(o[q]) / g) * g + g    # the top of the layer the lowest corner is in
+			if o[q ^ 3] > par and not (o[q ^ 1] < par or o[q ^ 2] < par):
+				o[q ^ 3] = mini(o[q ^ 3], par + g)
+				o[q ^ 1] = par
+				o[q ^ 2] = par
+			else:
+				for i in 4:
+					o[i] = mini(o[i], par)
+		if o == before:
+			continue
+		for i in 4:
+			if o[i] == before[i]:
+				continue
+			h[cp[i]] = o[i]
+			for di in [-1, 0]:                           # the columns sharing that corner need another look
+				for dj in [-1, 0]:
+					var nc := Vector2i(cp[i].x + di * g, cp[i].y + dj * g)
+					if not queued.has(nc):
+						queued[nc] = true
+						queue.append(nc)
+
+
 ## The height (ticks) of the terrain at a corner point: the highest cube top touching it, near `around_y`.
 func _surface_height(pt: Vector2i, around_y: int, p: int):
 	var g := size_of(p)
@@ -1553,16 +1658,40 @@ func _surface_height(pt: Vector2i, around_y: int, p: int):
 			var top = _column_top(col, around_y, p)
 			if top == null:
 				continue
-			var k: Vector4i = top
-			var c: PackedByteArray = leaves[k][0]
-			var cn: int = (1 << 1) | ((-di) << 0) | ((-dj) << 2)       # the top corner of that cube at this point
-			var h: int = k.y + c[cn * 3 + 1] * g / 8
+			var h: int = _column_height(top, (-di) | ((-dj) << 2), p)
 			best = h if best == null else maxi(best, h)
 	return best
 
 
+## A column's terrain height (ticks) at one of its corners (b = that corner's bottom corner index: x bit, z bit<<2),
+## from its top cube k. A corner with no thickness there (folded away on a cube resting on a slope, or a sheet)
+## isn't the surface: the cube under it is.
+func _column_height(k: Vector4i, b: int, p: int) -> int:
+	var g := size_of(p)
+	var c: PackedByteArray = leaves[k][0]
+	var t := b | 2
+	var home_x := 8 if b & 1 else 0
+	var flat: bool = c[t * 3 + 1] == c[b * 3 + 1] or c[t * 3] != home_x
+	if flat:
+		var below = leaves.get(Vector4i(k.x, k.y - g, k.z, k.w))
+		if below != null and not ((below[0] as PackedByteArray)[t * 3 + 1] == (below[0] as PackedByteArray)[b * 3 + 1]):
+			return k.y - g + int((below[0] as PackedByteArray)[t * 3 + 1]) * g / 8
+		if c[t * 3] != home_x:
+			return k.y
+	return k.y + c[t * 3 + 1] * g / 8
+
+
 ## The topmost cube in a column near `around_y`, or null.
 func _column_top(col: Vector2i, around_y: int, p: int):
+	if _top_cache != null and _top_cache.has(col):
+		return _top_cache[col]
+	var top = _find_column_top(col, around_y, p)
+	if _top_cache != null:
+		_top_cache[col] = top
+	return top
+
+
+func _find_column_top(col: Vector2i, around_y: int, p: int):
 	var g := size_of(p)
 	var base := floori(float(around_y) / g) * g
 	for i in range(12, -13, -1):
@@ -1575,7 +1704,9 @@ func _column_top(col: Vector2i, around_y: int, p: int):
 
 ## Give one column's terrain the corner heights `hs` (ticks; order (0,0) (1,0) (0,1) (1,1) in x, z). Only the
 ## heights of the top corners of the cubes that are there change - their sides (bevels, slopes) stay as they were;
-## raising past the top cube builds new cubes on it, lowering past its bottom carries on into the cube below.
+## raising past the top cube builds new cubes on it, lowering past its bottom carries on into the cube below. Like
+## Sauerbraten, every cube down to one layer under the surface is reshaped too, so the cubes under a raised part are
+## whole again (a cube left part-empty by an earlier edit would leave air under the new ones).
 func _write_column(col: Vector2i, hs: Array, around_y: int, p: int) -> void:
 	var g := size_of(p)
 	var top = _column_top(col, around_y, p)
@@ -1592,6 +1723,7 @@ func _write_column(col: Vector2i, hs: Array, around_y: int, p: int) -> void:
 			var hl := clampi(roundi(float(hs[i] - y) * 8.0 / g), 0, 8)
 			c[(idx[i] | 2) * 3 + 1] = hl
 			any = any or hl > 0
+		_fold_flat_corners(c)
 		if any and not is_empty_shape(c) and is_valid_shape(c):
 			set_cell(Vector3i(col.x, y, col.y), p, c, tex)
 	# the top cube, then (while digging below it) the ones under it
@@ -1601,18 +1733,53 @@ func _write_column(col: Vector2i, hs: Array, around_y: int, p: int) -> void:
 		var v: Array = leaves[ck]
 		var c: PackedByteArray = (v[0] as PackedByteArray).duplicate()
 		for i in 4:
-			var t: int = (idx[i] | 2) * 3 + 1
-			var floor_y: int = c[idx[i] * 3 + 1]
+			var b: int = idx[i]
+			var home_x := 8 if b & 1 else 0                  # a corner folded away before comes back out first
+			if c[b * 3] == 8 - home_x and c[(b | 2) * 3] == 8 - home_x:
+				c[b * 3] = home_x
+				c[(b | 2) * 3] = home_x
+			var t: int = (b | 2) * 3 + 1
+			var floor_y: int = c[b * 3 + 1]
 			c[t] = clampi(roundi(float(hs[i] - ck.y) * 8.0 / g), floor_y, 8)
+		_fold_flat_corners(c)
 		if c != v[0]:
 			if is_empty_shape(c):
 				_put(ck, null)
 			elif is_valid_shape(c):
 				_put(ck, _v(c, v[1], _blend_of(v)))
-		if hs.min() >= ck.y:
-			break                                        # not digging any deeper
 		var st := cell_state(Vector3i(col.x, ck.y - g, col.y), p)
-		cur = st[0] if st.size() == 1 and st[0] is Vector4i else null
+		var nxt = st[0] if st.size() == 1 and st[0] is Vector4i else null
+		if ck.y < floori(float(hs.min()) / g) * g and (nxt == null or _top_whole(leaves[nxt][0])):
+			break                                        # done: under the surface, and the rest below is whole
+		cur = nxt
+
+
+## Is a cube's top whole (all four top corners up at 8, none folded away)?
+static func _top_whole(c: PackedByteArray) -> bool:
+	for b in [0, 1, 4, 5]:
+		var home_x := 8 if b & 1 else 0
+		if c[(b | 2) * 3 + 1] != 8 or c[(b | 2) * 3] != home_x or c[b * 3] != home_x:
+			return false
+	return true
+
+
+## Sauerbraten's pushside: a top corner with no height whose two neighbours have none either is moved across to the
+## other side (along x), so the cube only covers the part of its cell where it has height (on a slope, the part
+## where the cube below is full) - otherwise its flat bottom would hang over empty space.
+static func _fold_flat_corners(c: PackedByteArray) -> void:
+	var idx := [0, 1, 4, 5]
+	var f := []
+	for i in 4:
+		f.append(int(c[(idx[i] | 2) * 3 + 1]) - int(c[idx[i] * 3 + 1]))
+	var fold := []
+	for i in 4:
+		if f[i] <= 0 and f[i ^ 1] <= 0 and f[i ^ 2] <= 0 and f[i ^ 3] > 0:
+			fold.append(i)
+	for i in fold:                                       # (to the far side, whatever it was: folding twice is folding once)
+		var b: int = idx[i]
+		var far := 0 if b & 1 else 8
+		c[b * 3] = far
+		c[(b | 2) * 3] = far
 
 
 # ------------------------------------------------------------------------------------------------ copy, rotate, flip
