@@ -3,6 +3,16 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## Unreleased
+
+- Build mode: editing a sloped or bent cube at a smaller grid no longer changes the rest of its shape, for any
+  slope at any depth (0.8.8 only fixed slopes that lined up with the smaller grid). Pieces that their own 8 corners
+  can't show exactly now keep the original's exact surface, so the slope stays one flat face with clean holes.
+  They draw, collide, save, rotate, flip, copy and export to SurfsUp and CS:S exactly. Pushing a face or corner of
+  one of those small pieces turns it back into an ordinary 8-corner cube.
+- Maps saved with this version can't be opened properly by 0.8.8 or older (cube data format 3). Cubes already
+  distorted by an older version keep their distorted shape.
+
 ## 0.8.8 preview — 2026-11-06: finish speed; sloped cubes split cleanly
 
 - Play mode: the bottom line now also shows your finish speed, meaning how fast you were going when you entered the

@@ -50,6 +50,26 @@ func _run() -> void:
 			{"kind": "kill", "position": [40, 40, 100], "size": [40, 20, 40], "yaw": 0.0},
 			{"kind": "booster", "position": [140, 70, 200], "size": [20, 12, 20], "yaw": 30.0, "pitch": 20.0, "strength": 800.0, "mode": 0}]}
 	maps["sf_every_object"] = every
+	# sloped cubes with smaller cubes pushed out of them: the exact cut pieces must make valid brushes
+	var cw := CubeWorld.new()
+	var shapes: Array = load("res://tests/split_accuracy_test.gd").new().shapes()
+	var at := 0
+	for s in shapes:
+		if s[0] in ["slope 3/8", "slope 5/8", "two-way 6,2", "corner 5/8", "lean 7/8"]:
+			var o := Vector3i(at * 80, 0, 0)
+			cw.set_cell(o, 3, s[1], CubeWorld.blank_tex())
+			cw.push(CubeWorld.make_sel(o + Vector3i(24, 40, 8), -1, 3))
+			cw.push(CubeWorld.make_sel(o + Vector3i(32, 32, 32), 0, 3))
+			at += 1
+	var cuts := 0
+	for k in cw.leaves:
+		if not CubeWorld._cut_of(cw.leaves[k]).is_empty():
+			cuts += 1
+	check("split slopes map has exact cut pieces", cuts > 0, "(%d of %d cubes)" % [cuts, cw.leaves.size()])
+	maps["sf_split_slopes"] = {"format": "surfforge-map", "version": 2, "environment": Look.preset_environment("sunset"),
+		"props": [], "ramps": [], "cube_models": [{"cubes": cw.to_dict(), "position": [-200, 20, -40], "yaw": 0.0}],
+		"entities": [{"kind": "start", "position": [-220, 40, 0], "size": [20, 2, 20], "yaw": 0.0},
+			{"kind": "finish", "position": [300, 10, 0], "size": [20, 2, 20], "yaw": 0.0}]}
 	for name in maps:
 		var vmf: String = out + "/css/%s.vmf" % name
 		var res := VmfExporter.export_vmf(maps[name], vmf)

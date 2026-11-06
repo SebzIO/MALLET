@@ -538,6 +538,292 @@ static func _concavity(c: PackedByteArray) -> float:
 	return worst
 
 
+# ------------------------------------------------------------------------------------------------ exact cut pieces
+## When a shaped cube is split into smaller ones, a piece's share of the slope often can't be drawn with its own 8
+## corners (their 1/8 steps don't land where the slope crosses the piece). Such a piece keeps the original's exact
+## shape instead: a "cut" = the original's face planes, moved into the piece's own 0..8 units. The piece's solid is
+## its cell minus everything outside those planes - convex and exact at any depth (whole-number maths: halving the
+## cell doubles a plane's offset, nothing is ever rounded). Its corners (v[0]) still hold the nearest 8-corner shape,
+## for tools that work on corners (pushing faces / corners, heightmap); editing those corners drops the cut.
+## A cut plane is [normal Vector3i, offset int, slot orient int]: solid where normal . u <= offset.
+
+static func _cut_of(v: Array) -> Array:
+	return v[3] if v.size() > 3 else []
+
+
+static func _idot(a: Vector3i, b: Vector3i) -> int:
+	return a.x * b.x + a.y * b.y + a.z * b.z
+
+
+static func _icross(a: Vector3i, b: Vector3i) -> Vector3i:
+	return Vector3i(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x)
+
+
+static func _gcd(a: int, b: int) -> int:
+	a = absi(a)
+	b = absi(b)
+	while b != 0:
+		var t := a % b
+		a = b
+		b = t
+	return a
+
+
+## A corner cube's solid as exact cut planes (cell walls left out: the cell bounds every piece anyway).
+static func cut_from_corners(c: PackedByteArray) -> Array:
+	var out := []
+	var seen := {}
+	for o in 6:
+		for t in face_tri_indices(c, o):
+			var a := Vector3i(corner(c, t[0]))
+			var n := _icross(Vector3i(corner(c, t[1])) - a, Vector3i(corner(c, t[2])) - a)
+			var g := _gcd(_gcd(n.x, n.y), n.z)
+			if g == 0:
+				continue
+			n /= g
+			var d := _idot(n, a)
+			var key := [n, d]
+			if seen.has(key):
+				continue
+			seen[key] = true
+			var cuts_in := false                         # a face lying on the cell's own wall adds nothing
+			for m in 8:
+				if _idot(n, Vector3i(corner(FULL, m))) > d:
+					cuts_in = true
+					break
+			if cuts_in:
+				out.append([n, d, o])
+	return out
+
+
+## A cut moved into child octant o's units (child = half the size: offsets double, minus the child's offset).
+static func _cut_child(cut: Array, o: int) -> Array:
+	var off := Vector3i(8 * (o & 1), 8 * ((o >> 1) & 1), 8 * ((o >> 2) & 1))
+	var out := []
+	for pl in cut:
+		out.append([pl[0], 2 * int(pl[1]) - _idot(pl[0], off), pl[2]])
+	return out
+
+
+## The cell walls plus a cut, as unit-normal float planes [normal, offset] (the form _corner_spot / solid_planes use).
+static func cut_planes(cut: Array) -> Array:
+	var out := []
+	for d in 3:
+		var e := Vector3.ZERO
+		e[d] = 1.0
+		out.append([-e, 0.0])
+		out.append([e, 8.0])
+	for pl in cut:
+		var n := Vector3(pl[0])
+		var l := n.length()
+		out.append([n / l, float(pl[1]) / l])
+	return out
+
+
+## The corners of a cut piece's solid (empty if nothing is left).
+static func cut_vertices(cut: Array) -> PackedVector3Array:
+	var planes := cut_planes(cut)
+	var out := PackedVector3Array()
+	var cnt := planes.size()
+	for i in cnt:
+		for j in range(i + 1, cnt):
+			for k in range(j + 1, cnt):
+				var a: Vector3 = planes[i][0]
+				var b: Vector3 = planes[j][0]
+				var c: Vector3 = planes[k][0]
+				var det := a.dot(b.cross(c))
+				if absf(det) < 1e-9:
+					continue
+				var p: Vector3 = (b.cross(c) * float(planes[i][1]) + c.cross(a) * float(planes[j][1]) + a.cross(b) * float(planes[k][1])) / det
+				if not _in_planes(planes, p, 1e-6):
+					continue
+				var dup := false
+				for q in out:
+					if q.distance_squared_to(p) < 1e-10:
+						dup = true
+						break
+				if not dup:
+					out.append(p)
+	return out
+
+
+static func _has_volume(pts: PackedVector3Array) -> bool:
+	if pts.size() < 4:
+		return false
+	var a := pts[0]
+	for i in range(1, pts.size()):
+		for j in range(i + 1, pts.size()):
+			var n := (pts[i] - a).cross(pts[j] - a)
+			if n.length() < 1e-9:
+				continue
+			for k in range(j + 1, pts.size()):
+				if absf(n.dot(pts[k] - a)) > 1e-7:
+					return true
+	return false
+
+
+## A cut, tidied: [corners, cut] for a piece (cut empty when 8 corners show it exactly), or [] when nothing's left.
+static func shape_from_cut(cut: Array) -> Array:
+	var cell_corners := []
+	for n in 8:
+		cell_corners.append(Vector3i(corner(FULL, n)))
+	var live := []
+	for pl in cut:                                       # only planes that actually cut into the cell
+		for p in cell_corners:
+			if _idot(pl[0], p) > int(pl[1]):
+				live.append(pl)
+				break
+	if live.is_empty():
+		return [FULL, []]
+	var pts := cut_vertices(live)
+	if not _has_volume(pts):
+		return []
+	var faces := []                                      # drop planes that only touch an edge or a corner
+	for pl in live:
+		var n := Vector3(pl[0])
+		var on := 0
+		for p in pts:
+			if absf(n.dot(p) - float(pl[1])) < 1e-6 * n.length() * 8.0:
+				on += 1
+		if on >= 3:
+			faces.append(pl)
+	var planes := cut_planes(faces)
+	var exact := PackedByteArray()                       # can its own 8 corners show it exactly?
+	exact.resize(24)
+	var whole := true
+	for m in 8:
+		var q := _corner_spot(planes, corner(FULL, m))
+		for d in 3:
+			var r := roundf(q[d])
+			if absf(q[d] - r) > 1e-6:
+				whole = false
+			exact[m * 3 + d] = clampi(int(r), 0, 8)
+	if whole and is_valid_shape(exact) and not is_empty_shape(exact) and _same_points(_corner_points(exact), pts):
+		return [exact, []]
+	return [_approx_corners(planes, pts), faces]
+
+
+static func _corner_points(c: PackedByteArray) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for n in 8:
+		var p := corner(c, n)
+		if not out.has(p):
+			out.append(p)
+	return out
+
+
+static func _same_points(a: PackedVector3Array, b: PackedVector3Array) -> bool:
+	if a.size() != b.size():
+		return false
+	for p in a:
+		var found := false
+		for q in b:
+			if p.distance_squared_to(q) < 1e-10:
+				found = true
+				break
+		if not found:
+			return false
+	return true
+
+
+## The nearest 8-corner shape to a region (for corner tools); if rounding leaves nothing valid, its bounding box.
+static func _approx_corners(planes: Array, pts: PackedVector3Array) -> PackedByteArray:
+	var out := PackedByteArray()
+	out.resize(24)
+	for m in 8:
+		var q := _corner_spot(planes, corner(FULL, m))
+		for d in 3:
+			out[m * 3 + d] = clampi(roundi(q[d]), 0, 8)
+	for d in 3:
+		for m in 8:
+			if not (m >> d) & 1:
+				var hi_i := (m | (1 << d)) * 3 + d
+				if out[hi_i] < out[m * 3 + d]:
+					out[hi_i] = out[m * 3 + d]
+	if not is_empty_shape(out) and not is_valid_shape(out):
+		out = _make_valid(out)
+	if not out.is_empty() and not is_empty_shape(out):
+		return out
+	var lo := Vector3.ONE * 8.0
+	var hi := Vector3.ZERO
+	for p in pts:
+		lo = lo.min(p)
+		hi = hi.max(p)
+	var box := PackedByteArray()
+	box.resize(24)
+	for m in 8:
+		for d in 3:
+			box[m * 3 + d] = clampi(ceili(hi[d] - 1e-6), 1, 8) if (m >> d) & 1 else clampi(floori(lo[d] + 1e-6), 0, 7)
+	return box
+
+
+## A leaf's child in octant o, exact: [] if the child is empty.
+static func split_child(v: Array, o: int) -> Array:
+	var c: PackedByteArray = v[0]
+	var cut := _cut_of(v)
+	var bl := child_blend(_blend_of(v), o)
+	if cut.is_empty():
+		if c == FULL:
+			return _v(FULL, v[1], bl)
+		cut = cut_from_corners(c)
+	var shp := shape_from_cut(_cut_child(cut, o))
+	if shp.is_empty():
+		return []
+	return _v(shp[0], v[1], bl, shp[1])
+
+
+## A leaf's solid as unit-normal float planes in its 0..8 units (cell walls included).
+static func leaf_planes(v: Array) -> Array:
+	var cut := _cut_of(v)
+	if not cut.is_empty():
+		return cut_planes(cut)
+	return cut_planes(cut_from_corners(v[0]))
+
+
+## Is wall o of a leaf a whole, flat square (so a neighbour's full face can hide it)?
+static func leaf_face_full(v: Array, o: int) -> bool:
+	var cut := _cut_of(v)
+	if cut.is_empty():
+		return face_is_full(v[0], o)
+	for n in face_corners(o):
+		var p := Vector3i(corner(FULL, n))
+		for pl in cut:
+			if _idot(pl[0], p) > int(pl[1]):
+				return false
+	return true
+
+
+## A cut piece's faces: [[slot orient, wall orient or -1, polygon PackedVector3Array counter-clockwise from outside], ...]
+static func cut_faces(cut: Array) -> Array:
+	var pts := cut_vertices(cut)
+	var list := []
+	for o in 6:
+		var e := orient_normal(o)
+		list.append([e, 8.0 if o & 1 else 0.0, o, o])
+	for pl in cut:
+		var n := Vector3(pl[0])
+		var l := n.length()
+		list.append([n / l, float(pl[1]) / l, int(pl[2]), -1])
+	var out := []
+	for f in list:
+		var n: Vector3 = f[0]
+		var on := []
+		for p in pts:
+			if absf(n.dot(p) - float(f[1])) < 1e-5:
+				on.append(p)
+		if on.size() < 3:
+			continue
+		var cen := Vector3.ZERO
+		for p in on:
+			cen += p
+		cen /= on.size()
+		var t: Vector3 = ((on[0] as Vector3) - cen).normalized()
+		var b := n.cross(t)
+		on.sort_custom(func(p, q): return atan2((p - cen).dot(b), (p - cen).dot(t)) < atan2((q - cen).dot(b), (q - cen).dot(t)))
+		out.append([f[2], f[3], PackedVector3Array(on)])
+	return out
+
+
 ## Blend weights for a child (trilinear from the parent's corners).
 static func child_blend(b: PackedByteArray, o: int) -> PackedByteArray:
 	if b.is_empty():
@@ -555,8 +841,8 @@ static func child_blend(b: PackedByteArray, o: int) -> PackedByteArray:
 	return out
 
 
-static func _v(c: PackedByteArray, t: PackedStringArray, b := PackedByteArray()) -> Array:
-	return [c, t, b]
+static func _v(c: PackedByteArray, t: PackedStringArray, b := PackedByteArray(), cut := []) -> Array:
+	return [c, t, b] if cut.is_empty() else [c, t, b, cut]
 
 
 static func _blend_of(v: Array) -> PackedByteArray:
@@ -641,9 +927,9 @@ func cell_occupied(c: Vector3i, p: int) -> bool:
 		var bk := Vector4i(floori(float(c.x) / s) * s, floori(float(c.y) / s) * s, floori(float(c.z) / s) * s, q)
 		if leaves.has(bk):
 			var bc: PackedByteArray = leaves[bk][0]
-			if bc == FULL:
+			if bc == FULL and _cut_of(leaves[bk]).is_empty():
 				return true
-			var planes := solid_planes(bc)
+			var planes := leaf_planes(leaves[bk])
 			for i in 3:
 				for j in 3:
 					for kk in 3:
@@ -751,11 +1037,10 @@ func _split(k: Vector4i) -> void:
 	var cs := size_of(k.w - 1)
 	_put(k, null)
 	for o in 8:
-		var cc := child_corners(v[0], o)
-		if cc.is_empty():
+		var cv := split_child(v, o)
+		if cv.is_empty():
 			continue
-		_put(Vector4i(k.x + (o & 1) * cs, k.y + ((o >> 1) & 1) * cs, k.z + ((o >> 2) & 1) * cs, k.w - 1),
-			_v(cc, v[1], child_blend(_blend_of(v), o)))
+		_put(Vector4i(k.x + (o & 1) * cs, k.y + ((o >> 1) & 1) * cs, k.z + ((o >> 2) & 1) * cs, k.w - 1), cv)
 
 
 func _prepare(o: Vector3i, p: int) -> void:
@@ -810,9 +1095,9 @@ func _clear_cell(o: Vector3i, p: int) -> void:
 		_put(k, null)
 
 
-func set_cell(o: Vector3i, p: int, corners: PackedByteArray, tex: PackedStringArray, blend := PackedByteArray()) -> void:
+func set_cell(o: Vector3i, p: int, corners: PackedByteArray, tex: PackedStringArray, blend := PackedByteArray(), cut := []) -> void:
 	_clear_cell(o, p)
-	_put(Vector4i(o.x, o.y, o.z, p), _v(corners, tex, blend))
+	_put(Vector4i(o.x, o.y, o.z, p), _v(corners, tex, blend, cut))
 
 
 func _merge_up(o: Vector3i, p: int) -> void:
@@ -824,7 +1109,7 @@ func _merge_up(o: Vector3i, p: int) -> void:
 		for i in 8:
 			var k := Vector4i(po.x + (i & 1) * cs, po.y + ((i >> 1) & 1) * cs, po.z + ((i >> 2) & 1) * cs, p)
 			var v = leaves.get(k)
-			if v == null or v[0] != FULL or not _blend_of(v).is_empty() or (tex != null and v[1] != tex):
+			if v == null or v[0] != FULL or not _cut_of(v).is_empty() or not _blend_of(v).is_empty() or (tex != null and v[1] != tex):
 				return
 			tex = v[1]
 		for i in 8:
@@ -1092,7 +1377,7 @@ func _edit_slots(sel: Dictionary, all_faces: bool, fn: Callable) -> void:
 			if all_faces or o == sel["orient"]:
 				t[o] = fn.call(t[o])
 		if t != v[1]:
-			_put(k, _v(v[0], t, _blend_of(v)))
+			_put(k, _v(v[0], t, _blend_of(v), _cut_of(v)))
 
 
 ## The texture slot of the face a selection is on (the first cube in it), or "".
@@ -1117,7 +1402,7 @@ func replace_texture(old: String, new: String, sel := {}) -> int:
 				t[o] = with_id(t[o], new)
 				n += 1
 		if t != v[1]:
-			_put(k, _v(v[0], t, _blend_of(v)))
+			_put(k, _v(v[0], t, _blend_of(v), _cut_of(v)))
 	return n
 
 
@@ -1156,7 +1441,7 @@ func paint_blend(pt: Vector3, radius: float, mode: int) -> int:
 			var all_zero := true
 			for x in bl:
 				all_zero = all_zero and x == 0
-			_put(k, _v(v[0], v[1], PackedByteArray() if all_zero else bl))
+			_put(k, _v(v[0], v[1], PackedByteArray() if all_zero else bl, _cut_of(v)))
 			changed += 1
 	return changed
 
@@ -1361,11 +1646,11 @@ static func _split_to(k: Vector4i, v: Array, max_p: int) -> Array:
 	var out := []
 	var cs := size_of(k.w - 1)
 	for o in 8:
-		var cc := child_corners(v[0], o)
-		if cc.is_empty():
+		var cv := split_child(v, o)
+		if cv.is_empty():
 			continue
 		out.append_array(_split_to(Vector4i(k.x + (o & 1) * cs, k.y + ((o >> 1) & 1) * cs, k.z + ((o >> 2) & 1) * cs, k.w - 1),
-			_v(cc, v[1], child_blend(_blend_of(v), o)), max_p))
+			cv, max_p))
 	return out
 
 
@@ -1380,7 +1665,7 @@ func paste(sel: Dictionary, clip: Dictionary) -> Dictionary:
 	for item in clip["cubes"]:
 		for piece in _split_to(item[0], item[1], sel["p"]):
 			var k: Vector4i = piece[0]
-			set_cell(Vector3i(k.x, k.y, k.z) + o, k.w, piece[1][0], piece[1][1], _blend_of(piece[1]))
+			set_cell(Vector3i(k.x, k.y, k.z) + o, k.w, piece[1][0], piece[1][1], _blend_of(piece[1]), _cut_of(piece[1]))
 	for item in clip.get("mats", []):
 		var k: Vector4i = item[0]
 		set_material(make_sel(Vector3i(k.x, k.y, k.z) + o, k.w, 3), item[1])
@@ -1437,7 +1722,15 @@ func _rotate_once(sel: Dictionary) -> Dictionary:
 		nt[a * 2] = t[b * 2 + 1]
 		nt[b * 2] = t[a * 2]
 		nt[a * 2 + 1] = t[b * 2]
-		set_cell(Vector3i(nk.x, nk.y, nk.z) + o, nk.w, nc, nt, nbl)
+		var ncut := []
+		var omap := {a * 2 + 1: b * 2 + 1, b * 2 + 1: a * 2, a * 2: b * 2, b * 2: a * 2 + 1}
+		for pl in _cut_of(it[1]):
+			var n: Vector3i = pl[0]
+			var nn := n
+			nn[a] = -n[b]
+			nn[b] = n[a]
+			ncut.append([nn, int(pl[1]) - 8 * n[b], omap.get(int(pl[2]), int(pl[2]))])
+		set_cell(Vector3i(nk.x, nk.y, nk.z) + o, nk.w, nc, nt, nbl, ncut)
 	for it in mitems:
 		var k: Vector4i = it[0]
 		var s := size_of(k.w)
@@ -1481,7 +1774,14 @@ func flip(sel: Dictionary) -> void:
 		var tmp := t[d * 2]
 		t[d * 2] = t[d * 2 + 1]
 		t[d * 2 + 1] = tmp
-		set_cell(Vector3i(nk.x, nk.y, nk.z) + (sel["o"] as Vector3i), nk.w, nc, t, nbl)
+		var ncut := []
+		for pl in _cut_of(it[1]):
+			var n: Vector3i = pl[0]
+			var nn := n
+			nn[d] = -n[d]
+			var po := int(pl[2])
+			ncut.append([nn, int(pl[1]) - 8 * n[d], (po ^ 1) if po >> 1 == d else po])
+		set_cell(Vector3i(nk.x, nk.y, nk.z) + (sel["o"] as Vector3i), nk.w, nc, t, nbl, ncut)
 	for it in mitems:
 		var k: Vector4i = it[0]
 		var nk := k
@@ -1498,7 +1798,7 @@ func move_cubes(sel: Dictionary, delta: Vector3i) -> Dictionary:
 	var o: Vector3i = (sel["o"] as Vector3i) + delta
 	for it in items:
 		var k: Vector4i = it[0]
-		set_cell(Vector3i(k.x, k.y, k.z) + o, k.w, it[1][0], it[1][1], _blend_of(it[1]))
+		set_cell(Vector3i(k.x, k.y, k.z) + o, k.w, it[1][0], it[1][1], _blend_of(it[1]), _cut_of(it[1]))
 	for it in mitems:
 		var k: Vector4i = it[0]
 		set_material(make_sel(Vector3i(k.x, k.y, k.z) + o, k.w, 3), it[1])
@@ -1509,14 +1809,14 @@ func move_cubes(sel: Dictionary, delta: Vector3i) -> Dictionary:
 
 # ------------------------------------------------------------------------------------------------ meshes
 func _face_hidden(k: Vector4i, c: PackedByteArray, o: int) -> bool:
-	if not face_is_full(c, o):
+	if not leaf_face_full(leaves[k], o):
 		return false
 	var nk = leaf_at(_beyond(k, o))
 	if nk == null or nk.w < k.w:
 		return false
 	if not mats.is_empty() and (cube_in_mat(nk, "alpha") or cube_in_mat(nk, "noclip")) != (cube_in_mat(k, "alpha") or cube_in_mat(k, "noclip")):
 		return false                                     # a see-through or pass-through neighbour doesn't hide it
-	return face_is_full(leaves[nk][0], o ^ 1)
+	return leaf_face_full(leaves[nk], o ^ 1)
 
 
 func cube_points(k: Vector4i) -> PackedVector3Array:
@@ -1524,6 +1824,11 @@ func cube_points(k: Vector4i) -> PackedVector3Array:
 	var origin := Vector3(k.x, k.y, k.z) * TICK
 	var unit := metres(k.w) / 8.0
 	var out := PackedVector3Array()
+	var cut := _cut_of(leaves[k])
+	if not cut.is_empty():
+		for p in cut_vertices(cut):
+			out.append(origin + p * unit)
+		return out
 	for n in 8:
 		var p := origin + corner(c, n) * unit
 		if not out.has(p):
@@ -1559,6 +1864,10 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 		var unit := metres(k.w) / 8.0
 		var noclip := cube_in_mat(k, "noclip")
 		var alpha := cube_in_mat(k, "alpha")
+		var cut := _cut_of(v)
+		if not cut.is_empty():
+			_cut_mesh(k, v, cut, origin, unit, noclip, alpha, groups, col, lines, outline)
+			continue
 		for o in 6:
 			if _face_hidden(k, c, o):
 				continue
@@ -1635,6 +1944,68 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 	return [m, col, lm]
 
 
+## An exact cut piece's faces into the chunk's surfaces (same layout as chunk_mesh's corner cubes).
+func _cut_mesh(k: Vector4i, v: Array, cut: Array, origin: Vector3, unit: float, noclip: bool, alpha: bool,
+		groups: Dictionary, col: PackedVector3Array, lines: PackedVector3Array, outline: bool) -> void:
+	var bl := _blend_of(v)
+	for f in cut_faces(cut):
+		var wall: int = f[1]
+		if wall >= 0 and _face_hidden(k, v[0], wall):
+			continue
+		var slot: String = v[1][int(f[0])]
+		var sl := parse_slot(slot)
+		var key := slot + ("#alpha" if alpha else "")
+		if not groups.has(key):
+			groups[key] = [PackedVector3Array(), PackedVector3Array(), PackedFloat32Array(), PackedVector2Array(),
+				PackedVector2Array(), PackedColorArray(), slot, alpha]
+		var g: Array = groups[key]
+		var verts: PackedVector3Array = g[0]
+		var normals: PackedVector3Array = g[1]
+		var tangents: PackedFloat32Array = g[2]
+		var uvs: PackedVector2Array = g[3]
+		var uv2s: PackedVector2Array = g[4]
+		var cols: PackedColorArray = g[5]
+		for i in 6:
+			g[i] = null
+		var layered: bool = sl["l"] != ""
+		var poly: PackedVector3Array = f[2]
+		for i in range(1, poly.size() - 1):
+			var lp := [poly[0], poly[i], poly[i + 1]]
+			var w := [origin + lp[0] * unit, origin + lp[1] * unit, origin + lp[2] * unit]
+			var n: Vector3 = (w[1] - w[0]).cross(w[2] - w[0]).normalized()
+			var uv := [slot_uv(w[0], n, sl), slot_uv(w[1], n, sl), slot_uv(w[2], n, sl)]
+			var tan := _tri_tangent(w, uv, n)
+			for j in [0, 2, 1]:                              # Godot winds front faces clockwise
+				verts.append(w[j])
+				normals.append(n)
+				tangents.append_array([tan.normal.x, tan.normal.y, tan.normal.z, tan.d])
+				uvs.append(uv[j])
+				uv2s.append(slot_uv(w[j], n, sl, true) if layered else Vector2.ZERO)
+				cols.append(Color(1, 1, 1, _blend_at(bl, lp[j]) / 255.0 if not bl.is_empty() else 0.0))
+				if not noclip:
+					col.append(w[j])
+		if outline:
+			for i in poly.size():
+				lines.append(origin + poly[i] * unit)
+				lines.append(origin + poly[(i + 1) % poly.size()] * unit)
+		g[0] = verts
+		g[1] = normals
+		g[2] = tangents
+		g[3] = uvs
+		g[4] = uv2s
+		g[5] = cols
+
+
+## A blend weight anywhere in a cube (trilinear from its 8 corner weights; p in 0..8 units).
+static func _blend_at(b: PackedByteArray, p: Vector3) -> float:
+	var t := p / 8.0
+	var out := 0.0
+	for n in 8:
+		var w := (t.x if n & 1 else 1.0 - t.x) * (t.y if (n >> 1) & 1 else 1.0 - t.y) * (t.z if (n >> 2) & 1 else 1.0 - t.z)
+		out += w * b[n]
+	return out
+
+
 ## Material cells: the faces you can see (not against the same material or a full cube face), drawn with each
 ## material's look; glass and clip add collision.
 func _material_surfaces(ck: Vector3i, m: ArrayMesh, col: PackedVector3Array) -> void:
@@ -1652,7 +2023,7 @@ func _material_surfaces(ck: Vector3i, m: ArrayMesh, col: PackedVector3Array) -> 
 			if name in ["water", "lava"] and o == 2:
 				continue                                 # (no underside to a pool)
 			var nk = leaf_at(nb)
-			if nk != null and nk.w >= k.w and face_is_full(leaves[nk][0], o ^ 1):
+			if nk != null and nk.w >= k.w and leaf_face_full(leaves[nk], o ^ 1):
 				continue
 			var quad := _box_face(lo, hi, o)
 			if name in ["glass", "clip", "gameclip"]:
@@ -1740,10 +2111,19 @@ func to_dict() -> Dictionary:
 		buf.put_u8(1 if not bl.is_empty() else 0)
 		if not bl.is_empty():
 			buf.put_data(bl)
+		var cut := _cut_of(v)                            # v3: an exact cut piece's planes
+		buf.put_u8(cut.size())
+		for pl in cut:
+			var n: Vector3i = pl[0]
+			buf.put_32(n.x)
+			buf.put_32(n.y)
+			buf.put_32(n.z)
+			buf.put_64(int(pl[1]))
+			buf.put_u8(int(pl[2]))
 	var mlist := []
 	for k in mats:
 		mlist.append([k.x, k.y, k.z, k.w, mats[k]])
-	_saved = {"v": 2, "palette": Array(palette), "count": leaves.size(), "data": Marshalls.raw_to_base64(buf.data_array),
+	_saved = {"v": 3, "palette": Array(palette), "count": leaves.size(), "data": Marshalls.raw_to_base64(buf.data_array),
 		"mats": mlist}
 	_saved_rev = revision
 	return _saved
@@ -1769,7 +2149,12 @@ func load_dict(data: Dictionary) -> void:
 		var bl := PackedByteArray()
 		if ver >= 2 and buf.get_u8() == 1:
 			bl = buf.get_data(8)[1]
-		_put(k, _v(got[1] as PackedByteArray, t, bl))
+		var cut := []
+		if ver >= 3:
+			for j in buf.get_u8():
+				var n := Vector3i(buf.get_32(), buf.get_32(), buf.get_32())
+				cut.append([n, buf.get_64(), buf.get_u8()])
+		_put(k, _v(got[1] as PackedByteArray, t, bl, cut))
 	for m in data.get("mats", []):
 		_put_mat(Vector4i(int(m[0]), int(m[1]), int(m[2]), int(m[3])), String(m[4]))
 	_undo.clear()

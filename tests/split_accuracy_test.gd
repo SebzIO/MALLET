@@ -1,9 +1,11 @@
 extends SceneTree
-## How faithfully splitting a shaped cube into smaller ones keeps its shape. Builds sloped / cornered cubes the way
-## F / Q + wheel make them, splits them 1-3 levels deep (what pushing a smaller cube out of a big one does), then
-## samples the parent's volume on a fine grid and counts points where the pieces disagree with the original:
-## "gap" = original is solid there but no piece is, "bulge" = a piece is solid there but the original wasn't.
-## Run: godot --headless --path D:/SurfForge -s res://tests/split_accuracy_test.gd [-- verbose]
+## Splitting a shaped cube into smaller ones must keep its shape exactly (0.8.9: pieces that 8 corners can't show
+## keep the original's exact planes). Builds sloped / cornered / two-way cubes the way F / Q + wheel make them, then
+## pushes smaller cubes out of them (1-5 levels down, what editing at a smaller grid does) and checks every piece:
+## its corners are exactly the original's solid inside its cell (no rounding anywhere), and the pieces' volumes add
+## up to the original's minus what was pushed out. Also: save / load, rotate x4, flip x2 and copy / paste keep the
+## pieces, and the meshes / collision points come out of them.
+## Run: godot --headless --path D:/SurfForge -s res://tests/split_accuracy_test.gd
 
 const N := 48
 var ok := true
@@ -45,80 +47,145 @@ func shapes() -> Array:
 	return out
 
 
-## [corners, offset (parent units), size (parent units)] for every piece after `levels` splits.
-func pieces(c: PackedByteArray, levels: int, off := Vector3.ZERO, size := 8.0) -> Array:
-	if levels == 0:
-		return [[c, off, size]]
+## The original's exact solid inside a cell (o ticks, power p) of a big cube (power big): a cut in the cell's units.
+func expected_cut(c: PackedByteArray, big: int, o: Vector3i, p: int) -> Array:
+	var S := CubeWorld.size_of(big)
+	var L := CubeWorld.size_of(p)
 	var out := []
-	for o in 8:
-		var cc := CubeWorld.child_corners(c, o)
-		if cc.is_empty():
-			continue
-		var h := size * 0.5
-		out.append_array(pieces(cc, levels - 1, off + Vector3(o & 1, (o >> 1) & 1, (o >> 2) & 1) * h, h))
+	for pl in CubeWorld.cut_from_corners(c):
+		var n: Vector3i = pl[0]
+		out.append([n, (int(pl[1]) * S - 8 * CubeWorld._idot(n, o)) / L, pl[2]])
 	return out
 
 
-func inside(c: PackedByteArray, planes: Array, u: Vector3) -> bool:
-	if c == CubeWorld.FULL:
-		return true
-	for pl in planes:
-		if (pl[0] as Vector3).dot(u) - float(pl[1]) > 1e-4:
-			return false
-	return true
+## A leaf's solid as a cut (corner cubes converted; a whole cube is an empty cut).
+func leaf_cut(v: Array) -> Array:
+	var cut := CubeWorld._cut_of(v)
+	if not cut.is_empty():
+		return cut
+	return [] if v[0] == CubeWorld.FULL else CubeWorld.cut_from_corners(v[0])
 
 
-func measure(c: PackedByteArray, levels: int) -> Array:
-	var parent_planes := CubeWorld.solid_planes(c)
-	var ps := pieces(c, levels)
-	for p in ps:
-		p.append(CubeWorld.solid_planes(p[0]))
-	var cell := 8.0 / pow(2.0, levels)
-	var gap := 0
-	var bulge := 0
-	var solid := 0
-	for i in N:
-		for j in N:
-			for k in N:
-				var pt := (Vector3(i, j, k) + Vector3(0.5, 0.5, 0.5)) * (8.0 / N)
-				var a := inside(c, parent_planes, pt)
-				var b := false
-				var ci := Vector3(floorf(pt.x / cell), floorf(pt.y / cell), floorf(pt.z / cell)) * cell
-				for p in ps:
-					if (p[1] as Vector3).is_equal_approx(ci):
-						b = inside(p[0], p[3], (pt - p[1]) * (8.0 / p[2]))
-						break
-				if a:
-					solid += 1
-				if a and not b:
-					gap += 1
-				if b and not a:
-					bulge += 1
-	return [gap, bulge, solid]
+func volume(cut: Array) -> float:
+	var pts := CubeWorld.cut_vertices(cut)
+	var cen := Vector3.ZERO
+	for p in pts:
+		cen += p
+	cen /= maxf(pts.size(), 1.0)
+	var vol := 0.0
+	for f in CubeWorld.cut_faces(cut):
+		var poly: PackedVector3Array = f[2]
+		for i in range(1, poly.size() - 1):
+			vol += absf((poly[0] - cen).dot((poly[i] - cen).cross(poly[i + 1] - cen))) / 6.0
+	return vol
+
+
+## Push a cube of power sub out of an 8 m shaped cube at `cell` (ticks); returns [ok, detail].
+func push_check(c: PackedByteArray, sub: int, cell: Vector3i) -> Array:
+	var big := 3
+	var w := CubeWorld.new()
+	w.set_cell(Vector3i.ZERO, big, c, CubeWorld.blank_tex())
+	w.push(CubeWorld.make_sel(cell, sub, 3))
+	var scale_big := pow(CubeWorld.size_of(big) / 8.0, 3.0)
+	var want := volume(expected_cut(c, big, Vector3i.ZERO, big)) * scale_big
+	var gone_shape := CubeWorld.shape_from_cut(expected_cut(c, big, cell, sub))
+	if not gone_shape.is_empty():
+		want -= volume(leaf_cut([gone_shape[0], [], [], gone_shape[1]])) * pow(CubeWorld.size_of(sub) / 8.0, 3.0)
+	var got := 0.0
+	for k in w.leaves:
+		var v: Array = w.leaves[k]
+		var exp := CubeWorld.shape_from_cut(expected_cut(c, big, Vector3i(k.x, k.y, k.z), k.w))
+		if exp.is_empty():
+			return [false, "piece %s shouldn't exist" % k]
+		var a := CubeWorld.cut_vertices(leaf_cut(v))
+		var b := CubeWorld.cut_vertices(leaf_cut([exp[0], [], [], exp[1]]))
+		if not CubeWorld._same_points(a, b):
+			return [false, "piece %s is the wrong shape" % k]
+		got += volume(leaf_cut(v)) * pow(CubeWorld.size_of(k.w) / 8.0, 3.0)
+	if absf(got - want) > 1e-3 * maxf(want, 1.0):
+		return [false, "pieces add up to %.4f, want %.4f (a piece is missing)" % [got, want]]
+	return [true, "%d pieces" % w.leaves.size()]
 
 
 func _run() -> void:
-	var verbose := "verbose" in OS.get_cmdline_user_args()
-	# 1) the real edit on slopes that land on the smaller cubes' grid: what's left must match exactly
-	for s in shapes():
-		if s[0] in ["slope 4/8", "lean 4/8", "slope 8/8", "slope 2/8"]:
-			for sub in [2, 1]:
-				var r := world_check(s[1], sub)
-				await process_frame                      # keep the window responding (Windows flags it otherwise)
-				check("%s: push a %d m cube out of an 8 m one, every position" % [s[0], CubeWorld.metres(sub)], r[0] < 0.01,
-					"(worst %.2f%% wrong at cell %s)" % r)
-	# 2) every shape, split 1-3 deep: overall error (other slopes can't be exact: the cubes only have 1/8 steps)
-	var total := [0, 0, 0]
-	for s in shapes():
-		for levels in [1, 2, 3]:
-			var r := measure(s[1], levels)
-			await process_frame
-			for i in 3:
-				total[i] += r[i]
-			if verbose:
-				print("%-14s %d deep: gap %5.2f%%  bulge %5.2f%%" % [s[0], levels, r[0] * 100.0 / r[2], r[1] * 100.0 / r[2]])
-	var err: float = float(total[0] + total[1]) / float(total[2]) * 100.0
-	check("all shapes split 1-3 deep: %.2f%% of the volume off (was 3.54%% before 0.8.8)" % err, err < 1.2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var all := shapes()
+	# 1) push cubes 1-5 levels smaller out of every shape: every piece exact, nothing missing
+	for s in all:
+		var bad := ""
+		var tries := 0
+		for sub in [2, 1, 0, -1, -2]:
+			var g := CubeWorld.size_of(sub)
+			var n := 64 / g
+			for t in (8 if sub >= 1 else 6):
+				var cell := Vector3i(rng.randi_range(0, n - 1), rng.randi_range(0, n - 1), rng.randi_range(0, n - 1)) * g
+				var r := push_check(s[1], sub, cell)
+				tries += 1
+				if not r[0]:
+					bad = "%.3f m cube at %s: %s" % [CubeWorld.metres(sub), cell, r[1]]
+					break
+			if bad != "":
+				break
+		await process_frame                              # keep the window responding (Windows flags it otherwise)
+		check("%s: %d pushes 4 m - 0.25 m, every piece exact" % [s[0], tries], bad == "", bad)
+	# 2) a split slope survives save / load, rotate x4, flip x2, copy / paste, and draws + collides
+	var c: PackedByteArray = all[2][1]                    # slope 3/8: pieces need exact cuts
+	var w := CubeWorld.new()
+	w.set_cell(Vector3i.ZERO, 3, c, CubeWorld.blank_tex())
+	w.push(CubeWorld.make_sel(Vector3i(24, 40, 8), -1, 3))
+	var cuts := 0
+	for k in w.leaves:
+		if not CubeWorld._cut_of(w.leaves[k]).is_empty():
+			cuts += 1
+	check("a 3/8 slope split down to 0.5 m keeps exact pieces", cuts > 0, "(%d exact pieces of %d)" % [cuts, w.leaves.size()])
+	var before := w.leaves.duplicate(true)
+	var w2 := CubeWorld.from_dict(w.to_dict())
+	check("save / load keeps every piece exactly", w2.leaves == before)
+	var sel := CubeWorld.make_sel(Vector3i.ZERO, 3, 3)
+	for i in 4:
+		sel = w.rotate(sel, 1)
+	check("rotating a quarter turn 4 times gives the same pieces back", w.leaves == before)
+	w.flip(sel)
+	var flipped_differs := w.leaves != before
+	w.flip(sel)
+	check("flipping twice gives the same pieces back (and once changes them)", w.leaves == before and flipped_differs)
+	var clip := w.copy(sel)
+	var w3 := CubeWorld.new()
+	w3.paste(CubeWorld.make_sel(Vector3i(128, 0, 0), 3, 3), clip)
+	var moved_ok := true
+	for k in before:
+		if w3.leaves.get(Vector4i(k.x + 128, k.y, k.z, k.w)) != before[k]:
+			moved_ok = false
+	check("copy / paste somewhere else keeps every piece", moved_ok and w3.leaves.size() == before.size())
+	var tris := 0
+	var col_pts := 0
+	for ck in w.render_chunks():
+		var m: Array = w.chunk_mesh(ck, true)
+		tris += (m[1] as PackedVector3Array).size() / 3
+	for k in w.leaves:
+		col_pts += w.cube_points(k).size()
+	var outward := true
+	for k in w.leaves:
+		var cut := CubeWorld._cut_of(w.leaves[k])
+		if cut.is_empty():
+			continue
+		var pts := CubeWorld.cut_vertices(cut)
+		var cen := Vector3.ZERO
+		for p in pts:
+			cen += p
+		cen /= pts.size()
+		for f in CubeWorld.cut_faces(cut):
+			var poly: PackedVector3Array = f[2]
+			var fc := Vector3.ZERO
+			for p in poly:
+				fc += p
+			fc /= poly.size()
+			for i in range(1, poly.size() - 1):
+				if (poly[i] - poly[0]).cross(poly[i + 1] - poly[0]).dot(fc - cen) <= 0.0:
+					outward = false
+	check("every face of an exact piece faces outwards", outward)
+	check("pieces draw, collide and give collision / brush points", tris > 0 and col_pts > 0, "(%d collision triangles)" % tris)
 	print("SPLIT ACCURACY: ", "PASS" if ok else "FAIL")
 	quit()
 
@@ -126,51 +193,3 @@ func _run() -> void:
 func check(label: String, good: bool, detail := "") -> void:
 	print("%-70s %s %s" % [label, "OK  " if good else "FAIL", detail])
 	ok = ok and good
-
-
-## The real edit: a shaped 8 m cube, push out one smaller cube (every position in turn), compare what's left with
-## (original minus that cell).
-func world_check(c: PackedByteArray, sub_p: int) -> Array:
-	var w := CubeWorld.new()
-	var big := 3
-	var S := CubeWorld.size_of(big)
-	var s := CubeWorld.size_of(sub_p)
-	var parent_planes := CubeWorld.solid_planes(c)
-	var worst := [0.0, Vector3i.ZERO]
-	var cells := S / s
-	for cx in cells:
-		for cy in cells:
-			for cz in cells:
-				w.clear()
-				w.set_cell(Vector3i.ZERO, big, c, CubeWorld.blank_tex())
-				var cell := Vector3i(cx, cy, cz) * s
-				w.push(CubeWorld.make_sel(cell, sub_p, 3))
-				var ps := {}
-				for k in w.leaves:
-					var cc: PackedByteArray = w.leaves[k][0]
-					ps[k] = [cc, Vector3(k.x, k.y, k.z), float(CubeWorld.size_of(k.w)), CubeWorld.solid_planes(cc)]
-				var bad := 0
-				var solid := 0
-				var M := 16
-				for i in M:
-					for j in M:
-						for k in M:
-							var pt := (Vector3(i, j, k) + Vector3(0.5, 0.5, 0.5)) * (float(S) / M)
-							var in_cell := pt.x >= cell.x and pt.x < cell.x + s and pt.y >= cell.y and pt.y < cell.y + s and pt.z >= cell.z and pt.z < cell.z + s
-							var a := inside(c, parent_planes, pt * (8.0 / S)) and not in_cell
-							var b := false
-							for q in range(sub_p, big + 1):
-								var qs := CubeWorld.size_of(q)
-								var key := Vector4i(floori(pt.x / qs) * qs, floori(pt.y / qs) * qs, floori(pt.z / qs) * qs, q)
-								if ps.has(key):
-									var p: Array = ps[key]
-									b = inside(p[0], p[3], (pt - p[1]) * (8.0 / p[2]))
-									break
-							if a:
-								solid += 1
-							if a != b:
-								bad += 1
-				var e := float(bad) / maxf(solid, 1.0) * 100.0
-				if e > worst[0]:
-					worst = [e, Vector3i(cx, cy, cz)]
-	return worst
