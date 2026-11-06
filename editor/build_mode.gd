@@ -265,6 +265,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _mouse_button(e: InputEventMouseButton) -> void:
+	if e.button_index != MOUSE_BUTTON_WHEEL_UP and e.button_index != MOUSE_BUTTON_WHEEL_DOWN:
+		_flush_wheel()                                   # (a click acts on the selection after the notches)
 	match e.button_index:
 		MOUSE_BUTTON_LEFT:
 			if e.pressed:
@@ -358,6 +360,7 @@ func _right_click() -> void:
 
 
 func _key(e: InputEventKey) -> void:
+	_flush_wheel()                                       # (keys act after the notches gathered this frame)
 	var ctrl := e.ctrl_pressed or e.meta_pressed
 	match e.keycode:
 		KEY_E, KEY_ESCAPE: stop()
@@ -465,8 +468,33 @@ func hmap_on() -> bool:
 	return hmap or Input.is_key_pressed(KEY_ALT)
 
 
+## Plain wheel notches on a selection wait here until the frame's end, then run as one edit (pull_n / push_n): a
+## fast spin over a big selection is one quick edit and one mesh update, not one of each per notch.
+var _wheel_pending := 0
+
+
+func _flush_wheel() -> void:
+	var n := _wheel_pending
+	_wheel_pending = 0
+	if n == 0 or sel.is_empty():
+		return
+	var s := sel
+	var tex := texture
+	var out = _edit(s, func(w: CubeWorld): return w.push_n(s, n) if n > 0 else w.pull_n(s, -n, tex))
+	if out != null and not sel.is_empty():
+		var keep_model = sel.get("model")
+		sel = (out as Dictionary).duplicate()
+		sel["model"] = keep_model if keep_model != null else model
+
+
 ## What the mouse wheel does: dir 1 = rolled away from you (push in), -1 = towards you (pull out).
 func wheel(dir: int) -> void:
+	if _wheel_pending != 0:
+		var plain := not hmap_on() and corners.is_empty() and ent_sel.is_empty()
+		for k in [KEY_G, KEY_B, KEY_Y, KEY_O, KEY_P, KEY_R, KEY_F, KEY_Q]:
+			plain = plain and not Input.is_key_pressed(k)
+		if not plain:
+			_flush_wheel()                               # (keep the order: gathered notches first)
 	if Input.is_key_pressed(KEY_G):
 		grid_p = clampi(grid_p + dir, CubeWorld.MIN_P, CubeWorld.MAX_P)
 		sel = {}
@@ -519,6 +547,9 @@ func wheel(dir: int) -> void:
 	elif not corners.is_empty() and not sel.is_empty():
 		var rect := corners.duplicate()
 		out = _edit(s, func(w: CubeWorld): return w.push_corner_quads(s, rect, dir))
+	elif not sel.is_empty():
+		_wheel_pending += dir                            # (run at the end of the frame, with any other notches)
+		return
 	elif dir > 0:
 		out = _edit(s, func(w: CubeWorld): return w.push(s))
 	else:
@@ -1277,6 +1308,7 @@ static func _metres_text(m: float) -> String:
 
 # ------------------------------------------------------------------------------------------------ every frame
 func _process(delta: float) -> void:
+	_flush_wheel()
 	if not active:
 		return
 	if not _ui_open:

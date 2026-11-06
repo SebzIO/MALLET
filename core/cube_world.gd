@@ -19,6 +19,8 @@ const MIN_P := -3
 const MAX_P := 6
 const INDEX_TICKS := 512                 ## 64 m: the biggest cube, so no cube straddles an index cell
 const RENDER_TICKS := 128                ## 16 m render chunks (rebuilt when something in them changes)
+const _RENDER_SHIFT := 7                 ## RENDER_TICKS = 1 << this
+const _INDEX_SHIFT := 9                  ## INDEX_TICKS = 1 << this
 ## Faces, numbered like Sauerbraten's orientations: axis * 2 + side (side 1 = the + side). Y is up here.
 const ORIENT_SLOTS := ["left", "right", "bottom", "top", "front", "back"]   ## -X, +X, -Y, +Y, -Z, +Z
 ## Sauerbraten's materials (what fills empty space). "air" = none.
@@ -108,6 +110,9 @@ static func orient_normal(o: int) -> Vector3:
 	var v := Vector3.ZERO
 	v[o >> 1] = 1.0 if o & 1 else -1.0
 	return v
+
+
+const _STEPS := [Vector3i(-1, 0, 0), Vector3i(1, 0, 0), Vector3i(0, -1, 0), Vector3i(0, 1, 0), Vector3i(0, 0, -1), Vector3i(0, 0, 1)]
 
 
 static func orient_step(o: int) -> Vector3i:
@@ -896,8 +901,8 @@ const _MAT_TAG := 32                     ## undo records keep material cells apa
 func _put(k: Vector4i, v) -> void:
 	if _edit != null and not (_edit as Dictionary).has(k):
 		_edit[k] = leaves.get(k)
-	var ik := _index_key(k)
-	var rk := render_key(k)
+	var ik := Vector3i(k.x >> _INDEX_SHIFT, k.y >> _INDEX_SHIFT, k.z >> _INDEX_SHIFT)       # (= _index_key, render_key:
+	var rk := Vector3i(k.x >> _RENDER_SHIFT, k.y >> _RENDER_SHIFT, k.z >> _RENDER_SHIFT)    #  shifts floor like _fdiv)
 	if v == null:
 		if leaves.erase(k):
 			_index[ik].erase(k)
@@ -919,8 +924,8 @@ func _put(k: Vector4i, v) -> void:
 
 func _count_occ(k: Vector4i, add: int) -> void:
 	for q in range(k.w + 1, MAX_P + 1):
-		var s := size_of(q)
-		var ck := Vector4i(floori(float(k.x) / s) * s, floori(float(k.y) / s) * s, floori(float(k.z) / s) * s, q)
+		var sh := q + 3                                  # (size_of(q) = 1 << sh)
+		var ck := Vector4i((k.x >> sh) << sh, (k.y >> sh) << sh, (k.z >> sh) << sh, q)
 		var n: int = _occ.get(ck, 0) + add
 		if n <= 0:
 			_occ.erase(ck)
@@ -977,8 +982,42 @@ func _put_mat(k: Vector4i, m) -> void:
 	revision += 1
 
 
+## Many cubes changing at once (a big wheel edit): note only the box they're in, and mark the render chunks once at
+## the end (_bulk_end) instead of per cube.
+var _bulk = null                         ## [lo Vector3i, hi Vector3i] ticks, while a bulk edit runs
+
+
+func _bulk_begin() -> void:
+	if _bulk == null:
+		_bulk = []
+
+
+func _bulk_end() -> void:
+	var b = _bulk
+	_bulk = null
+	if b == null or b.is_empty():
+		return
+	var lo: Vector3i = b[0] - Vector3i.ONE
+	var hi: Vector3i = b[1] + Vector3i.ONE
+	for x in range(_fdiv(lo.x, RENDER_TICKS), _fdiv(hi.x, RENDER_TICKS) + 1):
+		for y in range(_fdiv(lo.y, RENDER_TICKS), _fdiv(hi.y, RENDER_TICKS) + 1):
+			for z in range(_fdiv(lo.z, RENDER_TICKS), _fdiv(hi.z, RENDER_TICKS) + 1):
+				dirty[Vector3i(x, y, z)] = true
+	for k in leaves_in(lo, hi - lo + Vector3i.ONE):     # big neighbours that start in another chunk
+		dirty[render_key(k)] = true
+
+
 func _mark(k: Vector4i) -> void:
 	var s := size_of(k.w)
+	if _bulk != null:
+		var klo := Vector3i(k.x, k.y, k.z)
+		var khi := klo + Vector3i(s - 1, s - 1, s - 1)
+		if _bulk.is_empty():
+			_bulk.append_array([klo, khi])
+		else:
+			_bulk[0] = (_bulk[0] as Vector3i).min(klo)
+			_bulk[1] = (_bulk[1] as Vector3i).max(khi)
+		return
 	var lo := Vector3i(k.x - 1, k.y - 1, k.z - 1)
 	var hi := Vector3i(k.x + s, k.y + s, k.z + s)
 	for x in range(_fdiv(lo.x, RENDER_TICKS), _fdiv(hi.x, RENDER_TICKS) + 1):
@@ -1123,6 +1162,37 @@ func set_cell(o: Vector3i, p: int, corners: PackedByteArray, tex: PackedStringAr
 	_put(Vector4i(o.x, o.y, o.z, p), _v(corners, tex, blend, cut))
 
 
+## _merge_up for many cells of size p at once: each parent is looked at once per level, not once per cell.
+func _merge_up_many(cells: Array, p: int) -> void:
+	var cur := {}
+	for o in cells:
+		cur[o] = true
+	while p < MAX_P and not cur.is_empty():
+		var ps := size_of(p + 1)
+		var cs := size_of(p)
+		var parents := {}
+		for o in cur:
+			parents[Vector3i(floori(float(o.x) / ps) * ps, floori(float(o.y) / ps) * ps, floori(float(o.z) / ps) * ps)] = true
+		var nxt := {}
+		for po in parents:
+			var tex = null
+			var ok := true
+			for i in 8:
+				var v = leaves.get(Vector4i(po.x + (i & 1) * cs, po.y + ((i >> 1) & 1) * cs, po.z + ((i >> 2) & 1) * cs, p))
+				if v == null or v[0] != FULL or not _cut_of(v).is_empty() or not _blend_of(v).is_empty() or (tex != null and v[1] != tex):
+					ok = false
+					break
+				tex = v[1]
+			if not ok:
+				continue
+			for i in 8:
+				_put(Vector4i(po.x + (i & 1) * cs, po.y + ((i >> 1) & 1) * cs, po.z + ((i >> 2) & 1) * cs, p), null)
+			_put(Vector4i(po.x, po.y, po.z, p + 1), _v(FULL, tex))
+			nxt[po] = true
+		cur = nxt
+		p += 1
+
+
 func _merge_up(o: Vector3i, p: int) -> void:
 	while p < MAX_P:
 		var ps := size_of(p + 1)
@@ -1245,18 +1315,146 @@ func _tex_from(behind: Vector3i, p: int, fallback: String) -> PackedStringArray:
 func pull(sel: Dictionary, tex := "") -> Dictionary:
 	var p: int = sel["p"]
 	var front := moved(sel, 1)
+	var new_cells := face_layer(front)
+	var g := size_of(p)
+	var lo: Vector3i = new_cells[0]
+	var hi: Vector3i = new_cells[0]
+	for c in new_cells:
+		lo = lo.min(c)
+		hi = hi.max(c)
+	var empty := leaves_in(lo, hi - lo + Vector3i(g, g, g)).is_empty()   # nothing there yet: no cells to clear
+	var texs := {}                                       # the cube behind -> its textures (they're shared, not copied)
+	_bulk_begin()
 	for c in face_layer(sel):
-		var f: Vector3i = c + orient_step(sel["orient"]) * size_of(p)
-		set_cell(f, p, FULL, _tex_from(c, p, tex))
-	for c in face_layer(front):
-		_merge_up(c, p)
+		var f: Vector3i = c + orient_step(sel["orient"]) * g
+		var bk = leaf_at(Vector3(c) + Vector3.ONE * g * 0.5)
+		if not texs.has(bk):
+			texs[bk] = (leaves[bk][1] as PackedStringArray).duplicate() if bk != null else blank_tex(tex)
+		if empty:
+			_put(Vector4i(f.x, f.y, f.z, p), _v(FULL, texs[bk]))
+		else:
+			set_cell(f, p, FULL, texs[bk])
+	_merge_up_many(new_cells, p)
+	_bulk_end()
 	return front
+
+
+## Several wheel notches at once (build mode gathers the notches of one frame): pull n layers out in one go. The
+## new block is laid down as the biggest aligned cubes that fit (each with the texture of the cubes behind it), so
+## pulling 8 layers of 0.125 m cubes out of an 8 m face makes 64 1 m cubes, not 32768 small ones.
+func pull_n(sel: Dictionary, n: int, tex := "") -> Dictionary:
+	if n <= 1:
+		return pull(sel, tex)
+	var p: int = sel["p"]
+	var g := size_of(p)
+	var o: int = sel["orient"]
+	var d := o >> 1
+	var a := (d + 1) % 3
+	var b := (d + 2) % 3
+	var step := orient_step(o) * g
+	var colbk := {}                                      # column (a, b ticks) -> the cube behind it
+	var texs := {}
+	var uniform := true
+	var first_bk = null
+	var lo := Vector3i.MAX
+	var hi := Vector3i.MIN
+	for c in face_layer(sel):
+		var bk = leaf_at(Vector3(c) + Vector3.ONE * g * 0.5)
+		if not texs.has(bk):
+			texs[bk] = (leaves[bk][1] as PackedStringArray).duplicate() if bk != null else blank_tex(tex)
+		if colbk.is_empty():
+			first_bk = bk
+		elif bk != first_bk:
+			uniform = false
+		colbk[Vector2i(c[a], c[b])] = bk
+		for i in [1, n]:
+			lo = lo.min(c + step * i)
+			hi = hi.max(c + step * i)
+	hi += Vector3i(g, g, g)                              # (exclusive)
+	var cubes := []
+	_box_decompose(lo, hi, p, cubes, func(co: Vector3i, sz: int) -> bool:
+		if uniform:
+			return true
+		var want = colbk[Vector2i(co[a], co[b])]
+		for i in range(co[a], co[a] + sz, g):
+			for j in range(co[b], co[b] + sz, g):
+				if colbk[Vector2i(i, j)] != want:
+					return false
+		return true)
+	var empty := leaves_in(lo, hi - lo).is_empty()
+	var by_level := {}
+	_bulk_begin()
+	for cq in cubes:
+		var co: Vector3i = cq[0]
+		var q: int = cq[1]
+		var t: PackedStringArray = texs[colbk[Vector2i(co[a], co[b])]]
+		if empty:
+			_put(Vector4i(co.x, co.y, co.z, q), _v(FULL, t))
+		else:
+			set_cell(co, q, FULL, t)
+		if not by_level.has(q):
+			by_level[q] = []
+		by_level[q].append(co)
+	var levels := by_level.keys()
+	levels.sort()
+	for q in levels:
+		_merge_up_many(by_level[q], q)
+	_bulk_end()
+	return moved(sel, n)
+
+
+## Several wheel notches the other way at once: push n layers of the selection away (the selection follows them in).
+func push_n(sel: Dictionary, n: int) -> Dictionary:
+	if n <= 1:
+		return push(sel)
+	var p: int = sel["p"]
+	var g := size_of(p)
+	var lo := Vector3i.MAX
+	var hi := Vector3i.MIN
+	for c in face_layer(sel) + face_layer(moved(sel, -(n - 1))):
+		lo = lo.min(c)
+		hi = hi.max(c)
+	hi += Vector3i(g, g, g)
+	var cubes := []
+	_box_decompose(lo, hi, p, cubes, func(_co: Vector3i, _sz: int) -> bool: return true)
+	_bulk_begin()
+	for cq in cubes:
+		_clear_cell(cq[0], cq[1])
+	_bulk_end()
+	return moved(sel, -n)
+
+
+## The box lo..hi (ticks, exclusive, on the size-p grid) as the biggest aligned cubes that fit: [[origin, size p], ...].
+## `ok(origin, size ticks)` can refuse a cube that fits (it's split further, down to size p).
+func _box_decompose(lo: Vector3i, hi: Vector3i, p: int, out: Array, ok: Callable) -> void:
+	var top := size_of(MAX_P)
+	for x in range(_fdiv(lo.x, top), _fdiv(hi.x - 1, top) + 1):
+		for y in range(_fdiv(lo.y, top), _fdiv(hi.y - 1, top) + 1):
+			for z in range(_fdiv(lo.z, top), _fdiv(hi.z - 1, top) + 1):
+				_box_part(Vector3i(x, y, z) * top, MAX_P, lo, hi, p, out, ok)
+
+
+func _box_part(co: Vector3i, q: int, lo: Vector3i, hi: Vector3i, p: int, out: Array, ok: Callable) -> void:
+	var sz := size_of(q)
+	var inside := co.x >= lo.x and co.y >= lo.y and co.z >= lo.z and co.x + sz <= hi.x and co.y + sz <= hi.y 		and co.z + sz <= hi.z
+	if inside and (q == p or ok.call(co, sz)):
+		out.append([co, q])
+		return
+	if q == p:
+		return
+	var cs := size_of(q - 1)
+	for i in 8:
+		var c := co + Vector3i(i & 1, (i >> 1) & 1, (i >> 2) & 1) * cs
+		if c.x < hi.x and c.x + cs > lo.x and c.y < hi.y and c.y + cs > lo.y and c.z < hi.z and c.z + cs > lo.z:
+			_box_part(c, q - 1, lo, hi, p, out, ok)
 
 
 ## Mouse wheel the other way: push the selected layer of cubes out of existence (the selection follows it in).
 func push(sel: Dictionary) -> Dictionary:
+	_bulk_begin()
 	for c in face_layer(sel):
 		_clear_cell(c, sel["p"])
+	_bulk_end()
 	return moved(sel, -1)
 
 
@@ -2001,9 +2199,13 @@ func move_cubes(sel: Dictionary, delta: Vector3i) -> Dictionary:
 func _face_hidden(k: Vector4i, c: PackedByteArray, o: int) -> bool:
 	if not leaf_face_full(leaves[k], o):
 		return false
-	var nk = _leaf_at_from(_beyond(k, o), k.w)            # (a smaller neighbour never hides it: skip those sizes)
-	if nk == null:
-		return false
+	var sz := size_of(k.w)
+	var st := orient_step(o) * sz
+	var nk = Vector4i(k.x + st.x, k.y + st.y, k.z + st.z, k.w)   # (usually a neighbour of the same size: one lookup)
+	if not leaves.has(nk):
+		nk = _leaf_at_from(_beyond(k, o), k.w + 1)       # (a smaller neighbour never hides it: skip those sizes)
+		if nk == null:
+			return false
 	if not mats.is_empty() and (cube_in_mat(nk, "alpha") or cube_in_mat(nk, "noclip")) != (cube_in_mat(k, "alpha") or cube_in_mat(k, "noclip")):
 		return false                                     # a see-through or pass-through neighbour doesn't hide it
 	return leaf_face_full(leaves[nk], o ^ 1)
@@ -2046,6 +2248,8 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 	var groups := {}
 	var col := PackedVector3Array()
 	var lines := PackedVector3Array()
+	var flats := {}                                      # slot key -> [slot, alpha, noclip, {Vector3i(orient, plane, size): {Vector2i cell: true}}]
+	var no_mats := mats.is_empty()
 	for k in _render.get(ck, {}):
 		var v: Array = leaves[k]
 		var c: PackedByteArray = v[0]
@@ -2058,8 +2262,46 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 		if not cut.is_empty():
 			_cut_mesh(k, v, cut, origin, unit, noclip, alpha, groups, col, lines, outline)
 			continue
+		var flat := not outline and c == FULL and bl.is_empty()
+		var sz := size_of(k.w)
+		var quick := c == FULL and no_mats                   # whole cube, no materials: inline same-size neighbour test
 		for o in 6:
-			if _face_hidden(k, c, o):
+			if quick:
+				var st: Vector3i = _STEPS[o]
+				var nv = leaves.get(Vector4i(k.x + st.x * sz, k.y + st.y * sz, k.z + st.z * sz, k.w))
+				if nv == null:                               # a bigger neighbour? (the one holding the tick beyond)
+					var np := Vector3i(k.x, k.y, k.z)
+					np[o >> 1] += sz if o & 1 else -1
+					for q in range(k.w + 1, MAX_P + 1):
+						var sh := q + 3
+						nv = leaves.get(Vector4i((np.x >> sh) << sh, (np.y >> sh) << sh, (np.z >> sh) << sh, q))
+						if nv != null:
+							break
+					if nv == null:
+						pass                                 # (smaller cubes or nothing: the face shows)
+					elif nv.size() <= 3 and nv[0] == FULL:
+						continue
+					elif _face_hidden(k, c, o):
+						continue
+				elif nv.size() <= 3 and nv[0] == FULL:
+					continue                                 # (hidden by a whole cube the same size)
+				elif _face_hidden(k, c, o):
+					continue
+			elif _face_hidden(k, c, o):
+				continue
+			if flat:                                         # whole faces: merged with their neighbours below
+				var d := o >> 1
+				var sk: String = v[1][o]
+				if alpha or noclip:
+					sk += "#a" if alpha else "#n"
+					sk += "#n" if noclip and alpha else ""
+				if not flats.has(sk):
+					flats[sk] = [v[1][o], alpha, noclip, {}]
+				var planes: Dictionary = flats[sk][3]
+				var pk := Vector3i(o, k[d] + (sz if o & 1 else 0), k.w)
+				if not planes.has(pk):
+					planes[pk] = {}
+				planes[pk][Vector2i(k[(d + 1) % 3] / sz, k[(d + 2) % 3] / sz)] = true
 				continue
 			var slot: String = v[1][o]
 			var sl := parse_slot(slot)
@@ -2105,6 +2347,10 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 			g[3] = uvs
 			g[4] = uv2s
 			g[5] = cols
+	for sk in flats:
+		var f: Array = flats[sk]
+		for pk in f[3]:
+			_flat_quads([f[0], f[1], f[2], pk.x, pk.y, pk.z], f[3][pk], groups, col)
 	var m := ArrayMesh.new()
 	for key in groups:
 		var g: Array = groups[key]
@@ -2132,6 +2378,88 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 		lmat.albedo_color = Color(0.05, 0.05, 0.05)
 		lm.surface_set_material(0, lmat)
 	return [m, col, lm]
+
+
+## Greedy meshing: the visible whole faces of same-size cubes on one plane, with the same texture slot, drawn as
+## the fewest rectangles that cover them (a flat 8 m floor of 0.125 m cubes is 2 triangles, not 8192). Texture
+## coordinates are planar in world space, so a merged rectangle looks exactly like the faces it replaces.
+func _flat_quads(fk: Array, cells: Dictionary, groups: Dictionary, col: PackedVector3Array) -> void:
+	var slot: String = fk[0]
+	var alpha: bool = fk[1]
+	var noclip: bool = fk[2]
+	var o: int = fk[3]
+	var plane: int = fk[4]
+	var s := size_of(fk[5])
+	var d := o >> 1
+	var a := (d + 1) % 3
+	var b := (d + 2) % 3
+	var sl := parse_slot(slot)
+	var key := slot + ("#alpha" if alpha else "")
+	if not groups.has(key):
+		groups[key] = [PackedVector3Array(), PackedVector3Array(), PackedFloat32Array(), PackedVector2Array(),
+			PackedVector2Array(), PackedColorArray(), slot, alpha]
+	var g: Array = groups[key]
+	var verts: PackedVector3Array = g[0]
+	var normals: PackedVector3Array = g[1]
+	var tangents: PackedFloat32Array = g[2]
+	var uvs: PackedVector2Array = g[3]
+	var uv2s: PackedVector2Array = g[4]
+	var cols: PackedColorArray = g[5]
+	for i in 6:
+		g[i] = null
+	var layered: bool = sl["l"] != ""
+	var q: Array = face_corners(o)
+	var keys: Array = cells.keys()
+	keys.sort_custom(func(l: Vector2i, r: Vector2i) -> bool: return l.y < r.y or (l.y == r.y and l.x < r.x))
+	var used := {}
+	for c0 in keys:
+		if used.has(c0):
+			continue
+		var wa := 1                                      # grow along a, then whole rows along b
+		while cells.has(Vector2i(c0.x + wa, c0.y)) and not used.has(Vector2i(c0.x + wa, c0.y)):
+			wa += 1
+		var wb := 1
+		while true:
+			var row_ok := true
+			for i in wa:
+				var cc := Vector2i(c0.x + i, c0.y + wb)
+				if not cells.has(cc) or used.has(cc):
+					row_ok = false
+					break
+			if not row_ok:
+				break
+			wb += 1
+		for i in wa:
+			for j in wb:
+				used[Vector2i(c0.x + i, c0.y + j)] = true
+		var pts := []                                    # the rectangle's corners, in face_corners order
+		for n in q:
+			var u := corner(FULL, n) / 8.0
+			var pt := Vector3.ZERO
+			pt[d] = plane
+			pt[a] = (c0.x + u[a] * wa) * s
+			pt[b] = (c0.y + u[b] * wb) * s
+			pts.append(pt * TICK)
+		for t in [[0, 1, 2], [0, 2, 3]]:
+			var w := [pts[t[0]], pts[t[1]], pts[t[2]]]
+			var nrm: Vector3 = (w[1] - w[0]).cross(w[2] - w[0]).normalized()
+			var uv := [slot_uv(w[0], nrm, sl), slot_uv(w[1], nrm, sl), slot_uv(w[2], nrm, sl)]
+			var tan := _tri_tangent(w, uv, nrm)
+			for j in [0, 2, 1]:                          # Godot winds front faces clockwise
+				verts.append(w[j])
+				normals.append(nrm)
+				tangents.append_array([tan.normal.x, tan.normal.y, tan.normal.z, tan.d])
+				uvs.append(uv[j])
+				uv2s.append(slot_uv(w[j], nrm, sl, true) if layered else Vector2.ZERO)
+				cols.append(Color(1, 1, 1, 0))
+				if not noclip:
+					col.append(w[j])
+	g[0] = verts
+	g[1] = normals
+	g[2] = tangents
+	g[3] = uvs
+	g[4] = uv2s
+	g[5] = cols
 
 
 ## An exact cut piece's faces into the chunk's surfaces (same layout as chunk_mesh's corner cubes).

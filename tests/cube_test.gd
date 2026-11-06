@@ -198,8 +198,11 @@ func _run() -> void:
 	w.begin()
 	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3, Vector3i(2, 1, 1)))
 	w.commit()
-	var mesh_data := w.chunk_mesh(Vector3i(0, 0, 0))
+	var mesh_data := w.chunk_mesh(Vector3i(0, 0, 0), true)   # (outline mode: every face on its own)
 	check("faces between touching cubes aren't drawn", (mesh_data[1] as PackedVector3Array).size() == 20 * 3,
+		"(%d triangles)" % ((mesh_data[1] as PackedVector3Array).size() / 3))
+	mesh_data = w.chunk_mesh(Vector3i(0, 0, 0))
+	check("and the faces side by side are drawn as one (6 rectangles)", (mesh_data[1] as PackedVector3Array).size() == 12 * 3,
 		"(%d triangles)" % ((mesh_data[1] as PackedVector3Array).size() / 3))
 
 	# ---- texture settings (Sauerbraten's vslots)
@@ -240,10 +243,11 @@ func _run() -> void:
 	check("material boxes for export", (mb.get("water", []) as Array).size() >= 1 and (mb.get("clip", []) as Array).size() == 1)
 	var cm2: Array = w.chunk_mesh(Vector3i.ZERO)
 	var col_n := (cm2[1] as PackedVector3Array).size() / 3
+	var floor_n := 12                                     # (the 4 x 1 x 4 floor alone: 6 merged rectangles)
 	w.undo()
 	check("undo takes the materials away again", w.mats.is_empty())
 	w.redo()
-	check("clip adds invisible collision", col_n > 20 + 10, "(%d triangles)" % col_n)
+	check("clip adds invisible collision", col_n >= floor_n + 12, "(%d triangles)" % col_n)
 	w.begin()
 	w.set_material(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3, Vector3i(4, 1, 4)), "noclip")
 	w.commit()

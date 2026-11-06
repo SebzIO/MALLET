@@ -17,6 +17,11 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - Build mode is faster with big builds: a heightmap stroke with the big brush takes about 50 ms instead of about
   270 ms (finding a cube no longer scans a whole 64 m area, and hidden-face checks skip work that can't matter).
   Any edit's mesh update benefits too.
+- Build mode: the mouse wheel on a big selection is close to instant, even at the 0.125 m grid. Notches that
+  arrive in the same frame become one edit laid down as the biggest cubes that fit (8 notches on an 8 m face:
+  ~20 ms, was ~7 s), and flat faces side by side are drawn as one rectangle (a pulled 8 m floor of 0.125 m cubes
+  is 2 triangles, not 8192) - it looks exactly the same. A single notch on an 8 m face at 0.125 m: ~100-200 ms,
+  was ~400-900 ms. A fast spin is one undo step per frame.
 
 ## 0.8.9 preview — 2026-11-06: exact cube splits
 
