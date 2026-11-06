@@ -16,19 +16,19 @@ Do this first, so every later feature, file and screenshot already carries the n
 - [ ] Rename everywhere the user sees it: window title, welcome screen, About text, version string
       ("MALLET 0.10.0 preview"), menus, status messages, help text, READ ME FIRST, THIRD_PARTY, CHANGELOG heading.
 - [ ] Program files: `MALLET.exe` / `MALLET.pck`, zip `MALLET-0.10.0-windows.zip`, Godot project name.
-- [ ] Map files: new extension (proposed **`.mallet`**). Open / Save use it; **old `.sfmap` maps still open**
+- [ ] Map files: new extension **`.mallet`**. Open / Save use it; **old `.sfmap` maps still open**
       (and are saved as `.mallet`). Templates and prefabs renamed too.
 - [ ] Your own data moves with you: Godot keeps settings, your own materials and prefabs under the project name, so
       on first start MALLET copies them over from the old SurfForge folder (mouse settings, fly speed, prefabs, own
       materials, export folders).
 - [ ] Exports: the `made_with` stamp in SurfsUp maps, CS:S file comments, tester build names.
 - [ ] Code / tests / docs: class names (`SurfForgeVersion` …), launcher `.cmd` files, memory notes, handover.
-- [ ] Decide: rename the folder `D:\SurfForge` and `D:\SurfForge_builds` too (git history is kept either way).
+      (The local folders `D:\SurfForge` and `D:\SurfForge_builds` keep their names: development only.)
 
 ## 0.11.0: Materials
 - [ ] **Getridou's materials pack**: ship it in the material library, in its own category, with credit to Getridou
-      in the texture browser, THIRD_PARTY.md and the About text. Get his permission in writing (a short message
-      saying "MALLET may ship and redistribute these, credit: …") and keep it in `materials/getridou/LICENSE.txt`.
+      in the texture browser, THIRD_PARTY.md, the About text and the GitHub README (his credit there is enough, per
+      the user). Keep a short note of his permission with the pack (`materials/getridou/LICENSE.txt`).
 - [ ] **Sauerbraten's materials**: its texture packs come from many artists under **different licences** (some free
       to share, some not for redistribution). Go through them pack by pack: ship the ones whose licence allows it,
       with each artist credited; list the rest as "can't ship" (or import them from a Sauerbraten install the user
@@ -79,7 +79,8 @@ Plan in detail: [PLAYTEST.md](PLAYTEST.md), parts 1–2.
 
 ## 0.16.0: Live playtesting
 [PLAYTEST.md](PLAYTEST.md), parts 3–4.
-- [ ] Relay server on the user's VPS (needs: what it runs, domain + TLS): testers and the map maker both connect
+- [ ] Relay server on the user's VPS (Debian 12 + Docker, domain sebz.xyz, TLS through Nginx Proxy Manager: the
+      relay runs as a Docker container behind it, e.g. a subdomain): testers and the map maker both connect
       out to it; session codes; per-session secret; untrusted-input checks; runs kept until collected.
 - [ ] **Playtest panel**: who's on, live ghosts with names, every route drawn by speed, death / fall markers,
       per-stage times, where people quit; saved with the map.
@@ -94,12 +95,13 @@ Plan in detail: [PLAYTEST.md](PLAYTEST.md), parts 1–2.
 
 ---
 
-## Open questions (to settle before the milestone that needs them)
-- Map file extension: `.mallet` (proposed) or something else?
-- Rename the project folders (`D:\SurfForge`, `D:\SurfForge_builds`)?
-- Getridou: exact credit wording and how he wants to be linked.
-- VPS for live playtesting: OS, domain, TLS (milestone 0.16.0).
-- Code signing (stops the Windows "unrecognised app" warning; a yearly cost): before 1.0 or after?
+## Decisions (2026-11-06)
+- Map files: **`.mallet`**.
+- Local folders `D:\SurfForge` / `D:\SurfForge_builds` stay as they are (development only).
+- Getridou: credited in the GitHub README (plus the in-app credits above).
+- VPS: Debian 12, Docker, domain sebz.xyz with TLS via Nginx Proxy Manager.
+- **No code signing**, ever: MALLET and its test builds stay unsigned. READ ME FIRST and the website / GitHub explain
+  the Windows SmartScreen warning ("More info" > "Run anyway") so users know what to expect.
 
 ## Not planned for now
 - F / Q + wheel subtractive editing, stage split times between ticks (declined 2026-11-06).
