@@ -1537,6 +1537,7 @@ func _draw() -> void:
 					_line(seg[i], seg[i + 1], Color(1.0, 0.55, 0.1))
 	_line(Vector3.ZERO, Vector3.ZERO, Color.BLACK)
 	_im.surface_end()
+	last_fill_count = _fills.size()
 	if not _fills.is_empty():                            # the selected corner squares, filled
 		_im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 		for f in _fills:
@@ -1548,6 +1549,7 @@ func _draw() -> void:
 
 
 var _fills: Array = []                   ## quads to fill this frame (4 points each)
+var last_fill_count := 0                 ## how many corner squares were filled in the last frame
 
 
 ## Corner selection: a half-size grid over the selected cubes' faces (on each cell's side, as if the cell were full),

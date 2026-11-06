@@ -3,6 +3,13 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.8.7 preview — 2026-11-05: fixes to 0.8.6
+
+- Mouse sensitivity is kept in its own file (preferences.cfg): sharing settings.cfg with the export dialogs could
+  wipe out remembered export folders.
+- The play screen's text is centred right after it changes too (it could sit off-centre for a moment).
+- The test suite no longer overwrites your remembered export folders.
+
 ## 0.8.6 preview — 2026-11-05: mouse sensitivity
 
 - View > Mouse sensitivity: a slider each for the editor's 3D view, build mode and play mode, plus invert up /

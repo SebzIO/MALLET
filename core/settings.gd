@@ -1,9 +1,10 @@
 class_name Settings
 extends RefCounted
-## Your own SurfForge settings (not part of any map), kept in user://settings.cfg so they survive restarts:
-## mouse sensitivity for the editor's 3D view, build mode and play mode, and inverted mouse up / down.
+## Your own SurfForge settings (not part of any map), kept in user://preferences.cfg so they survive restarts:
+## mouse sensitivity for the editor's 3D view, build mode and play mode, and inverted mouse up / down. (Its own file:
+## settings.cfg is the editor's export folders, and two writers of one file would wipe out each other's entries.)
 
-const PATH := "user://settings.cfg"
+const PATH := "user://preferences.cfg"
 const DEFAULTS := {
 	"editor_mouse": 1.0,                 ## editor 3D view (orbit / fly): x the normal speed
 	"build_mouse": 1.0,                  ## build mode's first-person look: x the normal speed

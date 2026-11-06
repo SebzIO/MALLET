@@ -378,11 +378,6 @@ func _process(_delta: float) -> void:
 		return
 	var h := Vector2(player.velocity.x, player.velocity.z).length() * UNITS_PER_METRE
 	top_speed = max(top_speed, h)
-	# centre the HUD for the window (anchors don't apply to Controls straight under a CanvasLayer)
-	var vp := get_viewport().get_visible_rect().size
-	_hud_box.reset_size()
-	_hud_box.position = Vector2((vp.x - _hud_box.size.x) * 0.5, vp.y - _hud_box.size.y - 24)
-	_hud_cross.position = (vp - _hud_cross.size) * 0.5
 	_update_ghost()
 	_speed_label.text = "%d" % roundi(h)
 	match run_state:
@@ -401,6 +396,11 @@ func _process(_delta: float) -> void:
 		stage = "   ·   stage %d / %d" % [cur, _stages.size() + 1]
 	_info_label.text = "top %d u/s%s%s   ·   R restart   ·   Backspace checkpoint%s   ·   Esc editor" % [roundi(top_speed), stage, best,
 		("   ·   G ghost " + ("on" if show_ghost else "off")) if not ghost.is_empty() else ""]
+	# centre the HUD for the window, once its text is set (anchors don't apply under a CanvasLayer)
+	var vp := get_viewport().get_visible_rect().size
+	_hud_box.reset_size()
+	_hud_box.position = Vector2((vp.x - _hud_box.size.x) * 0.5, vp.y - _hud_box.size.y - 24)
+	_hud_cross.position = (vp - _hud_cross.size) * 0.5
 
 
 ## Returns true if the event was a play-mode control.

@@ -8,6 +8,8 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# (the dialogs remember folders in your real settings file: keep a copy and put it back at the end)
+	var saved_settings := FileAccess.get_file_as_string("user://settings.cfg") if FileAccess.file_exists("user://settings.cfg") else ""
 	var out: String = OS.get_cmdline_user_args()[0]
 	var ed = load("res://editor/main.tscn").instantiate()
 	root.add_child(ed)
@@ -34,4 +36,10 @@ func _run() -> void:
 	print("status: ", ed._status.text)
 	var ok: bool = FileAccess.file_exists(bsp) and ed._status.text.contains("map sf_dialog_test") and frames > 10
 	print("CSS UI: ", "PASS" if ok else "FAIL")
+	if saved_settings == "":
+		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://settings.cfg"))
+	else:
+		var sf := FileAccess.open("user://settings.cfg", FileAccess.WRITE)
+		sf.store_string(saved_settings)
+		sf.close()
 	quit()
