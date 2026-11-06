@@ -2203,12 +2203,40 @@ func _face_hidden(k: Vector4i, c: PackedByteArray, o: int) -> bool:
 	var st := orient_step(o) * sz
 	var nk = Vector4i(k.x + st.x, k.y + st.y, k.z + st.z, k.w)   # (usually a neighbour of the same size: one lookup)
 	if not leaves.has(nk):
-		nk = _leaf_at_from(_beyond(k, o), k.w + 1)       # (a smaller neighbour never hides it: skip those sizes)
-		if nk == null:
-			return false
+		var same := Vector3i(nk.x, nk.y, nk.z)
+		nk = _leaf_at_from(_beyond(k, o), k.w + 1)
+		if nk == null:                                   # smaller cubes beyond: hidden if they cover all of it
+			return _covered(same, k.w, o, _see_through(k))
 	if not mats.is_empty() and (cube_in_mat(nk, "alpha") or cube_in_mat(nk, "noclip")) != (cube_in_mat(k, "alpha") or cube_in_mat(k, "noclip")):
 		return false                                     # a see-through or pass-through neighbour doesn't hide it
 	return leaf_face_full(leaves[nk], o ^ 1)
+
+
+func _see_through(k: Vector4i) -> bool:
+	return not mats.is_empty() and (cube_in_mat(k, "alpha") or cube_in_mat(k, "noclip"))
+
+
+## Is the side of cell (size q) facing back along orient o (its side o ^ 1) completely covered by whole faces of the
+## cubes in it? (A big cube's face against many small cubes is hidden when they fill it - it was drawn before.)
+func _covered(cell: Vector3i, q: int, o: int, see_through: bool) -> bool:
+	var k := Vector4i(cell.x, cell.y, cell.z, q)
+	if leaves.has(k):
+		return _see_through(k) == see_through and leaf_face_full(leaves[k], o ^ 1)
+	if q <= MIN_P or _occ.get(k, 0) == 0:
+		return false
+	var h := size_of(q - 1)
+	var d := o >> 1
+	var a := (d + 1) % 3
+	var b := (d + 2) % 3
+	for i in 2:
+		for j in 2:
+			var c := cell
+			c[d] += 0 if o & 1 else h                    # (the half next to the face)
+			c[a] += i * h
+			c[b] += j * h
+			if not _covered(c, q - 1, o, see_through):
+				return false
+	return true
 
 
 func cube_points(k: Vector4i) -> PackedVector3Array:
@@ -2278,7 +2306,9 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 						if nv != null:
 							break
 					if nv == null:
-						pass                                 # (smaller cubes or nothing: the face shows)
+						var sc := Vector3i(k.x + st.x * sz, k.y + st.y * sz, k.z + st.z * sz)
+						if _occ.get(Vector4i(sc.x, sc.y, sc.z, k.w), 0) > 0 and _covered(sc, k.w, o, false):
+							continue                             # (smaller cubes cover all of it)
 					elif nv.size() <= 3 and nv[0] == FULL:
 						continue
 					elif _face_hidden(k, c, o):

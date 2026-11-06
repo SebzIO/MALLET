@@ -154,5 +154,29 @@ func _run() -> void:
 	check("#12 the yellow outline sits on the real (pushed-down) top", drew and not ys.is_empty() and ys.max() < 4.6 and ys.min() > 4.4,
 		"(heights %s; the cell's top would be 5.0)" % [ys.slice(0, 4)])
 
+	# ---- #8: a face covered by smaller cubes isn't drawn (inside solid it was)
+	var cw := CubeWorld.new()
+	cw.set_cell(Vector3i(0, 0, 0), 0, CubeWorld.FULL, CubeWorld.blank_tex())          # a 1 m cube
+	for y in [0, 4]:                                                                  # four 0.5 m cubes against its +x side
+		for z in [0, 4]:
+			cw.set_cell(Vector3i(8, y, z), -1, CubeWorld.FULL, CubeWorld.blank_tex())
+	var big := Vector4i(0, 0, 0, 0)
+	check("#8 a big cube's side covered by small cubes is hidden", cw._face_hidden(big, CubeWorld.FULL, 1))
+	cw.set_cell(Vector3i(8, 4, 4), -2, CubeWorld.FULL, CubeWorld.blank_tex())        # one small cube gets a smaller piece
+	cw._clear_cell(Vector3i(8, 4, 4), -1)
+	cw.set_cell(Vector3i(8, 4, 4), -2, CubeWorld.FULL, CubeWorld.blank_tex())
+	check("#8 one corner only part covered: the side shows", not cw._face_hidden(big, CubeWorld.FULL, 1))
+	var cw2 := CubeWorld.new()
+	cw2.set_cell(Vector3i(0, 0, 0), 0, CubeWorld.FULL, CubeWorld.blank_tex())
+	for y in [0, 4]:
+		for z in [0, 4]:
+			cw2.set_cell(Vector3i(8, y, z), -1, CubeWorld.FULL, CubeWorld.blank_tex())
+	var area := 0.0
+	var v: PackedVector3Array = cw2.chunk_mesh(Vector3i.ZERO, true)[1]
+	for i in range(0, v.size(), 3):
+		area += (v[i + 1] - v[i]).cross(v[i + 2] - v[i]).length() * 0.5
+	check("#8 the 1 m cube + 0.5 m slab draws only its outside (a 1.5 x 1 x 1 box: 8 m2)", absf(area - 8.0) < 0.01,
+		"(%.2f m2 drawn)" % area)
+
 	print("FIXES 0.9: ", "PASS" if ok else "FAIL")
 	quit()
