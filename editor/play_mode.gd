@@ -23,7 +23,8 @@ var finish_speed := 0.0                 ## u/s you were moving when you entered 
 enum Run { WAITING, RUNNING, FINISHED }
 var run_state := Run.WAITING
 var run_time := 0.0
-var _start_box := AABB()
+var _start_boxes: Array = []           ## the start zone's boxes (AABB each)
+var _stage_boxes: Array = []           ## extra stage zone boxes: [stage number, AABB]
 var _kill_y := -60.0
 var _volumes: Array = []
 var _inside := {}                      ## booster / teleport -> was the player inside last tick
@@ -33,7 +34,7 @@ var _splits: Array = []                ## [stage number, time] for each stage re
 var _checkpoint := Transform3D.IDENTITY
 var _message := ""
 var _message_time := 0.0
-var _finish_box := AABB()
+var _finish_boxes: Array = []          ## the finish zone's boxes
 var _flash := 0.0
 var _time_label := Label.new()
 
@@ -95,13 +96,14 @@ func _ensure_input_actions() -> void:
 
 ## `start_box` / `finish_box` are the start and finish zones (empty AABB = none): leaving the start starts the
 ## timer, entering the finish stops it.
-func start(at: Transform3D, start_box := AABB(), finish_box := AABB(), kill_y := -60.0, volumes: Array = [],
-		stages := {}, best_ghost := {}) -> void:
+func start(at: Transform3D, start_box = AABB(), finish_box = AABB(), kill_y := -60.0, volumes: Array = [],
+		stages := {}, best_ghost := {}, stage_boxes: Array = []) -> void:
 	if active:
 		return
 	spawn = at
-	_start_box = start_box
-	_finish_box = finish_box
+	_start_boxes = _boxes(start_box)                     # (one AABB, or several: a zone made of several boxes)
+	_finish_boxes = _boxes(finish_box)
+	_stage_boxes = stage_boxes
 	_kill_y = kill_y
 	_volumes = volumes
 	_stages = stages
@@ -216,19 +218,24 @@ func _physics_process(delta: float) -> void:
 		var plate: EntityNode = _stages[n]
 		if not n in _reached and plate.zone_aabb().has_point(feet):
 			_reach_stage(plate)
+	for sb in _stage_boxes:
+		if not sb[0] in _reached and _stages.has(sb[0]) and (sb[1] as AABB).has_point(feet):
+			_reach_stage(_stages[sb[0]])
 	match run_state:
 		Run.WAITING:
 			# no prespeed: bhopping on the platform can't build speed, and you leave it at 400 u/s at most
 			_cap_horizontal_speed(PRESPEED_CAP / UNITS_PER_METRE)
-			if not _start_box.has_volume() or not _start_box.has_point(feet):
+			if _start_boxes.is_empty() or _box_at(_start_boxes, feet) == null:
 				run_state = Run.RUNNING              # left the start zone (or there is none): go
 				# the clock starts the moment the feet crossed the zone's edge, not at the tick after
-				run_time = (1.0 - crossing(prev, feet, _start_box, false)) * delta if _start_box.has_volume() else 0.0
+				var left = _box_at(_start_boxes, prev)
+				run_time = (1.0 - crossing(prev, feet, left, false)) * delta if left != null else 0.0
 		Run.RUNNING:
 			run_time += delta
 			_rec_dt = delta
 			_record()
-			if _finish_box.has_volume() and _finish_box.has_point(feet):
+			var fin = _box_at(_finish_boxes, feet)
+			if fin != null:
 				var missing := _stages.keys().filter(func(n): return not n in _reached)
 				if not missing.is_empty():
 					missing.sort()
@@ -237,7 +244,7 @@ func _physics_process(delta: float) -> void:
 				run_state = Run.FINISHED
 				finish_speed = Vector2(player.velocity.x, player.velocity.z).length() * UNITS_PER_METRE
 				# ...and stops the moment they crossed into the finish zone (between two ticks)
-				run_time -= (1.0 - crossing(prev, feet, _finish_box, true)) * delta
+				run_time -= (1.0 - crossing(prev, feet, fin, true)) * delta
 				_flash = 3.0
 				_last_delta = "" if best_time <= 0.0 else "%+.3f vs best" % (run_time - best_time)
 				if best_time <= 0.0 or run_time < best_time:
@@ -342,6 +349,20 @@ func _update_ghost() -> void:
 
 
 ## SurfsUp booster: Add pushes along the arrow on top of your speed, Set replaces your speed with exactly this.
+static func _boxes(b) -> Array:
+	if b is AABB:
+		return [b] if (b as AABB).has_volume() else []
+	return (b as Array).filter(func(x): return (x as AABB).has_volume())
+
+
+## The box the point is in, or null.
+static func _box_at(boxes: Array, p: Vector3):
+	for b in boxes:
+		if (b as AABB).has_point(p):
+			return b
+	return null
+
+
 func _boost(v: EntityNode) -> void:
 	var push: Vector3 = v.boost_direction() * (v.strength / UNITS_PER_METRE)
 	var change: Vector3 = push if v.mode == 0 else push - player.velocity
@@ -383,7 +404,7 @@ func _process(_delta: float) -> void:
 	_update_ghost()
 	_speed_label.text = "%d" % roundi(h)
 	match run_state:
-		Run.WAITING: _time_label.text = "leave the start zone to begin" if _start_box.has_volume() else ""
+		Run.WAITING: _time_label.text = "leave the start zone to begin" if not _start_boxes.is_empty() else ""
 		Run.RUNNING: _time_label.text = format_time(run_time)
 		Run.FINISHED: _time_label.text = "FINISHED  %s%s" % [format_time(run_time),
 			"   (best!)" if is_equal_approx(run_time, best_time) else "   " + _last_delta]

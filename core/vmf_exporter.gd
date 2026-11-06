@@ -152,7 +152,7 @@ func build(map: Dictionary, opts := {}) -> String:
 %s}
 " % [_next(), "".join(rb)])
 	for e in ents:
-		if e.get("kind", "") in ["start", "finish", "stage"]:
+		if e.get("kind", "") in ["start", "finish", "stage"] and not e.get("zone_only", false):
 			world.append(_solid(_hull(_box_corners(e, false).map(func(c): return src(c))), PLATFORM_MATERIAL))
 	for bp in block_pieces:
 		if bp[1].get("water", false):
@@ -228,15 +228,17 @@ func build(map: Dictionary, opts := {}) -> String:
 	var sky: String = opts.get("skyname", SKIES.get(env.get("preset", "day"), "sky_day01_01"))
 	var entities := PackedStringArray()
 	var plates := []                                     # [godot spawn position, destination name]
-	for e in ents:
+	var spawned := {}                                    # zone name -> its spawn is made (several boxes, one zone)
+	for e in SurfsUpExporter._plates_first(ents):
 		var kind: String = e.get("kind", "")
 		if not kind in ["start", "finish", "stage"]:
 			continue
 		var zone_name: String = {"start": "map_start", "finish": "map_end"}.get(kind, "s%d_start" % int(e.get("number", 2)))
 		entities.append(_brush_entity({"classname": "trigger_multiple", "targetname": zone_name, "spawnflags": "1", "wait": "0"},
 			_hull(_zone_corners(e).map(func(c): return src(c)))))
-		if kind == "finish":
+		if kind == "finish" or spawned.has(zone_name):
 			continue
+		spawned[zone_name] = true
 		var spawn := _spawn(e)
 		var yaw_src := float(e.get("yaw", 0.0)) + 90.0
 		entities.append(_point_entity({"classname": "info_teleport_destination", "targetname": "spawn_" + zone_name,
@@ -520,7 +522,7 @@ static func _zone_corners(e: Dictionary) -> Array:
 	var p := Vector3(e["position"][0], e["position"][1], e["position"][2])
 	var sz := Vector3(e["size"][0], e["size"][1], e["size"][2])
 	var b := Basis(Vector3.UP, deg_to_rad(float(e.get("yaw", 0.0))))
-	var zh: float = EntityNode.KINDS[e["kind"]].get("zone", 10.0)
+	var zh: float = sz.y if e.get("zone_only", false) else EntityNode.KINDS[e["kind"]].get("zone", 10.0)
 	var out := []
 	for i in 8:
 		out.append(p + b * Vector3(sz.x * (0.5 if i & 1 else -0.5), (zh if i & 2 else 0.0) + 0.05, sz.z * (0.5 if i & 4 else -0.5)))

@@ -33,11 +33,16 @@ static func check(map: Dictionary) -> PackedStringArray:
 			and map.get("cube_models", []).is_empty():
 		out.append("The map has nothing to surf on yet (no ramps, blocks or cubes).")
 	var stages := []
+	var plates := []
 	for e in map.get("entities", []):
 		if e.get("kind", "") == "stage":
-			if int(e.get("number", 2)) in stages:
-				out.append("Two stage plates are both numbered %d." % int(e.get("number", 2)))
-			stages.append(int(e.get("number", 2)))
+			var num := int(e.get("number", 2))
+			if not e.get("zone_only", false):
+				if num in plates:
+					out.append("Two stage plates are both numbered %d." % num)
+				plates.append(num)
+			if not num in stages:                        # (several zone boxes can share a number: one zone)
+				stages.append(num)
 	stages.sort()
 	for i in stages.size():
 		if stages[i] != i + 2:
@@ -104,18 +109,54 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			lowest = min(lowest, p.y - RampShape.depth_below_spine(sp))
 		i += 1
 
-	# platforms + their zones
+	# platforms + their zones (a zone-only entity is just the zone, on a platform the mapper built; several boxes of
+	# one kind / stage number make one zone)
 	var spawn: Transform3D
-	for ed in map.get("entities", []):
+	var have_spawn := false
+	var markers := {}                                    # stage number -> its respawn marker is made
+	var used_names := {}
+	for ed in _plates_first(map.get("entities", [])):
 		var kind: String = ed.get("kind", "")
 		var pa: Array = ed.get("position", [0, 0, 0])
 		var sa: Array = ed.get("size", [20, 2, 26])
 		var pos := Vector3(pa[0], pa[1], pa[2])
 		var size := Vector3(sa[0], sa[1], sa[2])
 		var basis := Basis(Vector3.UP, deg_to_rad(ed.get("yaw", 0.0)))
+		var zone_only: bool = ed.get("zone_only", false) and kind in ["start", "finish", "stage"]
+		var zh := size.y if zone_only else ZONE_HEIGHT
 		lowest = min(lowest, pos.y - size.y)
+		if kind == "stage" and zone_only:
+			var znum := int(ed.get("number", 2))
+			if not markers.has(znum):
+				markers[znum] = true
+				var zm := Marker3D.new()
+				zm.name = "Stage%d" % znum
+				zm.transform = Transform3D(basis, pos + basis * Vector3(0, 0.1, size.z * 0.25))
+				_add(root, root, zm)
+			var zxf2 := Transform3D(basis, pos + Vector3(0, zh / 2, 0))
+			var zsize2 := Vector3(size.x, zh, size.z)
+			var resp2 := _zone(root, _unique(used_names, "Stage%dCheckpoint" % znum), "respawn", zxf2, zsize2)
+			resp2.set_meta("respawn", "Stage%d" % znum)
+			resp2.set_meta("is_alt_spawn", false)
+			resp2.set_meta("bhop_area", false)
+			var split2 := _zone(root, _unique(used_names, "Stage%dSplit" % znum), "split", zxf2, zsize2)
+			split2.set_meta("split_index", znum - 2)
+			split2.set_meta("course_id", 0)
+			continue
+		if kind in ["start", "finish"] and zone_only:
+			var zz := _zone(root, _unique(used_names, "StartZone" if kind == "start" else "FinishZone"), kind,
+				Transform3D(basis, pos + Vector3(0, zh / 2, 0)), Vector3(size.x, zh, size.z))
+			zz.set_meta("course_id", 0)
+			if kind == "start":
+				zz.set_meta("play_sfx", true)
+				zz.set_meta("run_direction", Vector3.ZERO)
+				if not have_spawn:
+					spawn = Transform3D(basis, pos + basis * Vector3(0, 0.1, size.z * 0.25))
+					have_spawn = true
+			continue
 		if kind == "stage":
 			var num := int(ed.get("number", 2))
+			markers[num] = true
 			var plat := StaticBody3D.new()
 			plat.name = "Stage%dPlate" % num
 			plat.transform = Transform3D(basis, pos)
@@ -144,11 +185,11 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			_add(root, root, marker)
 			var zxf := Transform3D(basis, pos + Vector3(0, ZONE_HEIGHT / 2, 0))
 			var zsize := Vector3(size.x, ZONE_HEIGHT, size.z)
-			var resp := _zone(root, "Stage%dCheckpoint" % num, "respawn", zxf, zsize)
+			var resp := _zone(root, _unique(used_names, "Stage%dCheckpoint" % num), "respawn", zxf, zsize)
 			resp.set_meta("respawn", "Stage%d" % num)
 			resp.set_meta("is_alt_spawn", false)
 			resp.set_meta("bhop_area", false)
-			var split := _zone(root, "Stage%dSplit" % num, "split", zxf, zsize)
+			var split := _zone(root, _unique(used_names, "Stage%dSplit" % num), "split", zxf, zsize)
 			split.set_meta("split_index", num - 2)
 			split.set_meta("course_id", 0)
 			continue
@@ -174,13 +215,15 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			cs.shape = shape
 			cs.position = mi.position
 			_add(root, plat, cs)
-			var zone := _zone(root, "StartZone" if kind == "start" else "FinishZone", "start" if kind == "start" else "finish",
+			var zone := _zone(root, _unique(used_names, "StartZone" if kind == "start" else "FinishZone"), "start" if kind == "start" else "finish",
 				Transform3D(basis, pos + Vector3(0, ZONE_HEIGHT / 2, 0)), Vector3(size.x, ZONE_HEIGHT, size.z))
 			zone.set_meta("course_id", 0)
 			if kind == "start":
 				zone.set_meta("play_sfx", true)
 				zone.set_meta("run_direction", Vector3.ZERO)
-				spawn = Transform3D(basis, pos + basis * Vector3(0, 0.1, size.z * 0.25))
+				if not have_spawn:
+					spawn = Transform3D(basis, pos + basis * Vector3(0, 0.1, size.z * 0.25))
+					have_spawn = true
 
 	# kill zones and boosters: invisible trigger volumes, exactly as SurfsUp's own zone types
 	var n_kill := 0
@@ -471,6 +514,18 @@ static func kill_floor_y(map: Dictionary, models = null) -> float:
 			var c: Vector3 = (item[1] as Transform3D) * (bb.position + bb.size * Vector3(i & 1, (i >> 1) & 1, (i >> 2) & 1))
 			lowest = min(lowest, c.y - 20.0)
 	return (0.0 if lowest == INF else lowest) - KILL_MARGIN
+
+
+## Entities with the plates (not zone-only boxes) first, so a plate is where the player spawns / respawns.
+static func _plates_first(ents: Array) -> Array:
+	return ents.filter(func(e): return not e.get("zone_only", false)) + ents.filter(func(e): return e.get("zone_only", false))
+
+
+## `base`, or base2, base3... if it's been used (several boxes of one zone).
+static func _unique(used: Dictionary, base: String) -> String:
+	var n: int = used.get(base, 0) + 1
+	used[base] = n
+	return base if n == 1 else "%s%d" % [base, n]
 
 
 static func _zone(root: Node, name: String, kind: String, xf: Transform3D, size: Vector3) -> Area3D:

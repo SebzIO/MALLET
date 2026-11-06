@@ -23,6 +23,10 @@ var pitch := 20.0                       ## booster: degrees above horizontal the
 var mode := 0                           ## booster: 0 = add to the player's speed, 1 = set it
 var number := 2                         ## stage plate: its stage number; teleport: the stage it sends you to
 var keep_speed := true                  ## teleport: keep the player's velocity (else they stop on the plate)
+## start / finish / stage: just the zone, a see-through box the player passes through, for a platform you built
+## yourself (size.y is the zone's height; `position` the middle of its floor). Several boxes of one kind (and stage
+## number) make one zone of any shape.
+var zone_only := false
 
 var _mesh := MeshInstance3D.new()
 var _zone_mesh := MeshInstance3D.new()
@@ -79,6 +83,8 @@ func _ready() -> void:
 
 
 func label() -> String:
+	if is_zone_box():
+		return {"start": "Start zone", "finish": "Finish zone"}.get(kind, "Stage %d zone" % number)
 	match kind:
 		"stage": return "Stage %d" % number
 		"teleport": return "Teleport to stage %d" % number
@@ -97,6 +103,11 @@ func tag() -> String:
 
 func is_platform() -> bool:
 	return not is_volume()
+
+
+## A start / finish / stage zone without its own platform (see zone_only).
+func is_zone_box() -> bool:
+	return zone_only and kind in ["start", "finish", "stage"]
 
 
 func rebuild() -> void:
@@ -125,16 +136,22 @@ func rebuild() -> void:
 		box.size = size
 		_mesh.mesh = box
 		_mesh.position = Vector3(0, -size.y / 2, 0)
+		_mesh.visible = not is_zone_box()
 		_shape.position = _mesh.position
 		_body.collision_layer = 1
 		_body.collision_mask = 1
 		var zh: float = KINDS[kind]["zone"]
+		if is_zone_box():                                # no platform: the zone box alone, which nothing collides with
+			zh = size.y
+			_shape.position = Vector3(0, zh / 2, 0)
+			_body.collision_layer = PICK_ONLY_LAYER
+			_body.collision_mask = 0
 		var zone := BoxMesh.new()
 		zone.size = Vector3(size.x, zh, size.z)
 		_zone_mesh.mesh = zone
 		_zone_mesh.position = Vector3(0, zh / 2, 0)
 		_zone_mesh.visible = true
-		_zone_mat.albedo_color = Color(c.r, c.g, c.b, 0.12)
+		_zone_mat.albedo_color = Color(c.r, c.g, c.b, 0.25 if is_zone_box() else 0.12)
 		# arrow on start / stage plates showing which way the player will face
 		_flat_arrow.visible = kind in ["start", "stage"]
 		if kind in ["start", "stage"]:
@@ -183,7 +200,7 @@ func boost_direction() -> Vector3:
 ## The object's box edges in world space (for the selection outline).
 func outline_lines() -> Array[PackedVector3Array]:
 	var h := size / 2
-	var y0 := 0.0 if is_volume() else -h.y
+	var y0 := 0.0 if is_volume() else (h.y if is_zone_box() else -h.y)
 	var out: Array[PackedVector3Array] = []
 	var corners := {}
 	for x in [-1, 1]:
@@ -202,7 +219,7 @@ func outline_lines() -> Array[PackedVector3Array]:
 ## Platforms: world-space box the player must be inside (start: leaving it starts the timer; finish: entering it
 ## stops it).
 func zone_aabb() -> AABB:
-	var zh: float = KINDS[kind].get("zone", size.y)
+	var zh: float = size.y if is_zone_box() else KINDS[kind].get("zone", size.y)
 	var corners := []
 	for x in [-0.5, 0.5]:
 		for z in [-0.5, 0.5]:
@@ -236,6 +253,8 @@ func to_dict() -> Dictionary:
 		d["number"] = number
 	if kind == "teleport":
 		d["keep_speed"] = keep_speed
+	if is_zone_box():
+		d["zone_only"] = true
 	return d
 
 
@@ -251,6 +270,7 @@ func from_dict(d: Dictionary) -> void:
 	mode = d.get("mode", 0)
 	number = d.get("number", 2)
 	keep_speed = d.get("keep_speed", true)
+	zone_only = d.get("zone_only", false)
 	if is_inside_tree():
 		rebuild()
 

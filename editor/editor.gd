@@ -298,6 +298,9 @@ func _build_ui_main() -> void:
 		["Block", KEY_O, _add_block_clicked], ["Draw blocks (drag in a 2D view)", KEY_D, _toggle_draw_mode, "draw"], [],
 		["Start platform", KEY_B, func(): _add_entity("start")], ["Finish platform", KEY_M, func(): _add_entity("finish")],
 		["Stage plate", KEY_T, func(): _add_entity("stage")], ["Teleport", KEY_Y, func(): _add_entity("teleport")],
+		["Start zone (on your own platform)", KEY_NONE, func(): _add_entity("start", true)],
+		["Finish zone (on your own platform)", KEY_NONE, func(): _add_entity("finish", true)],
+		["Stage zone (on your own platform)", KEY_NONE, func(): _add_entity("stage", true)],
 		["Kill zone", KEY_K, func(): _add_entity("kill")], ["Booster", KEY_J, func(): _add_entity("booster")], [],
 		["Prop (glTF model)…", KEY_I, _add_prop_clicked], ["Text", KEY_X, _add_text_clicked], [],
 		["Light", KEY_U, func(): _add_light("point")], ["Spot light", KEY_NONE, func(): _add_light("spot")],
@@ -546,6 +549,13 @@ func _build_props(props: VBoxContainer) -> void:
 	keep.toggled.connect(func(on): _edit_prop("keep_speed", on))
 	_stage_props.add_child(keep)
 	_fields["keep_speed"] = keep
+	var zo := CheckButton.new()
+	zo.text = "Zone only (stand on your own platform)"
+	zo.tooltip_text = "No platform: just the zone, for a platform you built yourself. Several zone boxes of one kind make one zone of any shape."
+	zo.focus_mode = Control.FOCUS_NONE
+	zo.toggled.connect(func(on): if not _updating_ui: _edit_prop("zone_only", on); _refresh_props())
+	_entity_props.add_child(zo)
+	_fields["zone_only"] = zo
 	_booster_props = VBoxContainer.new()
 	_booster_props.add_theme_constant_override("separation", 6)
 	_entity_props.add_child(_booster_props)
@@ -892,8 +902,10 @@ func _refresh_props() -> void:
 		_set_field("size_z", e.size.z)
 		_set_field("size_y", e.size.y)
 		_set_field("yaw", e.yaw)
-		_fields["size_y"][0].get_parent().get_parent().get_child(_fields["size_y"][0].get_parent().get_index() - 1).visible = e.is_volume()
-		_fields["size_y"][0].get_parent().visible = e.is_volume()
+		_fields["size_y"][0].get_parent().get_parent().get_child(_fields["size_y"][0].get_parent().get_index() - 1).visible = e.is_volume() or e.is_zone_box()
+		_fields["size_y"][0].get_parent().visible = e.is_volume() or e.is_zone_box()
+		_fields["zone_only"].visible = e.kind in ["start", "finish", "stage"]
+		_fields["zone_only"].button_pressed = e.zone_only
 		_booster_props.visible = e.kind == "booster"
 		_stage_props.visible = e.kind in ["stage", "teleport"]
 		_fields["keep_speed"].visible = e.kind == "teleport"
@@ -2689,7 +2701,7 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 	var groups := {}                                     # pasted groups get fresh ids
 	for kind in ["ramps", "entities", "props", "blocks", "texts", "lights", "cube_models"]:
 		for d in data.get(kind, []):
-			if kind == "entities" and d.get("kind", "") in ["start", "finish"] and _find_entity(d["kind"]):
+			if kind == "entities" and d.get("kind", "") in ["start", "finish"] and not d.get("zone_only", false) and _find_plate(d["kind"]):
 				skipped += 1
 				continue
 			var o: Node3D
@@ -3627,19 +3639,22 @@ func _gen_cancel() -> void:
 	_set_status("Generator closed, nothing added.")
 
 
-func _add_entity(kind: String) -> void:
+func _add_entity(kind: String, zone_only := false) -> void:
 	_checkpoint()
 	var c := _view_center()
 	if snap_enabled:
 		c = c.snapped(Vector3.ONE * snap_step)
-	for e in entities_root.get_children():         # a map has one start and one finish: move the existing one
-		if e.kind == kind and kind in ["start", "finish"]:
+	for e in entities_root.get_children():         # a map has one start and one finish plate: move the existing one
+		if e.kind == kind and kind in ["start", "finish"] and not zone_only and not e.zone_only:
 			e.position = c
 			_select(e)
 			_set_status("Moved the %s to the view centre (a map has one)." % e.label().to_lower())
 			return
 	var n := EntityNode.create(kind)
 	n.position = c
+	if zone_only:                                       # just the zone: set it on the platform you built
+		n.zone_only = true
+		n.size.y = 10.0
 	if kind in ["stage", "teleport"]:
 		# new stage plates take the next free number; new teleports point at the highest stage without one
 		var stages := _stage_numbers()
@@ -3651,7 +3666,7 @@ func _add_entity(kind: String) -> void:
 			n.number = free.min() if not free.is_empty() else (stages.max() if not stages.is_empty() else 2)
 	entities_root.add_child(n)
 	_select(n)
-	_set_status("Added %s at the view centre." % n.label().to_lower())
+	_set_status(("Added a %s: put it on your own platform (its floor is where the player stands). More boxes of the same kind " 		+ "(and stage number) make one zone of any shape.") % n.label().to_lower() if zone_only else "Added %s at the view centre." % n.label().to_lower())
 
 
 func _extend_clicked() -> void:
@@ -3963,6 +3978,9 @@ func _edit_prop(key: String, value) -> void:
 			"mode": e.mode = value
 			"number": e.number = int(value)
 			"keep_speed": e.keep_speed = value
+			"zone_only":
+				e.zone_only = value
+				e.size.y = 10.0 if value else EntityNode.KINDS[e.kind]["size"].y
 		e.rebuild()
 	_refresh_info()
 
@@ -4048,7 +4066,19 @@ func load_map(path: String) -> void:
 
 
 # ================================================================================================= play mode
+## The start / finish plate (not a zone box), or null.
+func _find_plate(kind: String) -> EntityNode:
+	for e in entities_root.get_children():
+		if e.kind == kind and not e.zone_only:
+			return e
+	return null
+
+
+## The plate of that kind, or else its first zone box, or null.
 func _find_entity(kind: String) -> EntityNode:
+	var plate := _find_plate(kind)
+	if plate:
+		return plate
 	for e in entities_root.get_children():
 		if e.kind == kind:
 			return e
@@ -4087,11 +4117,19 @@ func _play_from(at: Transform3D, start: EntityNode = null, finish: EntityNode = 
 		volumes.append_array(cm.kill_volumes())
 		cm.set_show_mats(false)
 	var stages := {}
+	var starts := []
+	var finishes := []
+	var stage_boxes := []                               # every stage zone box, [number, AABB] (several can share a number)
 	for e in entities_root.get_children():
 		if e.kind == "stage":
-			stages[e.number] = e
-	play.start(at, start.zone_aabb() if start else AABB(), finish.zone_aabb() if finish else AABB(),
-		kill_floor_y(), volumes, stages, best_ghost)
+			if not stages.has(e.number) or (stages[e.number] as EntityNode).zone_only and not e.zone_only:
+				stages[e.number] = e                     # (its plate - or first box - is where you respawn)
+			stage_boxes.append([e.number, e.zone_aabb()])
+		elif e.kind == "start":
+			starts.append(e.zone_aabb())
+		elif e.kind == "finish":
+			finishes.append(e.zone_aabb())
+	play.start(at, starts, finishes, kill_floor_y(), volumes, stages, best_ghost, stage_boxes)
 
 
 ## Build mode: first-person building with cubes, Sauerbraten style. Starts from where the 3D view looks from.
