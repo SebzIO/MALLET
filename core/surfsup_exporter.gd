@@ -449,7 +449,9 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 
 
 ## Height of the automatic kill floor: KILL_MARGIN below the lowest ramp or platform.
-static func kill_floor_y(map: Dictionary) -> float:
+## `models`: the cube objects as [CubeWorld, Transform3D] when the caller has them already (the editor's live ones);
+## otherwise they're read from the map (slow for big ones: every cube is parsed).
+static func kill_floor_y(map: Dictionary, models = null) -> float:
 	var lowest := INF
 	for rd in map.get("ramps", []):
 		for p in rd.get("points", []):
@@ -460,7 +462,7 @@ static func kill_floor_y(map: Dictionary) -> float:
 	for bd in map.get("blocks", []):
 		if not bd.get("cutter", false):
 			lowest = min(lowest, float(bd.get("position", [0, 0, 0])[1]) - 20.0)
-	for item in CubeWorld.models_of(map):
+	for item in (models if models != null else CubeWorld.models_of(map)):
 		var cw: CubeWorld = item[0]
 		if cw.count() == 0 and cw.mats.is_empty():
 			continue

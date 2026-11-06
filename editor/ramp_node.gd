@@ -72,6 +72,7 @@ func shape_spec() -> Dictionary:
 
 
 func rebuild() -> void:
+	position = Vector3.ZERO                              # (shift() moves the node while dragging; the mesh is world space)
 	geometry = RampShape.build(points, shape_spec())
 	ridge = geometry["ridge"]
 	folds = geometry["folds"]
@@ -168,6 +169,33 @@ func from_dict(data: Dictionary) -> void:
 	tex_scale = data.get("tex_scale", 20.0)
 	material = data.get("material", "")
 	if is_inside_tree():
+		rebuild()
+
+
+## Move the whole ramp without rebuilding it (dragging): the node carries the mesh and collision along, and the
+## world-space data (points, ridge, outlines) is shifted to match. settle() rebuilds it in place afterwards.
+func shift(delta: Vector3) -> void:
+	position += delta
+	var pts := points                                    # (packed arrays are values: change a copy, put it back)
+	for i in pts.size():
+		pts[i] += delta
+	points = pts
+	var rg := ridge
+	for i in rg.size():
+		rg[i] += delta
+	ridge = rg
+	for lines in [outline, outline_frozen, seam_lines, fold_lines]:
+		for li in lines.size():
+			var l: PackedVector3Array = lines[li]
+			for i in l.size():
+				l[i] += delta
+			lines[li] = l
+	_move_ghosts(func(g: Vector3): return g + delta)
+
+
+## Rebuild after shift() (the texture follows the world, so it's laid out again once the ramp stops moving).
+func settle() -> void:
+	if position != Vector3.ZERO:
 		rebuild()
 
 

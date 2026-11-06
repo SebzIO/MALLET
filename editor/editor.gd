@@ -92,6 +92,7 @@ var _drag_vertical := false
 var _drag_start_hit := Vector3.ZERO
 var _drag_origin := {}               ## snapshot of the dragged object before the drag
 var _drag_moved := false
+var _drag_applied := Vector3.ZERO        ## how far the selection has been moved so far in this drag
 
 # ui
 var _ui := CanvasLayer.new()
@@ -2877,6 +2878,16 @@ func _process(delta: float) -> void:
 		_update_arcs()
 
 
+## The kill floor's height, from the live objects (no re-reading of every cube).
+func kill_floor_y() -> float:
+	var models := []
+	for cm in cube_models_root.get_children():
+		models.append([cm.world, cm.global_transform])
+	var d := _map_dict()
+	d.erase("cube_models")
+	return SurfsUpExporter.kill_floor_y(d, models)
+
+
 ## Anything that changes the map calls this so the jump arcs follow instantly.
 func _map_changed() -> void:
 	_arcs_dirty = 2
@@ -2911,7 +2922,7 @@ func _update_arcs() -> void:
 		return
 	var space := get_world_3d().direct_space_state
 	var volumes := entities_root.get_children().filter(func(x): return x.is_volume())
-	var kill_y := SurfsUpExporter.kill_floor_y(_map_dict())
+	var kill_y := kill_floor_y()
 	var zones := []                                  # entering the finish / a stage zone counts, like in game
 	for e in entities_root.get_children():
 		if e.kind in ["finish", "stage"]:
@@ -3205,6 +3216,8 @@ func _set_drag_plane(mouse: Vector2, vertical: bool) -> void:
 	var r := _drag_pane.ray(mouse)
 	var hit = _drag_plane.intersects_ray(r[0], r[1])
 	_drag_start_hit = hit if hit != null else anchor
+	_drag_applied = Vector3.ZERO
+	_settle_ramps()
 	_drag_origin = selected.to_dict()                    # re-based so switching Shift mid-drag doesn't jump
 	_drag_origins = {}
 	for o in selection():
@@ -3230,7 +3243,8 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 			return
 		_checkpoint()                                    # first real movement: the object is still in its pre-drag state
 		_drag_moved = true
-	selected.from_dict(_drag_origin)
+	if _drag != Drag.OBJECT or not _text_surface.is_empty():
+		selected.from_dict(_drag_origin)                 # (shapes and text on faces start over from the drag's start)
 	if _drag == Drag.FACE:
 		var fh: Array = (selected as BlockNode).face_handles()[_face]
 		var amount: float = (hit - _drag_start_hit).dot(fh[1])
@@ -3253,11 +3267,18 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 	else:
 		delta = _snap_axes(delta, Vector3.ONE if not _text_surface.is_empty() else _drag_pane.drag_axes(_drag_vertical))
 		var any_block := false
+		var step := delta - _drag_applied                # (moved by what's new since the last mouse move: no rebuilds)
+		if not _text_surface.is_empty():
+			step = delta
 		for o in selection():
-			if o != selected:
+			if not _text_surface.is_empty() and o != selected:
 				o.from_dict(_drag_origins[o])
-			o.translate_by(delta)
+			if o is RampNode and _text_surface.is_empty():
+				(o as RampNode).shift(step)
+			else:
+				o.translate_by(step)
 			any_block = any_block or o is BlockNode
+		_drag_applied = delta
 		if any_block:
 			_mark_blocks()
 		var c: Vector3 = selected.center()
@@ -3271,6 +3292,13 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 	_refresh_info()
 
 
+## Ramps moved with shift() while dragging get their final mesh.
+func _settle_ramps() -> void:
+	for o in selection():
+		if o is RampNode:
+			(o as RampNode).settle()
+
+
 func _snap_axes(v: Vector3, axes: Vector3) -> Vector3:
 	if not snap_enabled:
 		return v
@@ -3281,6 +3309,7 @@ func _snap_axes(v: Vector3, axes: Vector3) -> Vector3:
 
 
 func _end_drag() -> void:
+	_settle_ramps()
 	_drag = Drag.NONE
 	_drag_pane = null
 
@@ -4062,7 +4091,7 @@ func _play_from(at: Transform3D, start: EntityNode = null, finish: EntityNode = 
 		if e.kind == "stage":
 			stages[e.number] = e
 	play.start(at, start.zone_aabb() if start else AABB(), finish.zone_aabb() if finish else AABB(),
-		SurfsUpExporter.kill_floor_y(_map_dict()), volumes, stages, best_ghost)
+		kill_floor_y(), volumes, stages, best_ghost)
 
 
 ## Build mode: first-person building with cubes, Sauerbraten style. Starts from where the 3D view looks from.

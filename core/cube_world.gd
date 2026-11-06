@@ -2708,7 +2708,19 @@ func lowest() -> float:
 	return y
 
 
+var _bounds_rev := -1
+var _bounds_cache := AABB()
+
+
 func bounds() -> AABB:
+	if _bounds_rev == revision:                          # (unchanged since last asked: arcs ask every frame while dragging)
+		return _bounds_cache
+	_bounds_rev = revision
+	_bounds_cache = _find_bounds()
+	return _bounds_cache
+
+
+func _find_bounds() -> AABB:
 	var box := AABB()
 	var first := true
 	for k in leaves:
