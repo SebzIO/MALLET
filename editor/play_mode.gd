@@ -46,6 +46,8 @@ var _ghost_label: Label3D = null
 var _last_delta := ""                  ## "+1.234 vs best" after a finish
 
 var _hud := CanvasLayer.new()
+var _hud_box: VBoxContainer
+var _hud_cross: Label
 var _speed_label := Label.new()
 var _info_label := Label.new()
 
@@ -56,10 +58,8 @@ func _ready() -> void:
 	_hud.visible = false
 	add_child(_hud)
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	box.position = Vector2(-160, -150)
-	box.custom_minimum_size = Vector2(320, 0)
 	_hud.add_child(box)
+	_hud_box = box
 	_time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_time_label.add_theme_font_size_override("font_size", 30)
 	_time_label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -76,9 +76,9 @@ func _ready() -> void:
 	box.add_child(_info_label)
 	var cross := Label.new()
 	cross.text = "+"
-	cross.set_anchors_preset(Control.PRESET_CENTER)
 	cross.add_theme_font_size_override("font_size", 22)
 	_hud.add_child(cross)
+	_hud_cross = cross
 
 
 ## Creates any missing movement actions with WASD / Space / Ctrl / Shift.
@@ -365,6 +365,11 @@ func _process(_delta: float) -> void:
 		return
 	var h := Vector2(player.velocity.x, player.velocity.z).length() * UNITS_PER_METRE
 	top_speed = max(top_speed, h)
+	# centre the HUD for the window (anchors don't apply to Controls straight under a CanvasLayer)
+	var vp := get_viewport().get_visible_rect().size
+	_hud_box.reset_size()
+	_hud_box.position = Vector2((vp.x - _hud_box.size.x) * 0.5, vp.y - _hud_box.size.y - 24)
+	_hud_cross.position = (vp - _hud_cross.size) * 0.5
 	_update_ghost()
 	_speed_label.text = "%d" % roundi(h)
 	match run_state:

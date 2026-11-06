@@ -21,6 +21,8 @@ var _icons := {}
 var _eye: Texture2D
 var _eye_off: Texture2D
 var _menu_item: TreeItem
+var _anchor: TreeItem                    ## where a Shift-click range starts (the last plain or Ctrl click)
+var _pending_single: TreeItem            ## pressed on an already-selected item: becomes the only one on release (no drag)
 
 
 func setup(ed: Node) -> void:
@@ -55,7 +57,7 @@ func _ready() -> void:
 	tree.allow_rmb_select = true
 	tree.drop_mode_flags = Tree.DROP_MODE_ON_ITEM | Tree.DROP_MODE_INBETWEEN
 	tree.multi_selected.connect(func(_i, _c, _s): _tree_selection_changed.call_deferred())
-	tree.item_activated.connect(_rename_selected)
+	tree.gui_input.connect(_tree_input)
 	tree.item_edited.connect(_item_edited)
 	tree.button_clicked.connect(_button_clicked)
 	tree.item_collapsed.connect(_item_collapsed)
@@ -283,6 +285,102 @@ func _tree_selection_changed() -> void:
 		name_of(objs[0]) if objs.size() == 1 else "%d objects" % objs.size(), "it" if objs.size() == 1 else "them together"])
 
 
+## Clicks work like Windows lists: click = just this one, Ctrl+click = add / remove it, Shift+click = everything from
+## the last clicked row to this one (Ctrl+Shift adds that range), double-click = rename. Pressing on a row that's
+## already selected keeps the selection (so several can be dragged) until the button comes up without a drag.
+func _tree_input(ev: InputEvent) -> void:
+	if not (ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT):
+		return
+	var item := tree.get_item_at_position(ev.position)
+	if ev.pressed:
+		if item == null:
+			_select_items([])
+			_anchor = null
+			tree.accept_event()
+			return
+		if tree.get_column_at_position(ev.position) == 1 or _on_arrow(item, ev.position.x):
+			return                                       # the eye button / the fold arrow: the tree's own
+		if ev.double_click:
+			_select_items([item])
+			_anchor = item
+			_rename_selected()
+			tree.accept_event()
+			return
+		var rows := _visible_rows()
+		if ev.shift_pressed and _anchor != null and rows.has(_anchor):
+			var a := rows.find(_anchor)
+			var b := rows.find(item)
+			var range_rows := rows.slice(mini(a, b), maxi(a, b) + 1)
+			if ev.ctrl_pressed:
+				for r in _selected_rows():
+					if not r in range_rows:
+						range_rows.append(r)
+			_select_items(range_rows)
+		elif ev.ctrl_pressed or ev.meta_pressed:
+			var now := _selected_rows()
+			if item in now:
+				now.erase(item)
+			else:
+				now.append(item)
+			_select_items(now)
+			_anchor = item
+		elif item.is_selected(0) and _selected_rows().size() > 1:
+			_pending_single = item                       # maybe the start of dragging them all
+		else:
+			_select_items([item])
+			_anchor = item
+		tree.accept_event()
+	else:
+		if _pending_single != null and not get_viewport().gui_is_dragging():
+			_select_items([_pending_single])
+			_anchor = _pending_single
+		_pending_single = null
+
+
+## Is x (in the tree) on this row's fold arrow?
+func _on_arrow(item: TreeItem, x: float) -> bool:
+	if item.get_child_count() == 0:
+		return false
+	var depth := 0
+	var p := item.get_parent()
+	while p != null and p != tree.get_root():
+		depth += 1
+		p = p.get_parent()
+	var margin := float(tree.get_theme_constant("item_margin"))
+	var left := tree.get_item_area_rect(item, 0).position.x
+	return x >= left + depth * margin - 2.0 and x <= left + (depth + 1) * margin + 2.0
+
+
+func _visible_rows() -> Array:
+	var out := []
+	var it := tree.get_root().get_next_visible() if tree.get_root() else null
+	while it:
+		out.append(it)
+		it = it.get_next_visible()
+	return out
+
+
+func _selected_rows() -> Array:
+	var out := []
+	var it := tree.get_next_selected(null)
+	while it:
+		out.append(it)
+		it = tree.get_next_selected(it)
+	return out
+
+
+func _select_items(rows: Array) -> void:
+	_syncing = true
+	tree.deselect_all()
+	for r in rows:
+		(r as TreeItem).select(0)
+	_syncing = false
+	if rows.is_empty():
+		editor._set_selection([])
+	else:
+		_tree_selection_changed()
+
+
 func _rename_selected() -> void:
 	var it := tree.get_selected()
 	if it == null:
@@ -367,6 +465,9 @@ func _get_drag(_at: Vector2):
 
 
 func _can_drop(_at: Vector2, data) -> bool:
+	# Godot resets the drop mode after every drop: set it again so the tree can tell "onto a folder" from "between
+	# two rows" - and draws the box / line that shows which it'll be
+	tree.drop_mode_flags = Tree.DROP_MODE_ON_ITEM | Tree.DROP_MODE_INBETWEEN
 	return data is Dictionary and data.has("outliner")
 
 

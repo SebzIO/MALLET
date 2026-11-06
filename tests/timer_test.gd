@@ -52,6 +52,13 @@ func _run() -> void:
 			await physics_frame
 			xs.append(play.player.global_position.x)
 			frames += 1
+		await process_frame
+		var vp := root.get_viewport().get_visible_rect().size
+		var box: Control = play._hud_box
+		var cross: Control = play._hud_cross
+		check("play HUD (time, speed, keys line) centred in the view", absf(box.position.x + box.size.x * 0.5 - vp.x * 0.5) < 1.5
+			and absf(cross.position.x + cross.size.x * 0.5 - vp.x * 0.5) < 1.5 and absf(cross.position.y + cross.size.y * 0.5 - vp.y * 0.5) < 1.5,
+			"(box centre %.0f, cross centre %.0f, view %.0f)" % [box.position.x + box.size.x * 0.5, cross.position.x + cross.size.x * 0.5, vp.x * 0.5])
 		var truth := crossing_time(xs, gap, dt) - crossing_time(xs, 0.0, dt)
 		var got: float = play.run_time
 		play.stop()

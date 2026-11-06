@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.8.2 preview — 2026-11-05: play HUD centred, Outliner clicks and drops like Windows
+
+- Play mode: the timer, speed and keys line (and the crosshair) are centred in the view at any window size.
+- Outliner clicks work like Windows lists: click selects one, Shift+click selects everything from the last clicked
+  row to this one, Ctrl+click adds / removes one (Ctrl+Shift adds a range), double-click renames; pressing on an
+  already-selected row keeps the selection so several rows drag together.
+- Dropping onto a folder works the first time, every time, and shows where it'll land: a box around the folder
+  means into it, a line means between rows (Godot switched the drop modes off after each drop).
+
 ## 0.8.1 preview — 2026-11-05: exact run times
 
 - The run timer now times the exact moment you cross the start and finish zone edges, between physics ticks.

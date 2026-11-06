@@ -43,6 +43,19 @@ func item_for(o) -> TreeItem:
 	return null
 
 
+## A left click on a row of the list (Shift / Ctrl like in Windows).
+func click_row(it: TreeItem, shift := false, ctrl := false) -> void:
+	var r := ol.tree.get_item_area_rect(it, 0)
+	for pressed in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = pressed
+		ev.shift_pressed = shift
+		ev.ctrl_pressed = ctrl
+		ev.position = r.position + Vector2(r.size.x * 0.6, r.size.y * 0.5)
+		ol.tree.gui_input.emit(ev)
+
+
 func mouse(pane: ViewPane, world: Vector3, pressed: bool, motion := false) -> void:
 	var ev: InputEvent
 	if motion:
@@ -174,10 +187,45 @@ func _run() -> void:
 	check("a prefab lands in a folder named after it", pfolder != "" and ol.folder(pfolder).get("name") == "Lamp post"
 		and placed.all(func(o): return o.get_meta("folder", "") == pfolder))
 
-	# the panel
-	ol.set_hidden([bb], false)
+	# Windows-style clicks: five ramps in a row (with other things below them), click the first, Shift+click the fifth
+	ed._load_dict({})
+	var ramps := []
+	for i in 5:
+		ramps.append(ed._make_ramp(Vector3(-40, 60, i * 30), Vector3(40, 40, i * 30)))
+	var lb := LightNode.new()
+	ed.lights_root.add_child(lb)
+	var bb2 := BlockNode.new()
+	ed.blocks_root.add_child(bb2)
+	ed._rebuild_blocks()
+	await settle()
 	ol.refresh(true)
-	ed._set_selection([r1b])
+	click_row(item_for(ramps[0]))
+	click_row(item_for(ramps[4]), true)
+	var got: Array = ed.selection()
+	check("click Ramp 1, Shift+click Ramp 5: exactly Ramps 1-5", got.size() == 5 and ramps.all(func(r): return r in got),
+		"(%d selected)" % got.size())
+	click_row(item_for(ramps[2]), false, true)
+	got = ed.selection()
+	check("Ctrl+click takes one out again", got.size() == 4 and not ramps[2] in got)
+	click_row(item_for(lb))
+	check("a plain click selects just that one", ed.selection() == [lb])
+
+	# dropping into a folder works every time (Godot resets the tree's drop mode after each drop)
+	var df := ol.new_folder("Drop here")
+	for r in [ramps[0], ramps[1]]:
+		ol.refresh(true)
+		click_row(item_for(r))
+		var dd = ol._get_drag(Vector2.ZERO)
+		ol.tree.drop_mode_flags = Tree.DROP_MODE_DISABLED         # as Godot leaves it after a drop
+		var fpos := ol.tree.get_item_area_rect(item_for(df)).get_center()
+		check("dragging over a folder says it can drop (and shows where)", ol._can_drop(fpos, dd)
+			and ol.tree.drop_mode_flags == (Tree.DROP_MODE_ON_ITEM | Tree.DROP_MODE_INBETWEEN))
+		ol._drop(fpos, dd)
+		check("...and the drop goes into the folder, first time", r.get_meta("folder", "") == df)
+
+	# the panel
+	ol.refresh(true)
+	ed._set_selection([ramps[0], ramps[1]])
 	for i in 6:
 		await process_frame
 	root.get_viewport().get_texture().get_image().save_png(out + "/outliner.png")
