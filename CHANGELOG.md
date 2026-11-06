@@ -8,6 +8,10 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - Play mode: the bottom line now also shows your finish speed, meaning how fast you were going when you entered the
   finish on your last completed run. It stays there through restarts and later play sessions until you open another
   map, and the editor's status line repeats it when you go back.
+- Build mode: pushing a smaller cube out of a sloped one no longer tears the slope into gaps and odd angles. When
+  a cube splits into smaller ones, each new corner now slides along the cube's own edges onto the slope, so
+  neighbouring pieces still meet. Slopes that step by 1, 2, 4 or 8 eighths (like a half-45 ramp) now come out
+  exactly; others stay within the 1/8 step the smaller cubes can show (overall error 3.5% -> 1.0%).
 
 ## 0.8.7 preview — 2026-11-05: fixes to 0.8.6
 

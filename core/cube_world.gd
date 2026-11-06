@@ -374,7 +374,7 @@ static func child_corners(c: PackedByteArray, o: int) -> PackedByteArray:
 	out.resize(24)
 	for m in 8:
 		var home := off + Vector3(4.0 * (m & 1), 4.0 * ((m >> 1) & 1), 4.0 * ((m >> 2) & 1))
-		var q := _nearest_in(planes, home)
+		var q := _corner_spot(planes, home)
 		for d in 3:
 			out[m * 3 + d] = clampi(roundi((q[d] - off[d]) * 2.0), 0, 8)
 	for d in 3:                                          # an edge's ends never cross
@@ -390,6 +390,61 @@ static func child_corners(c: PackedByteArray, o: int) -> PackedByteArray:
 	if out.is_empty() or is_empty_shape(out):
 		return PackedByteArray()
 	return out
+
+
+## Where a child's corner goes: it stays on as many of its cell's walls as it can, so neighbouring pieces still meet
+## edge to edge. Its own spot if that's solid; else the nearest solid point sliding along one of its 3 edges; else
+## within one of its 3 walls; else anywhere. (Taking the nearest point in any direction moved corners off the
+## walls diagonally, leaving wedge-shaped gaps between pieces of a slope.)
+static func _corner_spot(planes: Array, home: Vector3) -> Vector3:
+	if _in_planes(planes, home):
+		return home
+	var best = null
+	var best_d := INF
+	for d in 3:                                          # slide along an edge (only coordinate d changes)
+		var lo := -INF
+		var hi := INF
+		var empty := false
+		for pl in planes:
+			var n: Vector3 = pl[0]
+			var room: float = float(pl[1]) - n.dot(home)  # n_d * t <= room
+			if absf(n[d]) < 1e-9:
+				if room < -1e-6:
+					empty = true
+					break
+			elif n[d] > 0.0:
+				hi = minf(hi, room / n[d])
+			else:
+				lo = maxf(lo, room / n[d])
+		if empty or lo > hi + 1e-6:
+			continue
+		var t := clampf(0.0, lo, hi)
+		if absf(t) < best_d:
+			best_d = absf(t)
+			best = home
+			best[d] += t
+	if best != null:
+		return best
+	for d in 3:                                          # within a wall (coordinate d stays put)
+		var on_wall := planes.duplicate()
+		var e := Vector3.ZERO
+		e[d] = 1.0
+		on_wall.append([e, home[d]])
+		on_wall.append([-e, -home[d]])
+		var q := _nearest_in(on_wall, home)
+		if _in_planes(on_wall, q, 1e-3) and q.distance_to(home) < best_d:
+			best_d = q.distance_to(home)
+			best = q
+	if best != null:
+		return best
+	return _nearest_in(planes, home)
+
+
+static func _in_planes(planes: Array, p: Vector3, eps := 1e-6) -> bool:
+	for pl in planes:
+		if (pl[0] as Vector3).dot(p) - float(pl[1]) > eps:
+			return false
+	return true
 
 
 ## The point of a convex region (outward planes [normal, d]) nearest to p: Dykstra's alternating projections.
