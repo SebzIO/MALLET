@@ -15,9 +15,17 @@ static var _materials := {}
 static var _previews := {}
 
 
+## Where the starter materials are: inside the project, or (in an exported SurfForge, which can't pack this folder)
+## the "materials" folder next to SurfForge.exe.
+static func starter_dir() -> String:
+	if FileAccess.file_exists(DIR + "library.json"):
+		return DIR
+	return OS.get_executable_path().get_base_dir().path_join("materials") + "/"
+
+
 static func entries() -> Array:
 	if _entries.is_empty():
-		for dir in [DIR, USER_DIR]:
+		for dir in [starter_dir(), USER_DIR]:
 			var data = JSON.parse_string(FileAccess.get_file_as_string(dir + "library.json")) if FileAccess.file_exists(dir + "library.json") else null
 			if data is Dictionary:
 				for e in data.get("materials", []):
@@ -104,7 +112,7 @@ static func image(id: String, map: String) -> Image:
 static func preview(id: String) -> Texture2D:
 	if _previews.has(id):
 		return _previews[id]
-	var bytes := FileAccess.get_file_as_bytes(entry(id).get("dir", DIR + id + "/") + "preview.jpg")
+	var bytes := FileAccess.get_file_as_bytes(entry(id).get("dir", starter_dir() + id + "/") + "preview.jpg")
 	var img := Image.new()
 	var tex: Texture2D = null
 	if not bytes.is_empty() and img.load_jpg_from_buffer(bytes) == OK:
