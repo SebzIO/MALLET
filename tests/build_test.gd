@@ -287,6 +287,30 @@ func _run() -> void:
 	await frames(2)
 	check("...and stopping play comes back to build mode", bm.active and not ed._ui.visible)
 
+	# ---- Ctrl+P: play from the map's start (like the editor's Play), Esc comes back to build mode
+	var plate := EntityNode.create("start")
+	plate.position = Vector3(80, 6, -40)
+	ed.entities_root.add_child(plate)
+	var where := bm.cam.global_position
+	for down in [true, false]:                          # Ctrl+P as the keyboard sends it (with the Ctrl modifier)
+		var ce := InputEventKey.new()
+		ce.keycode = KEY_P
+		ce.physical_keycode = KEY_P
+		ce.ctrl_pressed = true
+		ce.pressed = down
+		Input.parse_input_event(ce)
+		Input.flush_buffered_events()
+	await frames(3)
+	var spawn_at: Vector3 = plate.spawn_transform().origin
+	var got: Vector3 = ed.play.player.global_position if ed.play.active else Vector3.INF
+	check("Ctrl+P: playing from the start plate, not from here", ed.play.active and not bm.active
+		and got.distance_to(spawn_at) < 3.0 and got.distance_to(where) > 20.0, "(at %s, plate %s)" % [got, spawn_at])
+	ed.play.stop()
+	await frames(2)
+	check("...and stopping play comes back to build mode", bm.active and not ed._ui.visible)
+	ed.entities_root.remove_child(plate)
+	plate.queue_free()
+
 	# a look in first person
 	look(Vector3(14, 10, 22), Vector3(0, 2, -2))
 	await frames(6)

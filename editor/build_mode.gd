@@ -5,13 +5,14 @@ extends Node
 ## push them in; hold a key while rolling to push faces or corners 1/8 at a time, change the grid, texture, rotate;
 ## sculpt terrain in heightmap mode; paint blend layers; fill space with water, lava, glass, clip...; place, move and
 ## tweak entities (lights, platforms, zones, text) where you aim. Each build is a cube object: in the editor views it
-## moves, turns and copies as one object. E (or Esc) goes back to the editor; P plays from where you are.
+## moves, turns and copies as one object. E (or Esc) goes back to the editor; P plays from where you are,
+## Ctrl+P from the map's start (like the editor's Play); Esc in play mode comes back to build mode.
 
 signal stopped
 
 const PICK_LAYER := 1 << 19
 const HELP := [
-	["Look / fly", "mouse  /  W A S D  (Shift: fast)"], ["P", "play from here (Esc comes back)"], ["", ""],
+	["Look / fly", "mouse  /  W A S D  (Shift: fast)"], ["P", "play from here (Esc comes back)"], ["Ctrl+P", "play from the start (Esc comes back)"], ["", ""],
 	["Mouse wheel", "pull cubes out / push them in"],
 	["F + wheel", "push / pull the face 1/8 at a time"],
 	["Q + wheel", "push / pull the corner you aim at"],
@@ -361,7 +362,9 @@ func _key(e: InputEventKey) -> void:
 	match e.keycode:
 		KEY_E, KEY_ESCAPE: stop()
 		KEY_P:
-			if not Input.is_key_pressed(KEY_O):
+			if ctrl:
+				_play_from_start()
+			elif not Input.is_key_pressed(KEY_O):
 				_play_here()
 		KEY_SPACE:
 			sel = {}
@@ -785,6 +788,13 @@ func _play_here() -> void:
 	_leave()
 	var at := Transform3D(Basis(Vector3.UP, yaw), cam.global_position)
 	editor._play_from_build(at)
+
+
+## Ctrl+P: a proper run from the map's start, as Play does in the editor; Esc comes back here.
+func _play_from_start() -> void:
+	resume_after_play = true
+	_leave()
+	editor._play_clicked()
 
 
 # ------------------------------------------------------------------------------------------------ selections

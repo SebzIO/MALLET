@@ -109,7 +109,8 @@ block piece and a CS:S brush are, so build mode needs no translation layer:
   cubes.
 - **Toggles:** 5 hidehud, 6 entselsnap, 7 outline, 8 wireframe, L fullbright; F5 savemap, F9 texture name; K is a
   no-op (lighting is live).
-- **P** plays from where you stand and returns to build mode.
+- **P** plays from where you stand and returns to build mode. **Ctrl+P** (SurfForge's own) plays from the
+  map's start like the editor's Play, and also returns to build mode.
 
 ## Left out on purpose
 

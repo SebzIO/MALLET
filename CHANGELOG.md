@@ -3,6 +3,11 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## Unreleased
+
+- Build mode: Ctrl+P plays a proper run from the map's start plate, like Play in the editor (P still plays from
+  where you stand). Esc in play mode brings you back to build mode where you were.
+
 ## 0.8.9 preview — 2026-11-06: exact cube splits
 
 - Build mode: editing a sloped or bent cube at a smaller grid no longer changes the rest of its shape, for any
