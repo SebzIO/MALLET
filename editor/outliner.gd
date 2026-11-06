@@ -187,8 +187,8 @@ func set_hidden(objs: Array, hidden: bool) -> void:
 # ------------------------------------------------------------------------------------------------ the tree
 ## Rebuild the list if anything in it changed (cheap check every frame; `force` rebuilds now).
 func refresh(force := false) -> void:
-	if editor == null:
-		return
+	if editor == null or (is_renaming() and not force):
+		return                                           # (rebuilding would close a name being typed)
 	var objs: Array = editor._all_objects()
 	var sig := PackedStringArray([filter.text, str(folders)])
 	for o in objs:
@@ -242,8 +242,8 @@ func refresh(force := false) -> void:
 
 ## Highlight what's selected in the views.
 func sync_selection() -> void:
-	if editor == null:
-		return
+	if editor == null or is_renaming():
+		return                                           # never while a name is being typed (it would close the box)
 	_syncing = true
 	var sel: Array = editor.selection()
 	var it := tree.get_root()
@@ -252,10 +252,11 @@ func sync_selection() -> void:
 		var meta = it.get_metadata(0)
 		if meta is Dictionary and meta.has("object"):
 			if meta["object"] in sel:
-				it.select(0)
+				if not it.is_selected(0):
+					it.select(0)
 				if first == null:
 					first = it
-			else:
+			elif it.is_selected(0):
 				it.deselect(0)
 		it = it.get_next_in_tree()
 	if first:
@@ -303,7 +304,7 @@ func _tree_input(ev: InputEvent) -> void:
 		if ev.double_click:
 			_select_items([item])
 			_anchor = item
-			_rename_selected()
+			_rename_selected(item)
 			tree.accept_event()
 			return
 		var rows := _visible_rows()
@@ -381,10 +382,27 @@ func _select_items(rows: Array) -> void:
 		_tree_selection_changed()
 
 
-func _rename_selected() -> void:
-	var it := tree.get_selected()
+## Rename a row: the one you double-clicked, else the last row you clicked, else the first selected one.
+func _rename_selected(it: TreeItem = null) -> void:
+	if it == null:
+		it = _anchor if _anchor != null and _anchor.is_selected(0) else tree.get_next_selected(null)
 	if it == null:
 		return
+	rename_row(it)
+
+
+## Is a name being typed? (The tree's own name box is open.)
+func is_renaming() -> bool:
+	for c in tree.get_children(true):
+		if c is Window and (c as Window).visible:
+			return true
+	return false
+
+
+## Start typing a new name into this row. (The tree edits the row its cursor is on, which isn't always the one
+## that's highlighted - so put the cursor on it first.)
+func rename_row(it: TreeItem) -> void:
+	tree.set_selected(it, 0)
 	it.set_editable(0, true)
 	tree.edit_selected(true)
 
@@ -394,9 +412,17 @@ func _edit_folder_name(id: String) -> void:
 	while it:
 		var meta = it.get_metadata(0)
 		if meta is Dictionary and meta.get("folder", "") == id:
-			it.select(0)
-			it.set_editable(0, true)
-			tree.edit_selected.call_deferred(true)
+			_rename_folder_later.call_deferred(id)
+			return
+		it = it.get_next_in_tree()
+
+
+func _rename_folder_later(id: String) -> void:
+	var it := tree.get_root()
+	while it:                                            # (the list may have been rebuilt since: find the row again)
+		var meta = it.get_metadata(0)
+		if meta is Dictionary and meta.get("folder", "") == id:
+			rename_row(it)
 			return
 		it = it.get_next_in_tree()
 

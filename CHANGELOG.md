@@ -3,6 +3,12 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.8.3 preview — 2026-11-05: Outliner rename fix
+
+- Double-clicking a row renames that row (it could open the name box on another row - the list's keyboard cursor
+  wasn't moved with the click). + Folder's name box also opens on the new folder reliably, and the list no longer
+  rebuilds or re-highlights itself while you're typing a name.
+
 ## 0.8.2 preview — 2026-11-05: play HUD centred, Outliner clicks and drops like Windows
 
 - Play mode: the timer, speed and keys line (and the crosshair) are centred in the view at any window size.

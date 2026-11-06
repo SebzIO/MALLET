@@ -44,12 +44,13 @@ func item_for(o) -> TreeItem:
 
 
 ## A left click on a row of the list (Shift / Ctrl like in Windows).
-func click_row(it: TreeItem, shift := false, ctrl := false) -> void:
+func click_row(it: TreeItem, shift := false, ctrl := false, double := false) -> void:
 	var r := ol.tree.get_item_area_rect(it, 0)
 	for pressed in [true, false]:
 		var ev := InputEventMouseButton.new()
 		ev.button_index = MOUSE_BUTTON_LEFT
 		ev.pressed = pressed
+		ev.double_click = double and pressed
 		ev.shift_pressed = shift
 		ev.ctrl_pressed = ctrl
 		ev.position = r.position + Vector2(r.size.x * 0.6, r.size.y * 0.5)
@@ -209,6 +210,20 @@ func _run() -> void:
 	check("Ctrl+click takes one out again", got.size() == 4 and not ramps[2] in got)
 	click_row(item_for(lb))
 	check("a plain click selects just that one", ed.selection() == [lb])
+
+	# double-click a row in the middle: that row (not the last one) gets the name box
+	await process_frame
+	var mid_row := item_for(ramps[2])
+	click_row(mid_row)
+	click_row(mid_row, false, false, true)
+	var open_now := ol.is_renaming()
+	var edited_row := ol.tree.get_selected()
+	ol.sync_selection()
+	ol.refresh()
+	check("double-click opens the name box on the row you clicked", open_now and edited_row == mid_row,
+		"(on %s)" % (edited_row.get_text(0) if edited_row else "nothing"))
+	check("...and the list leaves it open while you type", ol.is_renaming() == open_now and ol.tree.get_selected() == mid_row)
+	# (a background test window has no focus, so the box closes itself a frame later - in the real window it stays)
 
 	# dropping into a folder works every time (Godot resets the tree's drop mode after each drop)
 	var df := ol.new_folder("Drop here")
