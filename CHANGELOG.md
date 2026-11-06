@@ -3,6 +3,12 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.8.1 preview — 2026-11-05: exact run times
+
+- The run timer now times the exact moment you cross the start and finish zone edges, between physics ticks.
+  Before, every time was a whole number of 1/60 s steps (6.383, 6.400, 6.417...), so a best run often looked
+  rounded (6.400 is exactly 384 steps). Times are now accurate to well under a millisecond.
+
 ## 0.8.0 preview — 2026-11-05: the Outliner
 
 - The Outliner (left of the views; View > Outliner to hide it): every object in the map by name - ramps,

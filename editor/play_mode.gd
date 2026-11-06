@@ -40,6 +40,7 @@ var ghost: Dictionary = {}             ## the best run to race (empty = none)
 var show_ghost := true
 var _rec := PackedFloat32Array()       ## this run, every physics tick: x, y, z, speed
 var _rec_dt := 0.0
+var _prev_feet = null                    ## where the feet were last tick (for timing the exact moment a zone edge is crossed)
 var _ghost_node: Node3D = null
 var _ghost_label: Label3D = null
 var _last_delta := ""                  ## "+1.234 vs best" after a finish
@@ -164,6 +165,7 @@ func _put(at: Transform3D, velocity: Vector3) -> void:
 		player.camera_rig.pitch = 0.0
 	for k in _inside.keys():
 		_inside[k] = false
+	_prev_feet = null
 
 
 func _physics_process(delta: float) -> void:
@@ -173,6 +175,8 @@ func _physics_process(delta: float) -> void:
 		_to_checkpoint()
 		return
 	var feet := player.global_position + Vector3(0, 0.5, 0)
+	var prev = _prev_feet
+	_prev_feet = feet
 	var body := player.global_position + Vector3(0, 0.9, 0)
 	for v in _volumes:
 		var inside: bool = v.contains(body)
@@ -204,7 +208,8 @@ func _physics_process(delta: float) -> void:
 			_cap_horizontal_speed(PRESPEED_CAP / UNITS_PER_METRE)
 			if not _start_box.has_volume() or not _start_box.has_point(feet):
 				run_state = Run.RUNNING              # left the start zone (or there is none): go
-				run_time = 0.0
+				# the clock starts the moment the feet crossed the zone's edge, not at the tick after
+				run_time = (1.0 - crossing(prev, feet, _start_box, false)) * delta if _start_box.has_volume() else 0.0
 		Run.RUNNING:
 			run_time += delta
 			_rec_dt = delta
@@ -216,11 +221,25 @@ func _physics_process(delta: float) -> void:
 					_flash_message("Finish blocked: reach stage %d first" % missing[0])
 					return
 				run_state = Run.FINISHED
+				# ...and stops the moment they crossed into the finish zone (between two ticks)
+				run_time -= (1.0 - crossing(prev, feet, _finish_box, true)) * delta
 				_flash = 3.0
 				_last_delta = "" if best_time <= 0.0 else "%+.3f vs best" % (run_time - best_time)
 				if best_time <= 0.0 or run_time < best_time:
 					best_time = run_time
 					_save_ghost()
+
+
+## How far through the last tick (0..1) the feet crossed a zone's edge, going in (`entering`) or out. Physics runs
+## in steps of 1/60 s, so without this every time would be a whole number of steps (6.383, 6.400, 6.417...).
+static func crossing(from, to: Vector3, box: AABB, entering: bool) -> float:
+	if from == null or (from as Vector3).distance_to(to) < 1e-6 or (from as Vector3).distance_to(to) > 30.0:
+		return 1.0                                       # no previous step (or a teleport): count the whole tick
+	var a: Vector3 = from
+	var hit = box.intersects_segment(a, to) if entering else box.intersects_segment(to, a)
+	if hit == null:
+		return 1.0
+	return clampf(a.distance_to(hit) / a.distance_to(to), 0.0, 1.0)
 
 
 # ------------------------------------------------------------------------------------------------ ghost
