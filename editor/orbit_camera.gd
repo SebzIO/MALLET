@@ -70,6 +70,11 @@ func _process(delta: float) -> void:
 		_apply()
 
 
+## Is the right mouse button held (orbiting / flying with WASD QE)?
+func flying() -> bool:
+	return _orbiting
+
+
 func frame(center: Vector3, radius: float) -> void:
 	focus = center
 	distance = clamp(radius * 2.2, 20.0, 4000.0)

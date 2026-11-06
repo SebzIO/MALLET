@@ -157,7 +157,59 @@ func _ready() -> void:
 	play.ghost_recorded.connect(func(g): best_ghost = g)
 	_new_map()
 	_set_title("")
+	_mark_saved()
+	if get_tree().current_scene == self:
+		get_tree().set_auto_accept_quit(false)           # closing the window asks first when there are unsaved changes
 	_show_welcome_if_main.call_deferred()
+
+
+# ================================================================================================= unsaved changes
+var _saved_state := ""                   ## the map as last saved / opened, to tell whether it has changed since
+var _quit_after_save := false
+
+
+func _state_text() -> String:
+	return JSON.stringify(_map_dict()) + str(best_ghost.get("time", ""))
+
+
+func _mark_saved() -> void:
+	_saved_state = _state_text()
+
+
+## Would closing lose work? (Changes since the last save, or a map with something in it that was never saved.)
+func has_unsaved_changes() -> bool:
+	if current_path == "" and _all_objects().is_empty():
+		return false
+	return current_path == "" or _state_text() != _saved_state
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and get_tree().current_scene == self:
+		if has_unsaved_changes():
+			_ask_save_before_quit()
+		else:
+			get_tree().quit()
+
+
+func _ask_save_before_quit() -> void:
+	var d := ConfirmationDialog.new()
+	d.title = "Unsaved changes"
+	d.dialog_text = ("Save the changes to %s before closing?" % current_path.get_file()) if current_path != "" 		else "This map has never been saved. Save it before closing?"
+	d.ok_button_text = "Save"
+	d.cancel_button_text = "Cancel"
+	d.add_button("Don't save", true, "discard")
+	_ui.add_child(d)
+	d.confirmed.connect(func():
+		d.queue_free()
+		_quit_after_save = true
+		_save_clicked())                                 # (no file yet: the Save dialog opens, closing follows the save)
+	d.canceled.connect(func():
+		_quit_after_save = false
+		d.queue_free())
+	d.custom_action.connect(func(action: StringName):
+		if action == "discard":
+			get_tree().quit())
+	d.popup_centered()
 
 
 ## The welcome screen greets you when SurfForge starts (not when a test builds the editor).
@@ -343,6 +395,7 @@ func _build_ui_main() -> void:
 	_file_dialog.filters = PackedStringArray(["*.sfmap ; SurfForge map"])
 	_file_dialog.current_dir = ProjectSettings.globalize_path("res://maps") if OS.has_feature("editor") else OS.get_executable_path().get_base_dir()
 	_file_dialog.file_selected.connect(_on_file_chosen)
+	_file_dialog.canceled.connect(func(): _quit_after_save = false)   # (backed out of Save-then-close)
 	_ui.add_child(_file_dialog)
 	_build_export_dialog()
 	_build_css_dialog()
@@ -946,6 +999,23 @@ func _toggle_views() -> void:
 
 
 ## Space: fill the editor with the view under the mouse; press again to go back to four views.
+## The view under the mouse, or null.
+func _hovered_pane() -> ViewPane:
+	var mouse := get_viewport().get_mouse_position()
+	for p in panes:
+		if p.visible and p.get_global_rect().has_point(mouse):
+			return p
+	return null
+
+
+## Is the right mouse button held in any view (flying)?
+func _flying() -> bool:
+	for p in panes:
+		if p.camera is OrbitCamera and (p.camera as OrbitCamera).flying():
+			return true
+	return false
+
+
 func _toggle_maximise_hovered() -> void:
 	var mouse := get_viewport().get_mouse_position()
 	var hovered: ViewPane = active_pane
@@ -2961,6 +3031,8 @@ func _handle_key(e: InputEventKey) -> void:
 	var ctrl := e.ctrl_pressed or e.meta_pressed
 	if e.echo and not e.keycode in [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_PAGEUP, KEY_PAGEDOWN]:
 		return
+	if _flying() and not ctrl:
+		return                                           # (right mouse held: letters are W A S D Q E flying, not shortcuts)
 	match e.keycode:
 		KEY_Z when ctrl:
 			if e.shift_pressed: redo()
@@ -2980,7 +3052,11 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_U: _add_light("point")
 		KEY_H: _add_water_clicked()
 		KEY_X when not ctrl: _add_text_clicked()
-		KEY_D when not ctrl: _toggle_draw_mode()
+		KEY_D when not ctrl:
+			if _draw_mode or _hovered_pane() == null or _hovered_pane().is_ortho():
+				_toggle_draw_mode()
+			else:
+				_set_status("Draw blocks works in the Top, Front and Side views: press D with the mouse over one.")
 		KEY_F11: _toggle_fullscreen()
 		KEY_I: _add_prop_clicked()
 		KEY_L: _lock_toggle()
@@ -3623,9 +3699,12 @@ func _delete_clicked() -> void:
 func _frame_clicked() -> void:
 	var aabb := AABB()
 	var first := true
-	var targets := [selected] if selected else _all_objects()
+	var targets: Array = selection() if not selection().is_empty() else _all_objects()
 	for o in targets:
-		var pts: Array = Array(o.points) if o is RampNode else [o.position]
+		var pts: Array = Array(o.points) if o is RampNode else [_move_handle_point(o)]
+		if not o is RampNode and o.has_method("outline_lines"):
+			for line in o.outline_lines():                   # (its whole shape, so big things fit the view)
+				pts.append_array(Array(line))
 		for p in pts:
 			if first:
 				aabb = AABB(p, Vector3.ZERO)
@@ -3875,6 +3954,9 @@ func save_map(path: String) -> void:
 	current_path = path
 	_set_title(path.get_file())
 	_set_status("Saved %s" % path)
+	_mark_saved()
+	if _quit_after_save:
+		get_tree().quit()
 
 
 func load_map(path: String) -> void:
@@ -3887,6 +3969,7 @@ func load_map(path: String) -> void:
 	best_ghost = data.get("ghost", {})
 	current_path = path
 	_set_title(path.get_file())
+	_mark_saved()
 	_frame_clicked()
 	_set_status("Opened %s (%d ramps)" % [path.get_file(), ramps_root.get_child_count()])
 

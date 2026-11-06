@@ -290,6 +290,10 @@ func _tree_selection_changed() -> void:
 ## the last clicked row to this one (Ctrl+Shift adds that range), double-click = rename. Pressing on a row that's
 ## already selected keeps the selection (so several can be dragged) until the button comes up without a drag.
 func _tree_input(ev: InputEvent) -> void:
+	if ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_F and not (ev.ctrl_pressed or ev.alt_pressed or ev.meta_pressed):
+		editor._frame_clicked()                          # F: focus the selection, as in the views
+		tree.accept_event()
+		return
 	if not (ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT):
 		return
 	var item := tree.get_item_at_position(ev.position)
