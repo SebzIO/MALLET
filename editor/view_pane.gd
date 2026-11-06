@@ -34,6 +34,9 @@ func _init(k: int, ed: Node) -> void:
 	add_child(viewport)
 	if kind == Kind.PERSPECTIVE:
 		camera = OrbitCamera.new()
+		(camera as OrbitCamera).fly_speed_changed.connect(func(v: float):
+			if editor and editor.has_method("_set_status"):
+				editor._set_status("Fly speed: %.0f m/s  (right mouse + wheel: faster / slower)" % v))
 	else:
 		camera = Camera3D.new()
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL

@@ -10,6 +10,8 @@ const DEFAULTS := {
 	"build_mouse": 1.0,                  ## build mode's first-person look: x the normal speed
 	"play_mouse": 3.0,                   ## play mode: Source-style sensitivity (0.022 deg per count, like SurfsUp / CS:S)
 	"invert_y": false,                   ## mouse forward looks down (everywhere)
+	"ground_grid": true,                 ## the editor's 3D view shows the ground grid plane
+	"fly_speed": 60.0,                   ## editor 3D view: right mouse + WASD speed (m/s), set with right mouse + wheel
 }
 
 static var _cfg: ConfigFile = null

@@ -72,6 +72,7 @@ var _image_dialog: FileDialog
 var show_all_arcs := false
 var best_ghost: Dictionary = {}         ## the map's best run in play mode (saved with the map, not in undo)
 var show_ghost_path := true
+var _ground_grid: MeshInstance3D         ## the 3D view's ground grid plane (View > Ground grid)
 var show_direction := true             ## editor guide: arrows along each ramp from its start to its end
 var _arcs: Array = []                ## [{ramp, speed, ref, runs: [full, sloppy]}] from the jump checker
 var _arcs_timer := 0.0
@@ -236,6 +237,8 @@ func _build_world() -> void:
 	grid.material_override = gm
 	grid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	grid.layers = 2                                     # perspective only: the ortho views draw their own grid
+	grid.visible = bool(Settings.value("ground_grid"))
+	_ground_grid = grid
 	add_child(grid)
 	add_child(ramps_root)
 	add_child(entities_root)
@@ -313,6 +316,7 @@ func _build_ui_main() -> void:
 		["Jump arcs: all ramps", KEY_NONE, func(): show_all_arcs = not show_all_arcs; _sync_view_menu(); _map_changed(), "arcs"],
 		["Direction arrows", KEY_NONE, func(): show_direction = not show_direction; _sync_view_menu(), "arrows"],
 		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"],
+		["Ground grid (3D view)", KEY_NONE, _toggle_ground_grid, "groundgrid"],
 		["Outliner (names, folders)", KEY_NONE, func(): _outliner_panel.visible = not _outliner_panel.visible; _sync_view_menu(), "outliner"]])
 	bar.add_child(VSeparator.new())
 	_bar_item(bar, ["▶ Play (P)", _play_clicked])
@@ -559,6 +563,14 @@ func _build_props(props: VBoxContainer) -> void:
 	_info = Label.new()
 	_info.autowrap_mode = TextServer.AUTOWRAP_WORD
 	props.add_child(_info)
+	var clear_best := Button.new()
+	clear_best.text = "Clear best run…"
+	clear_best.focus_mode = Control.FOCUS_NONE
+	clear_best.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	clear_best.visible = false
+	clear_best.pressed.connect(_clear_best_clicked)
+	props.add_child(clear_best)
+	_fields["clear_best"] = clear_best
 	props.add_child(HSeparator.new())
 	var help := Label.new()
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -898,6 +910,8 @@ func _refresh_props() -> void:
 
 
 func _refresh_info() -> void:
+	if _fields.has("clear_best"):
+		_fields["clear_best"].visible = selected == null and not best_ghost.is_empty()
 	if selected != null and selected.has_meta("name") and String(selected.get_meta("name")) != "":
 		_fields["head"].text = String(selected.get_meta("name"))         # the name given in the Outliner
 	if selected == null:
@@ -1540,11 +1554,41 @@ func _menu(bar: Container, title: String, items: Array) -> MenuButton:
 ## Tick the View and Add menus' check items to match the current settings.
 func _sync_view_menu() -> void:
 	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["draw", _draw_mode],
+			["groundgrid", _ground_grid != null and _ground_grid.visible],
 			["outliner", _outliner_panel != null and _outliner_panel.visible]]:
 		if _fields.has("menu_" + pair[0]):
 			var m: Array = _fields["menu_" + pair[0]]
 			(m[0] as PopupMenu).set_item_checked(m[1], pair[1])
 	_redraw_overlays()
+
+
+func _toggle_ground_grid() -> void:
+	_ground_grid.visible = not _ground_grid.visible
+	Settings.set_value("ground_grid", _ground_grid.visible)
+	_sync_view_menu()
+
+
+## Forget the map's best run (time and path) - asks first, as it isn't part of undo.
+func _clear_best_clicked() -> void:
+	if best_ghost.is_empty():
+		return
+	var d := ConfirmationDialog.new()
+	d.title = "Clear best run"
+	d.dialog_text = "Forget the best run (%s) and its path? This can't be undone." % PlayMode.format_time(float(best_ghost["time"]))
+	d.ok_button_text = "Clear it"
+	_ui.add_child(d)
+	d.confirmed.connect(func():
+		clear_best_run()
+		d.queue_free())
+	d.canceled.connect(d.queue_free)
+	d.popup_centered()
+
+
+func clear_best_run() -> void:
+	best_ghost = {}
+	_refresh_info()
+	_redraw_overlays()
+	_set_status("Best run cleared: the next finished run sets a new one.")
 
 
 ## Presentation mode (for videos and screenshots): only the 3D view, no toolbar, panel or status line.

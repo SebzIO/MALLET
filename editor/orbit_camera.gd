@@ -4,7 +4,7 @@ extends Camera3D
 ##   Right mouse drag      orbit around the focus point
 ##   Middle mouse drag     pan
 ##   Mouse wheel           zoom
-##   Right mouse + WASD/QE fly (Shift = faster)
+##   Right mouse + WASD/QE fly (Shift = faster); right mouse + wheel = fly speed
 ##   F                     frame the selection (called by the editor)
 
 var focus := Vector3.ZERO
@@ -13,11 +13,14 @@ var yaw := deg_to_rad(35.0)
 var pitch := deg_to_rad(-30.0)
 var fly_speed := 60.0
 
+signal fly_speed_changed(speed: float)   ## right mouse + wheel changed it (m/s)
+
 var _orbiting := false
 var _panning := false
 
 
 func _ready() -> void:
+	fly_speed = float(Settings.value("fly_speed"))
 	far = 8000.0
 	fov = 70.0
 	_apply()
@@ -30,6 +33,12 @@ func handle_input(event: InputEvent) -> bool:
 			return true
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			_panning = event.pressed
+			return true
+		if event.pressed and _orbiting and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			var k := 1.2 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.2
+			fly_speed = clampf(fly_speed * k, 2.0, 2000.0)  # (flying: the wheel sets the speed, not the zoom)
+			Settings.set_value("fly_speed", fly_speed)
+			fly_speed_changed.emit(fly_speed)
 			return true
 		if event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			distance = max(distance * 0.88, 2.0)

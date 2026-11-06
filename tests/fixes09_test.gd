@@ -87,5 +87,38 @@ func _run() -> void:
 	ed.load_map(out + "/unsaved.sfmap")
 	check("#15 opening the map again: no changes", not ed.has_unsaved_changes())
 
+	# ---- #5: ground grid on / off (remembered)
+	var was: bool = ed._ground_grid.visible
+	ed._toggle_ground_grid()
+	check("#5 View > Ground grid hides / shows the 3D grid", ed._ground_grid.visible != was and bool(Settings.value("ground_grid")) == ed._ground_grid.visible)
+	ed._toggle_ground_grid()
+
+	# ---- #6: right mouse + wheel = fly speed; the wheel alone still zooms
+	var cam: OrbitCamera = persp.camera
+	var sp0 := cam.fly_speed
+	var d0 := cam.distance
+	var w := InputEventMouseButton.new()
+	w.button_index = MOUSE_BUTTON_WHEEL_UP
+	w.pressed = true
+	cam._orbiting = true
+	cam.handle_input(w)
+	cam.handle_input(w)
+	check("#6 right mouse + wheel up: faster flying, no zoom", cam.fly_speed > sp0 * 1.3 and cam.distance == d0, "(%.0f -> %.0f m/s)" % [sp0, cam.fly_speed])
+	w.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	cam.handle_input(w)
+	cam.handle_input(w)
+	check("#6 and down again: back to the old speed", absf(cam.fly_speed - sp0) < 0.01)
+	cam._orbiting = false
+	cam.handle_input(w)
+	check("#6 the wheel alone still zooms", cam.distance > d0 and absf(cam.fly_speed - sp0) < 0.01)
+
+	# ---- #4: clear the best run
+	ed._select(null)
+	ed.best_ghost = {"time": 12.5, "hz": 20.0, "samples": [0.0, 0.0, 0.0, 10.0]}
+	ed._refresh_info()
+	check("#4 a 'Clear best run' button shows when there is one", ed._fields["clear_best"].visible)
+	ed.clear_best_run()
+	check("#4 clearing forgets it (and hides the button)", ed.best_ghost.is_empty() and not ed._fields["clear_best"].visible)
+
 	print("FIXES 0.9: ", "PASS" if ok else "FAIL")
 	quit()
