@@ -155,6 +155,9 @@ enum CrouchTransitionMode {
 ## sensitivity values portable from CS:GO / TF2 / Half-Life.
 @export var degrees_per_unit: float = 0.022
 
+## Mouse forward looks down instead of up.
+@export var invert_y: bool = false
+
 
 # Convert Source/Hammer units to metres.
 static func source_units(value: float) -> float:

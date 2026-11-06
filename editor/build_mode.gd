@@ -250,8 +250,9 @@ func _input(event: InputEvent) -> void:
 		return
 	get_viewport().set_input_as_handled()
 	if event is InputEventMouseMotion:
-		yaw -= event.relative.x * 0.0025
-		pitch = clampf(pitch - event.relative.y * 0.0025, deg_to_rad(-89), deg_to_rad(89))
+		var k := 0.0025 * Settings.build_mouse()            # (View > Mouse sensitivity)
+		yaw -= event.relative.x * k
+		pitch = clampf(pitch - event.relative.y * k * Settings.y_sign(), deg_to_rad(-89), deg_to_rad(89))
 		_apply_cam()
 	elif event is InputEventMouseButton:
 		_mouse_button(event)

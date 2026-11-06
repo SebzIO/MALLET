@@ -41,8 +41,9 @@ func handle_input(event: InputEvent) -> bool:
 			return true
 	elif event is InputEventMouseMotion:
 		if _orbiting:
-			yaw -= event.relative.x * 0.006
-			pitch = clamp(pitch - event.relative.y * 0.006, deg_to_rad(-89), deg_to_rad(89))
+			var k := 0.006 * Settings.editor_mouse()          # (View > Mouse sensitivity)
+			yaw -= event.relative.x * k
+			pitch = clamp(pitch - event.relative.y * k * Settings.y_sign(), deg_to_rad(-89), deg_to_rad(89))
 			_apply()
 			return true
 		if _panning:

@@ -110,11 +110,24 @@ func start(at: Transform3D, start_box := AABB(), finish_box := AABB(), kill_y :=
 	_build_ghost()
 	player = load(SUCC_SCENE).instantiate()
 	add_child(player)
+	apply_mouse_settings()
 	_place()
 	active = true
 	top_speed = 0.0
 	_hud.visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+## Your mouse sensitivity (View > Mouse sensitivity): Source-style, so the number you use in SurfsUp / CS:S works.
+func apply_mouse_settings() -> void:
+	if player == null or player.config == null:
+		return
+	if not player.has_meta("own_config"):
+		player.config = player.config.duplicate()       # (don't change the shared default)
+		player.set_meta("own_config", true)
+	player.config.mouse_sensitivity = Settings.play_mouse()
+	player.config.invert_y = Settings.invert_y()
+	player.apply_config()
 
 
 func stop() -> void:

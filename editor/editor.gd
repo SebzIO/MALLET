@@ -256,7 +256,8 @@ func _build_ui_main() -> void:
 		["Turn left 15°", KEY_BRACKETLEFT, func(): _rotate_selected(-15.0)],
 		["Turn right 15°", KEY_BRACKETRIGHT, func(): _rotate_selected(15.0)]])
 	_menu(bar, "View ▾", [
-		["Frame selection", KEY_F, _frame_clicked], ["Fullscreen", KEY_F11, _toggle_fullscreen], [],
+		["Frame selection", KEY_F, _frame_clicked], ["Fullscreen", KEY_F11, _toggle_fullscreen],
+		["Mouse sensitivity…", KEY_NONE, _open_mouse_settings], [],
 		["Jump arcs: all ramps", KEY_NONE, func(): show_all_arcs = not show_all_arcs; _sync_view_menu(); _map_changed(), "arcs"],
 		["Direction arrows", KEY_NONE, func(): show_direction = not show_direction; _sync_view_menu(), "arrows"],
 		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"],
@@ -1493,6 +1494,73 @@ func _set_title(map_name: String) -> void:
 
 
 ## F11: fullscreen (no title bar - handy for recording) and back.
+var _mouse_dialog: AcceptDialog
+
+
+## View > Mouse sensitivity: how fast the mouse turns the view in the editor's 3D view, in build mode and in play
+## mode (that one uses the same numbers as SurfsUp and CS:S), and inverted up / down. Saved for next time.
+func _open_mouse_settings() -> void:
+	if _mouse_dialog == null:
+		_mouse_dialog = AcceptDialog.new()
+		_mouse_dialog.title = "Mouse sensitivity"
+		_mouse_dialog.ok_button_text = "Done"
+		var box := VBoxContainer.new()
+		box.custom_minimum_size = Vector2(460, 0)
+		box.add_theme_constant_override("separation", 6)
+		_mouse_dialog.add_child(box)
+		for spec in [["editor_mouse", "Editor 3D view (orbit / fly with the right mouse button)", 0.1, 5.0, 0.05, "x"],
+				["build_mouse", "Build mode (first person)", 0.1, 5.0, 0.05, "x"],
+				["play_mouse", "Play mode (surfing) - the same number as your SurfsUp / CS:S sensitivity", 0.1, 20.0, 0.05, ""]]:
+			var l := Label.new()
+			l.text = spec[1]
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			box.add_child(l)
+			var row := HBoxContainer.new()
+			box.add_child(row)
+			var sl := HSlider.new()
+			sl.min_value = spec[2]
+			sl.max_value = spec[3]
+			sl.step = spec[4]
+			sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			sl.value = float(Settings.value(spec[0]))
+			var sb := SpinBox.new()
+			sb.min_value = spec[2]
+			sb.max_value = spec[3]
+			sb.step = spec[4]
+			sb.suffix = spec[5]
+			sb.value = sl.value
+			sb.custom_minimum_size = Vector2(96, 0)
+			var key: String = spec[0]
+			sl.value_changed.connect(func(v): sb.set_value_no_signal(v); _set_mouse(key, v))
+			sb.value_changed.connect(func(v): sl.set_value_no_signal(v); _set_mouse(key, v))
+			row.add_child(sl)
+			row.add_child(sb)
+			_fields["mouse_" + key] = [sl, sb]
+		var inv := CheckButton.new()
+		inv.text = "Invert mouse up / down (everywhere)"
+		inv.button_pressed = Settings.invert_y()
+		inv.toggled.connect(func(on): _set_mouse("invert_y", on))
+		box.add_child(inv)
+		_fields["mouse_invert_y"] = inv
+		var reset := Button.new()
+		reset.text = "Back to the defaults"
+		reset.pressed.connect(func():
+			for k in ["editor_mouse", "build_mouse", "play_mouse"]:
+				var pair: Array = _fields["mouse_" + k]
+				(pair[0] as HSlider).value = Settings.DEFAULTS[k]
+			(_fields["mouse_invert_y"] as CheckButton).button_pressed = false)
+		box.add_child(reset)
+		_ui.add_child(_mouse_dialog)
+	_mouse_dialog.popup_centered()
+
+
+func _set_mouse(key: String, v) -> void:
+	Settings.set_value(key, v)
+	if play.active:
+		play.apply_mouse_settings()
+
+
 func _toggle_fullscreen() -> void:
 	var w := get_window()
 	w.mode = Window.MODE_WINDOWED if w.mode == Window.MODE_FULLSCREEN else Window.MODE_FULLSCREEN

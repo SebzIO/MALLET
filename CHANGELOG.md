@@ -3,6 +3,12 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.8.6 preview — 2026-11-05: mouse sensitivity
+
+- View > Mouse sensitivity: a slider each for the editor's 3D view, build mode and play mode, plus invert up /
+  down. Play mode uses the same number as SurfsUp / CS:S (Source-style), so your usual sensitivity carries over.
+  Changes apply straight away (even while playing) and are kept for next time.
+
 ## 0.8.5 preview — 2026-11-05: no more jagged pieces; aim at pushed-in cubes; blue corner grid
 
 - Editing a small piece of a big sloped cube no longer wrecks it (the "jagged piece"). Splitting a cube into

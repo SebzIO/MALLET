@@ -109,6 +109,8 @@ func handle_input(event: InputEvent, config: SUCCConfig) -> void:
 	# with window size; relative also drifts right under Firefox pointer lock.
 	var relative: Vector2 = motion.screen_relative
 	relative *= config.mouse_sensitivity * deg_to_rad(config.degrees_per_unit)
+	if config.invert_y:
+		relative.y = -relative.y
 	_accumulated += relative
 	_apply_rotation()
 
