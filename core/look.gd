@@ -133,8 +133,9 @@ static func image_texture(path: String) -> Texture2D:
 
 
 ## Material for a ramp. `texture_scale` = how many metres one copy of the image covers.
+## `square`: for blocks and cubes (world-metre UVs): the Dev grid as even 1 m squares instead of the ramp layout.
 static func ramp_material(look: String, color: Color, texture_path := "", texture_scale := 20.0, material_id := "",
-		face_length := 10.5) -> Material:
+		face_length := 10.5, square := false) -> Material:
 	if look == "material" and MaterialLibrary.has(material_id):
 		# ramp UVs: u = 0..1 across the face, v = metres along / 20; size the library texture to the real world
 		var size := MaterialLibrary.world_size(material_id) * maxf(texture_scale / 20.0, 0.05)
@@ -150,6 +151,8 @@ static func ramp_material(look: String, color: Color, texture_path := "", textur
 		var m := ShaderMaterial.new()
 		m.shader = shader(info[1])
 		m.set_shader_parameter("tint", color)
+		if look == "grid":
+			m.set_shader_parameter("square", square)
 		return m
 	var sm := StandardMaterial3D.new()
 	sm.albedo_color = color

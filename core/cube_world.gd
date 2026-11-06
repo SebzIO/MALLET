@@ -196,7 +196,7 @@ static func material_for(slot: String, alpha_mat := false) -> Material:
 	var plain: bool = tint == Color.WHITE and alpha >= 1.0 and float(sl["su"]) == 0.0 and float(sl["sv"]) == 0.0 and sl["l"] == ""
 	var m: Material
 	if plain:
-		m = MaterialLibrary.material(id, Color.WHITE) if lib else Look.ramp_material("grid", Color.html("9aa3ad"))
+		m = MaterialLibrary.material(id, Color.WHITE) if lib else Look.ramp_material("grid", Color.html("9aa3ad"), "", 20.0, "", 10.5, true)
 	else:
 		var sm := ShaderMaterial.new()
 		sm.shader = _surface_shader(alpha < 1.0)

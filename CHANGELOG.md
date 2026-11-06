@@ -3,6 +3,12 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.9.3 preview — 2026-11-06: square grid on blocks and cubes
+
+- Blocks and untextured cubes show the Dev grid as even 1 m squares. They borrowed the ramp's grid, which is
+  stretched on purpose (lines every 1/8 across a ramp, every 1/4 along it) and drew 0.5 x 1 m rectangles on them.
+  Ramps keep their own grid.
+
 ## 0.9.2 preview — 2026-11-06: no shortcuts while flying, for real
 
 - Flying with right mouse + WASD no longer sets off D (Draw blocks), N, B, O or any other menu key: the menus ran

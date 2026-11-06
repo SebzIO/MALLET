@@ -227,7 +227,7 @@ static func mesh_faces(pieces: Array, xf: Transform3D, s: Dictionary) -> Array:
 			var fs: Dictionary = settings[slot][0]
 			var key: String = settings[slot][1]
 			if not groups.has(key):
-				var mat: Material = Look.ramp_material(s["look"], Color.html(s["color"])) if key == "look" 					else MaterialLibrary.material(key, Color.html(s["color"]))
+				var mat: Material = Look.ramp_material(s["look"], Color.html(s["color"]), "", 20.0, "", 10.5, true) if key == "look" 					else MaterialLibrary.material(key, Color.html(s["color"]))
 				if float(s.get("glow", 0.0)) > 0.0 and mat is StandardMaterial3D:
 					mat = _glowing(mat, float(s["glow"]))
 				groups[key] = [PackedVector3Array(), PackedVector3Array(), PackedFloat32Array(), PackedVector2Array(), mat]
