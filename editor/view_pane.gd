@@ -126,8 +126,59 @@ func _apply_ortho() -> void:
 	overlay.queue_redraw()
 
 
+## Right / middle drag (orbit, fly, pan) holds on to the mouse: the cursor is hidden and can't run into the edge of
+## the screen (or onto another display); letting go puts it back where the drag started.
+var _grab_button := -1
+var _grab_pos := Vector2.ZERO
+
+
+func _begin_grab(button: int) -> void:
+	_grab_button = button
+	_grab_pos = get_viewport().get_mouse_position()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _end_grab() -> void:
+	if _grab_button < 0:
+		return
+	_grab_button = -1
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	get_viewport().warp_mouse(_grab_pos)
+
+
+func is_grabbing() -> bool:
+	return _grab_button >= 0
+
+
+## While grabbed, every mouse event comes here (the hidden cursor isn't over the view any more).
+func _input(event: InputEvent) -> void:
+	if _grab_button < 0 or not (event is InputEventMouse):
+		return
+	get_viewport().set_input_as_handled()
+	if kind == Kind.PERSPECTIVE:
+		(camera as OrbitCamera).handle_input(event)
+	elif not (event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]):
+		_ortho_nav(event)                                # (wheel zoom aims at the cursor, which is hidden: skipped)
+	if event is InputEventMouseButton and not event.pressed and event.button_index == _grab_button:
+		_end_grab()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and _grab_button >= 0:
+		var up := InputEventMouseButton.new()           # (alt-tab mid-drag: the release never arrives - let go now)
+		up.button_index = _grab_button as MouseButton
+		up.pressed = false
+		if kind == Kind.PERSPECTIVE:
+			(camera as OrbitCamera).handle_input(up)
+		else:
+			_ortho_nav(up)
+		_end_grab()
+
+
 func _gui_input(event: InputEvent) -> void:
 	editor.set_active_pane(self)
+	if _grab_button < 0 and event is InputEventMouseButton and event.pressed 			and event.button_index in [MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
+		_begin_grab(event.button_index)
 	if kind == Kind.PERSPECTIVE:
 		if (camera as OrbitCamera).handle_input(event):
 			accept_event()

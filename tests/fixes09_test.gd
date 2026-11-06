@@ -178,5 +178,37 @@ func _run() -> void:
 	check("#8 the 1 m cube + 0.5 m slab draws only its outside (a 1.5 x 1 x 1 box: 8 m2)", absf(area - 8.0) < 0.01,
 		"(%.2f m2 drawn)" % area)
 
+	# ---- 0.9.1: right / middle drag captures the mouse (no running into the screen edge) and gives it back after
+	ed._load_dict({})
+	for pane in [persp, top]:
+		var start: Vector2 = pane.get_global_rect().get_center()
+		root.warp_mouse(start)
+		await frames(1)
+		var dn := InputEventMouseButton.new()
+		dn.button_index = MOUSE_BUTTON_RIGHT
+		dn.pressed = true
+		dn.position = pane.get_local_mouse_position()
+		pane._gui_input(dn)
+		var was_yaw: float = (pane.camera as OrbitCamera).yaw if pane == persp else 0.0
+		var was_c: Vector3 = pane._ortho_center
+		check("grab: right mouse in the %s view hides and holds the cursor" % ("3D" if pane == persp else "Top"),
+			Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and pane.is_grabbing())
+		for i in 40:                                        # far more than the screen is wide
+			var mv := InputEventMouseMotion.new()
+			mv.relative = Vector2(120, 0)
+			Input.parse_input_event(mv)
+			Input.flush_buffered_events()
+		var turned: bool = absf((pane.camera as OrbitCamera).yaw - was_yaw) > 1.0 if pane == persp else pane._ortho_center.distance_to(was_c) > 1.0
+		check("grab: moving it keeps turning / panning (no edge to stop it)", turned)
+		var up := InputEventMouseButton.new()
+		up.button_index = MOUSE_BUTTON_RIGHT
+		up.pressed = false
+		Input.parse_input_event(up)
+		Input.flush_buffered_events()
+		await frames(1)
+		check("grab: letting go shows the cursor again, where the drag started", Input.mouse_mode == Input.MOUSE_MODE_VISIBLE
+			and not pane.is_grabbing() and root.get_mouse_position().distance_to(start) < 2.0
+			and (pane != persp or not (persp.camera as OrbitCamera).flying()), "(at %s)" % root.get_mouse_position())
+
 	print("FIXES 0.9: ", "PASS" if ok else "FAIL")
 	quit()

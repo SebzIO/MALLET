@@ -3,6 +3,12 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.9.1 preview — 2026-11-06: the mouse stays put while you look around
+
+- Right-drag (orbit / fly with WASD) and middle-drag (pan) in any view hold on to the mouse: the cursor is hidden
+  and can't run into the edge of the screen or onto another display, and it comes back where you pressed when you
+  let go.
+
 ## 0.9.0 preview — 2026-11-06: custom zones, smooth dragging, faster building
 
 - Custom zones: Add > Start / Finish / Stage zone (on your own platform), or tick "Zone only" on a plate. No
