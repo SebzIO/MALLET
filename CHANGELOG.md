@@ -3,7 +3,7 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
-## Unreleased
+## 0.8.8 preview — 2026-11-06: finish speed; sloped cubes split cleanly
 
 - Play mode: the bottom line now also shows your finish speed, meaning how fast you were going when you entered the
   finish on your last completed run. It stays there through restarts and later play sessions until you open another

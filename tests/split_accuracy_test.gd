@@ -104,6 +104,7 @@ func _run() -> void:
 		if s[0] in ["slope 4/8", "lean 4/8", "slope 8/8", "slope 2/8"]:
 			for sub in [2, 1]:
 				var r := world_check(s[1], sub)
+				await process_frame                      # keep the window responding (Windows flags it otherwise)
 				check("%s: push a %d m cube out of an 8 m one, every position" % [s[0], CubeWorld.metres(sub)], r[0] < 0.01,
 					"(worst %.2f%% wrong at cell %s)" % r)
 	# 2) every shape, split 1-3 deep: overall error (other slopes can't be exact: the cubes only have 1/8 steps)
@@ -111,6 +112,7 @@ func _run() -> void:
 	for s in shapes():
 		for levels in [1, 2, 3]:
 			var r := measure(s[1], levels)
+			await process_frame
 			for i in 3:
 				total[i] += r[i]
 			if verbose:
