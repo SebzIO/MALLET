@@ -267,6 +267,16 @@ static func corner(c: PackedByteArray, n: int) -> Vector3:
 
 ## The 4 corners of face o, counter-clockwise seen from outside.
 static func face_corners(o: int) -> Array:
+	if _fc_table.is_empty():                              # (built once: meshing asks for these millions of times)
+		for f in 6:
+			_fc_table.append(_make_face_corners(f))
+	return _fc_table[o]
+
+
+static var _fc_table := []                               ## face_corners per orient - shared, never modify
+
+
+static func _make_face_corners(o: int) -> Array:
 	var d := o >> 1
 	var a := (d + 1) % 3
 	var b := (d + 2) % 3
@@ -332,6 +342,8 @@ static func is_valid_shape(c: PackedByteArray) -> bool:
 
 
 static func face_is_full(c: PackedByteArray, o: int) -> bool:
+	if c == FULL:
+		return true
 	for n in face_corners(o):
 		for d in 3:
 			if c[n * 3 + d] != FULL[n * 3 + d]:
@@ -988,7 +1000,12 @@ static func _beyond(k: Vector4i, o: int) -> Vector3:
 
 
 func leaf_at(pt: Vector3):
-	for p in range(MIN_P, MAX_P + 1):
+	return _leaf_at_from(pt, MIN_P)
+
+
+## The cube at a point (ticks) of size p_min or bigger, or null.
+func _leaf_at_from(pt: Vector3, p_min: int):
+	for p in range(p_min, MAX_P + 1):
 		var s := size_of(p)
 		var k := Vector4i(floori(pt.x / s) * s, floori(pt.y / s) * s, floori(pt.z / s) * s, p)
 		if leaves.has(k):
@@ -1080,19 +1097,25 @@ func _prepare_mat(o: Vector3i, p: int) -> void:
 
 
 func cell_state(o: Vector3i, p: int) -> Array:
-	_prepare(o, p)
 	var k := Vector4i(o.x, o.y, o.z, p)
 	if leaves.has(k):
 		return [k]
-	var s := size_of(p)
-	return ["mixed"] if not leaves_in(o, Vector3i(s, s, s)).is_empty() else []
+	_prepare(o, p)
+	if leaves.has(k):
+		return [k]
+	return ["mixed"] if _occ.get(k, 0) > 0 else []        # (_occ counts the smaller cubes in it: no index scan)
 
 
 func _clear_cell(o: Vector3i, p: int) -> void:
 	_prepare(o, p)
-	var s := size_of(p)
-	for k in leaves_in(o, Vector3i(s, s, s)):
+	var k := Vector4i(o.x, o.y, o.z, p)
+	if leaves.has(k):
 		_put(k, null)
+	if _occ.get(k, 0) == 0:
+		return
+	var s := size_of(p)
+	for lk in leaves_in(o, Vector3i(s, s, s)):
+		_put(lk, null)
 
 
 func set_cell(o: Vector3i, p: int, corners: PackedByteArray, tex: PackedStringArray, blend := PackedByteArray(), cut := []) -> void:
@@ -1978,8 +2001,8 @@ func move_cubes(sel: Dictionary, delta: Vector3i) -> Dictionary:
 func _face_hidden(k: Vector4i, c: PackedByteArray, o: int) -> bool:
 	if not leaf_face_full(leaves[k], o):
 		return false
-	var nk = leaf_at(_beyond(k, o))
-	if nk == null or nk.w < k.w:
+	var nk = _leaf_at_from(_beyond(k, o), k.w)            # (a smaller neighbour never hides it: skip those sizes)
+	if nk == null:
 		return false
 	if not mats.is_empty() and (cube_in_mat(nk, "alpha") or cube_in_mat(nk, "noclip")) != (cube_in_mat(k, "alpha") or cube_in_mat(k, "noclip")):
 		return false                                     # a see-through or pass-through neighbour doesn't hide it

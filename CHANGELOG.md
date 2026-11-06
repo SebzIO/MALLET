@@ -14,6 +14,9 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   into the next), a change spreads out to the neighbouring columns, a cube on a slope only covers the part that's
   solid underneath, and the cubes under a raised part are made whole again. Hills now rise in Sauerbraten's
   stepped way: pulling one spot up past a layer lifts the ground around it to that layer too.
+- Build mode is faster with big builds: a heightmap stroke with the big brush takes about 50 ms instead of about
+  270 ms (finding a cube no longer scans a whole 64 m area, and hidden-face checks skip work that can't matter).
+  Any edit's mesh update benefits too.
 
 ## 0.8.9 preview — 2026-11-06: exact cube splits
 
