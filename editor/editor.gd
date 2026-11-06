@@ -23,6 +23,8 @@ var blocks_root := Node3D.new()
 var texts_root := Node3D.new()
 var lights_root := Node3D.new()
 var cube_models_root := Node3D.new()     ## cube objects built in build mode (E)
+var outliner := Outliner.new()           ## every object by name, in folders
+var _outliner_panel: PanelContainer
 var _cube_panel: VBoxContainer
 var build := BuildMode.new()
 var _light_props: VBoxContainer
@@ -257,7 +259,8 @@ func _build_ui_main() -> void:
 		["Frame selection", KEY_F, _frame_clicked], ["Fullscreen", KEY_F11, _toggle_fullscreen], [],
 		["Jump arcs: all ramps", KEY_NONE, func(): show_all_arcs = not show_all_arcs; _sync_view_menu(); _map_changed(), "arcs"],
 		["Direction arrows", KEY_NONE, func(): show_direction = not show_direction; _sync_view_menu(), "arrows"],
-		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"]])
+		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"],
+		["Outliner (names, folders)", KEY_NONE, func(): _outliner_panel.visible = not _outliner_panel.visible; _sync_view_menu(), "outliner"]])
 	bar.add_child(VSeparator.new())
 	_bar_item(bar, ["▶ Play (P)", _play_clicked])
 	_bar_item(bar, ["Build (E)", _build_clicked])
@@ -315,6 +318,18 @@ func _build_ui_main() -> void:
 	props.add_theme_constant_override("separation", 8)
 	margin.add_child(props)
 	_build_props(props)
+
+	# the Outliner, on the left: every object by name, in folders
+	_outliner_panel = PanelContainer.new()
+	_outliner_panel.custom_minimum_size = Vector2(250, 0)
+	var om := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		om.add_theme_constant_override("margin_" + side, 8)
+	_outliner_panel.add_child(om)
+	outliner.setup(self)
+	om.add_child(outliner)
+	middle.add_child(_outliner_panel)
+	middle.move_child(_outliner_panel, 0)
 
 	var status_panel := PanelContainer.new()
 	root.add_child(status_panel)
@@ -617,6 +632,8 @@ func _set_field(key: String, v: float) -> void:
 
 
 func _refresh_props() -> void:
+	if outliner.is_inside_tree():
+		outliner.sync_selection.call_deferred()
 	_gen_props.visible = _gen_ramp != null
 	if _gen_ramp:
 		_map_props.visible = false
@@ -827,6 +844,8 @@ func _refresh_props() -> void:
 
 
 func _refresh_info() -> void:
+	if selected != null and selected.has_meta("name") and String(selected.get_meta("name")) != "":
+		_fields["head"].text = String(selected.get_meta("name"))         # the name given in the Outliner
 	if selected == null:
 		var counts := {}
 		for e in entities_root.get_children():
@@ -975,10 +994,11 @@ func _map_dict() -> Dictionary:
 		if (cm as CubeModelNode).world.count() > 0 or not (cm as CubeModelNode).world.mats.is_empty():
 			cms.append(_with_group(cm))
 	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
-		"props": ps, "blocks": bs, "texts": ts, "lights": ls, "cube_models": cms}
+		"props": ps, "blocks": bs, "texts": ts, "lights": ls, "cube_models": cms, "folders": outliner.folders.duplicate(true)}
 
 
 func _load_dict(data: Dictionary) -> void:
+	outliner.folders = (data.get("folders", []) as Array).duplicate(true)   # first: objects file into them as they load
 	_gen_ramp = null
 	_gen_source = null
 	environment = Look.default_environment()
@@ -1147,6 +1167,7 @@ func _set_selection(objs: Array) -> void:
 	_select(objs[0] if not objs.is_empty() else null)
 	_extra = objs.slice(1)
 	_refresh_props()
+	outliner.sync_selection()
 
 
 func _group_of(obj: Node3D) -> Array:
@@ -1446,7 +1467,8 @@ func _menu(bar: Container, title: String, items: Array) -> MenuButton:
 
 ## Tick the View and Add menus' check items to match the current settings.
 func _sync_view_menu() -> void:
-	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["draw", _draw_mode]]:
+	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["draw", _draw_mode],
+			["outliner", _outliner_panel != null and _outliner_panel.visible]]:
 		if _fields.has("menu_" + pair[0]):
 			var m: Array = _fields["menu_" + pair[0]]
 			(m[0] as PopupMenu).set_item_checked(m[1], pair[1])
@@ -1457,6 +1479,8 @@ func _sync_view_menu() -> void:
 func set_presentation(on: bool) -> void:
 	_fields["toolbar"].visible = not on
 	_props_panel.visible = not on
+	if _outliner_panel:
+		_outliner_panel.visible = not on
 	_status.get_parent().visible = not on if _status.get_parent() is PanelContainer else true
 	_status.visible = not on
 	for i in panes.size():
@@ -1940,6 +1964,9 @@ func place_prefab(path: String) -> Array:
 	var objs := _paste(data, Vector3.ZERO, true)
 	if objs.is_empty():
 		return []
+	var fid := outliner.new_folder(String(data.get("name", "Prefab")))
+	for o in objs:
+		o.set_meta("folder", fid)
 	var mid := Vector3.ZERO
 	for o in objs:
 		mid += o.center()
@@ -2382,14 +2409,22 @@ func _finish_marquee() -> void:
 
 func _with_group(o: Node3D) -> Dictionary:
 	var d: Dictionary = o.to_dict()
-	if o.has_meta("group"):
-		d["group"] = o.get_meta("group")
+	for key in ["group", "name", "folder", "hidden"]:
+		if o.has_meta(key):
+			d[key] = o.get_meta(key)
 	return d
 
 
 func _take_group(o: Node3D, d: Dictionary) -> void:
 	if d.has("group"):
 		o.set_meta("group", d["group"])
+	if d.has("name"):
+		o.set_meta("name", d["name"])
+	if d.has("folder") and not outliner.folder(d["folder"]).is_empty():
+		o.set_meta("folder", d["folder"])
+	if d.get("hidden", false):
+		o.set_meta("hidden", true)
+		o.visible = false
 
 
 ## Ctrl+G: the selected objects become one group (clicking any of them selects them all).
@@ -2913,22 +2948,22 @@ func _pick_handle(pane: ViewPane, mouse: Vector2) -> int:
 func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
 	var r := pane.ray(mouse)
 	var q := PhysicsRayQueryParameters3D.create(r[0], r[0] + r[1] * 20000.0)
-	var hit := get_world_3d().direct_space_state.intersect_ray(q)
-	if hit:
-		if hit.collider.has_meta("ramp"):
-			return hit.collider.get_meta("ramp")
-		if hit.collider.has_meta("entity"):
-			return hit.collider.get_meta("entity")
-		if hit.collider.has_meta("prop"):
-			return hit.collider.get_meta("prop")
-		if hit.collider.has_meta("block"):
-			return hit.collider.get_meta("block")
-		if hit.collider.has_meta("text"):
-			return hit.collider.get_meta("text")
-		if hit.collider.has_meta("light"):
-			return hit.collider.get_meta("light")
-		if hit.collider.has_meta("cube_model"):
-			return hit.collider.get_meta("cube_model")
+	var exclude := []
+	for attempt in 8:                                    # look past things hidden in the Outliner
+		q.exclude = exclude
+		var hit := get_world_3d().direct_space_state.intersect_ray(q)
+		if hit.is_empty():
+			break
+		var obj: Node3D = null
+		for key in ["ramp", "entity", "prop", "block", "text", "light", "cube_model"]:
+			if hit.collider.has_meta(key):
+				obj = hit.collider.get_meta(key)
+				break
+		if obj == null:
+			break                                        # not an object: try the ramp ridges below
+		if obj.is_visible_in_tree():
+			return obj
+		exclude.append(hit.collider.get_rid())
 	# fallback: the ridge line on screen (thin ramps seen edge-on in the side views, clicks on the ridge seam)
 	var best: Node3D = null
 	var best_d := PICK_PIXELS

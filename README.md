@@ -60,7 +60,10 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
     prefabs + save your own (Edit > Save selection as prefab)
 18. Build mode ✅ (0.6) first-person, Sauerbraten-style cube building: wheel cubes out / in, 1/8 face and corner
     pushes, grid, textures, rotate / flip / copy / paste, undo; exports to SurfsUp and CS:S (docs/BUILD_MODE.md)
-19. Next: build mode phase 2 (cube materials, texture placement, heightmap, entities from first person)
+19. Cube objects + the rest of Sauerbraten's editor ✅ (0.7) materials, texture settings, corner selection,
+    heightmap, blend painting, entities from first person, play from here (docs/BUILD_MODE.md)
+20. Outliner ✅ (0.8) names, folders (nested), select / move whole folders, hide, find
+21. Next: decided with you
 
 Prefabs live in `prefabs/` and are rebuilt by `godot --headless --path . -s res://tools/make_prefabs.gd`.
 

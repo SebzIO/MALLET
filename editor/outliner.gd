@@ -204,9 +204,11 @@ func refresh(force := false) -> void:
 	while not pending.is_empty() and guard < 64:            # parents before children
 		guard += 1
 		for f in pending.duplicate():
-			var parent_id: String = f["parent"] if items.has(f["parent"]) or folder(f["parent"]).is_empty() else ""
+			var parent_id: String = f["parent"]
+			if parent_id != "" and folder(parent_id).is_empty():
+				parent_id = ""                           # its parent is gone: show it at the top
 			if not items.has(parent_id):
-				continue
+				continue                                 # its parent isn't in the list yet: next pass
 			var it := tree.create_item(items[parent_id])
 			it.set_text(0, f["name"])
 			it.set_icon(0, _icon("folder"))
@@ -306,8 +308,12 @@ func _item_edited() -> void:
 	if it == null:
 		return
 	it.set_editable(0, false)
-	var meta = it.get_metadata(0)
-	var text := it.get_text(0).strip_edges()
+	rename(it.get_metadata(0), it.get_text(0))
+
+
+## Give an object or folder (its tree metadata) a new name ("" = back to the automatic one for objects).
+func rename(meta: Dictionary, new_name: String) -> void:
+	var text := new_name.strip_edges()
 	editor._checkpoint()
 	if meta.has("folder"):
 		var f := folder(meta["folder"])

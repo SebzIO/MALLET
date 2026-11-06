@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.8.0 preview — 2026-11-05: the Outliner
+
+- The Outliner (left of the views; View > Outliner to hide it): every object in the map by name - ramps,
+  platforms, zones, blocks, text, lights, props, cube objects. Double-click to rename (the name shows in the
+  properties panel too); + Folder puts the selection in a new folder; folders can hold folders; drag items onto a
+  folder to file them. Click an object to select it, click a folder to select everything in it - then drag in any
+  view to move the lot. The eye hides things in the editor views (and clicks go through them); right-click for
+  more; "Find by name" filters the list.
+- Names, folders and hidden-ness save with the map and travel with copy / paste and prefabs; a placed prefab lands
+  in a folder named after it.
+
 ## 0.7.0 preview — 2026-11-05: cube objects, and the rest of Sauerbraten's editor
 
 - Cube objects: every build is an object. In the editor views you select it, drag it, turn it (Turn ±90° or [ ]),
