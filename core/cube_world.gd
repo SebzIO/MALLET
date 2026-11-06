@@ -2373,10 +2373,10 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 		la.resize(Mesh.ARRAY_MAX)
 		la[Mesh.ARRAY_VERTEX] = lines
 		lm.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, la)
-		var lmat := StandardMaterial3D.new()
-		lmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		lmat.albedo_color = Color(0.05, 0.05, 0.05)
-		lm.surface_set_material(0, lmat)
+		if _line_mat == null:
+			_line_mat = ShaderMaterial.new()
+			_line_mat.shader = load("res://core/shaders/cube_lines.gdshader")
+		lm.surface_set_material(0, _line_mat)
 	return [m, col, lm]
 
 
@@ -2460,6 +2460,9 @@ func _flat_quads(fk: Array, cells: Dictionary, groups: Dictionary, col: PackedVe
 	g[3] = uvs
 	g[4] = uv2s
 	g[5] = cols
+
+
+static var _line_mat: ShaderMaterial = null    ## outline mode's lines (bright, drawn just in front of the faces)
 
 
 ## An exact cut piece's faces into the chunk's surfaces (same layout as chunk_mesh's corner cubes).

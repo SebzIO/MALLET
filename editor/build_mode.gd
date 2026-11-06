@@ -1561,7 +1561,7 @@ func _draw() -> void:
 		var g := CubeWorld.metres(sel["p"])
 		var lo := Vector3(sel["o"]) * CubeWorld.TICK
 		var hi := lo + Vector3(sel["s"]) * g
-		_box(xf, lo, hi, Color(1, 1, 1))
+		_box(xf, lo, hi, Color(1, 1, 1, 0.55))
 		var layer := sel.duplicate()
 		var s: Vector3i = sel["s"]
 		var d: int = sel["orient"] >> 1
@@ -1569,7 +1569,7 @@ func _draw() -> void:
 			layer["o"] = (sel["o"] as Vector3i) + CubeWorld.orient_step(sel["orient"]) * CubeWorld.size_of(sel["p"]) * (s[d] - 1)
 		s[d] = 1
 		layer["s"] = s
-		_face_rect(xf, layer, Color(0.35, 0.7, 1.0))
+		_face_rect(xf, layer, Color(0.25, 0.75, 1.0), Color(0.2, 0.6, 1.0, 0.25))   # the selected face: filled blue
 		if not corners.is_empty():
 			_corner_grid(xf)
 	for e in ent_sel:
@@ -1579,12 +1579,13 @@ func _draw() -> void:
 					_line(seg[i], seg[i + 1], Color(1.0, 0.55, 0.1))
 	_line(Vector3.ZERO, Vector3.ZERO, Color.BLACK)
 	_im.surface_end()
-	last_fill_count = _fills.size()
+	last_fill_count = _fills.filter(func(f): return f.size() == 4).size()   # (corner squares; the face fill has a colour)
 	if not _fills.is_empty():                            # the selected corner squares, filled
 		_im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 		for f in _fills:
+			var fc: Color = f[4] if f.size() > 4 else Color(0.25, 0.6, 1.0, 0.38)
 			for i in [0, 1, 2, 0, 2, 3]:
-				_im.surface_set_color(Color(0.25, 0.6, 1.0, 0.38))
+				_im.surface_set_color(fc)
 				_im.surface_add_vertex(f[i])
 		_im.surface_end()
 	_fills.clear()
@@ -1654,7 +1655,7 @@ func _box(xf: Transform3D, lo: Vector3, hi: Vector3, c: Color) -> void:
 		_line(p[e[0]], p[e[1]], c)
 
 
-func _face_rect(xf: Transform3D, s: Dictionary, c: Color) -> void:
+func _face_rect(xf: Transform3D, s: Dictionary, c: Color, fill := Color(0, 0, 0, 0)) -> void:
 	var o: int = s["orient"]
 	var d := o >> 1
 	var g := CubeWorld.metres(s["p"])
@@ -1673,3 +1674,12 @@ func _face_rect(xf: Transform3D, s: Dictionary, c: Color) -> void:
 		pts.append(xf * v)
 	for i in 4:
 		_line(pts[i], pts[(i + 1) % 4], c)
+	if fill.a > 0.0:                                     # filled, with a second edge just inside: reads as a thick line
+		var mid: Vector3 = (pts[0] + pts[2]) * 0.5
+		var inset := minf(g * 0.04, 0.05)
+		var inner := []
+		for p in pts:
+			inner.append(p + ((mid - p) as Vector3).normalized() * inset)
+		for i in 4:
+			_line(inner[i], inner[(i + 1) % 4], c)
+		_fills.append(pts + [fill])
