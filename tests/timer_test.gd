@@ -52,7 +52,8 @@ func _run() -> void:
 			await physics_frame
 			xs.append(play.player.global_position.x)
 			frames += 1
-		await process_frame
+		for i in 3:                                      # the HUD text updates in _process: give it a few frames
+			await process_frame
 		var vp := root.get_viewport().get_visible_rect().size
 		var box: Control = play._hud_box
 		var cross: Control = play._hud_cross

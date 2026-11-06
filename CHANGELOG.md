@@ -3,7 +3,7 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
-## Unreleased
+## 0.8.9 preview — 2026-11-06: exact cube splits
 
 - Build mode: editing a sloped or bent cube at a smaller grid no longer changes the rest of its shape, for any
   slope at any depth (0.8.8 only fixed slopes that lined up with the smaller grid). Pieces that their own 8 corners
