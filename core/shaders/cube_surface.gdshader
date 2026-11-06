@@ -10,7 +10,7 @@ render_mode cull_back;
 
 uniform sampler2D albedo_tex : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2D rough_tex : hint_roughness_r, hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rough_tex : hint_roughness_r, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform bool has_normal = false;
 uniform bool has_rough = false;
 uniform vec4 tint : source_color = vec4(1.0);
