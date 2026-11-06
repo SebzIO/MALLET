@@ -228,7 +228,7 @@ func _physics_process(delta: float) -> void:
 			if _start_boxes.is_empty() or _box_at(_start_boxes, feet) == null:
 				run_state = Run.RUNNING              # left the start zone (or there is none): go
 				# the clock starts the moment the feet crossed the zone's edge, not at the tick after
-				var left = _box_at(_start_boxes, prev)
+				var left = _box_at(_start_boxes, prev) if prev != null else null   # (no previous tick yet: from the spot)
 				run_time = (1.0 - crossing(prev, feet, left, false)) * delta if left != null else 0.0
 		Run.RUNNING:
 			run_time += delta

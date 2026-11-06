@@ -3,8 +3,26 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
-## Unreleased
+## 0.9.0 preview — 2026-11-06: custom zones, smooth dragging, faster building
 
+- Custom zones: Add > Start / Finish / Stage zone (on your own platform), or tick "Zone only" on a plate. No
+  built-in platform, just a see-through zone box you size and place on a platform you built. Several boxes of one
+  kind (and stage number) make one zone of any shape. Works in play mode, SurfsUp and CS:S export.
+- Dragging is smooth for every object (cube objects, ramps, blocks, platforms...): the jump arcs re-read every cube
+  of every cube object on each mouse move, and objects were rebuilt from scratch while dragged. ~100 ms a move on
+  a busy map -> a few ms.
+- F3 texture settings work: colour, see-through and scrolling show the texture (a shader error turned the faces
+  plain white).
+- Build mode: from inside cubes you aim at the face you look out through; the yellow aimed-face outline sits on
+  the cubes' real face (pushed in, sloped, cut); the selected face is filled blue and stands out from the
+  selection box; outlines (7) are bright cyan and drawn in front of the faces.
+- Faces fully covered by smaller cubes aren't drawn any more (you could see them from inside solid terrain).
+- Deep space sky: the nebula is soft clouds, no more sharp shards.
+- Right mouse + wheel changes the fly speed in the 3D view (remembered; the wheel alone still zooms).
+- View > Ground grid (3D view) hides the grid plane. Map panel: Clear best run.
+- F in the Outliner frames the selection. Letter shortcuts are ignored while flying (D no longer toggles Draw
+  blocks while you fly with WASD, E no longer opens build mode); D only toggles Draw blocks over a 2D view.
+- Closing the window with unsaved changes (or a map never saved) asks: Save, Don't save or Cancel.
 - Build mode: Ctrl+P plays a proper run from the map's start plate, like Play in the editor (P still plays from
   where you stand). Esc in play mode brings you back to build mode where you were.
 - Editor: a selected cube object's yellow move handle is drawn in the middle of its cubes (it was at the object's
