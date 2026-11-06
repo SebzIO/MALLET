@@ -201,5 +201,159 @@ func _run() -> void:
 	var mesh_data := w.chunk_mesh(Vector3i(0, 0, 0))
 	check("faces between touching cubes aren't drawn", (mesh_data[1] as PackedVector3Array).size() == 20 * 3,
 		"(%d triangles)" % ((mesh_data[1] as PackedVector3Array).size() / 3))
+
+	# ---- texture settings (Sauerbraten's vslots)
+	var slot := CubeWorld.make_slot({"id": "Bricks104", "s": 2.0, "r": 1, "u": 0.25, "su": 0.5, "c": "ff8080", "a": 0.5, "l": "Grass004"})
+	var back := CubeWorld.parse_slot(slot)
+	check("texture settings survive writing and reading", back["id"] == "Bricks104" and float(back["s"]) == 2.0 and int(back["r"]) == 1
+		and float(back["u"]) == 0.25 and float(back["su"]) == 0.5 and back["c"] == "ff8080" and float(back["a"]) == 0.5 and back["l"] == "Grass004",
+		"(%s)" % slot)
+	check("a plain texture stays just its name", CubeWorld.make_slot({"id": "Metal009"}) == "Metal009")
+	w.clear()
+	w.begin()
+	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3), "Bricks104")
+	w.set_slot_param(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3), false, func(d: Dictionary) -> Dictionary:
+		d["u"] = 0.5
+		return d)
+	w.commit()
+	var top_slot: String = w.leaves[Vector4i(0, 0, 0, 0)][1][3]
+	check("O / P: shift a face's texture (only that face)", CubeWorld.parse_slot(top_slot)["u"] == 0.5
+		and w.leaves[Vector4i(0, 0, 0, 0)][1][0] == "Bricks104", "(%s)" % top_slot)
+	var mm: Array = w.chunk_mesh(Vector3i.ZERO)
+	check("faces with different settings get their own surface", (mm[0] as ArrayMesh).get_surface_count() == 2)
+	w.begin()
+	var nrep := w.replace_texture("Bricks104", "Metal009")
+	w.commit()
+	check("replace: every Bricks face becomes Metal (keeping its settings)", nrep == 6
+		and CubeWorld.parse_slot(w.leaves[Vector4i(0, 0, 0, 0)][1][3])["u"] == 0.5 and CubeWorld.slot_id(w.leaves[Vector4i(0, 0, 0, 0)][1][3]) == "Metal009")
+
+	# ---- materials
+	w.clear()
+	w.begin()
+	var flr := CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3, Vector3i(4, 1, 4))
+	w.pull(flr)
+	w.set_material(CubeWorld.make_sel(Vector3i(0, 8, 0), p, 3, Vector3i(4, 2, 4)), "water")
+	w.set_material(CubeWorld.make_sel(Vector3i(0, 24, 0), p, 3, Vector3i(1, 1, 1)), "clip")
+	w.commit()
+	check("water fills a 4 x 2 x 4 space", w.mat_at(Vector3(4, 12, 4)) == "water" and w.mat_at(Vector3(4, 20, 28)) == "water")
+	var mb := w.material_boxes()
+	check("material boxes for export", (mb.get("water", []) as Array).size() >= 1 and (mb.get("clip", []) as Array).size() == 1)
+	var cm2: Array = w.chunk_mesh(Vector3i.ZERO)
+	var col_n := (cm2[1] as PackedVector3Array).size() / 3
+	w.undo()
+	check("undo takes the materials away again", w.mats.is_empty())
+	w.redo()
+	check("clip adds invisible collision", col_n > 20 + 10, "(%d triangles)" % col_n)
+	w.begin()
+	w.set_material(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3, Vector3i(4, 1, 4)), "noclip")
+	w.commit()
+	var cm3: Array = w.chunk_mesh(Vector3i.ZERO)
+	check("noclip: the floor cubes have no collision any more", (cm3[1] as PackedVector3Array).size() / 3 <= 12 + 2,
+		"(%d triangles)" % ((cm3[1] as PackedVector3Array).size() / 3))
+	var w3 := CubeWorld.from_dict(w.to_dict())
+	check("materials are saved with the cubes", w3.mats.size() == w.mats.size() and w3.mat_at(Vector3(4, 12, 4)) == "water")
+
+	# ---- corner selection: push just a strip of corners
+	w.clear()
+	w.begin()
+	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3, Vector3i(3, 1, 1)))
+	w.commit()
+	var row3 := CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3, Vector3i(3, 1, 1))
+	w.begin()
+	for i in 4:
+		w.push_corner_rect(row3, [0, 8, 8, 16], 1)              # z 0..1 m, x 1..2 m: the corner lines at x = 1 m and 2 m (a top face's axes are z, x)
+	w.commit()
+	var c0: PackedByteArray = w.leaves[Vector4i(0, 0, 0, 0)][0]
+	var c1: PackedByteArray = w.leaves[Vector4i(8, 0, 0, 0)][0]
+	var c2: PackedByteArray = w.leaves[Vector4i(16, 0, 0, 0)][0]
+	check("corner selection: the middle cube's top sinks, its neighbours tilt into it",
+		CubeWorld.corner(c1, 2).y == 4 and CubeWorld.corner(c1, 3).y == 4 and CubeWorld.corner(c0, 2).y == 8 and CubeWorld.corner(c0, 3).y == 4
+		and CubeWorld.corner(c2, 2).y == 4 and CubeWorld.corner(c2, 3).y == 8)
+
+	# ---- heightmap: raise a hill in a flat 9 x 9 floor, then smooth it
+	w.clear()
+	w.begin()
+	w.pull(CubeWorld.make_sel(Vector3i(-32, -8, -32), p, 3, Vector3i(9, 1, 9)))
+	w.commit()
+	var round_brush: Array = CubeWorld.BRUSHES[2][1]
+	w.begin()
+	for i in 6:
+		w.hmap_edit(Vector3i(8, 0, 8), 7, p, round_brush, -1)       # raise (wheel towards you)
+	w.commit()
+	var peak_k = w.leaf_at(Vector3(8, 20, 8) + Vector3(-1, 0, -1))
+	var top_y := 0.0
+	for k in w.leaves:
+		for n in 8:
+			top_y = maxf(top_y, k.y + CubeWorld.corner(w.leaves[k][0], n).y * CubeWorld.size_of(k.w) / 8.0)
+	check("heightmap: the brush raises a hill (3 x 6 steps of 1/8 m at its top)", absf(top_y - (8.0 + 18.0)) < 0.5, "(top %.1f ticks)" % top_y)
+	var all_valid := true
+	for k in w.leaves:
+		all_valid = all_valid and CubeWorld.is_valid_shape(w.leaves[k][0])
+	check("...every cube of it still valid", all_valid)
+	w.begin()
+	for i in 4:
+		w.hmap_edit(Vector3i(8, 0, 8), 20, p, [], 1)              # smooth
+	w.commit()
+	var top2 := 0.0
+	for k in w.leaves:
+		for n in 8:
+			top2 = maxf(top2, k.y + CubeWorld.corner(w.leaves[k][0], n).y * CubeWorld.size_of(k.w) / 8.0)
+	check("smooth brush flattens the peak", top2 < top_y - 1.0, "(%.1f -> %.1f ticks)" % [top_y, top2])
+	w.begin()
+	for i in 3:
+		w.hmap_edit(Vector3i(-16, 0, -16), 7, p, CubeWorld.BRUSHES[0][1], 1)   # dig a point down
+	w.commit()
+	var dug = w.leaf_at(Vector3(-16.5, 4, -16.5))
+	check("heightmap lowers too", dug != null and CubeWorld.corner(w.leaves[dug][0], 7).y < 8)
+
+	# ---- blend painting
+	w.clear()
+	w.begin()
+	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3, Vector3i(4, 1, 4)), "Bricks104")
+	w.set_slot_param(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3, Vector3i(4, 1, 4)), false, func(d: Dictionary) -> Dictionary:
+		d["l"] = "Grass004"
+		return d)
+	w.commit()
+	w.begin()
+	var painted := w.paint_blend(Vector3(16, 8, 16), 12.0, 2)
+	w.commit()
+	var mid_k = w.leaf_at(Vector3(15, 4, 15))
+	var bl: PackedByteArray = CubeWorld._blend_of(w.leaves[mid_k]) if mid_k != null else PackedByteArray()
+	check("blend paint: the layer is painted in around the brush", painted > 0 and not bl.is_empty() and Array(bl).max() > 200,
+		"(%d cubes, %s)" % [painted, bl])
+	var pm: Array = w.chunk_mesh(Vector3i.ZERO)
+	var shader_surface := false
+	for i in (pm[0] as ArrayMesh).get_surface_count():
+		shader_surface = shader_surface or (pm[0] as ArrayMesh).surface_get_material(i) is ShaderMaterial
+	check("...drawn with the blending shader", shader_surface)
+	var w4 := CubeWorld.from_dict(w.to_dict())
+	check("blend paint is saved", CubeWorld._blend_of(w4.leaves[mid_k]) == bl)
+
+	# ---- moving cubes (editcut)
+	w.clear()
+	w.begin()
+	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3))
+	w.set_material(CubeWorld.make_sel(Vector3i(0, 8, 0), p, 3), "water")
+	w.commit()
+	w.begin()
+	var mv := w.move_cubes(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3, Vector3i(1, 2, 1)), Vector3i(24, 0, 0))
+	w.commit()
+	check("Shift-drag: cubes and their water move together", w.leaves.has(Vector4i(24, 0, 0, 0)) and not w.leaves.has(Vector4i(0, 0, 0, 0))
+		and w.mat_at(Vector3(28, 12, 4)) == "water" and w.mat_at(Vector3(4, 12, 4)) == "" and mv["o"] == Vector3i(24, 0, 0))
+
+	# ---- 0.6.0 save format still loads
+	var old := {"v": 1, "palette": [""], "count": 1, "data": ""}
+	var buf := StreamPeerBuffer.new()
+	buf.put_32(0)
+	buf.put_32(0)
+	buf.put_32(0)
+	buf.put_8(0)
+	buf.put_data(CubeWorld.FULL)
+	for j in 6:
+		buf.put_u16(0)
+	old["data"] = Marshalls.raw_to_base64(buf.data_array)
+	var w5 := CubeWorld.from_dict(old)
+	check("a 0.6.0 map's cubes still load", w5.count() == 1 and w5.leaves[Vector4i(0, 0, 0, 0)][0] == CubeWorld.FULL)
+
 	print("CUBES: ", "PASS" if ok else "FAIL")
 	quit()

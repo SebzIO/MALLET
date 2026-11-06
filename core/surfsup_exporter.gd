@@ -29,7 +29,8 @@ static func check(map: Dictionary) -> PackedStringArray:
 		out.append("The map needs a start platform (press B).")
 	if not "finish" in kinds:
 		out.append("The map needs a finish platform (press M).")
-	if map.get("ramps", []).is_empty() and map.get("blocks", []).is_empty() and map.get("cubes", {}).is_empty():
+	if map.get("ramps", []).is_empty() and map.get("blocks", []).is_empty() and map.get("cubes", {}).is_empty() \
+			and map.get("cube_models", []).is_empty():
 		out.append("The map has nothing to surf on yet (no ramps, blocks or cubes).")
 	var stages := []
 	for e in map.get("entities", []):
@@ -280,32 +281,66 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			pn += 1
 		bi += 1
 
-	# cubes (build mode): a mesh per 16 m chunk and an exact convex collision shape per cube
-	var cw := CubeWorld.from_dict(map.get("cubes", {}))
-	if cw.count() > 0:
+	# cube objects (build mode): a mesh per 16 m chunk, an exact convex collision shape per cube (none inside noclip),
+	# box walls for glass / clip / gameclip, kill zones for lava / death
+	var cube_items := CubeWorld.models_of(map)
+	if not cube_items.is_empty():
 		var cube_root := Node3D.new()
 		cube_root.name = "Cubes"
 		_add(root, root, cube_root)
-		var ci := 0
-		for ck in cw.render_chunks():
-			var got := cw.chunk_mesh(ck)
-			var body := StaticBody3D.new()
-			body.name = "Chunk%d" % ci
-			_add(root, cube_root, body)
-			var cmi := MeshInstance3D.new()
-			cmi.name = "Mesh"
-			cmi.mesh = got[0]
-			_add(root, body, cmi)
-			var pn := 0
-			for k in cw._render[ck]:
-				var shape := ConvexPolygonShape3D.new()
-				shape.points = cw.cube_points(k)
-				var ccs := CollisionShape3D.new()
-				ccs.name = "Cube%d" % pn
-				ccs.shape = shape
-				_add(root, body, ccs)
-				pn += 1
-			ci += 1
+		var oi := 0
+		for item in cube_items:
+			var cw: CubeWorld = item[0]
+			var cxf: Transform3D = item[1]
+			cw.show_mats = false
+			var obj := Node3D.new()
+			obj.name = "CubeObject%d" % oi
+			obj.transform = cxf
+			_add(root, cube_root, obj)
+			var ci := 0
+			for ck in cw.render_chunks():
+				var got := cw.chunk_mesh(ck)
+				var body := StaticBody3D.new()
+				body.name = "Chunk%d" % ci
+				_add(root, obj, body)
+				var cmi := MeshInstance3D.new()
+				cmi.name = "Mesh"
+				cmi.mesh = got[0]
+				_add(root, body, cmi)
+				var pn := 0
+				for k in cw.chunk_cubes(ck):
+					if cw.cube_in_mat(k, "noclip"):
+						continue
+					var shape := ConvexPolygonShape3D.new()
+					shape.points = cw.cube_points(k)
+					var ccs := CollisionShape3D.new()
+					ccs.name = "Cube%d" % pn
+					ccs.shape = shape
+					_add(root, body, ccs)
+					pn += 1
+				ci += 1
+			var boxes := cw.material_boxes()
+			var walls := StaticBody3D.new()
+			walls.name = "Walls"
+			_add(root, obj, walls)
+			var wn := 0
+			for m in ["glass", "clip", "gameclip"]:
+				for bx in boxes.get(m, []):
+					var bs := BoxShape3D.new()
+					bs.size = (bx as AABB).size
+					var wcs := CollisionShape3D.new()
+					wcs.name = "%s%d" % [m.capitalize(), wn]
+					wcs.shape = bs
+					wcs.position = (bx as AABB).get_center()
+					_add(root, walls, wcs)
+					wn += 1
+			var dn := 0
+			for m in ["lava", "death"]:
+				for bx in boxes.get(m, []):
+					var kz := _zone(root, "Deadly%d_%d" % [oi, dn], "kill", cxf * Transform3D(Basis(), (bx as AABB).get_center()), (bx as AABB).size)
+					kz.set_meta("kill_kind", "killbox")
+					dn += 1
+			oi += 1
 
 	# lights
 	var lights := Node3D.new()
@@ -425,9 +460,14 @@ static func kill_floor_y(map: Dictionary) -> float:
 	for bd in map.get("blocks", []):
 		if not bd.get("cutter", false):
 			lowest = min(lowest, float(bd.get("position", [0, 0, 0])[1]) - 20.0)
-	var cubes_low := CubeWorld.from_dict(map.get("cubes", {})).lowest()
-	if cubes_low != INF:
-		lowest = min(lowest, cubes_low - 20.0)
+	for item in CubeWorld.models_of(map):
+		var cw: CubeWorld = item[0]
+		if cw.count() == 0 and cw.mats.is_empty():
+			continue
+		var bb := cw.bounds()
+		for i in 8:
+			var c: Vector3 = (item[1] as Transform3D) * (bb.position + bb.size * Vector3(i & 1, (i >> 1) & 1, (i >> 2) & 1))
+			lowest = min(lowest, c.y - 20.0)
 	return (0.0 if lowest == INF else lowest) - KILL_MARGIN
 
 

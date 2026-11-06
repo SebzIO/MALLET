@@ -3,6 +3,33 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.7.0 preview — 2026-11-05: cube objects, and the rest of Sauerbraten's editor
+
+- Cube objects: every build is an object. In the editor views you select it, drag it, turn it (Turn ±90° or [ ]),
+  copy, duplicate, group and save it as a prefab; in build mode it's edited cube by cube wherever it's been moved
+  to. N in build mode starts a new object. 0.6.0 maps load their cubes as one object.
+- Materials (T in build mode): water, lava, glass, clip, noclip, gameclip, death, alpha - drawn in build mode (M
+  hides the invisible ones), they work in play mode (lava / death send you back, glass / clip block, noclip lets you
+  through) and export: SurfsUp (walls, kill zones) and CS:S (real water, player clip, trigger_teleports, see-through
+  glass, func_illusionary for noclip).
+- Texture settings per face (F3): scale, turn / flip, shift (also O / P + wheel), scroll, colour, see-through, and a
+  blend layer; Y alone picks up the texture you aim at; Y + wheel cycles most recently used first; replace /
+  replace in selection / reset (T). CS:S gets them as texture alignment and extra material files (colour,
+  see-through, scrolling).
+- Middle-drag selects corners (on every cube sharing them) and the wheel pushes just those; Ctrl aims at the cube
+  itself (passthrough); right click on the selection turns it to that face (reorient); Shift + drag moves the
+  selected cubes (editcut); J goes to the selection.
+- Heightmap mode (H, or hold Alt): sculpt the tops of cubes as terrain with brushes (B + wheel: point, round,
+  square... and smooth); raising and lowering builds and digs cubes as needed.
+- Blend painting (keypad 1-5, 0 off, 8 / 9 brush size): paint a face's blend layer in and out (SurfsUp; CS:S
+  brushes can't blend, so they keep the base texture).
+- Entities from first person: Tab places a light, spot light, start, finish, stage, teleport, kill zone, booster or
+  text where you aim; click to select, drag to move (Shift: up / down, 6 toggles grid snap), 1-4 + wheel change its
+  settings (a light's reach and red / green / blue, like Sauerbraten), R + wheel turns it, X flips, Delete; keypad
+  Enter selects the entities inside the cube selection so C / V copy them along.
+- P plays from where you are and comes back to build mode; 5 hides the HUD, 7 cube outlines, 8 wireframe,
+  L fullbright, F5 saves, F9 names the texture you aim at, K (calclight) - lighting is live anyway.
+
 ## 0.6.0 preview — 2026-11-05: build mode (Sauerbraten-style)
 
 - Build mode (E, or Build in the toolbar): fly around in first person and build with cubes in real time, the way

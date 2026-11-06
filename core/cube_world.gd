@@ -1,15 +1,18 @@
 class_name CubeWorld
 extends RefCounted
 ## Cube geometry you build by hand, the way Cube 2: Sauerbraten's editor works (its ideas re-implemented here, not
-## its code): the world is a grid of cubes at power-of-two sizes; you pull cubes out of faces and push them back in,
-## push a face or a single corner in 1/8 steps to make slopes and bevels, and texture each face.
+## its code): a grid of cubes at power-of-two sizes; pull cubes out of faces and push them back in, push a face or
+## corners in 1/8 steps for slopes and bevels, sculpt it like a heightmap, texture each face (with Sauerbraten's
+## texture settings: scale, rotate, offset, scroll, colour, see-through, a blend layer you paint in), and fill empty
+## space with materials (water, lava, glass, clip, noclip, gameclip, death, alpha).
 ##
 ## A cube is 8 corners, each on its own 0..8 grid inside the cube (Sauerbraten stores the same thing as 12 edges of
-## two 4-bit values; corner n's coordinate along axis d is one end of the edge along d - it's the same 24 numbers).
+## two 4-bit values; corner n's coordinate along axis d is one end of the edge along d - the same 24 numbers).
 ## A cube is always convex, so every cube is one convex solid: one collision shape, and one brush in a CS:S export.
 ##
-## Positions are in ticks of 1/8 m. A cube of grid power p is 2^p m (p = -3 .. 6: 0.125 m .. 64 m) and sits on a
-## multiple of its size. Cubes never overlap: making a small cube inside a big one splits the big one into 8.
+## Positions are in ticks of 1/8 m in the cube object's own space. A cube of grid power p is 2^p m (p = -3 .. 6:
+## 0.125 m .. 64 m) and sits on a multiple of its size. Cubes never overlap: making a small cube inside a big one
+## splits the big one into 8.
 
 const TICK := 0.125
 const MIN_P := -3
@@ -18,15 +21,46 @@ const INDEX_TICKS := 512                 ## 64 m: the biggest cube, so no cube s
 const RENDER_TICKS := 128                ## 16 m render chunks (rebuilt when something in them changes)
 ## Faces, numbered like Sauerbraten's orientations: axis * 2 + side (side 1 = the + side). Y is up here.
 const ORIENT_SLOTS := ["left", "right", "bottom", "top", "front", "back"]   ## -X, +X, -Y, +Y, -Z, +Z
-const ORIENT_NAMES := ["west (-X)", "east (+X)", "bottom", "top", "north (-Z)", "south (+Z)"]
+## Sauerbraten's materials (what fills empty space). "air" = none.
+const MATERIALS := ["air", "water", "lava", "glass", "clip", "noclip", "gameclip", "death", "alpha"]
+const MATERIAL_INFO := {
+	"water": "water: see-through and moving (in CS:S real water; SurfsUp has no swimming)",
+	"lava": "lava: glows, and touching it sends you back",
+	"glass": "glass: see-through but solid",
+	"clip": "clip: an invisible wall",
+	"noclip": "noclip: cubes inside are drawn but you pass through them",
+	"gameclip": "gameclip: an invisible wall (like clip)",
+	"death": "death: an invisible area that sends you back",
+	"alpha": "alpha: cubes inside are see-through",
+}
+const MAT_COLORS := {"water": Color(0.2, 0.5, 0.9, 0.35), "lava": Color(1.0, 0.35, 0.05, 0.6), "glass": Color(0.7, 0.9, 1.0, 0.18),
+	"clip": Color(0.6, 0.2, 0.9, 0.22), "noclip": Color(0.2, 0.9, 0.3, 0.22), "gameclip": Color(0.45, 0.2, 0.7, 0.22),
+	"death": Color(0.9, 0.1, 0.1, 0.28), "alpha": Color(0.3, 0.9, 0.9, 0.2)}
+## Heightmap brushes (Sauerbraten's B + wheel): how many 1/8 steps each corner point moves.
+const BRUSHES := [
+	["Point", [[1]]],
+	["Small round", [[0, 1, 0], [1, 2, 1], [0, 1, 0]]],
+	["Round", [[0, 0, 1, 0, 0], [0, 1, 2, 1, 0], [1, 2, 3, 2, 1], [0, 1, 2, 1, 0], [0, 0, 1, 0, 0]]],
+	["Big round", [[0, 0, 0, 1, 0, 0, 0], [0, 0, 1, 1, 1, 0, 0], [0, 1, 2, 2, 2, 1, 0], [1, 1, 2, 3, 2, 1, 1],
+		[0, 1, 2, 2, 2, 1, 0], [0, 0, 1, 1, 1, 0, 0], [0, 0, 0, 1, 0, 0, 0]]],
+	["Square", [[1, 1, 1], [1, 1, 1], [1, 1, 1]]],
+	["Big square", [[1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]]],
+	["Smooth", []],
+]
 
 static var FULL := _full_corners()
+static var _slot_cache := {}
+static var _materials := {}
+static var _shaders := {}
 
-var leaves := {}                         ## Vector4i(x, y, z, p) -> [corners PackedByteArray(24), tex PackedStringArray(6)]
+var leaves := {}                         ## Vector4i(x, y, z, p) -> [corners PackedByteArray(24), slots PackedStringArray(6), blend PackedByteArray(0 or 8)]
+var mats := {}                           ## Vector4i(x, y, z, p) -> material name (cells of empty space filled with water etc.)
+var show_mats := true                    ## draw the invisible materials (clip, death...) - Sauerbraten's M
 var dirty := {}                          ## render chunk Vector3i -> true
 var revision := 0
 var _index := {}                         ## Vector3i (64 m cell) -> {Vector4i: true}
 var _render := {}                        ## Vector3i (16 m chunk) -> {Vector4i: true}
+var _mrender := {}                       ## render chunk -> {material cell: true}
 var _edit = null                         ## while an edit is open: {key: value before the edit (or null)}
 var _undo: Array = []
 var _redo: Array = []
@@ -81,8 +115,151 @@ static func orient_step(o: int) -> Vector3i:
 	return v
 
 
+# ------------------------------------------------------------------------------------------------ texture slots
+## A face's texture: a library material id plus Sauerbraten's texture settings (vscale, vrotate, voffset, vscroll,
+## vcolor, valpha, vlayer), written as "id" or "id|s=2;r=1;u=0.25;..." so faces with equal settings share a mesh
+## surface. Keys: s scale, r rotate (0-3 quarter turns, 4 flip across, 5 flip up), u / v offset (repeats),
+## su / sv scroll (repeats a second), c colour (hex), a see-through (0-1), l blend layer texture.
+const SLOT_DEFAULTS := {"id": "", "s": 1.0, "r": 0, "u": 0.0, "v": 0.0, "su": 0.0, "sv": 0.0, "c": "ffffff", "a": 1.0, "l": ""}
+
+
+static func parse_slot(slot: String) -> Dictionary:
+	if _slot_cache.has(slot):
+		return _slot_cache[slot]
+	var out := SLOT_DEFAULTS.duplicate()
+	var parts := slot.split("|", true, 1)
+	out["id"] = parts[0]
+	if parts.size() > 1:
+		for kv in parts[1].split(";", false):
+			var pair := kv.split("=", true, 1)
+			if pair.size() == 2 and out.has(pair[0]):
+				var def = SLOT_DEFAULTS[pair[0]]
+				out[pair[0]] = int(pair[1]) if def is int else (float(pair[1]) if def is float else pair[1])
+	_slot_cache[slot] = out
+	return out
+
+
+static func make_slot(d: Dictionary) -> String:
+	var bits := PackedStringArray()
+	for k in ["s", "r", "u", "v", "su", "sv", "c", "a", "l"]:
+		var v = d.get(k, SLOT_DEFAULTS[k])
+		if v is float:
+			v = snappedf(v, 0.0001)
+		if v != SLOT_DEFAULTS[k]:
+			bits.append("%s=%s" % [k, str(v)])
+	return String(d.get("id", "")) + ("" if bits.is_empty() else "|" + ";".join(bits))
+
+
+static func slot_id(slot: String) -> String:
+	return slot.get_slice("|", 0)
+
+
+## The same slot with another texture (keeping its settings).
+static func with_id(slot: String, id: String) -> String:
+	var d := parse_slot(slot).duplicate()
+	d["id"] = id
+	return make_slot(d)
+
+
+## Texture coordinates for a point on a face: world-aligned like blocks, then the slot's scale, turn / flip, offset.
+static func slot_uv(p: Vector3, n: Vector3, sl: Dictionary, layer := false) -> Vector2:
+	var id: String = sl["l"] if layer else sl["id"]
+	var m := BlockShape._uv(p, n) * BlockShape.UV_METRES
+	var size := (MaterialLibrary.world_size(id) if id != "" and MaterialLibrary.has(id) else BlockShape.UV_METRES) \
+		* maxf(float(sl["s"]), 0.01)
+	var uv := m / size
+	match int(sl["r"]):
+		1: uv = Vector2(-uv.y, uv.x)
+		2: uv = -uv
+		3: uv = Vector2(uv.y, -uv.x)
+		4: uv.x = -uv.x
+		5: uv.y = -uv.y
+	return uv + Vector2(sl["u"], sl["v"])
+
+
+## The material for a face slot (texture, colour, see-through, scrolling, blend layer).
+static func material_for(slot: String, alpha_mat := false) -> Material:
+	var key := slot + ("#alpha" if alpha_mat else "")
+	if _materials.has(key):
+		return _materials[key]
+	var sl := parse_slot(slot)
+	var id: String = sl["id"]
+	var lib := id != "" and MaterialLibrary.has(id)
+	var tint := Color.html(sl["c"])
+	var alpha := float(sl["a"]) * (0.5 if alpha_mat and float(sl["a"]) >= 1.0 else 1.0)
+	var plain: bool = tint == Color.WHITE and alpha >= 1.0 and float(sl["su"]) == 0.0 and float(sl["sv"]) == 0.0 and sl["l"] == ""
+	var m: Material
+	if plain:
+		m = MaterialLibrary.material(id, Color.WHITE) if lib else Look.ramp_material("grid", Color.html("9aa3ad"))
+	else:
+		var sm := ShaderMaterial.new()
+		sm.shader = _surface_shader(alpha < 1.0)
+		var base: StandardMaterial3D = MaterialLibrary.material(id, Color.WHITE) if lib else null
+		if base:
+			sm.set_shader_parameter("albedo_tex", base.albedo_texture)
+			if base.normal_texture:
+				sm.set_shader_parameter("normal_tex", base.normal_texture)
+				sm.set_shader_parameter("has_normal", true)
+			if base.roughness_texture:
+				sm.set_shader_parameter("rough_tex", base.roughness_texture)
+				sm.set_shader_parameter("has_rough", true)
+		else:
+			tint = tint * Color.html("9aa3ad")
+		sm.set_shader_parameter("tint", tint)
+		sm.set_shader_parameter("alpha", alpha)
+		sm.set_shader_parameter("scroll", Vector2(sl["su"], sl["sv"]))
+		var lid: String = sl["l"]
+		if lid != "" and MaterialLibrary.has(lid):
+			var lm := MaterialLibrary.material(lid, Color.WHITE)
+			sm.set_shader_parameter("use_layer", true)
+			sm.set_shader_parameter("layer_tex", lm.albedo_texture)
+			if lm.normal_texture:
+				sm.set_shader_parameter("layer_normal", lm.normal_texture)
+				sm.set_shader_parameter("layer_has_normal", true)
+		m = sm
+	_materials[key] = m
+	return m
+
+
+static func _surface_shader(see_through: bool) -> Shader:
+	var k := "alpha" if see_through else "solid"
+	if not _shaders.has(k):
+		var s := Shader.new()
+		var code := FileAccess.get_file_as_string("res://core/shaders/cube_surface.gdshader")
+		s.code = ("#define SEE_THROUGH\n" if see_through else "") + code
+		_shaders[k] = s
+	return _shaders[k]
+
+
+static func material_look(name: String) -> Material:
+	var key := "mat:" + name
+	if _materials.has(key):
+		return _materials[key]
+	var m: Material
+	match name:
+		"water":
+			m = BlockShape.water_material({"water_color": "1f6b8c", "clarity": 0.55})
+		"lava":
+			m = BlockShape.water_material({"water_color": "ff5a10", "clarity": 0.0, "glow": 2.5})
+		_:
+			var sm := StandardMaterial3D.new()
+			var c: Color = MAT_COLORS.get(name, Color(1, 1, 1, 0.2))
+			sm.albedo_color = c
+			sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+			if name == "glass":
+				sm.roughness = 0.05
+				sm.metallic = 0.3
+				sm.metallic_specular = 0.9
+			else:
+				sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				sm.no_depth_test = false
+			m = sm
+	_materials[key] = m
+	return m
+
+
 # ------------------------------------------------------------------------------------------------ cube shape
-## Corner n's position (0..8 per axis) in the cube.
 static func corner(c: PackedByteArray, n: int) -> Vector3:
 	return Vector3(c[n * 3], c[n * 3 + 1], c[n * 3 + 2])
 
@@ -100,7 +277,6 @@ static func face_corners(o: int) -> Array:
 	return out
 
 
-## Nothing left of it: along some axis every edge has its two ends together (or crossed).
 static func is_empty_shape(c: PackedByteArray) -> bool:
 	for d in 3:
 		var all_closed := true
@@ -115,22 +291,29 @@ static func is_empty_shape(c: PackedByteArray) -> bool:
 	return false
 
 
-## The face as triangles (cube units), split along whichever diagonal keeps the cube convex.
-static func face_triangles(c: PackedByteArray, o: int) -> Array:
-	var q := []
-	for n in face_corners(o):
-		q.append(corner(c, n))
-	var tris := []
-	var n0: Vector3 = (q[1] - q[0]).cross(q[2] - q[0])
-	var diag_ac := n0.length() < 1e-6 or n0.dot(q[3] - q[0]) <= 1e-6     # q3 on or behind plane(q0 q1 q2)
-	var cand := [[q[0], q[1], q[2]], [q[0], q[2], q[3]]] if diag_ac else [[q[1], q[2], q[3]], [q[1], q[3], q[0]]]
+## The face as triangles of corner numbers, split along whichever diagonal keeps the cube convex.
+static func face_tri_indices(c: PackedByteArray, o: int) -> Array:
+	var q: Array = face_corners(o)
+	var p := []
+	for n in q:
+		p.append(corner(c, n))
+	var n0: Vector3 = (p[1] - p[0]).cross(p[2] - p[0])
+	var diag_ac := n0.length() < 1e-6 or n0.dot(p[3] - p[0]) <= 1e-6
+	var cand := [[0, 1, 2], [0, 2, 3]] if diag_ac else [[1, 2, 3], [1, 3, 0]]
+	var out := []
 	for t in cand:
-		if (t[1] - t[0]).cross(t[2] - t[0]).length() > 1e-6:
-			tris.append(t)
-	return tris
+		if (p[t[1]] - p[t[0]]).cross(p[t[2]] - p[t[0]]).length() > 1e-6:
+			out.append([q[t[0]], q[t[1]], q[t[2]]])
+	return out
 
 
-## Convex and not inside out: every corner on or behind every face's triangles, faces facing their own way.
+static func face_triangles(c: PackedByteArray, o: int) -> Array:
+	var out := []
+	for t in face_tri_indices(c, o):
+		out.append([corner(c, t[0]), corner(c, t[1]), corner(c, t[2])])
+	return out
+
+
 static func is_valid_shape(c: PackedByteArray) -> bool:
 	var pts := []
 	for n in 8:
@@ -155,16 +338,6 @@ static func face_is_full(c: PackedByteArray, o: int) -> bool:
 	return true
 
 
-## The face sits right on the cube's side (all four corners at the side) - pull further and it goes into the next cube.
-static func face_at_side(c: PackedByteArray, o: int) -> bool:
-	var d := o >> 1
-	for n in face_corners(o):
-		if c[n * 3 + d] != (8 if o & 1 else 0):
-			return false
-	return true
-
-
-## Move one corner of face o along the face's axis: dir +1 = in (towards the opposite side), -1 = out.
 static func _nudge(c: PackedByteArray, o: int, n: int, dir: int) -> void:
 	var d := o >> 1
 	var i := n * 3 + d
@@ -177,8 +350,8 @@ static func _nudge(c: PackedByteArray, o: int, n: int, dir: int) -> void:
 	c[i] = v
 
 
-## A child's corners when a cube is split into 8 (octant o = its x / y / z bits): each edge's range is
-## interpolated at the child's position and doubled, like Sauerbraten's subdivision.
+## A child's corners when a cube is split into 8 (octant o = its x / y / z bits): each edge's range is interpolated
+## at the child's position and doubled, like Sauerbraten's subdivision.
 static func child_corners(c: PackedByteArray, o: int) -> PackedByteArray:
 	if c == FULL:
 		return FULL
@@ -204,13 +377,42 @@ static func child_corners(c: PackedByteArray, o: int) -> PackedByteArray:
 	return PackedByteArray() if is_empty_shape(out) else out
 
 
+## Blend weights for a child (trilinear from the parent's corners).
+static func child_blend(b: PackedByteArray, o: int) -> PackedByteArray:
+	if b.is_empty():
+		return b
+	var out := PackedByteArray()
+	out.resize(8)
+	for m in 8:
+		var t := Vector3((float(o & 1) + float(m & 1)) * 0.5, (float((o >> 1) & 1) + float((m >> 1) & 1)) * 0.5,
+			(float((o >> 2) & 1) + float((m >> 2) & 1)) * 0.5)
+		var v := 0.0
+		for n in 8:
+			var w := (t.x if n & 1 else 1.0 - t.x) * (t.y if (n >> 1) & 1 else 1.0 - t.y) * (t.z if (n >> 2) & 1 else 1.0 - t.z)
+			v += w * b[n]
+		out[m] = clampi(roundi(v), 0, 255)
+	return out
+
+
+static func _v(c: PackedByteArray, t: PackedStringArray, b := PackedByteArray()) -> Array:
+	return [c, t, b]
+
+
+static func _blend_of(v: Array) -> PackedByteArray:
+	return v[2] if v.size() > 2 else PackedByteArray()
+
+
 # ------------------------------------------------------------------------------------------------ storage
 func clear() -> void:
 	for k in leaves.keys():
 		_mark(k)
+	for k in mats.keys():
+		_mark(k)
 	leaves.clear()
+	mats.clear()
 	_index.clear()
 	_render.clear()
+	_mrender.clear()
 	_undo.clear()
 	_redo.clear()
 	revision += 1
@@ -226,6 +428,9 @@ static func _index_key(k: Vector4i) -> Vector3i:
 
 static func render_key(k: Vector4i) -> Vector3i:
 	return Vector3i(_fdiv(k.x, RENDER_TICKS), _fdiv(k.y, RENDER_TICKS), _fdiv(k.z, RENDER_TICKS))
+
+
+const _MAT_TAG := 32                     ## undo records keep material cells apart from cubes by w + 32
 
 
 func _put(k: Vector4i, v) -> void:
@@ -249,7 +454,23 @@ func _put(k: Vector4i, v) -> void:
 	revision += 1
 
 
-## Re-mesh the chunks this cube touches, and its neighbours' (their faces may show or hide now).
+func _put_mat(k: Vector4i, m) -> void:
+	var tk := Vector4i(k.x, k.y, k.z, k.w + _MAT_TAG)
+	if _edit != null and not (_edit as Dictionary).has(tk):
+		_edit[tk] = mats.get(k)
+	var rk := render_key(k)
+	if m == null:
+		if mats.erase(k):
+			_mrender[rk].erase(k)
+	else:
+		mats[k] = m
+		if not _mrender.has(rk):
+			_mrender[rk] = {}
+		_mrender[rk][k] = true
+	_mark(k)
+	revision += 1
+
+
 func _mark(k: Vector4i) -> void:
 	var s := size_of(k.w)
 	var lo := Vector3i(k.x - 1, k.y - 1, k.z - 1)
@@ -258,13 +479,12 @@ func _mark(k: Vector4i) -> void:
 		for y in range(_fdiv(lo.y, RENDER_TICKS), _fdiv(hi.y, RENDER_TICKS) + 1):
 			for z in range(_fdiv(lo.z, RENDER_TICKS), _fdiv(hi.z, RENDER_TICKS) + 1):
 				dirty[Vector3i(x, y, z)] = true
-	for o in 6:                                         # a big neighbour whose corner is in a far chunk
+	for o in 6:
 		var nk = leaf_at(_beyond(k, o))
 		if nk != null:
 			dirty[render_key(nk)] = true
 
 
-## A point just past the middle of face o (ticks).
 static func _beyond(k: Vector4i, o: int) -> Vector3:
 	var s := float(size_of(k.w))
 	var p := Vector3(k.x + s * 0.5, k.y + s * 0.5, k.z + s * 0.5)
@@ -273,7 +493,6 @@ static func _beyond(k: Vector4i, o: int) -> Vector3:
 	return p
 
 
-## The cube containing a point (ticks), or null.
 func leaf_at(pt: Vector3):
 	for p in range(MIN_P, MAX_P + 1):
 		var s := size_of(p)
@@ -283,7 +502,18 @@ func leaf_at(pt: Vector3):
 	return null
 
 
-## Every cube overlapping the box [o, o + size) (ticks).
+## The material at a point (ticks): "" for none.
+func mat_at(pt: Vector3) -> String:
+	if mats.is_empty():
+		return ""
+	for p in range(MIN_P, MAX_P + 1):
+		var s := size_of(p)
+		var k := Vector4i(floori(pt.x / s) * s, floori(pt.y / s) * s, floori(pt.z / s) * s, p)
+		if mats.has(k):
+			return mats[k]
+	return ""
+
+
 func leaves_in(o: Vector3i, size: Vector3i) -> Array:
 	var out := []
 	var hi := o + size - Vector3i.ONE
@@ -299,6 +529,15 @@ func leaves_in(o: Vector3i, size: Vector3i) -> Array:
 	return out
 
 
+func mats_in(o: Vector3i, size: Vector3i) -> Array:
+	var out := []
+	for k in mats:
+		var s := size_of(k.w)
+		if k.x < o.x + size.x and k.x + s > o.x and k.y < o.y + size.y and k.y + s > o.y and k.z < o.z + size.z and k.z + s > o.z:
+			out.append(k)
+	return out
+
+
 func _split(k: Vector4i) -> void:
 	var v: Array = leaves[k]
 	var cs := size_of(k.w - 1)
@@ -307,10 +546,10 @@ func _split(k: Vector4i) -> void:
 		var cc := child_corners(v[0], o)
 		if cc.is_empty():
 			continue
-		_put(Vector4i(k.x + (o & 1) * cs, k.y + ((o >> 1) & 1) * cs, k.z + ((o >> 2) & 1) * cs, k.w - 1), [cc, v[1]])
+		_put(Vector4i(k.x + (o & 1) * cs, k.y + ((o >> 1) & 1) * cs, k.z + ((o >> 2) & 1) * cs, k.w - 1),
+			_v(cc, v[1], child_blend(_blend_of(v), o)))
 
 
-## Make the cell (o, p) addressable on its own: split any bigger cube it's part of.
 func _prepare(o: Vector3i, p: int) -> void:
 	var guard := 0
 	while guard < 16:
@@ -327,7 +566,26 @@ func _prepare(o: Vector3i, p: int) -> void:
 		_split(found)
 
 
-## What's in a cell: [] empty, [key] exactly one cube of that size, or ["mixed"] smaller cubes.
+func _prepare_mat(o: Vector3i, p: int) -> void:
+	var guard := 0
+	while guard < 16:
+		guard += 1
+		var found = null
+		for q in range(p + 1, MAX_P + 1):
+			var s := size_of(q)
+			var k := Vector4i(floori(float(o.x) / s) * s, floori(float(o.y) / s) * s, floori(float(o.z) / s) * s, q)
+			if mats.has(k):
+				found = k
+				break
+		if found == null:
+			return
+		var m: String = mats[found]
+		_put_mat(found, null)
+		var cs := size_of(found.w - 1)
+		for i in 8:
+			_put_mat(Vector4i(found.x + (i & 1) * cs, found.y + ((i >> 1) & 1) * cs, found.z + ((i >> 2) & 1) * cs, found.w - 1), m)
+
+
 func cell_state(o: Vector3i, p: int) -> Array:
 	_prepare(o, p)
 	var k := Vector4i(o.x, o.y, o.z, p)
@@ -344,12 +602,11 @@ func _clear_cell(o: Vector3i, p: int) -> void:
 		_put(k, null)
 
 
-func set_cell(o: Vector3i, p: int, corners: PackedByteArray, tex: PackedStringArray) -> void:
+func set_cell(o: Vector3i, p: int, corners: PackedByteArray, tex: PackedStringArray, blend := PackedByteArray()) -> void:
 	_clear_cell(o, p)
-	_put(Vector4i(o.x, o.y, o.z, p), [corners, tex])
+	_put(Vector4i(o.x, o.y, o.z, p), _v(corners, tex, blend))
 
 
-## Eight equal full cubes make one cube twice the size (keeps big flat areas cheap). Climbs while it can.
 func _merge_up(o: Vector3i, p: int) -> void:
 	while p < MAX_P:
 		var ps := size_of(p + 1)
@@ -359,12 +616,12 @@ func _merge_up(o: Vector3i, p: int) -> void:
 		for i in 8:
 			var k := Vector4i(po.x + (i & 1) * cs, po.y + ((i >> 1) & 1) * cs, po.z + ((i >> 2) & 1) * cs, p)
 			var v = leaves.get(k)
-			if v == null or v[0] != FULL or (tex != null and v[1] != tex):
+			if v == null or v[0] != FULL or not _blend_of(v).is_empty() or (tex != null and v[1] != tex):
 				return
 			tex = v[1]
 		for i in 8:
 			_put(Vector4i(po.x + (i & 1) * cs, po.y + ((i >> 1) & 1) * cs, po.z + ((i >> 2) & 1) * cs, p), null)
-		_put(Vector4i(po.x, po.y, po.z, p + 1), [FULL, tex])
+		_put(Vector4i(po.x, po.y, po.z, p + 1), _v(FULL, tex))
 		o = po
 		p += 1
 
@@ -374,14 +631,13 @@ func begin() -> void:
 	_edit = {}
 
 
-## Close the edit: one undo step. Returns whether anything changed.
 func commit() -> bool:
 	var before: Dictionary = _edit
 	_edit = null
 	var changed := false
 	var after := {}
 	for k in before:
-		after[k] = leaves.get(k)
+		after[k] = mats.get(Vector4i(k.x, k.y, k.z, k.w - _MAT_TAG)) if k.w >= _MAT_TAG - 8 else leaves.get(k)
 		if after[k] != before[k]:
 			changed = true
 	if not changed:
@@ -413,17 +669,19 @@ func redo() -> bool:
 
 func _apply(state: Dictionary) -> void:
 	for k in state:
-		_put(k, state[k])
+		if k.w >= _MAT_TAG - 8:
+			_put_mat(Vector4i(k.x, k.y, k.z, k.w - _MAT_TAG), state[k])
+		else:
+			_put(k, state[k])
 
 
-# ------------------------------------------------------------------------------------------------ selection edits
+# ------------------------------------------------------------------------------------------------ selections
 ## A selection is a box of cells: {o: Vector3i ticks (a multiple of the cell size), s: Vector3i cells, p: grid power,
 ## orient: the face direction it was made on}. Face edits work on the box's outer layer on that side.
 static func make_sel(o: Vector3i, p: int, orient: int, s := Vector3i.ONE) -> Dictionary:
 	return {"o": o, "s": s, "p": p, "orient": orient}
 
 
-## The cells of the box's outer layer on its face side (shift = how many cells further out).
 static func face_layer(sel: Dictionary, shift := 0) -> Array:
 	var o: int = sel["orient"]
 	var d := o >> 1
@@ -460,13 +718,13 @@ static func moved(sel: Dictionary, cells: int) -> Dictionary:
 	return out
 
 
-## The textures a new cube pulled out of `behind` gets: the same as the cube it came out of.
 func _tex_from(behind: Vector3i, p: int, fallback: String) -> PackedStringArray:
 	var s := float(size_of(p))
 	var k = leaf_at(Vector3(behind) + Vector3.ONE * s * 0.5)
 	return (leaves[k][1] as PackedStringArray).duplicate() if k != null else blank_tex(fallback)
 
 
+# ------------------------------------------------------------------------------------------------ geometry edits
 ## Mouse wheel: pull new cubes out of the selected faces (the selection follows them out).
 func pull(sel: Dictionary, tex := "") -> Dictionary:
 	var p: int = sel["p"]
@@ -486,16 +744,35 @@ func push(sel: Dictionary) -> Dictionary:
 	return moved(sel, -1)
 
 
-## F + wheel: move the selected faces in (dir 1) or out (dir -1) by 1/8 of a cube. Pulling a face that's already at
-## its cube's side starts a thin new cube in front of it. Returns the selection (moved if a new layer started).
+## F + wheel: move the selected faces in (dir 1) or out (dir -1) by 1/8 of a cube. Q + wheel: only one corner
+## (`only_corner`, 0-3 around the face). Pulling corners already at their cube's side starts a thin new cube in front.
 func push_face(sel: Dictionary, dir: int, only_corner := -1) -> Dictionary:
 	var o: int = sel["orient"]
+	var quad: Array = face_corners(o)
+	return _push_corners(sel, dir, func(_cell: Vector3i, n: int) -> bool: return only_corner < 0 or n == quad[only_corner])
+
+
+## Wheel with corners selected (middle mouse drag): push just the selected corners. `rect` = [a0, a1, b0, b1] ticks
+## along the face's two axes (inclusive): every face corner inside it moves.
+func push_corner_rect(sel: Dictionary, rect: Array, dir: int) -> Dictionary:
+	var o: int = sel["orient"]
+	var d := o >> 1
+	var a := (d + 1) % 3
+	var b := (d + 2) % 3
+	var g := size_of(sel["p"])
+	return _push_corners(sel, dir, func(cell: Vector3i, n: int) -> bool:
+		var pa: int = cell[a] + (g if (n >> a) & 1 else 0)
+		var pb: int = cell[b] + (g if (n >> b) & 1 else 0)
+		return pa >= rect[0] and pa <= rect[1] and pb >= rect[2] and pb <= rect[3])
+
+
+func _push_corners(sel: Dictionary, dir: int, pick: Callable) -> Dictionary:
+	var o: int = sel["orient"]
 	var p: int = sel["p"]
+	var d := o >> 1
 	var cells := face_layer(sel)
-	var moving: Array = face_corners(o) if only_corner < 0 else [face_corners(o)[only_corner]]
 	var side := 8 if o & 1 else 0
 	if dir < 0:
-		# every moving corner already at its cube's side: start a thin new cube in front instead
 		var all_out := true
 		var any_cube := false
 		for c in cells:
@@ -507,8 +784,8 @@ func push_face(sel: Dictionary, dir: int, only_corner := -1) -> Dictionary:
 				break
 			any_cube = true
 			var cc: PackedByteArray = leaves[st[0]][0]
-			for n in moving:
-				if cc[n * 3 + (o >> 1)] != side:
+			for n in face_corners(o):
+				if pick.call(c, n) and cc[n * 3 + d] != side:
 					all_out = false
 			if not all_out:
 				break
@@ -520,10 +797,13 @@ func push_face(sel: Dictionary, dir: int, only_corner := -1) -> Dictionary:
 					continue
 				var nc := FULL.duplicate()                  # a flat cube on the near side, then out by one step
 				for n in face_corners(o):
-					nc[n * 3 + (o >> 1)] = 0 if o & 1 else 8
-				for n in moving:
-					_nudge(nc, o, n, -1)
-				if not is_empty_shape(nc) and is_valid_shape(nc):
+					nc[n * 3 + d] = 0 if o & 1 else 8
+				var any := false
+				for n in face_corners(o):
+					if pick.call(c, n):
+						_nudge(nc, o, n, -1)
+						any = true
+				if any and not is_empty_shape(nc) and is_valid_shape(nc):
 					set_cell(f, p, nc, _tex_from(c, p, ""))
 			return front
 	for c in cells:
@@ -533,33 +813,16 @@ func push_face(sel: Dictionary, dir: int, only_corner := -1) -> Dictionary:
 		var k: Vector4i = st[0]
 		var v: Array = leaves[k]
 		var nc: PackedByteArray = (v[0] as PackedByteArray).duplicate()
-		for n in moving:
-			_nudge(nc, o, n, dir)
+		for n in face_corners(o):
+			if pick.call(c, n):
+				_nudge(nc, o, n, dir)
 		if nc == v[0]:
 			continue
 		if is_empty_shape(nc):
 			_put(k, null)
 		elif is_valid_shape(nc):
-			_put(k, [nc, v[1]])
+			_put(k, _v(nc, v[1], _blend_of(v)))
 	return sel
-
-
-## Y + wheel: give the selected faces a texture (every face of the selected cubes when `all_faces`).
-func set_texture(sel: Dictionary, id: String, all_faces := false) -> void:
-	var p: int = sel["p"]
-	var g := size_of(p)
-	for c in box_cells(sel):
-		_prepare(c, p)
-	var size: Vector3i = (sel["s"] as Vector3i) * g
-	for k in leaves_in(sel["o"], size):
-		var v: Array = leaves[k]
-		var t: PackedStringArray = (v[1] as PackedStringArray).duplicate()
-		if all_faces:
-			t.fill(id)
-		else:
-			t[sel["orient"]] = id
-		if t != v[1]:
-			_put(k, [v[0], t])
 
 
 func delete(sel: Dictionary) -> void:
@@ -567,7 +830,259 @@ func delete(sel: Dictionary) -> void:
 		_clear_cell(c, sel["p"])
 
 
-## The selection's cubes, split so none is bigger than a cell, relative to the box: for copy, rotate and flip.
+# ------------------------------------------------------------------------------------------------ textures
+## Y + wheel / F2: give the selected faces a texture (every face of the selected cubes when `all_faces`). Keeps each
+## face's texture settings.
+func set_texture(sel: Dictionary, id: String, all_faces := false) -> void:
+	_edit_slots(sel, all_faces, func(slot: String) -> String: return with_id(slot, id))
+
+
+## Change texture settings of the selected faces: `fn` gets the slot dictionary and returns it changed.
+func set_slot_param(sel: Dictionary, all_faces: bool, fn: Callable) -> void:
+	_edit_slots(sel, all_faces, func(slot: String) -> String: return make_slot(fn.call(parse_slot(slot).duplicate())))
+
+
+func _edit_slots(sel: Dictionary, all_faces: bool, fn: Callable) -> void:
+	var p: int = sel["p"]
+	var g := size_of(p)
+	for c in box_cells(sel):
+		_prepare(c, p)
+	for k in leaves_in(sel["o"], (sel["s"] as Vector3i) * g):
+		var v: Array = leaves[k]
+		var t: PackedStringArray = (v[1] as PackedStringArray).duplicate()
+		for o in 6:
+			if all_faces or o == sel["orient"]:
+				t[o] = fn.call(t[o])
+		if t != v[1]:
+			_put(k, _v(v[0], t, _blend_of(v)))
+
+
+## The texture slot of the face a selection is on (the first cube in it), or "".
+func slot_at(sel: Dictionary) -> String:
+	var g := size_of(sel["p"])
+	for c in face_layer(sel):
+		var k = leaf_at(Vector3(c) + Vector3.ONE * g * 0.5)
+		if k != null:
+			return leaves[k][1][sel["orient"]]
+	return ""
+
+
+## Sauerbraten's replace / replacesel: every face with texture `old` gets `new` (in the box, or everywhere).
+func replace_texture(old: String, new: String, sel := {}) -> int:
+	var keys: Array = leaves.keys() if sel.is_empty() else leaves_in(sel["o"], (sel["s"] as Vector3i) * size_of(sel["p"]))
+	var n := 0
+	for k in keys:
+		var v: Array = leaves[k]
+		var t: PackedStringArray = (v[1] as PackedStringArray).duplicate()
+		for o in 6:
+			if slot_id(t[o]) == old:
+				t[o] = with_id(t[o], new)
+				n += 1
+		if t != v[1]:
+			_put(k, _v(v[0], t, _blend_of(v)))
+	return n
+
+
+## Blend painting (Sauerbraten's blendpaintmode, keypad 1-5): paint how much of each face's blend layer shows, with a
+## round brush of `radius` ticks around `pt` (ticks). Modes: 1 set, 2 paint the layer in, 3 paint it out,
+## 4 / 5 the same two inverted (strongest at the brush edge).
+func paint_blend(pt: Vector3, radius: float, mode: int) -> int:
+	var r := maxf(radius, 1.0)
+	var lo := Vector3i((pt - Vector3.ONE * r).floor())
+	var hi := Vector3i((pt + Vector3.ONE * r).ceil())
+	var changed := 0
+	for k in leaves_in(lo, hi - lo + Vector3i.ONE):
+		var v: Array = leaves[k]
+		var s := float(size_of(k.w))
+		var bl: PackedByteArray = _blend_of(v).duplicate()
+		if bl.is_empty():
+			bl.resize(8)
+			bl.fill(0)
+		var before := bl.duplicate()
+		for n in 8:
+			var cp := Vector3(k.x, k.y, k.z) + Vector3(n & 1, (n >> 1) & 1, (n >> 2) & 1) * s
+			var dist := cp.distance_to(pt)
+			if dist > r:
+				continue
+			var b := int(255.0 * clampf(1.0 - dist / r, 0.0, 1.0) * 1.5)
+			b = mini(b, 255)
+			var cur: int = bl[n]
+			match mode:
+				1: cur = b
+				2: cur = maxi(cur, b)
+				3: cur = mini(cur, 255 - b)
+				4: cur = maxi(cur, 255 - b)
+				5: cur = mini(cur, b)
+			bl[n] = cur
+		if bl != before:
+			var all_zero := true
+			for x in bl:
+				all_zero = all_zero and x == 0
+			_put(k, _v(v[0], v[1], PackedByteArray() if all_zero else bl))
+			changed += 1
+	return changed
+
+
+# ------------------------------------------------------------------------------------------------ materials
+## Fill the selection's cells with a material ("air" takes it away), like Sauerbraten's editmat.
+func set_material(sel: Dictionary, mat: String) -> void:
+	var p: int = sel["p"]
+	var s := size_of(p)
+	for c in box_cells(sel):
+		_prepare_mat(c, p)
+		for k in mats_in(c, Vector3i(s, s, s)):
+			_put_mat(k, null)
+		if mat != "air" and mat != "":
+			_put_mat(Vector4i(c.x, c.y, c.z, p), mat)
+
+
+## Material cells as boxes in metres (this object's space): {material: [AABB, ...]}.
+func material_boxes() -> Dictionary:
+	var out := {}
+	for k in mats:
+		var m: String = mats[k]
+		if not out.has(m):
+			out[m] = []
+		out[m].append(AABB(Vector3(k.x, k.y, k.z) * TICK, Vector3.ONE * metres(k.w)))
+	return out
+
+
+## Is this cube inside a material cell of this kind (noclip, alpha)?
+func cube_in_mat(k: Vector4i, m: String) -> bool:
+	if mats.is_empty():
+		return false
+	var s := float(size_of(k.w))
+	return mat_at(Vector3(k.x, k.y, k.z) + Vector3.ONE * s * 0.5) == m
+
+
+# ------------------------------------------------------------------------------------------------ heightmap
+## Heightmap mode (Sauerbraten's hmapedit): treat the tops of the cubes as terrain and move its corner points with a
+## brush centred on `center` (ticks, a corner point of the grid) - dir 1 lowers, -1 raises. `around_y` (ticks) is
+## roughly where the surface is. Raising past a cube's top builds new cubes; lowering past its bottom digs them away.
+func hmap_edit(center: Vector3i, around_y: int, p: int, brush: Array, dir: int) -> void:
+	var g := size_of(p)
+	var step := g / 8
+	var pts := {}                                        # Vector2i corner point (ticks) -> current height (ticks)
+	var n := brush.size()
+	var smooth := n == 0
+	var reach := 2 if smooth else n / 2
+	for i in range(-reach - 1, reach + 2):
+		for j in range(-reach - 1, reach + 2):
+			var pt := Vector2i(center.x + i * g, center.z + j * g)
+			var h = _surface_height(pt, around_y, p)
+			if h != null:
+				pts[pt] = h
+	var new_h := {}
+	if smooth:
+		for i in range(-reach, reach + 1):
+			for j in range(-reach, reach + 1):
+				var pt := Vector2i(center.x + i * g, center.z + j * g)
+				if not pts.has(pt):
+					continue
+				var sum := 0.0
+				var cnt := 0
+				for di in [-1, 0, 1]:
+					for dj in [-1, 0, 1]:
+						var q := pt + Vector2i(di * g, dj * g)
+						if pts.has(q):
+							sum += pts[q]
+							cnt += 1
+				new_h[pt] = roundi(sum / cnt / step) * step
+	else:
+		for i in n:
+			for j in n:
+				var w: int = brush[i][j]
+				if w == 0:
+					continue
+				var pt := Vector2i(center.x + (i - n / 2) * g, center.z + (j - n / 2) * g)
+				if pts.has(pt):
+					new_h[pt] = int(pts[pt]) - dir * w * step
+	if new_h.is_empty():
+		return
+	# rewrite every column touching a moved point
+	var cols := {}
+	for pt in new_h:
+		for di in [-1, 0]:
+			for dj in [-1, 0]:
+				cols[Vector2i(pt.x + di * g, pt.y + dj * g)] = true
+	for col in cols:
+		var hs := []
+		var ok := true
+		for c in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
+			var pt: Vector2i = col + c * g
+			if new_h.has(pt):
+				hs.append(new_h[pt])
+			elif pts.has(pt):
+				hs.append(pts[pt])
+			else:
+				ok = false
+		if ok:
+			_write_column(col, hs, around_y, p)
+
+
+## The height (ticks) of the terrain at a corner point: the highest cube top touching it, near `around_y`.
+func _surface_height(pt: Vector2i, around_y: int, p: int):
+	var g := size_of(p)
+	var best = null
+	for di in [-1, 0]:
+		for dj in [-1, 0]:
+			var col := Vector2i(pt.x + di * g, pt.y + dj * g)
+			var top = _column_top(col, around_y, p)
+			if top == null:
+				continue
+			var k: Vector4i = top
+			var c: PackedByteArray = leaves[k][0]
+			var cn: int = (1 << 1) | ((-di) << 0) | ((-dj) << 2)       # the top corner of that cube at this point
+			var h: int = k.y + c[cn * 3 + 1] * g / 8
+			best = h if best == null else maxi(best, h)
+	return best
+
+
+## The topmost cube in a column near `around_y`, or null.
+func _column_top(col: Vector2i, around_y: int, p: int):
+	var g := size_of(p)
+	var base := floori(float(around_y) / g) * g
+	for i in range(12, -13, -1):
+		var o := Vector3i(col.x, base + i * g, col.y)
+		var st := cell_state(o, p)
+		if st.size() == 1 and st[0] is Vector4i:
+			return st[0]
+	return null
+
+
+## Rebuild one column so its top has corner heights `hs` (ticks; order (0,0) (1,0) (0,1) (1,1) in x, z).
+func _write_column(col: Vector2i, hs: Array, around_y: int, p: int) -> void:
+	var g := size_of(p)
+	var top = _column_top(col, around_y, p)
+	var tex := (leaves[top][1] as PackedStringArray).duplicate() if top != null else blank_tex()
+	var old_top: int = top.y if top != null else floori(float(around_y) / g) * g
+	var lo := mini(floori(float(hs.min()) / g) * g, old_top)
+	var hi := maxi(ceili(float(hs.max()) / g) * g - g, old_top)
+	for y in range(lo, hi + g, g):
+		var o := Vector3i(col.x, y, col.y)
+		var hl := []
+		for h in hs:
+			hl.append(clampi(roundi(float(h - y) * 8.0 / g), 0, 8))
+		if hl.max() == 0:
+			_clear_cell(o, p)
+			continue
+		var c := FULL.duplicate()
+		var idx := [0, 1, 4, 5]                           # bottom corners under each column corner (x, z bits)
+		for i in 4:
+			c[(idx[i] | 2) * 3 + 1] = hl[i]               # the top corner's height
+		if is_empty_shape(c):
+			_clear_cell(o, p)
+		elif is_valid_shape(c):
+			set_cell(o, p, c, tex)
+		else:
+			var avg := roundi(float(hl[0] + hl[1] + hl[2] + hl[3]) / 4.0)
+			for i in 4:
+				c[(idx[i] | 2) * 3 + 1] = avg
+			if avg > 0:
+				set_cell(o, p, c, tex)
+
+
+# ------------------------------------------------------------------------------------------------ copy, rotate, flip
 func _take(sel: Dictionary) -> Array:
 	var p: int = sel["p"]
 	var g := size_of(p)
@@ -581,6 +1096,17 @@ func _take(sel: Dictionary) -> Array:
 	return out
 
 
+func _take_mats(sel: Dictionary) -> Array:
+	var p: int = sel["p"]
+	var g := size_of(p)
+	for c in box_cells(sel):
+		_prepare_mat(c, p)
+	var out := []
+	for k in mats_in(sel["o"], (sel["s"] as Vector3i) * g):
+		out.append([Vector4i(k.x - sel["o"].x, k.y - sel["o"].y, k.z - sel["o"].z, k.w), mats[k]])
+	return out
+
+
 static func _split_to(k: Vector4i, v: Array, max_p: int) -> Array:
 	if k.w <= max_p:
 		return [[k, v]]
@@ -591,16 +1117,14 @@ static func _split_to(k: Vector4i, v: Array, max_p: int) -> Array:
 		if cc.is_empty():
 			continue
 		out.append_array(_split_to(Vector4i(k.x + (o & 1) * cs, k.y + ((o >> 1) & 1) * cs, k.z + ((o >> 2) & 1) * cs, k.w - 1),
-			[cc, v[1]], max_p))
+			_v(cc, v[1], child_blend(_blend_of(v), o)), max_p))
 	return out
 
 
-## C: copy the selection.
 func copy(sel: Dictionary) -> Dictionary:
-	return {"s": (sel["s"] as Vector3i) * size_of(sel["p"]), "p": sel["p"], "cubes": _take(sel)}
+	return {"s": (sel["s"] as Vector3i) * size_of(sel["p"]), "p": sel["p"], "cubes": _take(sel), "mats": _take_mats(sel)}
 
 
-## V: paste a copy into the selection's corner (empty space in the copy leaves what's there).
 func paste(sel: Dictionary, clip: Dictionary) -> Dictionary:
 	if clip.is_empty():
 		return sel
@@ -608,13 +1132,15 @@ func paste(sel: Dictionary, clip: Dictionary) -> Dictionary:
 	for item in clip["cubes"]:
 		for piece in _split_to(item[0], item[1], sel["p"]):
 			var k: Vector4i = piece[0]
-			set_cell(Vector3i(k.x, k.y, k.z) + o, k.w, piece[1][0], piece[1][1])
+			set_cell(Vector3i(k.x, k.y, k.z) + o, k.w, piece[1][0], piece[1][1], _blend_of(piece[1]))
+	for item in clip.get("mats", []):
+		var k: Vector4i = item[0]
+		set_material(make_sel(Vector3i(k.x, k.y, k.z) + o, k.w, 3), item[1])
 	var g := size_of(sel["p"])
 	var cs: Vector3i = clip["s"]
 	return make_sel(o, sel["p"], sel["orient"], Vector3i(maxi(cs.x / g, 1), maxi(cs.y / g, 1), maxi(cs.z / g, 1)))
 
 
-## R + wheel: turn the selection a quarter turn about its face's axis (the box keeps its corner).
 func rotate(sel: Dictionary, steps: int) -> Dictionary:
 	var out := sel
 	for i in posmod(steps, 4):
@@ -629,18 +1155,23 @@ func _rotate_once(sel: Dictionary) -> Dictionary:
 	var g := size_of(sel["p"])
 	var ext: Vector3i = (sel["s"] as Vector3i) * g
 	var items := _take(sel)
+	var mitems := _take_mats(sel)
 	delete(sel)
+	set_material(sel, "air")
+	var o: Vector3i = sel["o"]
 	for it in items:
 		var k: Vector4i = it[0]
 		var s := size_of(k.w)
-		var u := k[a]
-		var v := k[b]
 		var nk := k
-		nk[a] = ext[b] - (v + s)                         # (u, v) -> (H - v, u): a quarter turn, a -> b
-		nk[b] = u
+		nk[a] = ext[b] - (k[b] + s)                      # (u, v) -> (H - v, u): a quarter turn, a -> b
+		nk[b] = k[a]
 		var c: PackedByteArray = it[1][0]
 		var nc := PackedByteArray()
 		nc.resize(24)
+		var bl := _blend_of(it[1])
+		var nbl := PackedByteArray()
+		if not bl.is_empty():
+			nbl.resize(8)
 		for n in 8:
 			var bits := [(n >> 0) & 1, (n >> 1) & 1, (n >> 2) & 1]
 			var nb := bits.duplicate()
@@ -650,14 +1181,22 @@ func _rotate_once(sel: Dictionary) -> Dictionary:
 			nc[m * 3 + d] = c[n * 3 + d]
 			nc[m * 3 + a] = 8 - c[n * 3 + b]
 			nc[m * 3 + b] = c[n * 3 + a]
+			if not bl.is_empty():
+				nbl[m] = bl[n]
 		var t: PackedStringArray = it[1][1]
 		var nt := t.duplicate()
 		nt[b * 2 + 1] = t[a * 2 + 1]                     # +a -> +b, +b -> -a, -a -> -b, -b -> +a
 		nt[a * 2] = t[b * 2 + 1]
 		nt[b * 2] = t[a * 2]
 		nt[a * 2 + 1] = t[b * 2]
-		var o: Vector3i = sel["o"]
-		set_cell(Vector3i(nk.x, nk.y, nk.z) + o, nk.w, nc, nt)
+		set_cell(Vector3i(nk.x, nk.y, nk.z) + o, nk.w, nc, nt, nbl)
+	for it in mitems:
+		var k: Vector4i = it[0]
+		var s := size_of(k.w)
+		var nk := k
+		nk[a] = ext[b] - (k[b] + s)
+		nk[b] = k[a]
+		set_material(make_sel(Vector3i(nk.x, nk.y, nk.z) + o, nk.w, 3), it[1])
 	var ns: Vector3i = sel["s"]
 	var sw := ns
 	sw[a] = ns[b]
@@ -665,13 +1204,14 @@ func _rotate_once(sel: Dictionary) -> Dictionary:
 	return make_sel(sel["o"], sel["p"], sel["orient"], sw)
 
 
-## X: mirror the selection front to back (along its face's axis).
 func flip(sel: Dictionary) -> void:
 	var d: int = sel["orient"] >> 1
 	var g := size_of(sel["p"])
 	var ext: Vector3i = (sel["s"] as Vector3i) * g
 	var items := _take(sel)
+	var mitems := _take_mats(sel)
 	delete(sel)
+	set_material(sel, "air")
 	for it in items:
 		var k: Vector4i = it[0]
 		var nk := k
@@ -679,29 +1219,58 @@ func flip(sel: Dictionary) -> void:
 		var c: PackedByteArray = it[1][0]
 		var nc := PackedByteArray()
 		nc.resize(24)
+		var bl := _blend_of(it[1])
+		var nbl := PackedByteArray()
+		if not bl.is_empty():
+			nbl.resize(8)
 		for n in 8:
 			var m := n ^ (1 << d)
 			for e in 3:
 				nc[m * 3 + e] = (8 - c[n * 3 + e]) if e == d else c[n * 3 + e]
+			if not bl.is_empty():
+				nbl[m] = bl[n]
 		var t: PackedStringArray = (it[1][1] as PackedStringArray).duplicate()
 		var tmp := t[d * 2]
 		t[d * 2] = t[d * 2 + 1]
 		t[d * 2 + 1] = tmp
-		set_cell(Vector3i(nk.x, nk.y, nk.z) + (sel["o"] as Vector3i), nk.w, nc, t)
+		set_cell(Vector3i(nk.x, nk.y, nk.z) + (sel["o"] as Vector3i), nk.w, nc, t, nbl)
+	for it in mitems:
+		var k: Vector4i = it[0]
+		var nk := k
+		nk[d] = ext[d] - (k[d] + size_of(k.w))
+		set_material(make_sel(Vector3i(nk.x, nk.y, nk.z) + (sel["o"] as Vector3i), nk.w, 3), it[1])
+
+
+## Move the selection's cubes (and materials) by `delta` ticks (Sauerbraten's editcut drag).
+func move_cubes(sel: Dictionary, delta: Vector3i) -> Dictionary:
+	var items := _take(sel)
+	var mitems := _take_mats(sel)
+	delete(sel)
+	set_material(sel, "air")
+	var o: Vector3i = (sel["o"] as Vector3i) + delta
+	for it in items:
+		var k: Vector4i = it[0]
+		set_cell(Vector3i(k.x, k.y, k.z) + o, k.w, it[1][0], it[1][1], _blend_of(it[1]))
+	for it in mitems:
+		var k: Vector4i = it[0]
+		set_material(make_sel(Vector3i(k.x, k.y, k.z) + o, k.w, 3), it[1])
+	var out := sel.duplicate()
+	out["o"] = o
+	return out
 
 
 # ------------------------------------------------------------------------------------------------ meshes
-## Is face o of this cube hidden by a full neighbour face right against it?
 func _face_hidden(k: Vector4i, c: PackedByteArray, o: int) -> bool:
 	if not face_is_full(c, o):
 		return false
 	var nk = leaf_at(_beyond(k, o))
 	if nk == null or nk.w < k.w:
 		return false
+	if not mats.is_empty() and (cube_in_mat(nk, "alpha") or cube_in_mat(nk, "noclip")) != (cube_in_mat(k, "alpha") or cube_in_mat(k, "noclip")):
+		return false                                     # a see-through or pass-through neighbour doesn't hide it
 	return face_is_full(leaves[nk][0], o ^ 1)
 
 
-## The world-space points of a cube's corners (metres).
 func cube_points(k: Vector4i) -> PackedVector3Array:
 	var c: PackedByteArray = leaves[k][0]
 	var origin := Vector3(k.x, k.y, k.z) * TICK
@@ -714,49 +1283,81 @@ func cube_points(k: Vector4i) -> PackedVector3Array:
 	return out
 
 
-## A render chunk's mesh (a surface per texture) and its triangles for collision / picking.
-func chunk_mesh(ck: Vector3i) -> Array:
+static func _tri_tangent(w: Array, uv: Array, n: Vector3) -> Plane:
+	var e1: Vector3 = w[1] - w[0]
+	var e2: Vector3 = w[2] - w[0]
+	var d1: Vector2 = uv[1] - uv[0]
+	var d2: Vector2 = uv[2] - uv[0]
+	var det := d1.x * d2.y - d2.x * d1.y
+	if absf(det) < 1e-9:
+		return Plane(n.cross(Vector3.UP if absf(n.y) < 0.9 else Vector3.RIGHT).normalized(), 1.0)
+	var t := (e1 * d2.y - e2 * d1.y) / det
+	var b := (e2 * d1.x - e1 * d2.x) / det
+	t = (t - n * n.dot(t)).normalized()
+	return Plane(t, -1.0 if n.cross(t).dot(b) < 0.0 else 1.0)
+
+
+## A render chunk's mesh (a surface per texture slot, plus materials), its collision triangles, and (with
+## `outline`) a lines mesh of every cube face's edges.
+func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 	var groups := {}
 	var col := PackedVector3Array()
-	var fs_cache := {}
+	var lines := PackedVector3Array()
 	for k in _render.get(ck, {}):
 		var v: Array = leaves[k]
 		var c: PackedByteArray = v[0]
+		var bl := _blend_of(v)
 		var origin := Vector3(k.x, k.y, k.z) * TICK
 		var unit := metres(k.w) / 8.0
+		var noclip := cube_in_mat(k, "noclip")
+		var alpha := cube_in_mat(k, "alpha")
 		for o in 6:
 			if _face_hidden(k, c, o):
 				continue
-			var id: String = v[1][o]
-			var key := id if id != "" and MaterialLibrary.has(id) else ""
-			if not fs_cache.has(key):
-				fs_cache[key] = {"material": key, "uv_scale": 1.0, "uv_offset": [0.0, 0.0], "uv_rot": 0.0}
-			var fs: Dictionary = fs_cache[key]
+			var slot: String = v[1][o]
+			var sl := parse_slot(slot)
+			var key := slot + ("#alpha" if alpha else "")
 			if not groups.has(key):
-				groups[key] = [PackedVector3Array(), PackedVector3Array(), PackedFloat32Array(), PackedVector2Array()]
+				groups[key] = [PackedVector3Array(), PackedVector3Array(), PackedFloat32Array(), PackedVector2Array(),
+					PackedVector2Array(), PackedColorArray(), slot, alpha]
 			var g: Array = groups[key]
 			var verts: PackedVector3Array = g[0]
 			var normals: PackedVector3Array = g[1]
 			var tangents: PackedFloat32Array = g[2]
 			var uvs: PackedVector2Array = g[3]
-			g[0] = null
-			g[1] = null
-			g[2] = null
-			g[3] = null
-			for t in face_triangles(c, o):
-				var w := [origin + (t[0] as Vector3) * unit, origin + (t[1] as Vector3) * unit, origin + (t[2] as Vector3) * unit]
+			var uv2s: PackedVector2Array = g[4]
+			var cols: PackedColorArray = g[5]
+			for i in 6:
+				g[i] = null
+			var layered: bool = sl["l"] != ""
+			for t in face_tri_indices(c, o):
+				var w := [origin + corner(c, t[0]) * unit, origin + corner(c, t[1]) * unit, origin + corner(c, t[2]) * unit]
 				var n: Vector3 = (w[1] - w[0]).cross(w[2] - w[0]).normalized()
-				var tan := BlockShape._face_tangent(w, n, fs, Transform3D.IDENTITY, n)
+				var uv := [slot_uv(w[0], n, sl), slot_uv(w[1], n, sl), slot_uv(w[2], n, sl)]
+				var tan := _tri_tangent(w, uv, n)
 				for j in [0, 2, 1]:                          # Godot winds front faces clockwise
 					verts.append(w[j])
 					normals.append(n)
 					tangents.append_array([tan.normal.x, tan.normal.y, tan.normal.z, tan.d])
-					uvs.append(BlockShape.face_uv(w[j], n, fs))
-					col.append(w[j])
+					uvs.append(uv[j])
+					uv2s.append(slot_uv(w[j], n, sl, true) if layered else Vector2.ZERO)
+					cols.append(Color(1, 1, 1, float(bl[t[j]]) / 255.0 if not bl.is_empty() else 0.0))
+					if not noclip:
+						col.append(w[j])
+			if outline:
+				var q: Array = face_corners(o)
+				for i in 4:
+					var pa := origin + corner(c, q[i]) * unit
+					var pb := origin + corner(c, q[(i + 1) % 4]) * unit
+					if pa != pb:
+						lines.append(pa)
+						lines.append(pb)
 			g[0] = verts
 			g[1] = normals
 			g[2] = tangents
 			g[3] = uvs
+			g[4] = uv2s
+			g[5] = cols
 	var m := ArrayMesh.new()
 	for key in groups:
 		var g: Array = groups[key]
@@ -768,30 +1369,107 @@ func chunk_mesh(ck: Vector3i) -> Array:
 		arrays[Mesh.ARRAY_NORMAL] = g[1]
 		arrays[Mesh.ARRAY_TANGENT] = g[2]
 		arrays[Mesh.ARRAY_TEX_UV] = g[3]
+		arrays[Mesh.ARRAY_TEX_UV2] = g[4]
+		arrays[Mesh.ARRAY_COLOR] = g[5]
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		m.surface_set_material(m.get_surface_count() - 1, material_for(key))
-	return [m, col]
+		m.surface_set_material(m.get_surface_count() - 1, material_for(g[6], g[7]))
+	_material_surfaces(ck, m, col)
+	var lm := ArrayMesh.new()
+	if not lines.is_empty():
+		var la := []
+		la.resize(Mesh.ARRAY_MAX)
+		la[Mesh.ARRAY_VERTEX] = lines
+		lm.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, la)
+		var lmat := StandardMaterial3D.new()
+		lmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		lmat.albedo_color = Color(0.05, 0.05, 0.05)
+		lm.surface_set_material(0, lmat)
+	return [m, col, lm]
 
 
-static var _materials := {}
+## Material cells: the faces you can see (not against the same material or a full cube face), drawn with each
+## material's look; glass and clip add collision.
+func _material_surfaces(ck: Vector3i, m: ArrayMesh, col: PackedVector3Array) -> void:
+	var by := {}
+	for k in _mrender.get(ck, {}):
+		var name: String = mats[k]
+		var visible_kind := name in ["water", "lava", "glass"]
+		var s := float(size_of(k.w))
+		var lo := Vector3(k.x, k.y, k.z) * TICK
+		var hi := lo + Vector3.ONE * s * TICK
+		for o in 6:
+			var nb := _beyond(k, o)
+			if mat_at(nb) == name:
+				continue
+			if name in ["water", "lava"] and o == 2:
+				continue                                 # (no underside to a pool)
+			var nk = leaf_at(nb)
+			if nk != null and nk.w >= k.w and face_is_full(leaves[nk][0], o ^ 1):
+				continue
+			var quad := _box_face(lo, hi, o)
+			if name in ["glass", "clip", "gameclip"]:
+				for j in [0, 1, 2, 0, 2, 3]:
+					col.append(quad[j])
+			if not visible_kind and not show_mats:
+				continue
+			if not by.has(name):
+				by[name] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array()]
+			var arr: Array = by[name]
+			var vs: PackedVector3Array = arr[0]
+			var ns: PackedVector3Array = arr[1]
+			var us: PackedVector2Array = arr[2]
+			arr[0] = null
+			arr[1] = null
+			arr[2] = null
+			var n := orient_normal(o)
+			for j in [0, 2, 1, 0, 3, 2]:
+				vs.append(quad[j])
+				ns.append(n)
+				us.append(BlockShape._uv(quad[j], n))
+			arr[0] = vs
+			arr[1] = ns
+			arr[2] = us
+	for name in by:
+		var arr: Array = by[name]
+		var a := []
+		a.resize(Mesh.ARRAY_MAX)
+		a[Mesh.ARRAY_VERTEX] = arr[0]
+		a[Mesh.ARRAY_NORMAL] = arr[1]
+		a[Mesh.ARRAY_TEX_UV] = arr[2]
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+		m.surface_set_material(m.get_surface_count() - 1, material_look(name))
 
 
-static func material_for(id: String) -> Material:
-	if not _materials.has(id):
-		_materials[id] = MaterialLibrary.material(id, Color.WHITE) if id != "" else Look.ramp_material("grid", Color.html("9aa3ad"))
-	return _materials[id]
+## A box face's corners, counter-clockwise from outside.
+static func _box_face(lo: Vector3, hi: Vector3, o: int) -> Array:
+	var out := []
+	for n in face_corners(o):
+		out.append(Vector3(hi.x if n & 1 else lo.x, hi.y if (n >> 1) & 1 else lo.y, hi.z if (n >> 2) & 1 else lo.z))
+	return out
 
 
 func render_chunks() -> Array:
-	return _render.keys().filter(func(k): return not (_render[k] as Dictionary).is_empty())
+	var out := {}
+	for k in _render:
+		if not (_render[k] as Dictionary).is_empty():
+			out[k] = true
+	for k in _mrender:
+		if not (_mrender[k] as Dictionary).is_empty():
+			out[k] = true
+	return out.keys()
+
+
+## The cubes of a render chunk (for export collision).
+func chunk_cubes(ck: Vector3i) -> Array:
+	return (_render.get(ck, {}) as Dictionary).keys()
 
 
 # ------------------------------------------------------------------------------------------------ saving
-## For the .sfmap: a palette of texture ids and the cubes packed into base64 (cached until something changes).
+## For the .sfmap: a palette of texture slots and the cubes packed into base64, plus material cells.
 func to_dict() -> Dictionary:
 	if _saved_rev == revision:
 		return _saved
-	if leaves.is_empty():
+	if leaves.is_empty() and mats.is_empty():
 		_saved = {}
 		_saved_rev = revision
 		return _saved
@@ -810,17 +1488,26 @@ func to_dict() -> Dictionary:
 				palette.append(id)
 				i = palette.size() - 1
 			buf.put_u16(i)
-	_saved = {"v": 1, "palette": Array(palette), "count": leaves.size(), "data": Marshalls.raw_to_base64(buf.data_array)}
+		var bl := _blend_of(v)
+		buf.put_u8(1 if not bl.is_empty() else 0)
+		if not bl.is_empty():
+			buf.put_data(bl)
+	var mlist := []
+	for k in mats:
+		mlist.append([k.x, k.y, k.z, k.w, mats[k]])
+	_saved = {"v": 2, "palette": Array(palette), "count": leaves.size(), "data": Marshalls.raw_to_base64(buf.data_array),
+		"mats": mlist}
 	_saved_rev = revision
 	return _saved
 
 
 func load_dict(data: Dictionary) -> void:
 	if data == to_dict():
-		return                                           # the same cubes: nothing to rebuild (undo of other things)
+		return
 	clear()
 	if data.is_empty():
 		return
+	var ver := int(data.get("v", 1))
 	var palette: Array = data.get("palette", [""])
 	var buf := StreamPeerBuffer.new()
 	buf.data_array = Marshalls.base64_to_raw(data.get("data", ""))
@@ -831,9 +1518,27 @@ func load_dict(data: Dictionary) -> void:
 		for j in 6:
 			var pi := buf.get_u16()
 			t.append(palette[pi] if pi < palette.size() else "")
-		_put(k, [got[1] as PackedByteArray, t])
+		var bl := PackedByteArray()
+		if ver >= 2 and buf.get_u8() == 1:
+			bl = buf.get_data(8)[1]
+		_put(k, _v(got[1] as PackedByteArray, t, bl))
+	for m in data.get("mats", []):
+		_put_mat(Vector4i(int(m[0]), int(m[1]), int(m[2]), int(m[3])), String(m[4]))
 	_undo.clear()
 	_redo.clear()
+
+
+## Every cube object in a map: [[CubeWorld, Transform3D], ...] (0.6.0 maps kept their cubes under "cubes").
+static func models_of(map: Dictionary) -> Array:
+	var out := []
+	var list: Array = map.get("cube_models", [])
+	if list.is_empty() and not (map.get("cubes", {}) as Dictionary).is_empty():
+		list = [{"cubes": map["cubes"]}]
+	for d in list:
+		var p: Array = d.get("position", [0.0, 0.0, 0.0])
+		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(float(d.get("yaw", 0.0)))), Vector3(p[0], p[1], p[2]))
+		out.append([from_dict(d.get("cubes", {})), xf])
+	return out
 
 
 static func from_dict(data: Dictionary) -> CubeWorld:
@@ -842,7 +1547,6 @@ static func from_dict(data: Dictionary) -> CubeWorld:
 	return w
 
 
-## Lowest point of any cube (metres), or INF.
 func lowest() -> float:
 	var y := INF
 	for k in leaves:
@@ -854,6 +1558,10 @@ func bounds() -> AABB:
 	var box := AABB()
 	var first := true
 	for k in leaves:
+		var b := AABB(Vector3(k.x, k.y, k.z) * TICK, Vector3.ONE * metres(k.w))
+		box = b if first else box.merge(b)
+		first = false
+	for k in mats:
 		var b := AABB(Vector3(k.x, k.y, k.z) * TICK, Vector3.ONE * metres(k.w))
 		box = b if first else box.merge(b)
 		first = false

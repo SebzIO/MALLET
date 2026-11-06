@@ -22,7 +22,8 @@ var props_root := Node3D.new()
 var blocks_root := Node3D.new()
 var texts_root := Node3D.new()
 var lights_root := Node3D.new()
-var cubes := CubeWorldNode.new()         ## cubes built in build mode (E)
+var cube_models_root := Node3D.new()     ## cube objects built in build mode (E)
+var _cube_panel: VBoxContainer
 var build := BuildMode.new()
 var _light_props: VBoxContainer
 var _prefab_popup: PopupPanel
@@ -188,8 +189,8 @@ func _build_world() -> void:
 	add_child(blocks_root)
 	add_child(texts_root)
 	add_child(lights_root)
-	add_child(cubes)
-	build.setup(self, cubes)
+	add_child(cube_models_root)
+	build.setup(self, cube_models_root)
 	add_child(build)
 	build.stopped.connect(_on_build_stopped)
 
@@ -436,6 +437,23 @@ func _build_props(props: VBoxContainer) -> void:
 	_build_block_props(props)
 	_build_text_props(props)
 	_build_light_props(props)
+	_cube_panel = VBoxContainer.new()
+	_cube_panel.visible = false
+	props.add_child(_cube_panel)
+	var eb := Button.new()
+	eb.text = "Edit its cubes in build mode (E)"
+	eb.focus_mode = Control.FOCUS_NONE
+	eb.pressed.connect(_build_clicked)
+	_cube_panel.add_child(eb)
+	var tb := HBoxContainer.new()
+	_cube_panel.add_child(tb)
+	for t in [["Turn -90\u00b0", -90.0], ["Turn +90\u00b0", 90.0]]:
+		var b := Button.new()
+		b.text = t[0]
+		b.focus_mode = Control.FOCUS_NONE
+		var deg: float = t[1]
+		b.pressed.connect(func(): _rotate_selected(deg))
+		tb.add_child(b)
 
 	_entity_props = VBoxContainer.new()
 	_entity_props.add_theme_constant_override("separation", 6)
@@ -608,6 +626,7 @@ func _refresh_props() -> void:
 		_block_props.visible = false
 		_text_props.visible = false
 		_light_props.visible = false
+		_cube_panel.visible = false
 		_fields["head"].text = "Generate a ramp"
 		_refresh_info()
 		return
@@ -616,6 +635,7 @@ func _refresh_props() -> void:
 	_block_props.visible = false
 	_text_props.visible = false
 	_light_props.visible = false
+	_cube_panel.visible = false
 	if selected == null:
 		_ramp_props.visible = false
 		_entity_props.visible = false
@@ -631,6 +651,12 @@ func _refresh_props() -> void:
 	_block_props.visible = selected is BlockNode
 	_text_props.visible = selected is TextNode
 	_light_props.visible = selected is LightNode
+	_cube_panel.visible = selected is CubeModelNode
+	if selected is CubeModelNode:
+		_fields["head"].text = String(selected.get_meta("name", "Cube object"))
+		_updating_ui = false
+		_refresh_info()
+		return
 	if selected is LightNode:
 		var ln := selected as LightNode
 		_fields["head"].text = ln.label()
@@ -836,6 +862,11 @@ func _refresh_info() -> void:
 			if a["ramp"] == r:
 				_info.text += ("\n\nJump off the end (from %s): ≈ %d u/s\n  full speed: %s\n  at %d%% speed: %s\n(no air strafing: good players can stretch this)"
 					% [a["ref"], roundi(a["speed"] * JumpCheck.U), a["runs"][0]["label"], roundi(SLOPPY * 100), a["runs"][1]["label"]])
+	elif selected is CubeModelNode:
+		var cm := selected as CubeModelNode
+		var bb: AABB = cm.world.bounds()
+		_info.text = "Cube object: %d cubes, %.0f x %.0f x %.0f m.\nBuilt in build mode; here it moves, turns, copies and groups as one object (and can be a prefab).\n\nSurfsUp: exact collision per cube. CS:S: a brush per cube." % [
+			cm.world.count(), bb.size.x, bb.size.y, bb.size.z]
 	elif selected is LightNode:
 		var ln := selected as LightNode
 		_info.text = "%s\nReaches %.0f m. Lights the editor view straight away.\n\nSurfsUp: a real light. CS:S: a %s entity (lighting is baked when the map compiles)." % [
@@ -939,8 +970,12 @@ func _map_dict() -> Dictionary:
 	var ls := []
 	for l in lights_root.get_children():
 		ls.append(_with_group(l))
+	var cms := []
+	for cm in cube_models_root.get_children():
+		if (cm as CubeModelNode).world.count() > 0 or not (cm as CubeModelNode).world.mats.is_empty():
+			cms.append(_with_group(cm))
 	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
-		"props": ps, "blocks": bs, "texts": ts, "lights": ls, "cubes": cubes.world.to_dict()}
+		"props": ps, "blocks": bs, "texts": ts, "lights": ls, "cube_models": cms}
 
 
 func _load_dict(data: Dictionary) -> void:
@@ -950,7 +985,7 @@ func _load_dict(data: Dictionary) -> void:
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
 	_select(null)
-	for root in [ramps_root, entities_root, props_root, blocks_root, texts_root, lights_root]:
+	for root in [ramps_root, entities_root, props_root, blocks_root, texts_root, lights_root, cube_models_root]:
 		for c in root.get_children():
 			root.remove_child(c)
 			c.queue_free()
@@ -979,7 +1014,14 @@ func _load_dict(data: Dictionary) -> void:
 		texts_root.add_child(t)
 		t.from_dict(td)
 		_take_group(t, td)
-	cubes.load_dict(data.get("cubes", {}))
+	var cm_list: Array = data.get("cube_models", [])
+	if cm_list.is_empty() and not (data.get("cubes", {}) as Dictionary).is_empty():
+		cm_list = [{"cubes": data["cubes"]}]          # 0.6.0 maps: one set of cubes -> one cube object
+	for cmd in cm_list:
+		var cm := CubeModelNode.new()
+		cube_models_root.add_child(cm)
+		cm.from_dict(cmd)
+		_take_group(cm, cmd)
 	for ld in data.get("lights", []):
 		var l := LightNode.new()
 		lights_root.add_child(l)
@@ -1016,7 +1058,7 @@ func _make_ramp(a: Vector3, b: Vector3) -> RampNode:
 
 
 func _all_objects() -> Array:
-	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children() + blocks_root.get_children() + texts_root.get_children() + lights_root.get_children()
+	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children() + blocks_root.get_children() + texts_root.get_children() + lights_root.get_children() + cube_models_root.get_children()
 
 
 # ================================================================================================= undo / redo
@@ -2377,11 +2419,12 @@ func _kind_of(o: Node3D) -> String:
 	if o is PropNode: return "props"
 	if o is TextNode: return "texts"
 	if o is LightNode: return "lights"
+	if o is CubeModelNode: return "cube_models"
 	return "blocks"
 
 
 func _clip_of(objs: Array) -> Dictionary:
-	var clip := {"surfforge_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": [], "texts": [], "lights": []}
+	var clip := {"surfforge_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": [], "texts": [], "lights": [], "cube_models": []}
 	for o in objs:
 		clip[_kind_of(o)].append(_with_group(o))
 	return clip
@@ -2425,7 +2468,7 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 	var made := []
 	var skipped := 0
 	var groups := {}                                     # pasted groups get fresh ids
-	for kind in ["ramps", "entities", "props", "blocks", "texts", "lights"]:
+	for kind in ["ramps", "entities", "props", "blocks", "texts", "lights", "cube_models"]:
 		for d in data.get(kind, []):
 			if kind == "entities" and d.get("kind", "") in ["start", "finish"] and _find_entity(d["kind"]):
 				skipped += 1
@@ -2447,6 +2490,9 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 				"lights":
 					o = LightNode.new()
 					lights_root.add_child(o)
+				"cube_models":
+					o = CubeModelNode.new()
+					cube_models_root.add_child(o)
 				_:
 					o = BlockNode.new()
 					blocks_root.add_child(o)
@@ -2881,6 +2927,8 @@ func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
 			return hit.collider.get_meta("text")
 		if hit.collider.has_meta("light"):
 			return hit.collider.get_meta("light")
+		if hit.collider.has_meta("cube_model"):
+			return hit.collider.get_meta("cube_model")
 	# fallback: the ridge line on screen (thin ramps seen edge-on in the side views, clicks on the ridge seam)
 	var best: Node3D = null
 	var best_d := PICK_PIXELS
@@ -3380,6 +3428,10 @@ func _duplicate_clicked() -> void:
 	if selected is LightNode and selection().size() == 1:
 		_paste(_clip_of([selected]), Vector3(10, 0, 0))
 		return
+	if selected is CubeModelNode and selection().size() == 1:
+		var bb: AABB = (selected as CubeModelNode).world.bounds()
+		_paste(_clip_of([selected]), Vector3(maxf(bb.size.x, 4.0) + 4.0, 0, 0))
+		return
 	if selected is TextNode and selection().size() == 1:
 		_paste(_clip_of([selected]), (selected as TextNode).global_basis * Vector3(0, -float(selected.data["height"]) * 1.4, 0))
 		return
@@ -3755,11 +3807,19 @@ func _play_clicked() -> void:
 			var out := 2.5
 			var pos := p0 + t * 3.0 + side * out + Vector3(0, -out * RampShape.face_slope(r.shape_spec(), -1.0) + 0.3, 0)
 			at = Transform3D(Basis(Vector3.UP, atan2(-t.x, -t.z)), pos)
+	_play_from(at, start, finish)
+
+
+## Play from `at` (the start plate, or wherever build mode's P was pressed).
+func _play_from(at: Transform3D, start: EntityNode = null, finish: EntityNode = null) -> void:
 	_end_drag()
 	if selected:
 		selected.set_selected(false)
 	_ui.visible = false
 	var volumes := entities_root.get_children().filter(func(x): return x.is_volume())
+	for cm in cube_models_root.get_children():
+		volumes.append_array(cm.kill_volumes())
+		cm.set_show_mats(false)
 	var stages := {}
 	for e in entities_root.get_children():
 		if e.kind == "stage":
@@ -3774,16 +3834,32 @@ func _build_clicked() -> void:
 		return
 	_checkpoint()                                        # one editor undo step takes back a whole build session
 	_ui.visible = false
-	build.start((panes[0].camera as Camera3D).global_transform)
+	var target: CubeModelNode = selected if selected is CubeModelNode else null
+	build.start((panes[0].camera as Camera3D).global_transform, target)
 
 
 func _on_build_stopped() -> void:
 	_ui.visible = true
 	_map_changed()
-	_set_status("Back from build mode: %d cubes in the map. Ctrl+Z here undoes the whole session; E goes back in." % cubes.world.count())
+	var n := 0
+	for cm in cube_models_root.get_children():
+		n += cm.world.count()
+	_set_status("Back from build mode: %d cube objects, %d cubes. Ctrl+Z here undoes the whole session; E goes back in." % [
+		cube_models_root.get_child_count(), n])
+	_refresh_props()
+
+
+## Build mode's P: play from where you are, and come back to build mode afterwards.
+func _play_from_build(at: Transform3D) -> void:
+	_play_from(at, _find_entity("start"), _find_entity("finish"))
 
 
 func _on_play_stopped() -> void:
+	for cm in cube_models_root.get_children():
+		cm.set_show_mats(true)
+	if build.resume_after_play:
+		build.resume()
+		return
 	_ui.visible = true
 	if selected:
 		selected.set_selected(true)

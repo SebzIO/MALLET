@@ -91,13 +91,29 @@ block piece and a CS:S brush are, so build mode needs no translation layer:
 - C / V copy and paste, Delete removes, Z/U and I undo and redo.
 - Cubes save with the map, play-test (you can stand and surf on them), and export to both SurfsUp and CS:S.
 
-## Next (Sauerbraten features not in yet)
+## Done in 0.7
 
-- **Materials for cubes:** water, lava, glass, clip, noclip, death. SurfsUp and CS:S both have equivalents.
-- **Texture placement per face:** Sauerbraten's `vscale`, `voffset` and `vrotate` (O / P + wheel).
-- **Heightmap mode** (H / LAlt): brush-based terrain sculpting.
-- **Corner selection** with the middle mouse button.
-- **Placing entities from first person:** lights, props, start / finish and stage plates where you aim.
-- **Play from here:** jump into play mode at the camera.
-- **Fewer CS:S brushes:** merge neighbouring cubes with the same textures into bigger brushes before export.
-- **Saved cube brushes:** Sauerbraten's `savebrush` / `pastebrush`, tied into prefabs.
+- **Cube objects** (SurfForge's own addition: Sauerbraten's whole map is one cube world). Each build is an object you
+  move, turn, copy and group in the editor views; build mode edits it in its own grid wherever it is. N starts a new
+  one.
+- **Materials** (T): water, lava, glass, clip, noclip, gameclip, death, alpha; M shows / hides the invisible ones.
+- **Texture settings** (F3, O / P + wheel): Sauerbraten's vscale, vrotate (incl. flips), voffset, vscroll, vcolor,
+  valpha, vlayer; Y picks up (gettex); Y + wheel cycles most recently used first (texmru); replace, replacesel,
+  vreset.
+- **Selection:** corner selection (middle drag), passthrough (Ctrl), reorient (right click on the selection), editcut
+  (Shift + drag), gotosel (J).
+- **Heightmap** (H / Alt) with brushes (B + wheel), including smoothing.
+- **Blend painting** (keypad 1-5, 0 off, 8 / 9 brush size) of a face's blend layer.
+- **Entities:** Tab places them; click / drag; 1-4 + wheel attributes (a light's radius and r g b exactly like
+  Sauerbraten); R + wheel, X, Delete; keypad Enter selects entities in the cube selection; C / V copy them with the
+  cubes.
+- **Toggles:** 5 hidehud, 6 entselsnap, 7 outline, 8 wireframe, L fullbright; F5 savemap, F9 texture name; K is a
+  no-op (lighting is live).
+- **P** plays from where you stand and returns to build mode.
+
+## Left out on purpose
+
+- **Lighting bakes** (calclight, patchlight, lightmap settings): SurfForge lights are live, and CS:S bakes its own
+  when it compiles.
+- **PVS, waypoints, newmap / mapenlarge:** Godot culls on its own, SurfForge has no bots, and maps have no fixed size.
+- **The console:** its commands are keys and menus here (T and F3).

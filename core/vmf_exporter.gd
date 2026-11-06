@@ -56,7 +56,7 @@ static func export_vmf(map: Dictionary, path: String, opts := {}) -> Dictionary:
 		return {"error": "Can't write %s (%s)" % [path, error_string(FileAccess.get_open_error())], "warnings": [], "brushes": 0, "path": path}
 	f.store_string(text)
 	f.close()
-	return {"error": "", "warnings": ex.warnings, "brushes": ex.brushes, "path": path, "materials": ex.used_materials.keys(),
+	return {"error": "", "warnings": ex.warnings, "brushes": ex.brushes, "path": path, "materials": ex.used_materials.keys() + ex.variant_materials.values(),
 		"glowing": ex.glowing_materials.keys()}
 
 
@@ -103,11 +103,16 @@ func build(map: Dictionary, opts := {}) -> String:
 			for q in Convex.points(piece):
 				lo = lo.min(q)
 				hi = hi.max(q)
-	var cube_world := CubeWorld.from_dict(map.get("cubes", {}))
-	if cube_world.count() > 0:
-		var cb := cube_world.bounds()
-		lo = lo.min(cb.position)
-		hi = hi.max(cb.end)
+	var cube_items := CubeWorld.models_of(map)
+	for item in cube_items:
+		var cw: CubeWorld = item[0]
+		if cw.count() == 0 and cw.mats.is_empty():
+			continue
+		var cb := cw.bounds()
+		for i in 8:
+			var c: Vector3 = (item[1] as Transform3D) * (cb.position + cb.size * Vector3(i & 1, (i >> 1) & 1, (i >> 2) & 1))
+			lo = lo.min(c)
+			hi = hi.max(c)
 	for e in ents:
 		for c in _box_corners(e, true):
 			lo = lo.min(c)
@@ -154,8 +159,34 @@ func build(map: Dictionary, opts := {}) -> String:
 			world.append(_water_solid(bp[0]))
 		else:
 			world.append(_block_solid(bp[0], bp[1]))
-	for k in cube_world.leaves:                          # build mode's cubes: one brush each
-		world.append(_cube_solid(cube_world, k))
+	# cube objects (build mode): a brush per cube; noclip cubes walk-through (func_illusionary); materials
+	var noclip := PackedStringArray()
+	var glassy := PackedStringArray()
+	for item in cube_items:
+		var cw: CubeWorld = item[0]
+		var cxf: Transform3D = item[1]
+		for k in cw.leaves:
+			var b := _cube_solid(cw, k, cxf)
+			if b == "":
+				continue
+			if cw.cube_in_mat(k, "noclip"):
+				noclip.append(b)
+			else:
+				world.append(b)
+		var boxes := cw.material_boxes()
+		for bx in boxes.get("water", []):
+			world.append(_water_solid(Convex.transformed(_box_piece(bx), cxf)))
+		for bx in boxes.get("glass", []):
+			glassy.append(_solid(_hull(_box_src(bx, cxf)), _special_material("sf_glass", Color(0.75, 0.9, 1.0), "\t\"$translucent\" \"1\"\n\t\"$alpha\" \"0.3\"\n")))
+		for m in ["clip", "gameclip"]:
+			for bx in boxes.get(m, []):
+				world.append(_solid(_hull(_box_src(bx, cxf)), "TOOLS/TOOLSPLAYERCLIP"))
+		for bx in boxes.get("lava", []):
+			noclip.append(_solid(_hull(_box_src(bx, cxf)), _special_material("sf_lava", Color(1.0, 0.4, 0.08), "\t\"$selfillum\" \"1\"\n")))
+	if not noclip.is_empty():
+		details.append("entity\n{\n\t\"id\" \"%d\"\n\t\"classname\" \"func_illusionary\"\n%s}\n" % [_next(), "".join(noclip)])
+	if not glassy.is_empty():
+		details.append("entity\n{\n\t\"id\" \"%d\"\n\t\"classname\" \"func_detail\"\n%s}\n" % [_next(), "".join(glassy)])
 	# text: solid 3D letters are func_detail, signs and see-through text func_illusionary
 	for td in map.get("texts", []):
 		var ts := TextShape.spec(td)
@@ -247,6 +278,14 @@ func build(map: Dictionary, opts := {}) -> String:
 				corners.append(src(wxf * Vector3(wsz.x * (0.5 if i & 1 else -0.5), wsz.y if i & 2 else 0.0, wsz.z * (0.5 if i & 4 else -0.5))))
 			var wtop := wxf * Vector3(0, wsz.y, 0)
 			entities.append(_brush_entity({"classname": "trigger_teleport", "spawnflags": "1", "target": _nearest_plate(plates, wtop, true)}, _hull(corners)))
+	for item in CubeWorld.models_of(map):            # cube lava / death: send players back
+		var cw: CubeWorld = item[0]
+		var boxes := cw.material_boxes()
+		for m in ["lava", "death"]:
+			for bx in boxes.get(m, []):
+				var top: Vector3 = (item[1] as Transform3D) * ((bx as AABB).get_center() + Vector3(0, (bx as AABB).size.y * 0.5, 0))
+				entities.append(_brush_entity({"classname": "trigger_teleport", "spawnflags": "1", "target": _nearest_plate(plates, top, true)},
+					_hull(_box_src(bx, item[1]))))
 	for ld in map.get("lights", []):
 		var ls := LightNode.spec(ld)
 		var lc := Color.html(ls["color"])
@@ -563,29 +602,79 @@ func _block_solid(piece: Array, bs: Dictionary) -> String:
 	return _solid(sides, mats, axes)
 
 
-## One cube from build mode as a brush, each side with its own texture.
-func _cube_solid(w: CubeWorld, k: Vector4i) -> String:
+## One cube from build mode as a brush, each side with its own texture and texture settings.
+func _cube_solid(w: CubeWorld, k: Vector4i, xf := Transform3D.IDENTITY) -> String:
 	var pts := []
 	for q in w.cube_points(k):
-		pts.append(src(q))
+		pts.append(src(xf * q))
 	var sides := _hull(pts)
 	if sides.size() < 4:
 		return ""
 	var tex: PackedStringArray = w.leaves[k][1]
+	var alpha := w.cube_in_mat(k, "alpha")
+	var inv := xf.basis.inverse()
 	var mats := []
 	var axes := []
 	for sd in sides:
 		var nrm_src: Vector3 = (sd[2] - sd[0]).cross(sd[1] - sd[0]).normalized()
 		var nrm := Vector3(nrm_src.x, nrm_src.z, -nrm_src.y)            # back to Godot space
-		var id: String = tex[CubeWorld.orient_of(nrm)]
+		var sl := CubeWorld.parse_slot(tex[CubeWorld.orient_of((inv * nrm).normalized())])
+		var id: String = sl["id"]
 		if id != "" and MaterialLibrary.has(id):
 			used_materials[id] = true
-			mats.append(_mat_name(id))
-			axes.append(_material_axes(nrm, {"material": id, "uv_scale": 1.0, "uv_offset": [0.0, 0.0], "uv_rot": 0.0}))
+			mats.append(_slot_material(sl, alpha))
+			axes.append(_material_axes(nrm, {"material": id, "uv_scale": float(sl["s"]), "uv_rot": float(int(sl["r"]) % 4) * 90.0,
+				"uv_offset": [float(sl["u"]), float(sl["v"])]}))
 		else:
 			mats.append(BLOCK_MATERIALS.get("grid", PLATFORM_MATERIAL))
 			axes.append(_axes(nrm_src))
 	return _solid(sides, mats, axes)
+
+
+var variant_materials := {}              ## extra VMTs: name -> {"name", "base" or "color", "params"}
+
+
+## A texture with Sauerbraten-style settings Source can do in the material itself (colour, see-through, scrolling).
+func _slot_material(sl: Dictionary, alpha_mat: bool) -> String:
+	var params := ""
+	var tint := Color.html(sl["c"])
+	if tint != Color.WHITE:
+		params += "\t\"$color\" \"[%.3f %.3f %.3f]\"\n" % [tint.r, tint.g, tint.b]
+	var a := float(sl["a"]) * (0.5 if alpha_mat and float(sl["a"]) >= 1.0 else 1.0)
+	if a < 1.0:
+		params += "\t\"$translucent\" \"1\"\n\t\"$alpha\" \"%.2f\"\n" % a
+	if float(sl["su"]) != 0.0 or float(sl["sv"]) != 0.0:
+		var su := float(sl["su"])
+		var sv := float(sl["sv"])
+		params += "\t\"Proxies\"\n\t{\n\t\t\"TextureScroll\"\n\t\t{\n\t\t\t\"texturescrollvar\" \"$basetexturetransform\"\n" \
+			+ "\t\t\t\"texturescrollrate\" \"%.3f\"\n\t\t\t\"texturescrollangle\" \"%.1f\"\n\t\t}\n\t}\n" % [
+				Vector2(su, sv).length(), rad_to_deg(atan2(sv, su))]
+	if params == "":
+		return _mat_name(sl["id"])
+	var name := "%s_v%x" % [String(sl["id"]).to_lower(), hash(params) & 0xffffff]
+	variant_materials[name] = {"name": name, "base": String(sl["id"]).to_lower(), "params": params,
+		"surface": MaterialLibrary.entry(sl["id"]).get("surface", "concrete")}
+	return "SURFFORGE/" + name.to_upper()
+
+
+## A material made just for the map (glass, lava): a plain colour.
+func _special_material(name: String, c: Color, params: String) -> String:
+	variant_materials[name] = {"name": name, "color": c.to_html(false), "params": params, "surface": "glass" if name == "sf_glass" else "concrete"}
+	return "SURFFORGE/" + name.to_upper()
+
+
+static func _box_piece(bx: AABB) -> Array:
+	var pts := []
+	for i in 8:
+		pts.append(bx.position + bx.size * Vector3(i & 1, (i >> 1) & 1, (i >> 2) & 1))
+	return Convex.from_points(pts)
+
+
+func _box_src(bx: AABB, xf: Transform3D) -> Array:
+	var out := []
+	for i in 8:
+		out.append(src(xf * (bx.position + bx.size * Vector3(i & 1, (i >> 1) & 1, (i >> 2) & 1))))
+	return out
 
 
 ## A water brush: the water surface on top, nothing drawn on the other sides (Source draws the volume itself).
@@ -635,6 +724,9 @@ static func write_materials(ids: Array, root: String) -> Array:
 	var dir := root.path_join("materials/surfforge")
 	DirAccess.make_dir_recursive_absolute(dir)
 	for id in ids:
+		if id is Dictionary:
+			out.append_array(_write_variant(id, dir))
+			continue
 		var img := MaterialLibrary.image(id, "color")
 		if img == null:
 			continue
@@ -655,6 +747,26 @@ static func write_materials(ids: Array, root: String) -> Array:
 		out.append(["materials/surfforge/%s_glow.vmt" % name, gvmt])
 		out.append(["materials/surfforge/%s.vtf" % name, vtf])
 		out.append(["materials/surfforge/%s.vmt" % name, vmt])
+	return out
+
+
+## A material variant (a library texture with extra settings) or a plain-colour material made for the map.
+static func _write_variant(d: Dictionary, dir: String) -> Array:
+	var out := []
+	var name: String = d["name"]
+	var base: String = d.get("base", name)
+	if d.has("color"):
+		var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+		img.fill(Color.html(d["color"]))
+		var vtf := dir.path_join(name + ".vtf")
+		_write_vtf(img, vtf)
+		out.append(["materials/surfforge/%s.vtf" % name, vtf])
+	var vmt := dir.path_join(name + ".vmt")
+	var f := FileAccess.open(vmt, FileAccess.WRITE)
+	f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"surfforge/%s\"\n\t\"$surfaceprop\" \"%s\"\n%s}\n" % [base,
+		d.get("surface", "concrete"), d.get("params", "")])
+	f.close()
+	out.append(["materials/surfforge/%s.vmt" % name, vmt])
 	return out
 
 
