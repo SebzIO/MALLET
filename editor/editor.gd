@@ -1002,6 +1002,7 @@ func _load_dict(data: Dictionary) -> void:
 	outliner.folders = (data.get("folders", []) as Array).duplicate(true)   # first: objects file into them as they load
 	_gen_ramp = null
 	_gen_source = null
+	play.finish_speed = 0.0                  # another map's finish speed would mislead
 	environment = Look.default_environment()
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
@@ -3967,7 +3968,8 @@ func _on_play_stopped() -> void:
 	if selected:
 		selected.set_selected(true)
 	var t := " Best time: %s (its path is drawn in the views; G in play mode races it)." % PlayMode.format_time(play.best_time) if play.best_time > 0.0 else ""
-	_set_status("Back in the editor. Top speed %d u/s.%s" % [roundi(play.top_speed), t])
+	var f := " Finish speed on your last run: %d u/s." % roundi(play.finish_speed) if play.finish_speed > 0.0 else ""
+	_set_status("Back in the editor. Top speed %d u/s.%s%s" % [roundi(play.top_speed), f, t])
 
 
 # ================================================================================================= export

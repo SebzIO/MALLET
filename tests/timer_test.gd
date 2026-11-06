@@ -59,6 +59,8 @@ func _run() -> void:
 		check("play HUD (time, speed, keys line) centred in the view", absf(box.position.x + box.size.x * 0.5 - vp.x * 0.5) < 1.5
 			and absf(cross.position.x + cross.size.x * 0.5 - vp.x * 0.5) < 1.5 and absf(cross.position.y + cross.size.y * 0.5 - vp.y * 0.5) < 1.5,
 			"(box centre %.0f, cross centre %.0f, view %.0f)" % [box.position.x + box.size.x * 0.5, cross.position.x + cross.size.x * 0.5, vp.x * 0.5])
+		check("finish speed shown: %d u/s entering the finish at 900" % roundi(play.finish_speed),
+			absf(play.finish_speed - 900.0) < 2.0 and play._info_label.text.contains("finish %d u/s" % roundi(play.finish_speed)), play._info_label.text)
 		var truth := crossing_time(xs, gap, dt) - crossing_time(xs, 0.0, dt)
 		var got: float = play.run_time
 		play.stop()
@@ -66,6 +68,10 @@ func _run() -> void:
 		check("a %.2f m gap: timer %.4f s, true crossing to crossing %.4f s" % [gap, got, truth], absf(got - truth) < 0.0015,
 			"(off by %.2f ms)" % ((got - truth) * 1000.0))
 		check("...between ticks, not a whole number of them", absf(got / dt - roundf(got / dt)) > 0.02, "(%.2f ticks)" % (got / dt))
+	play.start(Transform3D(Basis(), Vector3(-0.6, 560, 0)), AABB(), AABB(), -1000.0)
+	await process_frame
+	check("last run's finish speed still shown on the next play", play._info_label.text.contains("finish 900 u/s"), play._info_label.text)
+	play.stop()
 	check("times show the thousandths", PlayMode.format_time(6.4127) == "0:06.413")
 	print("TIMER: ", "PASS" if ok else "FAIL")
 	quit()

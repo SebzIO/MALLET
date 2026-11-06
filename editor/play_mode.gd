@@ -18,6 +18,7 @@ var player: SUCC
 var spawn := Transform3D.IDENTITY
 var top_speed := 0.0
 var best_time := 0.0
+var finish_speed := 0.0                 ## u/s you were moving when you entered the finish on your last finished run (0 = none yet)
 
 enum Run { WAITING, RUNNING, FINISHED }
 var run_state := Run.WAITING
@@ -234,6 +235,7 @@ func _physics_process(delta: float) -> void:
 					_flash_message("Finish blocked: reach stage %d first" % missing[0])
 					return
 				run_state = Run.FINISHED
+				finish_speed = Vector2(player.velocity.x, player.velocity.z).length() * UNITS_PER_METRE
 				# ...and stops the moment they crossed into the finish zone (between two ticks)
 				run_time -= (1.0 - crossing(prev, feet, _finish_box, true)) * delta
 				_flash = 3.0
@@ -394,7 +396,8 @@ func _process(_delta: float) -> void:
 	if not _stages.is_empty():
 		var cur: int = _reached.max() if not _reached.is_empty() else 1
 		stage = "   ·   stage %d / %d" % [cur, _stages.size() + 1]
-	_info_label.text = "top %d u/s%s%s   ·   R restart   ·   Backspace checkpoint%s   ·   Esc editor" % [roundi(top_speed), stage, best,
+	var fin := "   ·   finish %d u/s" % roundi(finish_speed) if finish_speed > 0.0 else ""
+	_info_label.text = "top %d u/s%s%s%s   ·   R restart   ·   Backspace checkpoint%s   ·   Esc editor" % [roundi(top_speed), fin, stage, best,
 		("   ·   G ghost " + ("on" if show_ghost else "off")) if not ghost.is_empty() else ""]
 	# centre the HUD for the window, once its text is set (anchors don't apply under a CanvasLayer)
 	var vp := get_viewport().get_visible_rect().size
