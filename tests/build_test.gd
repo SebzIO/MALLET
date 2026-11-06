@@ -321,6 +321,10 @@ func _run() -> void:
 	check("E: back to the editor", not bm.active and ed._ui.visible)
 	var cm: CubeModelNode = models()[0]
 	ed._select(cm)
+	var hb: AABB = cm.world.bounds()
+	var hpt: Vector3 = cm.global_transform.affine_inverse() * ed._move_handle_point(cm)
+	check("its move handle sits in the middle of its cubes (not at its origin)", hb.grow(0.01).has_point(hpt)
+		and hpt.distance_to(hb.get_center()) < 0.01, "(handle %s, cubes %s)" % [hpt, hb])
 	var c0: Vector3 = cm.center()
 	ed._checkpoint()
 	cm.translate_by(Vector3(40, 0, 0))

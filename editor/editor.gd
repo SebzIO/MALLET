@@ -2736,11 +2736,17 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			ov.draw_rect(Rect2(s - Vector2(6, 6), Vector2(12, 12)), Color(0, 0, 0, 0.75), true)
 			ov.draw_rect(Rect2(s - Vector2(4.5, 4.5), Vector2(9, 9)), Color(1.0, 0.85, 0.15), true)
 	else:
-		var e: Node3D = selected
-		if not cam.is_position_behind(e.global_position):
-			var s := cam.unproject_position(e.global_position)
+		var hp := _move_handle_point(selected)
+		if not cam.is_position_behind(hp):
+			var s := cam.unproject_position(hp)
 			ov.draw_rect(Rect2(s - Vector2(6, 6), Vector2(12, 12)), Color(1, 0.85, 0.15), true)
 			ov.draw_rect(Rect2(s - Vector2(7, 7), Vector2(14, 14)), Color(0, 0, 0, 0.7), false, 1.5)
+
+
+## Where an object's yellow move handle is drawn. A cube object's own origin can be far from its cubes (they're
+## built anywhere in build mode), so its handle sits in their middle - where the X / Y / Z boxes and dragging work from.
+func _move_handle_point(e: Node3D) -> Vector3:
+	return (e as CubeModelNode).center() if e is CubeModelNode else e.global_position
 
 
 func _process(delta: float) -> void:

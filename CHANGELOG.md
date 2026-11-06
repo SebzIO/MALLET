@@ -7,6 +7,8 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 
 - Build mode: Ctrl+P plays a proper run from the map's start plate, like Play in the editor (P still plays from
   where you stand). Esc in play mode brings you back to build mode where you were.
+- Editor: a selected cube object's yellow move handle is drawn in the middle of its cubes (it was at the object's
+  internal origin, which can be far away), matching its X / Y / Z boxes and where dragging moves it from.
 - Build mode heightmap: raising or lowering terrain no longer leaves floating sheets, overhangs or hidden gaps.
   Like Sauerbraten, each column's corners are kept within one layer of cubes (one corner may reach diagonally
   into the next), a change spreads out to the neighbouring columns, a cube on a slope only covers the part that's
