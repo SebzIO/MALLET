@@ -138,6 +138,28 @@ func _run() -> void:
 		if (n >> 1) & 1 and CubeWorld.corner(w.leaves[lk][0], n).y == 0:
 			lows += 1
 	check("Q + wheel: the corner you aim at went down (a slope)", lows == 1)
+	# that cube's top is pushed in now: aiming at it still lands on the cell's own top, as if it were full
+	look(Vector3(0.5, 20, -1.5), Vector3(0.5, 0, -1.5))
+	await frames(3)
+	var tl: Vector3 = (bm.target["local"] as Vector3) * CubeWorld.TICK
+	check("a pushed-in cube still counts as a full block when you aim at it", bm.target["on_cube"] and bm.target["sel"]["orient"] == 3
+		and absf(tl.y) < 0.05 and bm.target["sel"]["o"] == Vector3i(0, -32, -32), "(aim at y %.2f, cell %s)" % [tl.y, bm.target["sel"]["o"]])
+	click(MOUSE_BUTTON_MIDDLE, true)
+	await frames(1)
+	click(MOUSE_BUTTON_MIDDLE, false)
+	await frames(1)
+	check("...so the middle mouse can select its corners", not bm.corners.is_empty())
+	bm._fills.clear()
+	bm._corner_grid(models()[0].global_transform)
+	check("the blue half-size grid shows the selected square (one corner)", bm._fills.size() == 1, "(%d squares)" % bm._fills.size())
+	bm._fills.clear()
+	await tap(KEY_SPACE)
+	await tap(KEY_H)
+	await frames(1)
+	check("heightmap mode shows a banner across the top", bm._banner.visible and bm._banner.text.contains("HEIGHTMAP"))
+	await tap(KEY_H)
+	await frames(1)
+	check("...gone again when it's off", not bm._banner.visible)
 	await held_wheel(KEY_Y, 1, 3)
 	var top_slot: String = w.leaves[lk][1][3]
 	check("Y + wheel: a texture on the face you aim at", bm.texture != "" and CubeWorld.slot_id(top_slot) == bm.texture)

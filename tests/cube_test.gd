@@ -261,7 +261,7 @@ func _run() -> void:
 	var row3 := CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3, Vector3i(3, 1, 1))
 	w.begin()
 	for i in 4:
-		w.push_corner_rect(row3, [0, 8, 8, 16], 1)              # z 0..1 m, x 1..2 m: the corner lines at x = 1 m and 2 m (a top face's axes are z, x)
+		w.push_corner_quads(row3, [0, 1, 1, 4], 1)              # z 0..1 m, x 1..2 m: the corner lines at x = 1 m and 2 m (a top face's axes are z, x)
 	w.commit()
 	var c0: PackedByteArray = w.leaves[Vector4i(0, 0, 0, 0)][0]
 	var c1: PackedByteArray = w.leaves[Vector4i(8, 0, 0, 0)][0]
@@ -278,7 +278,7 @@ func _run() -> void:
 	var just_mid := CubeWorld.make_sel(Vector3i(8, 0, 0), p, 3)
 	w.begin()
 	for i in 4:
-		w.push_corner_rect(just_mid, [0, 8, 0, 24], 1)           # a rectangle wider than the one cube selected
+		w.push_corner_quads(just_mid, [0, 1, 0, 5], 1)           # a rectangle wider than the one cube selected
 	w.commit()
 	var m1: PackedByteArray = w.leaves[Vector4i(8, 0, 0, 0)][0]
 	var n0: PackedByteArray = w.leaves[Vector4i(0, 0, 0, 0)][0]
@@ -287,14 +287,14 @@ func _run() -> void:
 		and n0 == CubeWorld.FULL and n2 == CubeWorld.FULL)
 	w.begin()
 	for i in 6:
-		w.push_corner_rect(just_mid, [0, 8, 0, 24], -1)          # pull: back up to the cube's top, then nothing
+		w.push_corner_quads(just_mid, [0, 1, 0, 5], -1)          # pull: back up to the cube's top, then nothing
 	w.commit()
 	check("pulling corners back stops at the cube's own side, and adds nothing", w.leaves[Vector4i(8, 0, 0, 0)][0] == CubeWorld.FULL
 		and w.count() == 3)
 	var with_gap := CubeWorld.make_sel(Vector3i(16, 0, 0), p, 3, Vector3i(3, 1, 1))   # one cube, then two empty cells
 	w.begin()
 	for i in 5:
-		w.push_corner_rect(with_gap, [0, 8, 16, 40], -1)
+		w.push_corner_quads(with_gap, [0, 1, 4, 9], -1)
 	w.commit()
 	check("corner pulls never create cubes (empty cells stay empty)", w.count() == 3 and not w.leaves.has(Vector4i(24, 0, 0, 0))
 		and not w.leaves.has(Vector4i(16, 8, 0, 0)))
@@ -307,7 +307,7 @@ func _run() -> void:
 	var tall := CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3, Vector3i(2, 2, 1))
 	w.begin()
 	for i in 2:
-		w.push_corner_rect(tall, [0, 8, 0, 16], 1)
+		w.push_corner_quads(tall, [0, 1, 0, 3], 1)
 	w.commit()
 	check("cubes at different heights: each column's top cube is shaped", CubeWorld.corner(w.leaves[Vector4i(0, 0, 0, 0)][0], 2).y == 6
 		and CubeWorld.corner(w.leaves[Vector4i(8, 8, 0, 0)][0], 3).y == 6 and w.leaves[Vector4i(8, 0, 0, 0)][0] == CubeWorld.FULL)
@@ -347,6 +347,50 @@ func _run() -> void:
 	w.commit()
 	var dug = w.leaf_at(Vector3(-16.5, 4, -16.5))
 	check("heightmap lowers too", dug != null and CubeWorld.corner(w.leaves[dug][0], 7).y < 8)
+
+	# ---- the reported bug: a bevelled 4 m cube, then small edits on its top (no spikes, the shape kept)
+	var bev := CubeWorld.FULL.duplicate()
+	for n in [1, 3, 5, 7]:                                # the +X side's corners pushed in: a slope down that side
+		bev[n * 3] = 5
+	bev[3 * 3 + 1] = 6                                    # and two top corners dropped: a bevelled edge
+	bev[7 * 3 + 1] = 6
+	check("(the test cube is a valid bevelled shape)", CubeWorld.is_valid_shape(bev))
+	for mode in ["push", "heightmap"]:
+		w.clear()
+		w.set_cell(Vector3i.ZERO, 2, bev, CubeWorld.blank_tex())        # 4 m = 32 ticks
+		var ref := CubeWorld.new()
+		ref.set_cell(Vector3i.ZERO, 2, bev, CubeWorld.blank_tex())
+		w.begin()
+		if mode == "push":
+			w.push(CubeWorld.make_sel(Vector3i(8, 31, 8), -3, 3))     # one 0.125 m cube out of the top (like the report)
+		else:
+			for i in 2:
+				w.hmap_edit(Vector3i(12, 0, 12), 31, -3, CubeWorld.BRUSHES[2][1], 1)
+		w.commit()
+		var all_ok := true
+		var outside := 0.0
+		for k in w.leaves:
+			all_ok = all_ok and CubeWorld.is_valid_shape(w.leaves[k][0])
+			for q in w.cube_points(k):
+				var tq: Vector3 = q / CubeWorld.TICK
+				# how far any corner pokes out of the original shape (ticks)
+				var lp := tq / 32.0 * 8.0
+				for pl in CubeWorld.solid_planes(bev):
+					outside = maxf(outside, ((pl[0] as Vector3).dot(lp) - float(pl[1])) * 4.0)
+		var kept := 0
+		var n_total := 0
+		for x in 16:
+			for y in 16:
+				for z in 16:
+					var pt := Vector3(x * 2 + 1, y * 2 + 1, z * 2 + 1)
+					if pt.y > 27 and pt.x > 4 and pt.x < 20 and pt.z > 4 and pt.z < 20:
+						continue                                          # the edited spot itself
+					n_total += 1
+					if world_solid_at(w, pt) == world_solid_at(ref, pt):
+						kept += 1
+		check("bevelled cube, %s on top: every cube valid, nothing pokes out" % mode, all_ok and outside < 0.6,
+			"(pokes out %.2f ticks)" % outside)
+		check("...and the rest of its shape is kept", float(kept) / n_total > 0.97, "(%d / %d samples)" % [kept, n_total])
 
 	# ---- blend painting
 	w.clear()

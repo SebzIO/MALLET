@@ -61,6 +61,7 @@ var revision := 0
 var _index := {}                         ## Vector3i (64 m cell) -> {Vector4i: true}
 var _render := {}                        ## Vector3i (16 m chunk) -> {Vector4i: true}
 var _mrender := {}                       ## render chunk -> {material cell: true}
+var _occ := {}                           ## Vector4i(cell, q) -> how many smaller cubes are inside that cell (fast "is anything there")
 var _edit = null                         ## while an edit is open: {key: value before the edit (or null)}
 var _undo: Array = []
 var _redo: Array = []
@@ -350,31 +351,136 @@ static func _nudge(c: PackedByteArray, o: int, n: int, dir: int) -> void:
 	c[i] = v
 
 
-## A child's corners when a cube is split into 8 (octant o = its x / y / z bits): each edge's range is interpolated
-## at the child's position and doubled, like Sauerbraten's subdivision.
+## A child's corners when a cube is split into 8 (octant o = its x / y / z bits): each child corner goes to the point
+## of (the parent's solid inside the child's cell) nearest to where that corner would sit on a full cube - so the
+## children follow the parent's slopes instead of approximating them edge by edge (which could bend a child inside
+## out, or step out of the slope). Rounded to the child's 1/8 grid; a child that ends up a hair concave is nudged
+## back to convex.
 static func child_corners(c: PackedByteArray, o: int) -> PackedByteArray:
 	if c == FULL:
 		return FULL
+	var off := Vector3(4.0 * (o & 1), 4.0 * ((o >> 1) & 1), 4.0 * ((o >> 2) & 1))
+	var planes := solid_planes(c)
+	for d in 3:                                          # ...and the child's cell
+		var lo_n := Vector3.ZERO
+		lo_n[d] = -1.0
+		planes.append([lo_n, -off[d]])
+		var hi_n := Vector3.ZERO
+		hi_n[d] = 1.0
+		planes.append([hi_n, off[d] + 4.0])
+	if not _region_has_volume(planes, off):
+		return PackedByteArray()
 	var out := PackedByteArray()
 	out.resize(24)
-	for d in 3:
-		var a := (d + 1) % 3
-		var b := (d + 2) % 3
-		var od := (o >> d) & 1
+	for m in 8:
+		var home := off + Vector3(4.0 * (m & 1), 4.0 * ((m >> 1) & 1), 4.0 * ((m >> 2) & 1))
+		var q := _nearest_in(planes, home)
+		for d in 3:
+			out[m * 3 + d] = clampi(roundi((q[d] - off[d]) * 2.0), 0, 8)
+	for d in 3:                                          # an edge's ends never cross
 		for m in 8:
-			var ua := (float((o >> a) & 1) + float((m >> a) & 1)) * 0.5
-			var ub := (float((o >> b) & 1) + float((m >> b) & 1)) * 0.5
-			var end := (m >> d) & 1
-			var v := 0.0
-			for ia in 2:
-				for ib in 2:
-					var w := (ua if ia else 1.0 - ua) * (ub if ib else 1.0 - ub)
-					if w == 0.0:
-						continue
-					var pn := (end << d) | (ia << a) | (ib << b)
-					v += w * c[pn * 3 + d]
-			out[m * 3 + d] = clampi(roundi(v * 2.0 - 8.0 * od), 0, 8)
-	return PackedByteArray() if is_empty_shape(out) else out
+			if not (m >> d) & 1:
+				var hi_i := (m | (1 << d)) * 3 + d
+				if out[hi_i] < out[m * 3 + d]:
+					out[hi_i] = out[m * 3 + d]
+	if is_empty_shape(out):
+		return PackedByteArray()
+	if not is_valid_shape(out):
+		out = _make_valid(out)
+	if out.is_empty() or is_empty_shape(out):
+		return PackedByteArray()
+	return out
+
+
+## The point of a convex region (outward planes [normal, d]) nearest to p: Dykstra's alternating projections.
+static func _nearest_in(planes: Array, p: Vector3) -> Vector3:
+	var x := p
+	var fixes := []
+	fixes.resize(planes.size())
+	fixes.fill(Vector3.ZERO)
+	for it in 60:
+		var moved := 0.0
+		for i in planes.size():
+			var n: Vector3 = planes[i][0]
+			var k: float = planes[i][1]
+			var y: Vector3 = x + fixes[i]
+			var dist := n.dot(y) - k
+			var z: Vector3 = y - n * dist if dist > 0.0 else y
+			fixes[i] = y - z
+			moved += (z - x).length_squared()
+			x = z
+		if moved < 1e-10:
+			break
+	return x
+
+
+## Is there anything (more than a sliver) of the region inside the child cell? (Some point of the cell's 4 x 4 x 4
+## sample grid strictly inside it.)
+static func _region_has_volume(planes: Array, off: Vector3) -> bool:
+	for i in 5:
+		for j in 5:
+			for k in 5:
+				var pt := off + Vector3(0.1 + 0.95 * i, 0.1 + 0.95 * j, 0.1 + 0.95 * k)
+				var ok := true
+				for pl in planes:
+					if (pl[0] as Vector3).dot(pt) - float(pl[1]) > -0.02:
+						ok = false
+						break
+				if ok:
+					return true
+	return false
+
+
+## The outward planes of a cube's solid, in its 0..8 units: [normal, d] for each face triangle.
+static func solid_planes(c: PackedByteArray) -> Array:
+	var out := []
+	for o in 6:
+		for t in face_triangles(c, o):
+			var n: Vector3 = ((t[1] - t[0]) as Vector3).cross(t[2] - t[0]).normalized()
+			out.append([n, n.dot(t[0])])
+	return out
+
+
+## Rounding a child to whole 1/8 steps can leave it a hair concave: move the offending corners towards the inside
+## until it's a proper convex cube again (or give up and drop it).
+static func _make_valid(c: PackedByteArray) -> PackedByteArray:
+	var cur := c.duplicate()
+	for attempt in 24:
+		if is_valid_shape(cur):
+			return cur
+		var moved := false
+		for n in 8:
+			for d in 3:
+				var i := n * 3 + d
+				var partner := (n ^ (1 << d)) * 3 + d
+				var trial := cur.duplicate()
+				if (n >> d) & 1:
+					trial[i] = maxi(trial[i] - 1, trial[partner])
+				else:
+					trial[i] = mini(trial[i] + 1, trial[partner])
+				if trial[i] != cur[i] and _concavity(trial) < _concavity(cur):
+					cur = trial
+					moved = true
+		if not moved:
+			break
+	return cur if is_valid_shape(cur) else PackedByteArray()
+
+
+## How far the corners stick out past the faces (0 = convex).
+static func _concavity(c: PackedByteArray) -> float:
+	var worst := 0.0
+	var pts := []
+	for n in 8:
+		pts.append(corner(c, n))
+	for o in 6:
+		var want := orient_normal(o)
+		for t in face_triangles(c, o):
+			var nrm: Vector3 = ((t[1] - t[0]) as Vector3).cross(t[2] - t[0]).normalized()
+			if nrm.dot(want) < 0.0:
+				worst += 1.0 - nrm.dot(want)
+			for p in pts:
+				worst += maxf(0.0, nrm.dot(p - t[0]))
+	return worst
 
 
 ## Blend weights for a child (trilinear from the parent's corners).
@@ -413,6 +519,7 @@ func clear() -> void:
 	_index.clear()
 	_render.clear()
 	_mrender.clear()
+	_occ.clear()
 	_undo.clear()
 	_redo.clear()
 	revision += 1
@@ -442,7 +549,10 @@ func _put(k: Vector4i, v) -> void:
 		if leaves.erase(k):
 			_index[ik].erase(k)
 			_render[rk].erase(k)
+			_count_occ(k, -1)
 	else:
+		if not leaves.has(k):
+			_count_occ(k, 1)
 		leaves[k] = v
 		if not _index.has(ik):
 			_index[ik] = {}
@@ -452,6 +562,49 @@ func _put(k: Vector4i, v) -> void:
 		_render[rk][k] = true
 	_mark(k)
 	revision += 1
+
+
+func _count_occ(k: Vector4i, add: int) -> void:
+	for q in range(k.w + 1, MAX_P + 1):
+		var s := size_of(q)
+		var ck := Vector4i(floori(float(k.x) / s) * s, floori(float(k.y) / s) * s, floori(float(k.z) / s) * s, q)
+		var n: int = _occ.get(ck, 0) + add
+		if n <= 0:
+			_occ.erase(ck)
+		else:
+			_occ[ck] = n
+
+
+## Is there anything in this grid cell - part of a cube, or a material? (Build mode aims at cells like this: a cell
+## with something in it counts as a whole block, even where its faces have been pushed in.)
+func cell_occupied(c: Vector3i, p: int) -> bool:
+	if leaves.has(Vector4i(c.x, c.y, c.z, p)) or _occ.get(Vector4i(c.x, c.y, c.z, p), 0) > 0:
+		return true
+	var g := size_of(p)
+	for q in range(p + 1, MAX_P + 1):                   # part of a bigger cube: is its solid in this cell?
+		var s := size_of(q)
+		var bk := Vector4i(floori(float(c.x) / s) * s, floori(float(c.y) / s) * s, floori(float(c.z) / s) * s, q)
+		if leaves.has(bk):
+			var bc: PackedByteArray = leaves[bk][0]
+			if bc == FULL:
+				return true
+			var planes := solid_planes(bc)
+			for i in 3:
+				for j in 3:
+					for kk in 3:
+						var pt := (Vector3(c) + Vector3(0.1 + 0.4 * i, 0.1 + 0.4 * j, 0.1 + 0.4 * kk) * g - Vector3(bk.x, bk.y, bk.z)) / s * 8.0
+						var ins := true
+						for pl in planes:
+							if (pl[0] as Vector3).dot(pt) - float(pl[1]) > 1e-4:
+								ins = false
+								break
+						if ins:
+							return true
+			break
+	if not mats.is_empty():
+		if mat_at(Vector3(c) + Vector3.ONE * g * 0.5) != "" or not mats_in(c, Vector3i(g, g, g)).is_empty():
+			return true
+	return false
 
 
 func _put_mat(k: Vector4i, m) -> void:
@@ -753,10 +906,12 @@ func push_face(sel: Dictionary, dir: int, only_corner := -1) -> Dictionary:
 
 
 ## Wheel with corners selected (middle mouse drag): reshape just the selected corners of the cubes already in the
-## selection - it only ever shapes, never adds: no new cubes, nothing grows past a cube's own side, empty spots
-## stay empty. `rect` = [a0, a1, b0, b1] ticks along the face's two axes (inclusive). In each column of the box the
-## outermost cube there (on the face's side) is the one shaped, so cubes at different heights are both reached.
-func push_corner_rect(sel: Dictionary, rect: Array, dir: int) -> Dictionary:
+## selection - it only ever shapes, never adds: no new cubes, nothing grows past a cube's own side, empty spots stay
+## empty. Corners are picked on a half-size grid over the face (Sauerbraten's corner selection): each cube's face is 4
+## squares, one per corner; `quads` = [a0, a1, b0, b1] are the selected squares, counted in half cells along the face's
+## two axes. In each column of the box the outermost cube there (on the face's side) is the one shaped, so cubes at
+## different heights are both reached.
+func push_corner_quads(sel: Dictionary, quads: Array, dir: int) -> Dictionary:
 	var o: int = sel["orient"]
 	var d := o >> 1
 	var a := (d + 1) % 3
@@ -781,9 +936,9 @@ func push_corner_rect(sel: Dictionary, rect: Array, dir: int) -> Dictionary:
 				var v: Array = leaves[k]
 				var nc: PackedByteArray = (v[0] as PackedByteArray).duplicate()
 				for n in face_corners(o):
-					var pa: int = cell[a] + (g if (n >> a) & 1 else 0)
-					var pb: int = cell[b] + (g if (n >> b) & 1 else 0)
-					if pa >= rect[0] and pa <= rect[1] and pb >= rect[2] and pb <= rect[3]:
+					var qa: int = cell[a] * 2 / g + ((n >> a) & 1)
+					var qb: int = cell[b] * 2 / g + ((n >> b) & 1)
+					if qa >= quads[0] and qa <= quads[1] and qb >= quads[2] and qb <= quads[3]:
 						_nudge(nc, o, n, dir)                # (pulling stops at the cube's own side)
 				if nc != v[0]:
 					if is_empty_shape(nc):
@@ -1078,36 +1233,46 @@ func _column_top(col: Vector2i, around_y: int, p: int):
 	return null
 
 
-## Rebuild one column so its top has corner heights `hs` (ticks; order (0,0) (1,0) (0,1) (1,1) in x, z).
+## Give one column's terrain the corner heights `hs` (ticks; order (0,0) (1,0) (0,1) (1,1) in x, z). Only the
+## heights of the top corners of the cubes that are there change - their sides (bevels, slopes) stay as they were;
+## raising past the top cube builds new cubes on it, lowering past its bottom carries on into the cube below.
 func _write_column(col: Vector2i, hs: Array, around_y: int, p: int) -> void:
 	var g := size_of(p)
 	var top = _column_top(col, around_y, p)
-	var tex := (leaves[top][1] as PackedStringArray).duplicate() if top != null else blank_tex()
-	var old_top: int = top.y if top != null else floori(float(around_y) / g) * g
-	var lo := mini(floori(float(hs.min()) / g) * g, old_top)
-	var hi := maxi(ceili(float(hs.max()) / g) * g - g, old_top)
-	for y in range(lo, hi + g, g):
-		var o := Vector3i(col.x, y, col.y)
-		var hl := []
-		for h in hs:
-			hl.append(clampi(roundi(float(h - y) * 8.0 / g), 0, 8))
-		if hl.max() == 0:
-			_clear_cell(o, p)
-			continue
+	if top == null:
+		return
+	var k: Vector4i = top
+	var tex: PackedStringArray = (leaves[k][1] as PackedStringArray).duplicate()
+	var idx := [0, 1, 4, 5]                               # the bottom corner under each column corner (x, z bits)
+	# raise: cubes on top of the top one, flat underneath, their tops at the new heights
+	for y in range(k.y + g, ceili(float(hs.max()) / g) * g, g):
 		var c := FULL.duplicate()
-		var idx := [0, 1, 4, 5]                           # bottom corners under each column corner (x, z bits)
+		var any := false
 		for i in 4:
-			c[(idx[i] | 2) * 3 + 1] = hl[i]               # the top corner's height
-		if is_empty_shape(c):
-			_clear_cell(o, p)
-		elif is_valid_shape(c):
-			set_cell(o, p, c, tex)
-		else:
-			var avg := roundi(float(hl[0] + hl[1] + hl[2] + hl[3]) / 4.0)
-			for i in 4:
-				c[(idx[i] | 2) * 3 + 1] = avg
-			if avg > 0:
-				set_cell(o, p, c, tex)
+			var hl := clampi(roundi(float(hs[i] - y) * 8.0 / g), 0, 8)
+			c[(idx[i] | 2) * 3 + 1] = hl
+			any = any or hl > 0
+		if any and not is_empty_shape(c) and is_valid_shape(c):
+			set_cell(Vector3i(col.x, y, col.y), p, c, tex)
+	# the top cube, then (while digging below it) the ones under it
+	var cur = k
+	while cur != null:
+		var ck: Vector4i = cur
+		var v: Array = leaves[ck]
+		var c: PackedByteArray = (v[0] as PackedByteArray).duplicate()
+		for i in 4:
+			var t: int = (idx[i] | 2) * 3 + 1
+			var floor_y: int = c[idx[i] * 3 + 1]
+			c[t] = clampi(roundi(float(hs[i] - ck.y) * 8.0 / g), floor_y, 8)
+		if c != v[0]:
+			if is_empty_shape(c):
+				_put(ck, null)
+			elif is_valid_shape(c):
+				_put(ck, _v(c, v[1], _blend_of(v)))
+		if hs.min() >= ck.y:
+			break                                        # not digging any deeper
+		var st := cell_state(Vector3i(col.x, ck.y - g, col.y), p)
+		cur = st[0] if st.size() == 1 and st[0] is Vector4i else null
 
 
 # ------------------------------------------------------------------------------------------------ copy, rotate, flip

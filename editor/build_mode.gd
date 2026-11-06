@@ -45,7 +45,7 @@ var speed := 10.0
 var grid_p := 0
 var model: CubeModelNode = null          ## the cube object you're building on (null: the next cubes start a new one)
 var sel := {}                            ## {o, s, p, orient, model} (empty = none: edits use the face you aim at)
-var corners: Array = []                  ## corner selection [a0, a1, b0, b1] ticks (with sel), or empty
+var corners: Array = []                  ## corner selection: [a0, a1, b0, b1] half-cell squares on the face (with sel), or empty
 var target := {}                         ## what the crosshair is on
 var texture := ""
 var mru: Array = []                      ## textures, most recently used first (Sauerbraten's texmru)
@@ -73,6 +73,7 @@ var _help := PanelContainer.new()
 var _msg := Label.new()
 var _msg_time := 0.0
 var _cross: Label
+var _banner := Label.new()               ## big notice while heightmap / blend painting is on (easy to leave on by mistake)
 var _lines := MeshInstance3D.new()
 var _im := ImmediateMesh.new()
 var _menu: PopupMenu
@@ -98,6 +99,8 @@ func _ready() -> void:
 	m.vertex_color_use_as_albedo = true
 	m.no_depth_test = true
 	m.render_priority = 10
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA      # (the corner squares are see-through)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_lines.material_override = m
 	_lines.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_lines.visible = false
@@ -119,6 +122,12 @@ func _ready() -> void:
 	_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_msg.custom_minimum_size = Vector2(900, 0)
 	_msg.add_theme_font_size_override("font_size", 20)
+	_banner.add_theme_font_size_override("font_size", 22)
+	_banner.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	_banner.add_theme_color_override("font_outline_color", Color.BLACK)
+	_banner.add_theme_constant_override("outline_size", 8)
+	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hud.add_child(_banner)
 	_build_help()
 	_build_tex_panel()
 	_menu = PopupMenu.new()
@@ -505,7 +514,7 @@ func wheel(dir: int) -> void:
 		out = _edit(s, func(w: CubeWorld): return w.push_face(s, dir, cn))
 	elif not corners.is_empty() and not sel.is_empty():
 		var rect := corners.duplicate()
-		out = _edit(s, func(w: CubeWorld): return w.push_corner_rect(s, rect, dir))
+		out = _edit(s, func(w: CubeWorld): return w.push_corner_quads(s, rect, dir))
 	elif dir > 0:
 		out = _edit(s, func(w: CubeWorld): return w.push(s))
 	else:
@@ -798,17 +807,20 @@ func _bounds(a: Dictionary, b: Dictionary) -> Dictionary:
 	return out
 
 
-## A corner's position on the face's grid of corners (ticks along the face's two axes).
-static func _corner_point(t: Dictionary) -> Vector2i:
+## Which half-cell square of the face the crosshair is on (counted in half cells along the face's two axes): each
+## cube face is 4 squares, one per corner.
+static func _quad_of(t: Dictionary) -> Vector2i:
 	var s: Dictionary = t["sel"]
 	var o: int = s["orient"]
 	var d := o >> 1
 	var a := (d + 1) % 3
 	var b := (d + 2) % 3
 	var g := CubeWorld.size_of(s["p"])
-	var n: int = CubeWorld.face_corners(o)[int(t["corner"])]
 	var cell: Vector3i = s["o"]
-	return Vector2i(cell[a] + (g if (n >> a) & 1 else 0), cell[b] + (g if (n >> b) & 1 else 0))
+	var lp: Vector3 = t["local"]
+	var qa := clampi(floori(lp[a] * 2.0 / g), cell[a] * 2 / g, cell[a] * 2 / g + 1)
+	var qb := clampi(floori(lp[b] * 2.0 / g), cell[b] * 2 / g, cell[b] * 2 / g + 1)
+	return Vector2i(qa, qb)
 
 
 ## Middle drag: the cubes from the one you started on to the one you're on now, and the corners between the corner
@@ -817,9 +829,9 @@ static func _corner_point(t: Dictionary) -> Vector2i:
 func _update_corner_drag() -> void:
 	if not _on_cube(target) or not _on_cube(_drag_from) or target["sel"].get("model") != _drag_from["sel"].get("model") 			or target["sel"]["orient"] != _drag_from["sel"]["orient"] or target["sel"]["p"] != _drag_from["sel"]["p"]:
 		return
-	var p0 := _corner_point(_drag_from)
-	var p1 := _corner_point(target)
-	corners = [mini(p0.x, p1.x), maxi(p0.x, p1.x), mini(p0.y, p1.y), maxi(p0.y, p1.y)]
+	var q0 := _quad_of(_drag_from)
+	var q1 := _quad_of(target)
+	corners = [mini(q0.x, q1.x), maxi(q0.x, q1.x), mini(q0.y, q1.y), maxi(q0.y, q1.y)]
 	sel = _bounds(_drag_from["sel"], target["sel"])
 	sel["orient"] = _drag_from["sel"]["orient"]
 
@@ -1365,11 +1377,84 @@ func update_target() -> void:
 		var t := lp / CubeWorld.TICK
 		var c := Vector3i(floori(t.x / g) * g, floori(t.y / g) * g, floori(t.z / g) * g)
 		cell = c - CubeWorld.orient_step(orient) * g
+	# a cell with anything in it (part of a cube, a material) counts as a whole block: aim at the first one along the
+	# line of sight, on the face you look into it through - even where its own faces have been pushed in
+	var on_cube := hm != null
+	var hit_any := not hit.is_empty()
+	if fm != null and not (hm != null and Input.is_key_pressed(KEY_CTRL)):
+		var max_d := from.distance_to(hit["position"]) + CubeWorld.metres(p) * 2.0 if not hit.is_empty() else 600.0
+		var found := _first_occupied(fm, from, dir, max_d, p)
+		if not found.is_empty():
+			cell = found["cell"]
+			orient = found["orient"]
+			lp = found["point"]
+			point = xf * lp
+			on_cube = true
+			hit_any = true
+			var local := (lp / CubeWorld.TICK - Vector3(cell)) / float(g) * 8.0
+			var best := INF
+			var quad := CubeWorld.face_corners(orient)
+			for i in 4:
+				var dd := CubeWorld.corner(CubeWorld.FULL, quad[i]).distance_to(local)
+				if dd < best:
+					best = dd
+					corner = i
 	var ts := CubeWorld.make_sel(cell, p, orient)
 	ts["model"] = fm
 	var ent_first := ent != null and (hit.is_empty() or (ehit["position"] as Vector3).distance_to(from) <= from.distance_to(hit["position"]) + 0.05)
-	target = {"model": fm, "sel": ts, "corner": corner, "hit": not hit.is_empty(), "point": point, "on_cube": hm != null,
+	target = {"model": fm, "sel": ts, "corner": corner, "hit": hit_any, "point": point, "on_cube": on_cube,
 		"local": lp / CubeWorld.TICK, "entity": ent if ent_first else null}
+
+
+## Walk the line of sight through a cube object's grid (cells of grid power p) and return the first cell with
+## anything in it: {cell (ticks), orient (the face it was entered through), point (where, metres, object space)}.
+func _first_occupied(m: CubeModelNode, from_w: Vector3, dir_w: Vector3, max_d: float, p: int) -> Dictionary:
+	var w: CubeWorld = m.world
+	if w.count() == 0 and w.mats.is_empty():
+		return {}
+	var inv := m.global_transform.affine_inverse()
+	var o := (inv * from_w) / CubeWorld.TICK
+	var d := (inv.basis * dir_w).normalized()
+	var g := float(CubeWorld.size_of(p))
+	var bb := w.bounds()
+	var box := AABB(bb.position / CubeWorld.TICK - Vector3.ONE * g, bb.size / CubeWorld.TICK + Vector3.ONE * 2.0 * g)
+	var t0 := 0.0
+	var t1 := max_d / CubeWorld.TICK
+	for i in 3:                                          # only the part of the ray inside the object
+		if absf(d[i]) < 1e-9:
+			if o[i] < box.position[i] or o[i] > box.end[i]:
+				return {}
+		else:
+			var ta := (box.position[i] - o[i]) / d[i]
+			var tb := (box.end[i] - o[i]) / d[i]
+			t0 = maxf(t0, minf(ta, tb))
+			t1 = minf(t1, maxf(ta, tb))
+	if t0 > t1:
+		return {}
+	var start := o + d * (t0 + 1e-4)
+	var cell := Vector3i(floori(start.x / g), floori(start.y / g), floori(start.z / g))
+	var step := Vector3i(signi(int(signf(d.x))), signi(int(signf(d.y))), signi(int(signf(d.z))))
+	var tmax := Vector3(INF, INF, INF)
+	var tdelta := Vector3(INF, INF, INF)
+	for i in 3:
+		if absf(d[i]) > 1e-9:
+			var edge := float(cell[i] + (1 if step[i] > 0 else 0)) * g
+			tmax[i] = t0 + (edge - start[i]) / d[i]
+			tdelta[i] = g / absf(d[i])
+	var t := t0
+	var axis := -1
+	for n in 6000:
+		if t > t1:
+			break
+		var ct := cell * int(g)
+		if w.cell_occupied(ct, p):
+			var orient := axis * 2 + (1 if step[axis] < 0 else 0) if axis >= 0 else CubeWorld.orient_of(-d)
+			return {"cell": ct, "orient": orient, "point": (o + d * t) * CubeWorld.TICK}
+		axis = 0 if tmax.x <= tmax.y and tmax.x <= tmax.z else (1 if tmax.y <= tmax.z else 2)
+		t = tmax[axis]
+		cell[axis] += step[axis]
+		tmax[axis] += tdelta[axis]
+	return {}
 
 
 func _layout_hud() -> void:
@@ -1378,6 +1463,16 @@ func _layout_hud() -> void:
 	_info.position = Vector2(16, vp.y - _info.size.y - 14)
 	_help.position = Vector2(vp.x - _help.size.x - 16, 16)
 	_msg.position = Vector2(vp.x * 0.5 - _msg.size.x * 0.5, vp.y - 120)
+	var notes := PackedStringArray()
+	if hmap_on():
+		notes.append("HEIGHTMAP MODE - the wheel sculpts terrain (%s)" % ("hold Alt" if not hmap else "H to turn it off"))
+	if blend_mode > 0:
+		notes.append("BLEND PAINTING - left mouse paints (keypad 0 to stop)")
+	_banner.text = "
+".join(notes)
+	_banner.visible = not notes.is_empty()
+	_banner.reset_size()
+	_banner.position = Vector2(vp.x * 0.5 - _banner.size.x * 0.5, 18)
 	_tex_panel.position = Vector2(24, 24)
 
 
@@ -1433,19 +1528,7 @@ func _draw() -> void:
 		layer["s"] = s
 		_face_rect(xf, layer, Color(0.35, 0.7, 1.0))
 		if not corners.is_empty():
-			var o: int = sel["orient"]
-			var a := (d + 1) % 3
-			var b := (d + 2) % 3
-			var plane := float((sel["o"] as Vector3i)[d] + (((sel["s"] as Vector3i)[d]) * CubeWorld.size_of(sel["p"]) if o & 1 else 0))
-			var pts := []
-			for ab in [[0, 2], [1, 2], [1, 3], [0, 3]]:
-				var v := Vector3.ZERO
-				v[d] = plane
-				v[a] = corners[ab[0]]
-				v[b] = corners[ab[1]]
-				pts.append(xf * (v * CubeWorld.TICK))
-			for i in 4:
-				_line(pts[i], pts[(i + 1) % 4], Color(1, 0.3, 0.2))
+			_corner_grid(xf)
 	for e in ent_sel:
 		if is_instance_valid(e):
 			for seg in (e as Node3D).outline_lines():
@@ -1453,6 +1536,62 @@ func _draw() -> void:
 					_line(seg[i], seg[i + 1], Color(1.0, 0.55, 0.1))
 	_line(Vector3.ZERO, Vector3.ZERO, Color.BLACK)
 	_im.surface_end()
+	if not _fills.is_empty():                            # the selected corner squares, filled
+		_im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+		for f in _fills:
+			for i in [0, 1, 2, 0, 2, 3]:
+				_im.surface_set_color(Color(0.25, 0.6, 1.0, 0.38))
+				_im.surface_add_vertex(f[i])
+		_im.surface_end()
+	_fills.clear()
+
+
+var _fills: Array = []                   ## quads to fill this frame (4 points each)
+
+
+## Corner selection: a half-size grid over the selected cubes' faces (on each cell's side, as if the cell were full),
+## with the selected squares - one per corner - filled in blue.
+func _corner_grid(xf: Transform3D) -> void:
+	var m = sel.get("model")
+	if m == null or not is_instance_valid(m):
+		return
+	var w: CubeWorld = (m as CubeModelNode).world
+	var o: int = sel["orient"]
+	var d := o >> 1
+	var a := (d + 1) % 3
+	var b := (d + 2) % 3
+	var p: int = sel["p"]
+	var g := CubeWorld.size_of(p)
+	var half := g / 2
+	var s: Vector3i = sel["s"]
+	for i in s[a]:
+		for j in s[b]:
+			for depth in s[d]:                           # the outermost cell with something in it, like the push
+				var c := Vector3i.ZERO
+				c[a] = i
+				c[b] = j
+				c[d] = (s[d] - 1 - depth) if o & 1 else depth
+				var cell: Vector3i = (sel["o"] as Vector3i) + c * g
+				if not w.cell_occupied(cell, p):
+					continue
+				var plane := float(cell[d] + (g if o & 1 else 0)) * CubeWorld.TICK + (0.012 if o & 1 else -0.012)
+				for qa in 2:
+					for qb in 2:
+						var sa := cell[a] * 2 / g + qa
+						var sb := cell[b] * 2 / g + qb
+						var pts := []
+						for ab in [[0, 0], [1, 0], [1, 1], [0, 1]]:
+							var v := Vector3.ZERO
+							v[d] = plane
+							v[a] = float(cell[a] + qa * half + ab[0] * half) * CubeWorld.TICK
+							v[b] = float(cell[b] + qb * half + ab[1] * half) * CubeWorld.TICK
+							pts.append(xf * v)
+						var on: bool = sa >= corners[0] and sa <= corners[1] and sb >= corners[2] and sb <= corners[3]
+						for k in 4:
+							_line(pts[k], pts[(k + 1) % 4], Color(0.35, 0.7, 1.0, 1.0 if on else 0.45))
+						if on:
+							_fills.append(pts)
+				break
 
 
 func _line(a: Vector3, b: Vector3, c: Color) -> void:

@@ -3,6 +3,19 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.8.5 preview — 2026-11-05: no more jagged pieces; aim at pushed-in cubes; blue corner grid
+
+- Editing a small piece of a big sloped cube no longer wrecks it (the "jagged piece"). Splitting a cube into
+  smaller ones now places each small cube's corners on the big cube's actual solid, so the pieces follow its
+  slopes: half the shape error of before, and never an inside-out cube (the old split made up to 54 of them).
+- Heightmap edits only move the tops of the cubes that are there, so bevels and slopes on the sides stay;
+  raising builds on top, lowering digs into the cube below. A banner across the top shows when heightmap mode
+  (or blend painting) is on - easy to leave on by accident.
+- A grid cell with anything in it - part of a cube, or a material - counts as a whole block when you aim:
+  you can aim at (and middle-drag the corners of) a cube whose face is pushed in, from the cell's own face.
+- Corner selection (middle drag) picks half-cell squares, one per corner (Sauerbraten's corner selection), shown
+  on a blue half-size grid over the selected cubes with the chosen squares filled in.
+
 ## 0.8.4 preview — 2026-11-05: corner selection only shapes
 
 - Middle drag + wheel (corner selection) now only shapes cubes that are already there: it never creates a cube,
