@@ -3,6 +3,24 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.14.0 preview — 2026-11-07: The ramp creator
+
+- **Ramp creator** (Add > Ramp creator…, or Ramp creator… in a ramp's panel): design a ramp's shape with a live 3D
+  preview.
+  - **Cross-section**: drag points on the faces (double-click a face to add one, right-click to remove), pick a face
+    shape to start from (curved in, bulged out, two-step, lip near the edge), give it a flat top, make the two faces
+    differ, and set the style, body, angle and face length. Parts too flat to surf (under 45.6°) show orange.
+  - **Ends**, each on its own: tapered (grows from a point), rounded or flared, over as many meters as you like; a
+    diagonal cut; a lip that curls the ramp up (or down) at the end; closed ends for hollow ramps.
+- **Ramp prefabs**: save a design with a thumbnail, load it with a click, share it as a `.malletramp` file
+  (Share… / Import…). Eleven starters: plain V, tapered entry, diagonal cut end, booster lip, rounded ends, curved
+  faces, bulged faces, flat top, flared exit, closed ends, two-step face.
+- **A designed ramp is still an ordinary ramp**: Apply keeps its points; drag, stretch, bend, change its angle or face
+  length and the cross-section and ends follow (ends are measured in meters from each end, face points as a share
+  of the face). "Plain again" removes the design. Locked ramps have to be unlocked first.
+- The jump checker, fold warnings, solid / hollow, looks and both exports (SurfsUp and CS:S, including closed ends
+  and cuts as brushes) all work with designed ramps; the jump checker launches from a lip's raised end.
+
 ## 0.13.0 preview — 2026-11-07: Your own skies and shaders
 
 - **Your shaders folder** (View > Your shaders folder…, or the Folder… button beside a shader list): put Godot

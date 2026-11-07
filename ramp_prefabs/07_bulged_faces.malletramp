@@ -1,0 +1,65 @@
+{
+  "format": "mallet-ramp",
+  "version": 1,
+  "name": "Bulged faces",
+  "description": "Faces that bulge out: gentle near the top, steep near the edge.",
+  "design": {
+    "style": "v",
+    "solid": false,
+    "base_depth": 0.0,
+    "angle": 56.0,
+    "face_length": 10.5,
+    "angle_right": 56.0,
+    "face_length_right": 10.5,
+    "freeform": false,
+    "profile": {
+      "left": [
+        [
+          0.125,
+          0.0175
+        ],
+        [
+          0.25,
+          0.03
+        ],
+        [
+          0.5,
+          0.04
+        ],
+        [
+          0.75,
+          0.03
+        ],
+        [
+          0.875,
+          0.0175
+        ]
+      ],
+      "right": [
+        [
+          0.125,
+          0.0175
+        ],
+        [
+          0.25,
+          0.03
+        ],
+        [
+          0.5,
+          0.04
+        ],
+        [
+          0.75,
+          0.03
+        ],
+        [
+          0.875,
+          0.0175
+        ]
+      ],
+      "same": true,
+      "top": 0.0
+    },
+    "ends": {}
+  }
+}

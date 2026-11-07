@@ -1,0 +1,37 @@
+{
+  "format": "mallet-ramp",
+  "version": 1,
+  "name": "Booster lip",
+  "description": "The last 12 m curl up 2 m: riders leave the ramp going up.",
+  "design": {
+    "style": "v",
+    "solid": false,
+    "base_depth": 0.0,
+    "angle": 56.0,
+    "face_length": 10.5,
+    "angle_right": 56.0,
+    "face_length_right": 10.5,
+    "freeform": false,
+    "profile": {},
+    "ends": {
+      "start": {
+        "shape": "square",
+        "length": 12.0,
+        "amount": 0.5,
+        "cut": 0.0,
+        "lip": 0.0,
+        "lip_length": 10.0,
+        "closed": false
+      },
+      "end": {
+        "shape": "square",
+        "length": 12.0,
+        "amount": 0.5,
+        "cut": 0.0,
+        "lip": 2.0,
+        "lip_length": 12.0,
+        "closed": false
+      }
+    }
+  }
+}

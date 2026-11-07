@@ -20,6 +20,9 @@ var frozen: Array = []               ## locked sections, first to last (see Ramp
 var seam_tangent_lock := true        ## the editable section leaves its seam along the locked section's tangent
 var solid := false                   ## closed flat bottom instead of an open shell
 var base_depth := 0.0                ## solid only: how far the flat bottom sits below the face edges
+var profile := {}                    ## custom cross-section from the ramp creator ({} = straight faces; RampShape.profile_spec)
+var ends := {}                       ## shaped ends from the ramp creator ({} = square; {"start": .., "end": ..})
+var design := ""                     ## the ramp prefab it was made from ("" = none; just a name, for the panel)
 ## Edge-to-edge width and ridge height of a symmetric V ramp. Setting either keeps the other and recomputes
 ## the angle and face length.
 var width: float:
@@ -155,7 +158,8 @@ func to_dict() -> Dictionary:
 		"face_length_right": face_length_right, "slice": slice, "detail": detail, "freeform": freeform,
 		"frozen": frozen.duplicate(true), "seam_tangent_lock": seam_tangent_lock,
 		"solid": solid, "base_depth": base_depth, "color": color.to_html(false), "look": look, "texture": texture,
-		"tex_scale": tex_scale, "material": material, "shader": shader, "shader_params": shader_params.duplicate(true)}
+		"tex_scale": tex_scale, "material": material, "shader": shader, "shader_params": shader_params.duplicate(true),
+		"profile": profile.duplicate(true), "ends": ends.duplicate(true), "design": design}
 
 
 func from_dict(data: Dictionary) -> void:
@@ -168,6 +172,9 @@ func from_dict(data: Dictionary) -> void:
 	if data.get("freeform", false):                # keep a Freeform ramp's own right-face values
 		angle_right = float(data.get("angle_right", angle))
 		face_length_right = float(data.get("face_length_right", face_length))
+	profile = sp["profile"] if RampShape.custom_profile(sp) else {}
+	ends = sp["ends"] if RampShape.custom_ends(sp) else {}
+	design = String(data.get("design", ""))
 	color = Color.html(data.get("color", DEFAULT_COLOR.to_html(false)))
 	look = data.get("look", "color")
 	texture = data.get("texture", "")

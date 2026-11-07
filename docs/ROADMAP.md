@@ -6,7 +6,7 @@ next to Source's Hammer: that is the whole idea of this editor.
 1.0.0 is reached only when **every** milestone below is done **and the user says so**. Each milestone ships as its
 own preview (0.10.0, 0.11.0, …) with a tester zip; fixes in between are 0.x.y. Never 1.0.0 by default.
 
-Where we are: **0.13.0** (2026-11-07): your own sky and surface shaders; before it lights, particles, materials. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
+Where we are: **0.14.0** (2026-11-07): the ramp creator and ramp prefabs; before it your own shaders, lights, particles. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
 have been tested by the user and a friend.
 
 ---
@@ -57,15 +57,15 @@ Do this first, so every later feature, file and screenshot already carries the n
       bakes the custom sky into a 6-sided **skybox** (cubemap → VTF) so CS:S still gets the look; custom surface
       shaders export as their base texture.
 
-## 0.14.0: Ramp creator
-- [ ] A dedicated **ramp creator** window: design a ramp's cross-section (any surfable profile, not just the V /
+## 0.14.0: Ramp creator ✅ (2026-11-07)
+- [x] A dedicated **ramp creator** window: design a ramp's cross-section (any surfable profile, not just the V /
       half ramp) and its **ends**: taper the start / end at an angle, round them, cut them diagonally, flare them,
       add lips or a closed back.
-- [ ] Save designs as **ramp prefabs** (a library like the prefab one, with thumbnails; shareable as files).
-- [ ] A ramp made from a prefab is still an ordinary ramp: drag its points, stretch, bend, lock sections, change
+- [x] Save designs as **ramp prefabs** (a library like the prefab one, with thumbnails; shareable as files).
+- [x] A ramp made from a prefab is still an ordinary ramp: drag its points, stretch, bend, lock sections, change
       width / angle, and the custom profile and ends follow along instead of being lost.
-- [ ] The jump checker, fold warnings, solid / hollow, materials and both exports work with custom ramps.
-- [ ] Ship a handful of starter ramp prefabs (tapered entry, diagonal cut end, booster lip…).
+- [x] The jump checker, fold warnings, solid / hollow, materials and both exports work with custom ramps.
+- [x] Ship a handful of starter ramp prefabs (tapered entry, diagonal cut end, booster lip…).
 
 ## 0.15.0: Playtest builds (offline)
 Plan in detail: [PLAYTEST.md](PLAYTEST.md), parts 1–2.

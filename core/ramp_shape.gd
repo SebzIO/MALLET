@@ -34,7 +34,21 @@ const DEFAULTS := {
 	"frozen": [],                  ## locked sections, first to last: {end, angle, face_length, angle_right,
 	                               ## face_length_right, end_ghost, tangent_lock} (see "Sections" below)
 	"seam_tangent_lock": true,     ## the editable section leaves its seam along the locked section's tangent
+	"profile": {},                 ## a custom cross-section (ramp creator): see profile_spec(). {} = straight faces
+	"ends": {},                    ## shaped ends (ramp creator): see end_spec(). {} = square ends
 }
+## A face's custom shape: points [t, n] between the ridge and the edge, t = 0..1 along the face, n = how far out of
+## the face (+, away from the ramp's body) or into it (-), both as fractions of the face length, so the shape
+## follows any angle or face length. "same": the right face mirrors the left. "top": a flat top this wide (m).
+const PROFILE_DEFAULTS := {"left": [], "right": [], "same": true, "top": 0.0}
+## One end of the ramp. shape "square" / "taper" (grows from a point) / "round" (a quarter circle) / "flare" (wider
+## at the very end by `amount`), over `length` meters; `cut` turns the end face in plan view (diagonal cut, degrees);
+## `lip` lifts the ramp up to that height over `lip_length` meters (a kicker); `closed` closes a hollow ramp's end.
+const END_DEFAULTS := {"shape": "square", "length": 12.0, "amount": 0.5, "cut": 0.0, "lip": 0.0, "lip_length": 10.0,
+	"closed": false}
+const END_SHAPES := ["square", "taper", "round", "flare"]
+const MIN_END_SCALE := 0.05      ## a taper / round end starts this small (a point would be a broken brush in CS:S)
+const STAND_NORMAL_Y := 0.7      ## Source: steeper than this (normal.y < 0.7, about 45.6 degrees) is surfable
 const SEAM_BLEND := 30.0         ## meters over which a section bends from the inherited seam direction to its own
 const SETTINGS_BLEND := 20.0     ## meters over which a section's angle / face length blend in from the seam
 
@@ -57,6 +71,9 @@ static func spec(d: Dictionary) -> Dictionary:
 	s["freeform"] = bool(s["freeform"])
 	s["seam_tangent_lock"] = bool(s["seam_tangent_lock"])
 	s["frozen"] = (s["frozen"] as Array).duplicate(true)
+	s["profile"] = profile_spec(s["profile"] if s["profile"] is Dictionary else {})
+	s["ends"] = {"start": end_spec((s["ends"] as Dictionary).get("start", {}) if s["ends"] is Dictionary else {}),
+		"end": end_spec((s["ends"] as Dictionary).get("end", {}) if s["ends"] is Dictionary else {})}
 	if not s["style"] in STYLES:
 		s["style"] = "v"
 	if not s["freeform"]:
@@ -65,8 +82,68 @@ static func spec(d: Dictionary) -> Dictionary:
 	return s
 
 
+## A complete custom cross-section from a (possibly partial) one: points sorted, kept inside the face.
+static func profile_spec(d: Dictionary) -> Dictionary:
+	var p := PROFILE_DEFAULTS.duplicate(true)
+	for k in PROFILE_DEFAULTS:
+		if d.has(k):
+			p[k] = d[k]
+	for side in ["left", "right"]:
+		var pts := []
+		for q in (p[side] if p[side] is Array else []):
+			if q is Array and q.size() >= 2:
+				pts.append([clampf(float(q[0]), 0.01, 0.99), clampf(float(q[1]), -0.6, 0.6)])
+		pts.sort_custom(func(a, b): return a[0] < b[0])
+		p[side] = pts
+	p["same"] = bool(p["same"])
+	p["top"] = clampf(float(p["top"]), 0.0, 40.0)
+	if p["same"]:
+		p["right"] = (p["left"] as Array).duplicate(true)
+	return p
+
+
+static func end_spec(d: Dictionary) -> Dictionary:
+	var e := END_DEFAULTS.duplicate()
+	for k in END_DEFAULTS:
+		if d.has(k):
+			e[k] = d[k]
+	if not e["shape"] in END_SHAPES:
+		e["shape"] = "square"
+	for k in ["length", "amount", "cut", "lip", "lip_length"]:
+		e[k] = float(e[k])
+	e["length"] = maxf(e["length"], 0.5)
+	e["lip_length"] = maxf(e["lip_length"], 0.5)
+	e["cut"] = clampf(e["cut"], -75.0, 75.0)
+	e["closed"] = bool(e["closed"])
+	return e
+
+
+## Whether the ramp has a custom cross-section (the plain V / half ramp geometry is kept exactly otherwise).
+static func custom_profile(s: Dictionary) -> bool:
+	var p: Dictionary = s.get("profile", {})
+	return not (p.get("left", []) as Array).is_empty() or not (p.get("right", []) as Array).is_empty() or float(p.get("top", 0.0)) > 0.0
+
+
+## Whether either end is shaped.
+static func custom_ends(s: Dictionary) -> bool:
+	var e: Dictionary = s.get("ends", {})
+	for k in ["start", "end"]:
+		var d: Dictionary = e.get(k, {})
+		if d.get("shape", "square") != "square" or float(d.get("cut", 0.0)) != 0.0 or float(d.get("lip", 0.0)) != 0.0 \
+				or bool(d.get("closed", false)):
+			return true
+	return false
+
+
 ## How far the lowest point of the cross-section sits below the spine (for kill floors and framing).
 static func depth_below_spine(s: Dictionary) -> float:
+	if custom_profile(s):
+		var lowest := 0.0
+		for q in profile(s)["pts"]:
+			lowest = minf(lowest, q.y)
+		var fl := float(s["ends"]["start"]["amount"]) if s["ends"]["start"]["shape"] == "flare" else 0.0
+		var fr := float(s["ends"]["end"]["amount"]) if s["ends"]["end"]["shape"] == "flare" else 0.0
+		return -lowest * (1.0 + maxf(fl, fr))
 	var l := float(s["face_length"]) * sin(deg_to_rad(s["angle"]))
 	var r := float(s["face_length_right"]) * sin(deg_to_rad(s["angle_right"]))
 	return maxf(l, r) + (float(s["base_depth"]) if s["solid"] else HOLLOW_SKIN)
@@ -317,6 +394,8 @@ static func _catmull_rom(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: 
 ## runs counter-clockwise. Returns {"pts": PackedVector2Array, "ride": [first, last] riding-surface vertices,
 ## "edges": indices of the face edge points (for fold checks), "lines": vertices the selection outline follows}.
 static func profile(s: Dictionary) -> Dictionary:
+	if custom_profile(s):
+		return _custom_profile(s)
 	var a := deg_to_rad(s["angle"])
 	var b := deg_to_rad(s["angle_right"])
 	var la: float = s["face_length"]
@@ -356,6 +435,103 @@ static func profile(s: Dictionary) -> Dictionary:
 	# hollow V: a thin shell, the underside a little inside the faces
 	pts = PackedVector2Array([re, apex, le, Vector2(le.x * 0.9, le.y - t), Vector2(0, -t * 2.0), Vector2(re.x * 0.9, re.y - t)])
 	return {"pts": pts, "ride": [0, 2], "edges": [0, 2], "lines": [0, 1, 2]}
+
+
+## The riding surface of a custom cross-section, from the right edge over the top to the left edge (only the faces
+## the style has), as profile points.
+static func surface(s: Dictionary) -> PackedVector2Array:
+	var p: Dictionary = s["profile"] if s["profile"] is Dictionary and s["profile"].has("same") else profile_spec(s.get("profile", {}))
+	var a := deg_to_rad(s["angle"])
+	var b := deg_to_rad(s["angle_right"])
+	var la: float = s["face_length"]
+	var lb: float = s["face_length_right"]
+	var half := float(p["top"]) * 0.5
+	var r0 := Vector2(half, 0.0)
+	var l0 := Vector2(-half, 0.0)
+	var dr := Vector2(cos(b), -sin(b))
+	var nr := Vector2(sin(b), cos(b))                     # out of the right face (up and to the right)
+	var dl := Vector2(-cos(a), -sin(a))
+	var nl := Vector2(-sin(a), cos(a))
+	var out := PackedVector2Array()
+	if s["style"] != "half_left":
+		out.append(r0 + dr * lb)
+		var rp: Array = p["right"]
+		for i in range(rp.size() - 1, -1, -1):
+			out.append(r0 + dr * lb * float(rp[i][0]) + nr * lb * float(rp[i][1]))
+		out.append(r0)
+	if s["style"] != "half_right":
+		if half > 0.0 or s["style"] == "half_left":
+			out.append(l0)
+		for q in p["left"]:
+			out.append(l0 + dl * la * float(q[0]) + nl * la * float(q[1]))
+		out.append(l0 + dl * la)
+	return out
+
+
+static func _custom_profile(s: Dictionary) -> Dictionary:
+	var surf := surface(s)
+	var n := surf.size()
+	var pts := PackedVector2Array(surf)
+	var lowest := 0.0
+	for q in surf:
+		lowest = minf(lowest, q.y)
+	var bd: float = s["base_depth"]
+	var t := HOLLOW_SKIN
+	var first := surf[0]
+	var last := surf[n - 1]
+	match s["style"]:
+		"half_left":                                     # surf runs from the back wall's top to the left edge
+			if s["solid"]:
+				var bottom := lowest - maxf(bd, 0.0)
+				if bd > 0.01 or lowest < last.y - 0.01:
+					pts.append(Vector2(last.x, bottom))
+				pts.append(Vector2(first.x, bottom))
+			else:
+				for i in range(n - 1, -1, -1):
+					pts.append(surf[i] + Vector2(0, -t))
+		"half_right":                                    # surf runs from the right edge to the back wall's top
+			if s["solid"]:
+				var bottom := lowest - maxf(bd, 0.0)
+				pts.append(Vector2(last.x, bottom))
+				if bd > 0.01 or lowest < first.y - 0.01:
+					pts.append(Vector2(first.x, bottom))
+			else:
+				for i in range(n - 1, -1, -1):
+					pts.append(surf[i] + Vector2(0, -t))
+		_:
+			if s["solid"]:
+				if bd > 0.01 or lowest < minf(first.y, last.y) - 0.01:
+					var bottom := lowest - maxf(bd, 0.0)
+					pts.append(Vector2(last.x, bottom))
+					pts.append(Vector2(first.x, bottom))
+			else:
+				for i in range(n - 1, -1, -1):
+					pts.append(surf[i] + Vector2(0, -t))
+	var edges := []
+	if s["style"] != "half_left":
+		edges.append(0)
+	if s["style"] != "half_right":
+		edges.append(n - 1)
+	var lines := range(n) if not s["solid"] else range(pts.size())
+	return {"pts": pts, "ride": [0, n - 1], "edges": edges, "lines": lines, "surface": n}
+
+
+## How a shaped end scales the cross-section `d` meters from that end (1 = full size).
+static func end_scale(e: Dictionary, d: float) -> float:
+	var u := clampf(d / float(e["length"]), 0.0, 1.0)
+	match e["shape"]:
+		"taper": return lerpf(MIN_END_SCALE, 1.0, u)
+		"round": return maxf(sqrt(1.0 - (1.0 - u) * (1.0 - u)), MIN_END_SCALE)
+		"flare": return 1.0 + float(e["amount"]) * (1.0 - u) * (1.0 - u)
+	return 1.0
+
+
+## How much a lip lifts the ramp `d` meters from that end.
+static func end_lift(e: Dictionary, d: float) -> float:
+	if float(e["lip"]) == 0.0:
+		return 0.0
+	var u := clampf(1.0 - d / float(e["lip_length"]), 0.0, 1.0)
+	return float(e["lip"]) * u * u
 
 
 ## The upright frame at every station: right (always level) and up. Ramps never roll. Returns [rights, ups].
@@ -403,6 +579,20 @@ static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 	var n := ridge.size()
 	if n < 2:
 		return out
+	var ends: Dictionary = s.get("ends", {}) if (s.get("ends", {}) as Dictionary).has("start") else spec(s)["ends"]
+	var shaped := custom_ends(s)
+	var scales := PackedFloat32Array()
+	scales.resize(n)
+	scales.fill(1.0)
+	if shaped:                                           # shaped ends: the cross-section's size and a lip's lift
+		ridge = ridge.duplicate()
+		var total: float = st["length"]
+		for i in n:
+			var d: float = st["dist"][i]
+			scales[i] = end_scale(ends["start"], d) * end_scale(ends["end"], total - d)
+			ridge[i].y += end_lift(ends["start"], d) + end_lift(ends["end"], total - d)
+		st["pos"] = ridge
+		out["ridge"] = ridge
 	var fr := frames(st, s)
 	var rights: PackedVector3Array = fr[0]
 	var ups: PackedVector3Array = fr[1]
@@ -420,7 +610,13 @@ static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 			station_spec["face_length_right"] = v[3]
 			prof = profile(station_spec)
 			last_vals = v
-		profiles.append(prof["pts"])
+		if scales[i] != 1.0:
+			var sc := PackedVector2Array()
+			for q in prof["pts"]:
+				sc.append(q * scales[i])
+			profiles.append(sc)
+		else:
+			profiles.append(prof["pts"])
 	var pp: PackedVector2Array = profiles[0]
 	var pc := pp.size()
 	var rings: Array[PackedVector3Array] = []
@@ -443,6 +639,11 @@ static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 			if Vector3(d.x, 0, d.z).dot(ff.normalized()) <= spacing * 0.05:
 				folds.append(i)
 				break
+	var touched := {}                                    # stations a diagonal cut trimmed (not checked against the settings)
+	if shaped:
+		for which in ["start", "end"]:
+			if float(ends[which]["cut"]) != 0.0:
+				touched.merge(_cut_end(rings, ridge, tans, float(ends[which]["cut"]), which == "end"))
 	# u across the profile: the riding surface spans exactly 0..1 so textures can frame it; the rest continues
 	# in proportion to its size
 	var perim := PackedFloat32Array([0.0])
@@ -491,6 +692,43 @@ static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 				stool.set_uv(profiles[end][k] / UV_METRES)
 				stool.add_vertex(ring[k])
 			tris += 1
+	# closed ends: a hollow ramp's end shut from edge to edge (the space under the faces)
+	var closures: Array = []
+	if shaped and not s["solid"]:
+		var surf_n: int = prof.get("surface", 3 if s["style"] == "v" else 2) if custom_profile(s) else (3 if s["style"] == "v" else 2)
+		for which in ["start", "end"]:
+			if not ends[which]["closed"] or surf_n < 2:
+				continue
+			var end := 0 if which == "start" else n - 1
+			var poly2 := PackedVector2Array()
+			var poly3 := PackedVector3Array()
+			var ring: PackedVector3Array = rings[end]
+			if custom_profile(s) or s["style"] == "v":
+				for k in surf_n:
+					poly2.append(profiles[end][k])
+					poly3.append(ring[k])
+			else:                                        # plain half ramp: its shell's surface is points 1..2 / 0..1
+				var idx := [1, 2] if s["style"] == "half_left" else [0, 1]
+				for k in idx:
+					poly2.append(profiles[end][k])
+					poly3.append(ring[k])
+			if s["style"] != "v":                        # half ramps close down the back wall
+				var back := poly2[0] if s["style"] == "half_left" else poly2[poly2.size() - 1]
+				var low := minf(poly2[0].y, poly2[poly2.size() - 1].y)
+				var wall2 := Vector2(back.x, low)
+				var wall3: Vector3 = ridge[end] + rights[end] * wall2.x + ups[end] * wall2.y
+				poly2.append(wall2)
+				poly3.append(wall3)
+			if poly2.size() < 3:
+				continue
+			var tri := Geometry2D.triangulate_polygon(poly2)
+			for c in range(0, tri.size(), 3):
+				stool.set_smooth_group(-1)
+				for k in [tri[c], tri[c + 1], tri[c + 2]]:
+					stool.set_uv(poly2[k] / UV_METRES)
+					stool.add_vertex(poly3[k])
+				tris += 1
+			closures.append(poly3)
 	stool.generate_normals()
 	var mesh := ArrayMesh.new()
 	stool.commit(mesh)
@@ -501,7 +739,37 @@ static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 	out["mesh"] = mesh
 	out["folds"] = folds
 	out["triangles"] = tris
+	out["scales"] = scales
+	out["closures"] = closures
+	out["touched"] = touched
 	return out
+
+
+## A diagonal cut at one end: a plane through the end of the spine, turned `cut` degrees from square in plan view.
+## Every cross-section point past it is pulled back onto it along the ramp; the end cross-section is laid onto it.
+static func _cut_end(rings: Array, ridge: PackedVector3Array, tans: PackedVector3Array, cut: float, at_end: bool) -> Dictionary:
+	var touched := {}
+	var n := ridge.size()
+	var e := n - 1 if at_end else 0
+	var th := Vector3(tans[e].x, 0.0, tans[e].z)
+	if th.length() < 1e-4:
+		return touched
+	th = th.normalized() * (1.0 if at_end else -1.0)    # pointing out of the ramp at this end
+	var nrm := th.rotated(Vector3.UP, deg_to_rad(cut))
+	var along := th.dot(nrm)
+	var p: Vector3 = ridge[e]
+	for i in n:
+		var ring: PackedVector3Array = rings[i]
+		var changed := false
+		for k in ring.size():
+			var sd := (ring[k] - p).dot(nrm)
+			if sd > 0.0 or i == e:
+				ring[k] -= th * sd / along
+				changed = true
+		if changed:
+			rings[i] = ring
+			touched[i] = true
+	return touched
 
 
 static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, e: Vector3,
@@ -545,6 +813,10 @@ static func self_check(s: Dictionary, res: Dictionary, tol := 1e-3) -> PackedStr
 		if s["slice"] == "vertical" and up.distance_to(Vector3.UP) > tol:
 			problems.append("station %d: profile is not upright" % i)
 		var v: Array = res["values"][i]
+		if custom_profile(s) or float((res.get("scales", PackedFloat32Array()) as PackedFloat32Array)[i] if i < (res.get("scales", PackedFloat32Array()) as PackedFloat32Array).size() else 1.0) != 1.0:
+			continue                                     # (a custom cross-section / shaped end: lengths differ on purpose)
+		if (res.get("touched", {}) as Dictionary).has(i):
+			continue                                     # (trimmed by a diagonal cut)
 		for k in prof["edges"]:
 			var e: Vector3 = ring[k] - ridge[i]
 			var left: bool = pp[k].x < 0.0

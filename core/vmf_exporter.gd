@@ -433,6 +433,18 @@ func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL) -> PackedStringAr
 			var sides := _hull(pts)
 			if sides.size() >= 4:
 				out.append(_solid(sides, material))
+	for poly in geo.get("closures", []):                 # closed ends: a slab 0.3 m thick across the end
+		var pv: PackedVector3Array = poly
+		if pv.size() < 3:
+			continue
+		var nrm := (pv[1] - pv[0]).cross(pv[pv.size() - 1] - pv[0]).normalized()
+		var pts := []
+		for q in pv:
+			pts.append(src(q + nrm * 0.15))
+			pts.append(src(q - nrm * 0.15))
+		var sides := _hull(pts)
+		if sides.size() >= 4:
+			out.append(_solid(sides, material))
 	return out
 
 

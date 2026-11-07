@@ -149,6 +149,7 @@ var _gen_about: Label
 var _gen_warning: Label
 var _gen_shape_buttons := {}
 const SETTINGS_PATH := "user://settings.cfg"
+var ramp_creator: RampCreator
 const BAKED_SKY_LABEL := "This map's sky (made into a skybox)"
 const BLOCK_LOOKS := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "neon", "material", "shader"]   ## (no "texture")
 
@@ -277,6 +278,11 @@ func _build_ui() -> void:
 	welcome.open_requested.connect(func():
 		welcome.hide()
 		_open_clicked())
+	ramp_creator = RampCreator.new()
+	ramp_creator.hide()
+	_ui.add_child(ramp_creator)
+	ramp_creator.apply_requested.connect(apply_design)
+	ramp_creator.new_ramp_requested.connect(new_ramp_from_design)
 
 
 func _build_ui_main() -> void:
@@ -307,7 +313,8 @@ func _build_ui_main() -> void:
 		_bar_item(bar, spec)
 	# Add: everything you can put in a map, each with its key
 	_menu(bar, "Add ▾", [
-		["Ramp", KEY_N, _add_ramp_clicked], ["Generate a ramp shape…", KEY_R, _generate_clicked], [],
+		["Ramp", KEY_N, _add_ramp_clicked], ["Generate a ramp shape…", KEY_R, _generate_clicked],
+		["Ramp creator (cross-sections, ends, ramp prefabs)…", KEY_NONE, _open_ramp_creator], [],
 		["Block", KEY_O, _add_block_clicked], ["Draw blocks (drag in a 2D view)", KEY_D, _toggle_draw_mode, "draw"], [],
 		["Start platform", KEY_B, func(): _add_entity("start")], ["Finish platform", KEY_M, func(): _add_entity("finish")],
 		["Stage plate", KEY_T, func(): _add_entity("stage")], ["Teleport", KEY_Y, func(): _add_entity("teleport")],
@@ -450,6 +457,29 @@ func _build_props(props: VBoxContainer) -> void:
 	shape.item_selected.connect(func(i): _edit_prop("style", RampShape.STYLES[i]))
 	_add_row(_ramp_props, "Shape", shape)
 	_fields["style"] = shape
+	# its design (ramp creator): custom cross-section and shaped ends
+	var drow := HBoxContainer.new()
+	var creator_btn := Button.new()
+	creator_btn.text = "Ramp creator\u2026"
+	creator_btn.focus_mode = Control.FOCUS_NONE
+	creator_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	creator_btn.tooltip_text = "Design this ramp's cross-section and ends, or give it one of your ramp prefabs."
+	creator_btn.pressed.connect(_open_ramp_creator)
+	drow.add_child(creator_btn)
+	var plain_btn := Button.new()
+	plain_btn.text = "Plain again"
+	plain_btn.focus_mode = Control.FOCUS_NONE
+	plain_btn.tooltip_text = "Back to straight faces and square ends (keeps the angle, face length and points)."
+	plain_btn.pressed.connect(_plain_ramp_clicked)
+	drow.add_child(plain_btn)
+	_add_row(_ramp_props, "Design", drow)
+	_fields["ramp_plain"] = plain_btn
+	var dlabel := Label.new()
+	dlabel.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dlabel.add_theme_font_size_override("font_size", 12)
+	dlabel.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
+	_ramp_props.add_child(dlabel)
+	_fields["ramp_design"] = dlabel
 	var body := OptionButton.new()
 	body.add_item("Hollow (open underneath)", 0)
 	body.add_item("Solid (flat bottom)", 1)
@@ -1280,6 +1310,9 @@ func _refresh_props() -> void:
 		_fields["flip"].tooltip_text = ("Unlock the ramp first: flipping would change what each lock freezes." if not r.frozen.is_empty()
 			else "Reverse which end the ramp is ridden from. The ramp itself stays exactly where it is.")
 		_fields["solid"].select(1 if r.solid else 0)
+		var custom := RampShape.custom_profile(r.shape_spec()) or RampShape.custom_ends(r.shape_spec())
+		_fields["ramp_design"].text = (r.design + ": " if r.design != "" else "") + RampPrefabs.describe(r.to_dict())
+		_fields["ramp_plain"].disabled = not custom or not r.frozen.is_empty()
 		_fields["slice"].select(0 if r.slice == "vertical" else 1)
 		_fields["freeform"].set_pressed_no_signal(r.freeform)
 		_freeform_box.visible = r.freeform
@@ -3688,6 +3721,11 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if ramp_creator.visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			ramp_creator.hide()
+			get_viewport().set_input_as_handled()
+		return
 	if welcome.visible:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			welcome.hide()
@@ -4042,6 +4080,68 @@ func _add_ramp_clicked() -> void:
 		b = b.snapped(Vector3.ONE * snap_step)
 	_select(_make_ramp(a, b))
 	_set_status("New ramp added at the view center.")
+
+
+# ================================================================================================= ramp creator
+## Open the ramp creator, loaded with the selected ramp's design (or the last one worked on).
+func _open_ramp_creator() -> void:
+	ramp_creator.env = environment.duplicate(true)
+	ramp_creator.has_target = selected is RampNode
+	ramp_creator.target_locked = selected is RampNode and not (selected as RampNode).frozen.is_empty()
+	if selected is RampNode:
+		ramp_creator.set_design((selected as RampNode).to_dict(), (selected as RampNode).design)
+	ramp_creator.open()
+
+
+## Give the selected ramp a design: it keeps its points (and look), takes the shape.
+func apply_design(design: Dictionary, name := "") -> void:
+	if not selected is RampNode:
+		_set_status("Select a ramp first, or use Add as a new ramp.")
+		return
+	var r := selected as RampNode
+	if not r.frozen.is_empty():
+		_set_status("Unlock the ramp first: a design changes the whole ramp, its locked part too.")
+		return
+	_checkpoint()
+	_set_design(r, design, name)
+	ramp_creator.hide()
+	_refresh_props()
+	_set_status("The ramp now has the design %s - drag, stretch and bend it as usual." % ("'%s'" % name if name != "" else "from the ramp creator"))
+
+
+## A new ramp at the view center with a design.
+func new_ramp_from_design(design: Dictionary, name := "") -> void:
+	_add_ramp_clicked()
+	if selected is RampNode:
+		_set_design(selected as RampNode, design, name)
+		ramp_creator.hide()
+		_refresh_props()
+		_set_status("New ramp%s added at the view center." % (" '%s'" % name if name != "" else ""))
+
+
+func _set_design(r: RampNode, design: Dictionary, name: String) -> void:
+	var d := RampPrefabs.design_of(design)
+	var rd := r.to_dict()
+	for k in RampPrefabs.DESIGN_KEYS:
+		rd[k] = d[k]
+	rd["design"] = name
+	r.from_dict(rd)
+	_map_changed()
+
+
+func _plain_ramp_clicked() -> void:
+	if not selected is RampNode or not (selected as RampNode).frozen.is_empty():
+		return
+	_checkpoint()
+	var r := selected as RampNode
+	var rd := r.to_dict()
+	rd["profile"] = {}
+	rd["ends"] = {}
+	rd["design"] = ""
+	r.from_dict(rd)
+	_map_changed()
+	_refresh_props()
+	_set_status("Plain ramp again: straight faces, square ends.")
 
 
 # ================================================================================================= ramp generator

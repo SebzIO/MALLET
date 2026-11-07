@@ -1,0 +1,23 @@
+{
+  "format": "mallet-ramp",
+  "version": 1,
+  "name": "Flat top",
+  "description": "A 4 m flat top between the faces (you can stand on it).",
+  "design": {
+    "style": "v",
+    "solid": false,
+    "base_depth": 0.0,
+    "angle": 56.0,
+    "face_length": 10.5,
+    "angle_right": 56.0,
+    "face_length_right": 10.5,
+    "freeform": false,
+    "profile": {
+      "left": [],
+      "right": [],
+      "same": true,
+      "top": 4.0
+    },
+    "ends": {}
+  }
+}

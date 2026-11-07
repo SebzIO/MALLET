@@ -1,0 +1,33 @@
+{
+  "format": "mallet-ramp",
+  "version": 1,
+  "name": "Two-step face",
+  "description": "Each face bends halfway: gentler above, steeper below.",
+  "design": {
+    "style": "v",
+    "solid": false,
+    "base_depth": 0.0,
+    "angle": 56.0,
+    "face_length": 10.5,
+    "angle_right": 56.0,
+    "face_length_right": 10.5,
+    "freeform": false,
+    "profile": {
+      "left": [
+        [
+          0.5,
+          0.05
+        ]
+      ],
+      "right": [
+        [
+          0.5,
+          0.05
+        ]
+      ],
+      "same": true,
+      "top": 0.0
+    },
+    "ends": {}
+  }
+}
