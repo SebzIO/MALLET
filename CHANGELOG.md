@@ -3,7 +3,7 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
-## Unreleased (0.11.0: materials)
+## 0.11.0 preview — 2026-11-07: materials (Getridou, LURKing, CS:S), glow, texture placing
 
 - **Getridou's materials**: 170 materials made by Getridou (a few from photos his friends sent him), shipped with his
   permission (thank you!). They have their own "Getridou" section in the material picker with his credit, and "by

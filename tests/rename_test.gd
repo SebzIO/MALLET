@@ -32,7 +32,7 @@ func _run() -> void:
 	ed.welcome.hide()
 
 	# ---- the name
-	check("the version says MALLET", MalletVersion.full().begins_with("MALLET 0.10"), "(%s)" % MalletVersion.full())
+	check("the version says MALLET", MalletVersion.full().begins_with("MALLET 0."), "(%s)" % MalletVersion.full())
 	check("the project is called MALLET", ProjectSettings.get_setting("application/config/name") == "MALLET")
 	ed._set_title("x.mallet")
 	check("the window title says MALLET", get_root().title.begins_with("MALLET"), "(%s)" % get_root().title)
