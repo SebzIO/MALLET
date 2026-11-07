@@ -33,10 +33,9 @@ Do this first, so every later feature, file and screenshot already carries the n
 - [x] **CS:S materials** from the user's own install (core/css_library.gd reads VPK / VMT / VTF): 2,851 world
       materials in the picker, CS:S exports use them by name, SurfsUp exports copy them in only with the export
       window's switch on (the user's decision 2026-11-06), else a similar MALLET material stands in.
-- [ ] **Better liquids and glass**: new water (waves, depth color, foam at edges), lava (glow, slow flow), glass
-      (reflections, tint, frosted option), each with a few presets; exported to SurfsUp; closest CS:S equivalents.
-- [ ] Texture browser: categories / search / credits so a few hundred materials stay easy to find. (Search and
-      credits done; build mode's texture menu still to do.)
+- [x] **Better liquids and glass**: core/shaders water (waves, depth, foam, refraction), lava, glass; presets in
+      Look.LIQUIDS / Look.GLASS; block Liquid menu, Map panel looks for build mode; CS:S water per preset.
+- [x] Texture browser: categories / search / credits (F2 in build mode is the same picker, search focused on open).
 
 ## 0.12.0: Worldbuilding (lights and particles)
 - [ ] More light types: area / rectangle lights, colored and flickering / pulsing lights, light presets (torch,

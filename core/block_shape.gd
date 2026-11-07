@@ -19,6 +19,7 @@ const DEFAULTS := {
 	"water": false,                      ## a water volume: a moving see-through surface, players pass through
 	"deadly": false,                     ## water only: touching it sends players back (lava, acid)
 	"water_color": "1f6b8c", "clarity": 0.55,
+	"liquid": "water",                   ## water only: a Look.LIQUIDS preset (water, pool, tropical, lake, swamp, river, acid, lava...)
 }
 ## The sides of a block, in its own space (front = -Z, the way it faces).
 const SLOTS := ["top", "bottom", "front", "back", "left", "right"]
@@ -335,11 +336,15 @@ static func _water_mesh(pieces: Array, inv: Transform3D, s: Dictionary) -> Array
 
 
 static func water_material(s: Dictionary) -> ShaderMaterial:
-	var mat := ShaderMaterial.new()
-	mat.shader = Look.shader("water")
-	mat.set_shader_parameter("tint", Color.html(s.get("water_color", "1f6b8c")))
-	mat.set_shader_parameter("clarity", float(s.get("clarity", 0.55)))
-	mat.set_shader_parameter("glow", float(s.get("glow", 0.0)))
+	var id: String = s.get("liquid", "water")
+	var p: Dictionary = Look.LIQUIDS.get(id, Look.LIQUIDS["water"])
+	var own: String = String(s.get("water_color", p["color"])).to_lower()
+	# the block's own color only when someone changed it: not the preset's, and not the plain default for another preset
+	var plain := own == String(p["color"]).to_lower() or (own == String(DEFAULTS["water_color"]).to_lower() and id != "water")
+	var mat := Look.liquid_material(id, null if plain else Color.html(own),
+		float(s.get("clarity", p.get("clarity", 0.55))))
+	if float(s.get("glow", 0.0)) > 0.0 and p["style"] == "water":
+		mat.set_shader_parameter("glow", float(s["glow"]))
 	return mat
 
 

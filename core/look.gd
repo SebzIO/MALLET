@@ -41,6 +41,40 @@ const RAMP_LOOKS := {
 }
 const LOOK_ORDER := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "neon", "texture", "material"]
 
+## Liquids (block water and build mode's water / lava): style "water" (waves, depth, foam) or "lava" (crust over glowing
+## cracks). "css": the CS:S water material it exports as (lava exports as a self-lit color).
+const LIQUIDS := {
+	"water": {"label": "Clear blue water", "style": "water", "color": "2a8fb0", "deep": "0a2f4a", "clarity": 0.65,
+		"waves": 1.0, "foam": 0.5, "css": "LIQUIDS/AZTECWATER"},
+	"pool": {"label": "Swimming pool", "style": "water", "color": "52c7e0", "deep": "1873a8", "clarity": 0.9,
+		"waves": 0.4, "foam": 0.2, "css": "nature/water_canals_water_clear"},
+	"tropical": {"label": "Tropical sea", "style": "water", "color": "3fd1c4", "deep": "0d5a78", "clarity": 0.8,
+		"waves": 1.3, "foam": 0.8, "css": "nature/water_coast01"},
+	"lake": {"label": "Dark lake", "style": "water", "color": "2f5d55", "deep": "0a1c1a", "clarity": 0.35,
+		"waves": 0.7, "foam": 0.3, "css": "liquids/militiawater"},
+	"swamp": {"label": "Murky swamp", "style": "water", "color": "4d5530", "deep": "1a1c0c", "clarity": 0.08,
+		"waves": 0.3, "foam": 0.15, "css": "nature/water_canals_water_murky"},
+	"river": {"label": "Flowing river", "style": "water", "color": "3a8aa0", "deep": "103a4a", "clarity": 0.55,
+		"waves": 1.0, "foam": 0.7, "flow": [0.0, 1.2], "css": "nature/water_canals_city"},
+	"acid": {"label": "Toxic acid (deadly)", "style": "water", "color": "7dff3a", "deep": "1e5a10", "clarity": 0.3,
+		"waves": 0.6, "foam": 0.6, "glow": 1.2, "deadly": true, "css": "nature/sewer_water001"},
+	"lava": {"label": "Lava (deadly)", "style": "lava", "color": "ff4a0a", "hot": "ffb020", "crust": "2a1208",
+		"crust_amount": 0.45, "glow": 3.0, "flow": [0.3, 0.1], "deadly": true},
+	"magma": {"label": "Magma, thick crust (deadly)", "style": "lava", "color": "e03008", "hot": "ffd060",
+		"crust": "140a06", "crust_amount": 0.65, "glow": 2.5, "flow": [0.12, 0.05], "deadly": true},
+	"plasma": {"label": "Plasma (deadly)", "style": "lava", "color": "4a6aff", "hot": "e0f0ff", "crust": "0a0a30",
+		"crust_amount": 0.35, "glow": 3.5, "flow": [0.0, 0.6], "deadly": true},
+}
+const LIQUID_ORDER := ["water", "pool", "tropical", "lake", "swamp", "river", "acid", "lava", "magma", "plasma"]
+const GLASS := {
+	"clear": {"label": "Clear glass", "color": "e6f4ff", "clarity": 0.85, "frost": 0.0},
+	"blue": {"label": "Blue tinted", "color": "6aa8ff", "clarity": 0.7, "frost": 0.0},
+	"green": {"label": "Bottle green", "color": "4ac080", "clarity": 0.6, "frost": 0.0},
+	"frosted": {"label": "Frosted", "color": "f0f4f8", "clarity": 0.75, "frost": 0.7},
+	"smoked": {"label": "Smoked", "color": "30343a", "clarity": 0.45, "frost": 0.1},
+}
+const GLASS_ORDER := ["clear", "blue", "green", "frosted", "smoked"]
+
 static var _shaders := {}
 static var _ramp_mats := {}
 static var _textures := {}
@@ -167,3 +201,41 @@ static func ramp_material(look: String, color: Color, texture_path := "", textur
 			sm.uv1_scale = Vector3(1.0, 20.0 / max(texture_scale, 0.5), 1.0)
 			sm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	return sm
+
+
+## A liquid preset (LIQUIDS) as a material; `color` / `clarity` (block settings) override the preset's own.
+static func liquid_material(id: String, color = null, clarity = null) -> ShaderMaterial:
+	var p: Dictionary = LIQUIDS.get(id, LIQUIDS["water"])
+	var m := ShaderMaterial.new()
+	var c: Color = color if color is Color else Color.html(p["color"])
+	var fl: Array = p.get("flow", [0.0, 0.0])
+	if p["style"] == "lava":
+		m.shader = shader("lava")
+		m.set_shader_parameter("tint", c)
+		m.set_shader_parameter("hot_color", Color.html(p["hot"]))
+		m.set_shader_parameter("crust_color", Color.html(p["crust"]))
+		m.set_shader_parameter("crust", float(p.get("crust_amount", 0.45)))
+		m.set_shader_parameter("glow", float(p.get("glow", 3.0)))
+		m.set_shader_parameter("flow", Vector2(fl[0], fl[1]))
+	else:
+		m.shader = shader("water")
+		m.set_shader_parameter("tint", c)
+		m.set_shader_parameter("deep_color", Color.html(p["deep"]) if color == null else c.darkened(0.7))
+		m.set_shader_parameter("clarity", float(clarity) if clarity != null else float(p["clarity"]))
+		m.set_shader_parameter("waves", float(p.get("waves", 1.0)))
+		m.set_shader_parameter("foam", float(p.get("foam", 0.5)))
+		m.set_shader_parameter("glow", float(p.get("glow", 0.0)))
+		m.set_shader_parameter("flow", Vector2(fl[0], fl[1]))
+	return m
+
+
+## A glass preset (GLASS) as a material.
+static func glass_material(id: String) -> ShaderMaterial:
+	var p: Dictionary = GLASS.get(id, GLASS["clear"])
+	var m := ShaderMaterial.new()
+	m.shader = shader("glass")
+	m.set_shader_parameter("tint", Color.html(p["color"]))
+	m.set_shader_parameter("clarity", float(p["clarity"]))
+	m.set_shader_parameter("frost", float(p["frost"]))
+	return m
+

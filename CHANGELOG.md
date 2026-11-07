@@ -10,6 +10,13 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   its artist and license in the picker. Every pack was checked by hand; the ones left out and why are in
   materials/SAUERBRATEN.txt.
 - The material picker's search box is ready to type in as soon as it opens (F2 in build mode too).
+- **Better water, lava and glass.** Water has moving waves, shows what's beneath (bent by the waves), gets darker where
+  it's deep, foams where it meets walls and the shore, and reflects the sky at shallow angles. Lava is a dark crust
+  drifting over glowing cracks. Glass reflects at its edges, bends what's behind it, and can be tinted or frosted.
+  Presets: clear water, swimming pool, tropical sea, dark lake, murky swamp, flowing river, toxic acid, lava, magma,
+  plasma; glass clear, blue, bottle green, frosted, smoked. A water block's panel has a Liquid menu (lava, acid and
+  the other deadly ones turn Deadly on); build mode's water, lava and glass take their looks from the Map panel.
+  CS:S gets the matching CS:S water for each water preset, lava as a glowing surface you pass through, glass tinted.
 
 ## 0.11.1 preview — 2026-11-07: Sauerbraten-style selection moving
 

@@ -241,6 +241,21 @@ static func _surface_shader(see_through: bool) -> Shader:
 	return _shaders[k]
 
 
+## The map's looks for build mode's water / lava / glass cubes (the Map panel): preset ids from Look.LIQUIDS / GLASS.
+static var mat_looks := {"water": "water", "lava": "lava", "glass": "clear"}
+
+
+## Use these looks (from the map's environment: water_look, lava_look, glass_look). True if anything changed.
+static func set_mat_looks(env: Dictionary) -> bool:
+	var want := {"water": env.get("water_look", "water"), "lava": env.get("lava_look", "lava"), "glass": env.get("glass_look", "clear")}
+	if want == mat_looks:
+		return false
+	mat_looks = want
+	for k in ["mat:water", "mat:lava", "mat:glass"]:
+		_materials.erase(k)
+	return true
+
+
 static func material_look(name: String) -> Material:
 	var key := "mat:" + name
 	if _materials.has(key):
@@ -248,22 +263,19 @@ static func material_look(name: String) -> Material:
 	var m: Material
 	match name:
 		"water":
-			m = BlockShape.water_material({"water_color": "1f6b8c", "clarity": 0.55})
+			m = Look.liquid_material(mat_looks.get("water", "water"))
 		"lava":
-			m = BlockShape.water_material({"water_color": "ff5a10", "clarity": 0.0, "glow": 2.5})
+			m = Look.liquid_material(mat_looks.get("lava", "lava"))
+		"glass":
+			m = Look.glass_material(mat_looks.get("glass", "clear"))
 		_:
 			var sm := StandardMaterial3D.new()
 			var c: Color = MAT_COLORS.get(name, Color(1, 1, 1, 0.2))
 			sm.albedo_color = c
 			sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
-			if name == "glass":
-				sm.roughness = 0.05
-				sm.metallic = 0.3
-				sm.metallic_specular = 0.9
-			else:
-				sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-				sm.no_depth_test = false
+			sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			sm.no_depth_test = false
 			m = sm
 	_materials[key] = m
 	return m

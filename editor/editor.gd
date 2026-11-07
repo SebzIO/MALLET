@@ -613,11 +613,29 @@ func _build_map_props(props: VBoxContainer) -> void:
 		var keys := Look.ENV_PRESETS.keys()
 		if i < keys.size():
 			_checkpoint()
+			var keep := {}                                 # (a sky preset doesn't change the water / lava / glass looks)
+			for k in ["water_look", "lava_look", "glass_look"]:
+				if environment.has(k):
+					keep[k] = environment[k]
 			environment = Look.preset_environment(keys[i])
+			environment.merge(keep, true)
 			_apply_environment()
 			_refresh_props())
 	_add_row(_map_props, "Sky preset", preset)
 	_fields["env_preset"] = preset
+	for spec in [["water_look", "Build mode water", Look.LIQUID_ORDER.filter(func(k): return Look.LIQUIDS[k]["style"] == "water"), Look.LIQUIDS],
+			["lava_look", "Build mode lava", Look.LIQUID_ORDER.filter(func(k): return Look.LIQUIDS[k]["style"] == "lava"), Look.LIQUIDS],
+			["glass_look", "Build mode glass", Look.GLASS_ORDER, Look.GLASS]]:
+		var ob := OptionButton.new()
+		var ids: Array = spec[2]
+		for k in ids:
+			ob.add_item(spec[3][k]["label"])
+		ob.focus_mode = Control.FOCUS_NONE
+		var key: String = spec[0]
+		ob.item_selected.connect(func(i): _edit_mat_look(key, ids[i]))
+		ob.set_meta("ids", ids)
+		_add_row(_map_props, spec[1], ob)
+		_fields["env_" + key] = ob
 	for spec in [["sky_top", "Sky color (top)"], ["sky_horizon", "Sky color (horizon)"], ["ground", "Below the horizon"],
 			["sun_color", "Sun color"], ["ambient_color", "Shadow fill color"], ["fog_color", "Fog color"]]:
 		var key: String = spec[0]
@@ -651,9 +669,25 @@ func _build_map_props(props: VBoxContainer) -> void:
 
 
 func _apply_environment() -> void:
+	_apply_mat_looks()
 	world_env.environment = Look.build_environment(environment)
 	Look.apply_sun(sun, environment)
 	sun.directional_shadow_max_distance = 1500.0
+
+
+## The Map panel's looks for build mode's water / lava / glass cubes (saved with the map's environment).
+func _edit_mat_look(key: String, value: String) -> void:
+	if _updating_ui:
+		return
+	_checkpoint("env:" + key)
+	environment[key] = value
+	_apply_mat_looks()
+
+
+func _apply_mat_looks() -> void:
+	if CubeWorld.set_mat_looks(environment):
+		for cm in cube_models_root.get_children():
+			cm.rebuild_all()
 
 
 func _edit_env(key: String, value) -> void:
@@ -676,6 +710,9 @@ func _refresh_map_props() -> void:
 	for key in ["sun_yaw", "sun_pitch", "sun_energy", "ambient_energy", "stars", "aurora", "nebula", "fog_density"]:
 		_set_field("env_" + key, float(environment[key]))
 	_fields["env_fog"].button_pressed = bool(environment["fog"])
+	for key in ["water_look", "lava_look", "glass_look"]:
+		var ob: OptionButton = _fields["env_" + key]
+		ob.select(maxi((ob.get_meta("ids") as Array).find(environment.get(key, {"water_look": "water", "lava_look": "lava", "glass_look": "clear"}[key])), 0))
 	_updating_ui = false
 
 
@@ -850,6 +887,7 @@ func _refresh_props() -> void:
 		_set_field("block_clarity", float(b.data.get("clarity", 0.55)))
 		_set_field("block_glow", float(b.data.get("glow", 0.0)))
 		_fields["block_deadly"].set_pressed_no_signal(bool(b.data.get("deadly", false)))
+		_fields["block_liquid"].select(maxi(Look.LIQUID_ORDER.find(b.data.get("liquid", "water")), 0))
 		if is_water:
 			for k in ["block_mat_head", "block_side", "block_mat", "block_uv_box", "block_cutter", "block_hollow", "block_wall_box"]:
 				(_fields[k] as Control).visible = false
@@ -1870,6 +1908,13 @@ func _build_block_props(props: VBoxContainer) -> void:
 	var water_box := VBoxContainer.new()
 	_block_props.add_child(water_box)
 	_fields["block_water_box"] = water_box
+	var lq := OptionButton.new()                          # a liquid preset: water, pool, sea, lake, swamp, river, acid, lava...
+	for k in Look.LIQUID_ORDER:
+		lq.add_item(Look.LIQUIDS[k]["label"])
+	lq.focus_mode = Control.FOCUS_NONE
+	lq.item_selected.connect(func(i): if not _updating_ui: _edit_prop("block_liquid", Look.LIQUID_ORDER[i]); _refresh_props())
+	_add_row(water_box, "Liquid", lq)
+	_fields["block_liquid"] = lq
 	var wc := ColorPickerButton.new()
 	wc.custom_minimum_size = Vector2(0, 26)
 	wc.color_changed.connect(func(c): _edit_prop("block_water_color", c))
@@ -3995,6 +4040,13 @@ func _edit_prop(key: String, value) -> void:
 			"block_water_color": d["water_color"] = (value as Color).to_html(false)
 			"block_clarity": d["clarity"] = value
 			"block_deadly": d["deadly"] = value
+			"block_liquid":                              # a preset sets its look and whether it's deadly
+				var lp: Dictionary = Look.LIQUIDS[value]
+				d["liquid"] = value
+				d["water_color"] = lp["color"]
+				d["clarity"] = float(lp.get("clarity", 0.0))
+				d["deadly"] = bool(lp.get("deadly", false))
+				d["glow"] = 0.0
 			"block_mat":
 				_paint = value
 				if _block_side == "all":

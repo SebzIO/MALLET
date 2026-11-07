@@ -93,10 +93,10 @@ You are free:
 * Non-Commercial. You may not use this work for commercial purposes.
 
 * Share Alike. If you alter, transform, or build upon this work,
-  you may distribute the resulting work only under a licence identical to this one.
+  you may distribute the resulting work only under a license identical to this one.
 
 * For any reuse or distribution, you must make clear to others
-  the licence terms of this work.
+  the license terms of this work.
 
 * Any of these conditions can be waived if you get permission from the copyright holder.
 

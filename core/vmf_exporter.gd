@@ -154,14 +154,22 @@ func build(map: Dictionary, opts := {}) -> String:
 	for e in ents:
 		if e.get("kind", "") in ["start", "finish", "stage"] and not e.get("zone_only", false):
 			world.append(_solid(_hull(_box_corners(e, false).map(func(c): return src(c))), PLATFORM_MATERIAL))
+	# liquids: water as CS:S water (the preset's own CS:S water material); lava a glowing surface you pass through
+	var env: Dictionary = map.get("environment", {})
+	var noclip := PackedStringArray()
+	var glassy := PackedStringArray()
 	for bp in block_pieces:
 		if bp[1].get("water", false):
-			world.append(_water_solid(bp[0]))
+			var lp: Dictionary = Look.LIQUIDS.get(bp[1].get("liquid", "water"), Look.LIQUIDS["water"])
+			if lp["style"] == "lava":
+				noclip.append(_solid(_hull(Array(Convex.points(bp[0])).map(func(q): return src(q))), _lava_material(bp[1].get("liquid", "lava"))))
+			else:
+				world.append(_water_solid(bp[0], lp.get("css", WATER_MATERIAL)))
 		else:
 			world.append(_block_solid(bp[0], bp[1]))
 	# cube objects (build mode): a brush per cube; noclip cubes walk-through (func_illusionary); materials
-	var noclip := PackedStringArray()
-	var glassy := PackedStringArray()
+	var cube_water: String = Look.LIQUIDS.get(env.get("water_look", "water"), Look.LIQUIDS["water"]).get("css", WATER_MATERIAL)
+	var gl: Dictionary = Look.GLASS.get(env.get("glass_look", "clear"), Look.GLASS["clear"])
 	for item in cube_items:
 		var cw: CubeWorld = item[0]
 		var cxf: Transform3D = item[1]
@@ -175,14 +183,15 @@ func build(map: Dictionary, opts := {}) -> String:
 				world.append(b)
 		var boxes := cw.material_boxes()
 		for bx in boxes.get("water", []):
-			world.append(_water_solid(Convex.transformed(_box_piece(bx), cxf)))
+			world.append(_water_solid(Convex.transformed(_box_piece(bx), cxf), cube_water))
 		for bx in boxes.get("glass", []):
-			glassy.append(_solid(_hull(_box_src(bx, cxf)), _special_material("sf_glass", Color(0.75, 0.9, 1.0), "\t\"$translucent\" \"1\"\n\t\"$alpha\" \"0.3\"\n")))
+			glassy.append(_solid(_hull(_box_src(bx, cxf)), _special_material("sf_glass", Color.html(gl["color"]),
+				"\t\"$translucent\" \"1\"\n\t\"$alpha\" \"%.2f\"\n" % clampf(1.0 - float(gl["clarity"]) * 0.8, 0.15, 0.9))))
 		for m in ["clip", "gameclip"]:
 			for bx in boxes.get(m, []):
 				world.append(_solid(_hull(_box_src(bx, cxf)), "TOOLS/TOOLSPLAYERCLIP"))
 		for bx in boxes.get("lava", []):
-			noclip.append(_solid(_hull(_box_src(bx, cxf)), _special_material("sf_lava", Color(1.0, 0.4, 0.08), "\t\"$selfillum\" \"1\"\n")))
+			noclip.append(_solid(_hull(_box_src(bx, cxf)), _lava_material(env.get("lava_look", "lava"))))
 	if not noclip.is_empty():
 		details.append("entity\n{\n\t\"id\" \"%d\"\n\t\"classname\" \"func_illusionary\"\n%s}\n" % [_next(), "".join(noclip)])
 	if not glassy.is_empty():
@@ -224,7 +233,6 @@ func build(map: Dictionary, opts := {}) -> String:
 		return ""
 
 	# ---- point and brush entities
-	var env: Dictionary = map.get("environment", {})
 	var sky: String = opts.get("skyname", SKIES.get(env.get("preset", "day"), "sky_day01_01"))
 	var entities := PackedStringArray()
 	var plates := []                                     # [godot spawn position, destination name]
@@ -694,8 +702,14 @@ func _box_src(bx: AABB, xf: Transform3D) -> Array:
 	return out
 
 
+## A lava preset in CS:S: a self-lit plain color (Source has no lava shader).
+func _lava_material(id: String) -> String:
+	var lp: Dictionary = Look.LIQUIDS.get(id, Look.LIQUIDS["lava"])
+	return _special_material("sf_lava_" + id, Color.html(lp["color"]), "\t\"$selfillum\" \"1\"\n")
+
+
 ## A water brush: the water surface on top, nothing drawn on the other sides (Source draws the volume itself).
-func _water_solid(piece: Array) -> String:
+func _water_solid(piece: Array, material := WATER_MATERIAL) -> String:
 	var pts := []
 	for q in Convex.points(piece):
 		pts.append(src(q))
@@ -703,7 +717,7 @@ func _water_solid(piece: Array) -> String:
 	var mats := []
 	for sd in sides:
 		var nrm: Vector3 = (sd[2] - sd[0]).cross(sd[1] - sd[0]).normalized()
-		mats.append(WATER_MATERIAL if nrm.z > 0.7 else NODRAW)
+		mats.append(material if nrm.z > 0.7 else NODRAW)
 	return _solid(sides, mats)
 
 
