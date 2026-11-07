@@ -4429,7 +4429,7 @@ func _play_clicked() -> void:
 
 ## Play from `at` (the start plate, or wherever build mode's P was pressed).
 func _play_from(at: Transform3D, start: EntityNode = null, finish: EntityNode = null) -> void:
-	_end_drag()
+	_release_views()
 	if selected:
 		selected.set_selected(false)
 	_ui.visible = false
@@ -4458,6 +4458,7 @@ func _build_clicked() -> void:
 	if play.active or build.active:
 		return
 	_checkpoint()                                        # one editor undo step takes back a whole build session
+	_release_views()
 	_ui.visible = false
 	var target: CubeModelNode = selected if selected is CubeModelNode else null
 	build.start((panes[0].camera as Camera3D).global_transform, target)
@@ -4465,6 +4466,7 @@ func _build_clicked() -> void:
 
 func _on_build_stopped() -> void:
 	_ui.visible = true
+	_mouse_buttons_up.call_deferred()
 	_map_changed()
 	var n := 0
 	for cm in cube_models_root.get_children():
@@ -4472,6 +4474,29 @@ func _on_build_stopped() -> void:
 	_set_status("Back from build mode: %d cube objects, %d cubes. Ctrl+Z here undoes the whole session; E goes back in." % [
 		cube_models_root.get_child_count(), n])
 	_refresh_props()
+
+
+## No view keeps holding the mouse (a mode is starting).
+func _release_views() -> void:
+	for p in panes:
+		(p as ViewPane).release_grab()
+	if _drag != Drag.NONE:
+		_end_drag()
+
+
+## Back from build / play mode, which took every click: tell the window no mouse button is held, so clicks go where
+## they're aimed again (otherwise one press it never saw let go of could keep sending them all to one place).
+func _mouse_buttons_up() -> void:
+	var at := get_viewport().get_mouse_position()
+	for b in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
+		if Input.is_mouse_button_pressed(b):
+			continue
+		var up := InputEventMouseButton.new()
+		up.button_index = b
+		up.pressed = false
+		up.position = at
+		up.global_position = at
+		get_viewport().push_input(up)
 
 
 ## Build mode's P: play from where you are, and come back to build mode afterwards.
@@ -4486,6 +4511,7 @@ func _on_play_stopped() -> void:
 		build.resume()
 		return
 	_ui.visible = true
+	_mouse_buttons_up.call_deferred()
 	if selected:
 		selected.set_selected(true)
 	var t := " Best time: %s (its path is drawn in the views; G in play mode races it)." % PlayMode.format_time(play.best_time) if play.best_time > 0.0 else ""

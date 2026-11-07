@@ -179,8 +179,18 @@ func rebuild() -> void:
 	add_child(_fx)
 	var bs := BoxShape3D.new()
 	var a: Array = s["area"]
-	bs.size = Vector3(maxf(a[0], 1.0), maxf(a[1], 1.0), maxf(a[2], 1.0))
+	var rise := rise_of(s)
+	bs.size = Vector3(maxf(a[0], 1.0), maxf(a[1], 1.0) + rise, maxf(a[2], 1.0))
 	_shape.shape = bs
+	_shape.position = Vector3(0, rise * 0.5, 0)
+
+
+## How far above its area an effect visibly rises (fire's flames, smoke): that much more can be clicked.
+static func rise_of(s: Dictionary) -> float:
+	var p: Dictionary = PRESETS[s["preset"]]
+	if float(p["dir"][1]) <= 0.0:
+		return 0.0
+	return clampf(float(p["speed"][1]) * float(s["speed"]) * float(p["life"]) * 0.8, 0.0, 4.0)
 
 
 func set_selected(_on: bool) -> void:

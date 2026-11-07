@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.12.1 preview — 2026-11-07: Fixes for particles and the mouse
+
+- A fire (and smoke, sparks, embers, mist, magic) can be clicked and dragged by its flames, not only by the small box
+  at its base.
+- Build mode can select, drag and change particle effects (clicking one used to pick nothing).
+- The mouse can't get stuck any more: a view that holds the mouse while you orbit / fly lets go as soon as the button
+  is really up, and coming back from build or play mode clears any click the editor missed. Before, clicks in the
+  Outliner and elsewhere could stop working until you alt-tabbed out and back.
+
 ## 0.12.0 preview — 2026-11-07: Lights and particles
 
 - **Light presets**: lamp, torch, candle, campfire, spotlight, pink and cyan neon strips, fluorescent tube, red alarm

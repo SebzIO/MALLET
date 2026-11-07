@@ -150,6 +150,20 @@ func is_grabbing() -> bool:
 	return _grab_button >= 0
 
 
+## Let go of the mouse now, as if the button came up (build / play mode starting, or the release went elsewhere).
+func release_grab() -> void:
+	if _grab_button < 0:
+		return
+	var up := InputEventMouseButton.new()
+	up.button_index = _grab_button as MouseButton
+	up.pressed = false
+	if kind == Kind.PERSPECTIVE:
+		(camera as OrbitCamera).handle_input(up)
+	else:
+		_ortho_nav(up)
+	_end_grab()
+
+
 ## While grabbed, every mouse event comes here (the hidden cursor isn't over the view any more).
 func _input(event: InputEvent) -> void:
 	if _grab_button < 0 or not (event is InputEventMouse):
@@ -164,15 +178,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and _grab_button >= 0:
-		var up := InputEventMouseButton.new()           # (alt-tab mid-drag: the release never arrives - let go now)
-		up.button_index = _grab_button as MouseButton
-		up.pressed = false
-		if kind == Kind.PERSPECTIVE:
-			(camera as OrbitCamera).handle_input(up)
-		else:
-			_ortho_nav(up)
-		_end_grab()
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		release_grab()                                   # (alt-tab mid-drag: the release never arrives - let go now)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -211,6 +218,8 @@ func _ortho_nav(event: InputEvent) -> bool:
 
 
 func _process(_delta: float) -> void:
+	if _grab_button >= 0 and not Input.is_mouse_button_pressed(_grab_button as MouseButton):
+		release_grab()                                   # (its release went somewhere else: never keep the mouse)
 	if overlay.size != size or overlay.position != Vector2.ZERO:
 		overlay.position = Vector2.ZERO
 		overlay.size = size

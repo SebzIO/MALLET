@@ -984,7 +984,7 @@ func _update_cut() -> void:
 
 # ------------------------------------------------------------------------------------------------ entities
 func _entity_of(c: Object) -> Node3D:
-	for key in ["light", "entity", "prop", "text"]:
+	for key in ["light", "particle", "entity", "prop", "text"]:
 		if c.has_meta(key):
 			return c.get_meta(key)
 	return null
