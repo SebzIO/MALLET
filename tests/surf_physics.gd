@@ -3,7 +3,7 @@ extends SceneTree
 ## and we compare its speed against the in-game SurfsUp measurement: ~2200 u/s after a 76 m drop.
 ## Run: godot --headless --path D:/SurfForge -s res://tests/surf_physics.gd
 
-const U := 39.37      # Source units per metre
+const U := 39.37      # Source units per meter
 
 var ramp: RampNode
 var player: SUCC

@@ -59,7 +59,7 @@ func _init(k: int, ed: Node) -> void:
 	camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)  # the container only sizes its SubViewport, not Controls
-	overlay.clip_contents = true                         # handles/outlines/arcs never spill into neighbouring views
+	overlay.clip_contents = true                         # handles/outlines/arcs never spill into neighboring views
 	clip_contents = true
 	overlay.draw.connect(_draw_overlay)
 	add_child(overlay)
@@ -227,7 +227,7 @@ func _draw_overlay() -> void:
 		Color(1, 1, 1, 0.85))
 
 
-## Metre grid for the ortho views, with spacing that adapts to the zoom level and labelled major lines.
+## Meter grid for the ortho views, with spacing that adapts to the zoom level and labeled major lines.
 func _draw_grid() -> void:
 	var world_per_px: float = camera.size / maxf(size.y, 1.0)
 	var spacing := 1.0

@@ -62,7 +62,7 @@ func _run() -> void:
 	var pr: PropNode = ed.add_prop(path, Vector3(0, 50, -60))
 	var sz := pr.world_size()
 	check("model imported", pr.error == "" and pr.triangles > 0, "(%d triangles)" % pr.triangles)
-	check("size as modelled (12 x 10 x 2 m)", sz.distance_to(Vector3(12, 10, 2)) < 0.05, str(sz.snapped(Vector3.ONE * 0.01)))
+	check("size as modeled (12 x 10 x 2 m)", sz.distance_to(Vector3(12, 10, 2)) < 0.05, str(sz.snapped(Vector3.ONE * 0.01)))
 	for i in 3:
 		await physics_frame
 	var hit := ray_hits(Vector3(0, 80, -60), 1)

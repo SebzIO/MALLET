@@ -4,17 +4,17 @@ extends RefCounted
 ##   start plate:  run forward and hop off the front edge
 ##   on a ramp:    look where you're going; ride a line that starts high near the spine, drifts down the face, then
 ##                 climbs back up near the end for a small flick into the transfer
-##   in the air:   predict your own arc and air-strafe so it lands high on the next ramp's face, a few metres in
+##   in the air:   predict your own arc and air-strafe so it lands high on the next ramp's face, a few meters in
 ## Steering is always a strafe key square to your motion (that turns you without costing speed). The technique's
 ## numbers live in `params` so a trainer can tune them per map (see tools/demo/train_bot.gd).
 
 const DEFAULTS := {
-	"top": 1.2,          ## metres out from the spine where a ramp is joined
+	"top": 1.2,          ## meters out from the spine where a ramp is joined
 	"deep": 3.0,         ## deepest point of the line, mid-ramp
 	"flick_at": 0.78,    ## fraction of the ramp where the line climbs back up
-	"end": 0.9,          ## metres out from the spine at the very end (the flick)
-	"land_in": 6.0,      ## metres into the next ramp to land
-	"land_out": 1.8,     ## metres out from its spine to land
+	"end": 0.9,          ## meters out from the spine at the very end (the flick)
+	"land_in": 6.0,      ## meters into the next ramp to land
+	"land_out": 1.8,     ## meters out from its spine to land
 	"damp": 0.35,        ## how strongly sideways drift is damped while steering
 	"air_lead": 1.0,     ## how hard to correct the predicted landing in the air
 }
@@ -129,7 +129,7 @@ func _fly(p: SUCC, pos: Vector3, vel: Vector3, cmd: SUCCInput) -> void:
 	cmd.move = Vector2(signf(e) if absf(e) > 0.5 else 0.0, 0)
 
 
-## Choose the ramp our current arc is heading for, and a spot high on its face a few metres in.
+## Choose the ramp our current arc is heading for, and a spot high on its face a few meters in.
 func _pick_target(pos: Vector3, vel: Vector3) -> void:
 	_target_ramp = null
 	var best := INF

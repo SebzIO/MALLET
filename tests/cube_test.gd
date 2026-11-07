@@ -270,7 +270,7 @@ func _run() -> void:
 	var c0: PackedByteArray = w.leaves[Vector4i(0, 0, 0, 0)][0]
 	var c1: PackedByteArray = w.leaves[Vector4i(8, 0, 0, 0)][0]
 	var c2: PackedByteArray = w.leaves[Vector4i(16, 0, 0, 0)][0]
-	check("corner selection: the middle cube's top sinks, its neighbours tilt into it",
+	check("corner selection: the middle cube's top sinks, its neighbors tilt into it",
 		CubeWorld.corner(c1, 2).y == 4 and CubeWorld.corner(c1, 3).y == 4 and CubeWorld.corner(c0, 2).y == 8 and CubeWorld.corner(c0, 3).y == 4
 		and CubeWorld.corner(c2, 2).y == 4 and CubeWorld.corner(c2, 3).y == 8)
 
@@ -287,7 +287,7 @@ func _run() -> void:
 	var m1: PackedByteArray = w.leaves[Vector4i(8, 0, 0, 0)][0]
 	var n0: PackedByteArray = w.leaves[Vector4i(0, 0, 0, 0)][0]
 	var n2: PackedByteArray = w.leaves[Vector4i(16, 0, 0, 0)][0]
-	check("corner selection shapes only the selected cube (neighbours untouched)", CubeWorld.corner(m1, 2).y == 4 and CubeWorld.corner(m1, 3).y == 4
+	check("corner selection shapes only the selected cube (neighbors untouched)", CubeWorld.corner(m1, 2).y == 4 and CubeWorld.corner(m1, 3).y == 4
 		and n0 == CubeWorld.FULL and n2 == CubeWorld.FULL)
 	w.begin()
 	for i in 6:

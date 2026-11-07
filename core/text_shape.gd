@@ -61,7 +61,7 @@ static func font(name: String) -> Font:
 	return f
 
 
-## A TextMesh for these settings (letters about `height` metres tall, centred on the origin, z -depth/2..+depth/2).
+## A TextMesh for these settings (letters about `height` meters tall, centered on the origin, z -depth/2..+depth/2).
 static func text_mesh(s: Dictionary, depth: float) -> TextMesh:
 	var tm := TextMesh.new()
 	tm.text = String(s["text"]) if String(s["text"]) != "" else " "
@@ -74,7 +74,7 @@ static func text_mesh(s: Dictionary, depth: float) -> TextMesh:
 	return tm
 
 
-## The letters as convex 2D polygons (metres, in the text's plane). Worked out once per text / font / alignment at
+## The letters as convex 2D polygons (meters, in the text's plane). Worked out once per text / font / alignment at
 ## 1 m letters and scaled, so changing the letter height costs nothing.
 static func convex_polygons(s: Dictionary) -> Array:
 	var unit = cached_unit_polygons(s)
@@ -128,7 +128,7 @@ static func unit_polygons(s0: Dictionary) -> Array:
 	return _merge_convex(tris)
 
 
-## Hertel-Mehlhorn: merge neighbouring polygons across shared edges as long as the result stays convex.
+## Hertel-Mehlhorn: merge neighboring polygons across shared edges as long as the result stays convex.
 static func _merge_convex(tris: Array) -> Array:
 	var polys: Array = tris.duplicate(true)
 	var changed := true
@@ -143,7 +143,7 @@ static func _merge_convex(tris: Array) -> Array:
 			for ei in p.size():
 				var a: Vector2 = p[ei]
 				var b: Vector2 = p[(ei + 1) % p.size()]
-				var k := _edge_key(b, a)                 # the neighbour runs the same edge the other way
+				var k := _edge_key(b, a)                 # the neighbor runs the same edge the other way
 				if edges.has(k):
 					var other: Array = edges[k]
 					var q: Array = polys[other[0]]

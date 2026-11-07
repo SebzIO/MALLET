@@ -1,5 +1,5 @@
 extends SceneTree
-## Kill zones + boosters: editor placement, play-mode behaviour, export tags.
+## Kill zones + boosters: editor placement, play-mode behavior, export tags.
 ## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/volumes_test.gd -- <out_dir>
 
 const U := 39.37

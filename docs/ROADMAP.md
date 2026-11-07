@@ -28,30 +28,30 @@ Do this first, so every later feature, file and screenshot already carries the n
 ## 0.11.0: Materials
 - [x] **Getridou's materials pack** (170 materials incl. his friends' photo textures + 18 by LURKing, glow maps, credit in the picker / THIRD_PARTY / README /
       materials/GETRIDOU.txt).
-- [ ] **Sauerbraten's materials**: its texture packs come from many artists under **different licences** (some free
-      to share, some not for redistribution). Go through them pack by pack: ship the ones whose licence allows it,
+- [ ] **Sauerbraten's materials**: its texture packs come from many artists under **different licenses** (some free
+      to share, some not for redistribution). Go through them pack by pack: ship the ones whose license allows it,
       with each artist credited; list the rest as "can't ship" (or import them from a Sauerbraten install the user
-      already has, if their licence allows that).
+      already has, if their license allows that).
 - [x] **CS:S materials** from the user's own install (core/css_library.gd reads VPK / VMT / VTF): 2,851 world
       materials in the picker, CS:S exports use them by name, SurfsUp exports copy them in only with the export
       window's switch on (the user's decision 2026-11-06), else a similar MALLET material stands in.
-- [ ] **Better liquids and glass**: new water (waves, depth colour, foam at edges), lava (glow, slow flow), glass
+- [ ] **Better liquids and glass**: new water (waves, depth color, foam at edges), lava (glow, slow flow), glass
       (reflections, tint, frosted option), each with a few presets; exported to SurfsUp; closest CS:S equivalents.
 - [ ] Texture browser: categories / search / credits so a few hundred materials stay easy to find. (Search and
       credits done; build mode's texture menu still to do.)
 
 ## 0.12.0: Worldbuilding (lights and particles)
-- [ ] More light types: area / rectangle lights, coloured and flickering / pulsing lights, light presets (torch,
+- [ ] More light types: area / rectangle lights, colored and flickering / pulsing lights, light presets (torch,
       neon strip, lamp), lights placeable from build mode as today.
 - [ ] Particles: an emitter object with presets (fire, smoke, sparks, snow, rain, dust, waterfall mist, magic glow)
-      and simple settings (amount, size, colour, speed, area). Visible live in the editor and play mode.
+      and simple settings (amount, size, color, speed, area). Visible live in the editor and play mode.
 - [ ] Export: SurfsUp gets real Godot particles; CS:S gets the nearest stock effect (env_smokestack, env_spark,
       info_particle_system with a built-in effect) or a note that it can't be shown there.
 - [ ] Check the cost: a map's particle count / lights shown in the info panel, with a warning when it gets heavy.
 
 ## 0.13.0: Your own skies and shaders
 - [ ] A **user shaders folder** (opened from the menu): drop in a Godot `.gdshader` (sky, or surface material) and
-      it shows up in MALLET. Its `uniform`s automatically become sliders / colour pickers in the panel, so a shader
+      it shows up in MALLET. Its `uniform`s automatically become sliders / color pickers in the panel, so a shader
       writer also makes something non-coders can tweak.
 - [ ] Ship a commented **template** for a sky shader and a surface shader, and a short guide (docs/SHADERS.md).
 - [ ] Custom **sun / ambient / fog** controls stay alongside a custom sky.

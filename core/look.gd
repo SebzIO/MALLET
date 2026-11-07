@@ -27,15 +27,15 @@ const ENV_PRESETS := {
 		"fog": false, "fog_color": "06030f", "fog_density": 0.0006},
 }
 
-## Ramp looks: [label, shader file or "" for a plain StandardMaterial3D, uses the colour as]
+## Ramp looks: [label, shader file or "" for a plain StandardMaterial3D, uses the color as]
 const RAMP_LOOKS := {
-	"color": ["Plain colour", "", "colour"],
-	"ceramic": ["Glazed ceramic", "ramp_ceramic", "rim colour"],
+	"color": ["Plain color", "", "color"],
+	"ceramic": ["Glazed ceramic", "ramp_ceramic", "rim color"],
 	"steel": ["Brushed steel", "ramp_steel", "tint"],
 	"grid": ["Dev grid", "ramp_grid", "tint"],
-	"aurora": ["Aurora (animated)", "ramp_aurora", "main colour"],
-	"nebula": ["Nebula", "ramp_nebula", "cloud colour"],
-	"neon": ["Neon edges", "ramp_neon", "glow colour"],
+	"aurora": ["Aurora (animated)", "ramp_aurora", "main color"],
+	"nebula": ["Nebula", "ramp_nebula", "cloud color"],
+	"neon": ["Neon edges", "ramp_neon", "glow color"],
 	"texture": ["Image texture", "", "tint"],
 	"material": ["Library material", "", "tint"],
 }
@@ -132,12 +132,12 @@ static func image_texture(path: String) -> Texture2D:
 	return tex
 
 
-## Material for a ramp. `texture_scale` = how many metres one copy of the image covers.
-## `square`: for blocks and cubes (world-metre UVs): the Dev grid as even 1 m squares instead of the ramp layout.
+## Material for a ramp. `texture_scale` = how many meters one copy of the image covers.
+## `square`: for blocks and cubes (world-meter UVs): the Dev grid as even 1 m squares instead of the ramp layout.
 static func ramp_material(look: String, color: Color, texture_path := "", texture_scale := 20.0, material_id := "",
 		face_length := 10.5, square := false) -> Material:
 	if look == "material" and MaterialLibrary.has(material_id):
-		# ramp UVs: u = 0..1 across the face, v = metres along / 20; size the library texture to the real world
+		# ramp UVs: u = 0..1 across the face, v = meters along / 20; size the library texture to the real world
 		var size := MaterialLibrary.world_size(material_id) * maxf(texture_scale / 20.0, 0.05)
 		var key := "%s|%s|%s|%s" % [material_id, color.to_html(), size, face_length]
 		if not _ramp_mats.has(key):
@@ -163,7 +163,7 @@ static func ramp_material(look: String, color: Color, texture_path := "", textur
 		if tex:
 			sm.albedo_texture = tex
 			sm.roughness = 0.6
-			# ramp UVs: u = 0..1 across the riding face, v = metres along / 20
+			# ramp UVs: u = 0..1 across the riding face, v = meters along / 20
 			sm.uv1_scale = Vector3(1.0, 20.0 / max(texture_scale, 0.5), 1.0)
 			sm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	return sm

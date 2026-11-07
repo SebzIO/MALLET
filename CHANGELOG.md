@@ -8,12 +8,12 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - **Getridou's materials**: 170 materials made by Getridou (a few from photos his friends sent him), shipped with his
   permission (thank you!). They have their own "Getridou" section in the material picker with his credit, and "by
   Getridou" on each one. Converted from Tesseract's format with its own texture scale (most repeat every 8 m, as
-  Getridou made them); colour, surface detail, shininess and glow.
+  Getridou made them); color, surface detail, shininess and glow.
 - **LURKing's materials**: 18 more from Getridou's friend LURKing, in their own "LURKing" section, with credit.
 - Materials can **glow**: lit windows, lamps, signs and flames shine by themselves, in the editor, in SurfsUp, and in
-  CS:S (self-illuminated). A grey glow mask glows in the texture's own colours.
+  CS:S (self-illuminated). A gray glow mask glows in the texture's own colors.
 - The material picker has a **search** box (name, surface, category, "glow").
-- Build mode F3: **Centre on selection** puts a texture's middle in the middle of the selected faces (a lamp
+- Build mode F3: **Center on selection** puts a texture's middle in the middle of the selected faces (a lamp
   texture's lamp lands on the cube you picked), **Fit to selection** also sizes it so one repeat spans them. The
   texture scale can now go down to 0.05.
 - CS:S exports: a cube object's textures line up exactly as in the editor even when the object was moved off the
@@ -62,7 +62,7 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - Dragging is smooth for every object (cube objects, ramps, blocks, platforms...): the jump arcs re-read every cube
   of every cube object on each mouse move, and objects were rebuilt from scratch while dragged. ~100 ms a move on
   a busy map -> a few ms.
-- F3 texture settings work: colour, see-through and scrolling show the texture (a shader error turned the faces
+- F3 texture settings work: color, see-through and scrolling show the texture (a shader error turned the faces
   plain white).
 - Build mode: from inside cubes you aim at the face you look out through; the yellow aimed-face outline sits on
   the cubes' real face (pushed in, sloped, cut); the selected face is filled blue and stands out from the
@@ -80,7 +80,7 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   internal origin, which can be far away), matching its X / Y / Z boxes and where dragging moves it from.
 - Build mode heightmap: raising or lowering terrain no longer leaves floating sheets, overhangs or hidden gaps.
   Like Sauerbraten, each column's corners are kept within one layer of cubes (one corner may reach diagonally
-  into the next), a change spreads out to the neighbouring columns, a cube on a slope only covers the part that's
+  into the next), a change spreads out to the neighboring columns, a cube on a slope only covers the part that's
   solid underneath, and the cubes under a raised part are made whole again. Hills now rise in Sauerbraten's
   stepped way: pulling one spot up past a layer lifts the ground around it to that layer too.
 - Build mode is faster with big builds: a heightmap stroke with the big brush takes about 50 ms instead of about
@@ -109,14 +109,14 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   map, and the editor's status line repeats it when you go back.
 - Build mode: pushing a smaller cube out of a sloped one no longer tears the slope into gaps and odd angles. When
   a cube splits into smaller ones, each new corner now slides along the cube's own edges onto the slope, so
-  neighbouring pieces still meet. Slopes that step by 1, 2, 4 or 8 eighths (like a half-45 ramp) now come out
+  neighboring pieces still meet. Slopes that step by 1, 2, 4 or 8 eighths (like a half-45 ramp) now come out
   exactly; others stay within the 1/8 step the smaller cubes can show (overall error 3.5% -> 1.0%).
 
 ## 0.8.7 preview — 2026-11-05: fixes to 0.8.6
 
 - Mouse sensitivity is kept in its own file (preferences.cfg): sharing settings.cfg with the export dialogs could
   wipe out remembered export folders.
-- The play screen's text is centred right after it changes too (it could sit off-centre for a moment).
+- The play screen's text is centered right after it changes too (it could sit off-center for a moment).
 - The test suite no longer overwrites your remembered export folders.
 
 ## 0.8.6 preview — 2026-11-05: mouse sensitivity
@@ -142,7 +142,7 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 
 - Middle drag + wheel (corner selection) now only shapes cubes that are already there: it never creates a cube,
   never grows one past its own side, and leaves empty spots empty. The selection runs exactly from the cube you
-  started on to the cube you end on (it used to take in the neighbours around it), it only changes the selected
+  started on to the cube you end on (it used to take in the neighbors around it), it only changes the selected
   cubes, and dragging onto another cube - even one at a different height - still adds it. It can't start in empty
   space.
 
@@ -152,9 +152,9 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   wasn't moved with the click). + Folder's name box also opens on the new folder reliably, and the list no longer
   rebuilds or re-highlights itself while you're typing a name.
 
-## 0.8.2 preview — 2026-11-05: play HUD centred, Outliner clicks and drops like Windows
+## 0.8.2 preview — 2026-11-05: play HUD centered, Outliner clicks and drops like Windows
 
-- Play mode: the timer, speed and keys line (and the crosshair) are centred in the view at any window size.
+- Play mode: the timer, speed and keys line (and the crosshair) are centered in the view at any window size.
 - Outliner clicks work like Windows lists: click selects one, Shift+click selects everything from the last clicked
   row to this one, Ctrl+click adds / removes one (Ctrl+Shift adds a range), double-click renames; pressing on an
   already-selected row keeps the selection so several rows drag together.
@@ -187,9 +187,9 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   hides the invisible ones), they work in play mode (lava / death send you back, glass / clip block, noclip lets you
   through) and export: SurfsUp (walls, kill zones) and CS:S (real water, player clip, trigger_teleports, see-through
   glass, func_illusionary for noclip).
-- Texture settings per face (F3): scale, turn / flip, shift (also O / P + wheel), scroll, colour, see-through, and a
+- Texture settings per face (F3): scale, turn / flip, shift (also O / P + wheel), scroll, color, see-through, and a
   blend layer; Y alone picks up the texture you aim at; Y + wheel cycles most recently used first; replace /
-  replace in selection / reset (T). CS:S gets them as texture alignment and extra material files (colour,
+  replace in selection / reset (T). CS:S gets them as texture alignment and extra material files (color,
   see-through, scrolling).
 - Middle-drag selects corners (on every cube sharing them) and the wheel pushes just those; Ctrl aims at the cube
   itself (passthrough); right click on the selection turns it to that face (reorient); Shift + drag moves the
@@ -224,18 +224,18 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   are split into convex pieces about 10x faster, cached independent of size, and worked out on a worker thread
   (a box stands in for clicking until they're ready).
 - Text on a block face stays on it while dragged - in the 3D view and the 2D views - and can't be dragged past the
-  face's edges; it still snaps to the face's centre lines.
+  face's edges; it still snaps to the face's center lines.
 - Block top and bottom handles work in the 3D view (they were dragged on a level plane, so they couldn't move).
 - Position fields in the panel for whatever is selected: drag a number left / right to move it as far as you like
-  (Shift: fine, Ctrl: fast), or click to type. For text on a face they're Across / Up from the face's centre, so
-  typing 0 centres it.
+  (Shift: fine, Ctrl: fast), or click to type. For text on a face they're Across / Up from the face's center, so
+  typing 0 centers it.
 - "Letter height" is now "Text size (letter height, m)".
 
-## 0.5.3 preview — 2026-11-05: multi-line text, centring; engraving removed
+## 0.5.3 preview — 2026-11-05: multi-line text, centering; engraving removed
 
-- Multi-line text: the text box takes Enter for a new line; left / centre / right alignment applies per line.
-- Centring text on a surface: drag text along a block's face (or place it with "Place on a surface") and it snaps
-  to the face's centre lines - left-to-right and top-to-bottom on their own, both together = dead centre. Drag
+- Multi-line text: the text box takes Enter for a new line; left / center / right alignment applies per line.
+- Centering text on a surface: drag text along a block's face (or place it with "Place on a surface") and it snaps
+  to the face's center lines - left-to-right and top-to-bottom on their own, both together = dead center. Drag
   further and it lets go.
 - Engraving text into blocks is gone. As convex brushes (what CS:S needs) one word meant hundreds of pieces,
   visible seams and a slow editor. Old engraved text now loads as 3D letters (raised from the surface instead).
@@ -254,10 +254,10 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 
 ## 0.5.0 preview — 2026-11-05: lights, water, prefabs
 
-- Lights (Add > Light, U; Add > Spot light): colour, brightness, reach, shadows; spot lights get a cone width, facing
+- Lights (Add > Light, U; Add > Spot light): color, brightness, reach, shadows; spot lights get a cone width, facing
   and tilt. They light the editor view straight away. SurfsUp: real lights. CS:S: light / light_spot entities
   (baked when the map compiles).
-- Water (Add > Water, H): a block you can resize like any other, with a moving see-through surface, a colour and a
+- Water (Add > Water, H): a block you can resize like any other, with a moving see-through surface, a color and a
   clarity. Tick Deadly for lava or acid: touching it sends players back. SurfsUp has no swimming, so water there is
   scenery (deadly water is a kill zone); in CS:S it's real water (deadly water is a trigger_teleport).
 - Glow on blocks (neon, lamps): the block's surfaces shine; in CS:S its materials get self-illumination.
@@ -269,17 +269,17 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 
 - Text (Add > Text, X): flat signs you pass through, solid 3D letters you can stand on, and engravings cut into the
   blocks they overlap (live). Any installed font by name, or a font file (.ttf / .otf / .woff).
-- Letter height, depth, alignment, facing and tilt; a library material or a colour; glow.
+- Letter height, depth, alignment, facing and tilt; a library material or a color; glow.
 - "Place on a surface": click a face and the text sits flush on it (embossed), facing out.
 - Exports: smooth letters with exact collision in SurfsUp; brushes in CS:S (func_detail for solid letters,
   func_illusionary for signs), engravings carve the blocks' brushes.
 
 ## 0.3.0 preview — 2026-11-05: materials
 
-- Material library: 19 starter materials (CC0, from ambientCG) in 7 categories, each with colour, surface detail
+- Material library: 19 starter materials (CC0, from ambientCG) in 7 categories, each with color, surface detail
   (normal map), roughness and, for metals, metalness; plus your own images ("+ Your own image" in the picker).
 - Materials on blocks: whole block, or any side on its own (top, bottom, front, back, left, right), with texture
-  size, shift and turn; textures line up across neighbouring blocks. Alt+click a face to paint it with the last
+  size, shift and turn; textures line up across neighboring blocks. Alt+click a face to paint it with the last
   material picked.
 - Ramps can wear library materials too ("Library material" look).
 - SurfsUp export carries the textures inside the map; CS:S export converts the materials used to VTF / VMT with the
@@ -305,7 +305,7 @@ The first tagged version.
 
 **Building**
 - Ramps you drag into shape: spline control points, bends, extend, smoothness (polygon count), quad views
-  named like Hammer's (Space maximises the one under the mouse), move / rotate / nudge / snap to grid, undo.
+  named like Hammer's (Space maximizes the one under the mouse), move / rotate / nudge / snap to grid, undo.
 - Ramp profile rules: upright cross-section that never tilts or rolls, slope angle + face length (56° default),
   V ramps and half ramps, hollow or solid with a base, too-tight bends marked red, Freeform for uneven faces.
 - Ramp generators: spiral, S-curve, rollers, with live preview; "continue from the selected ramp" places the
@@ -319,10 +319,10 @@ The first tagged version.
 **Checking**
 - Jump checker: every ramp's jump arc at full and 85% speed, live as you drag.
 - Play mode with SurfsUp's own movement code (SUCC): timer, 400 u/s prespeed cap, stages, checkpoints.
-- Ghost replay: race your best run; its path drawn in the editor coloured by speed.
+- Ghost replay: race your best run; its path drawn in the editor colored by speed.
 
 **Look**
-- Sky presets (day, sunset, overcast, night, aurora, deep space) and custom colours, sun, fog.
+- Sky presets (day, sunset, overcast, night, aurora, deep space) and custom colors, sun, fog.
 - Ramp looks: plain, glazed ceramic, brushed steel, dev grid, aurora, nebula, neon edges, your own image.
 
 **Export**

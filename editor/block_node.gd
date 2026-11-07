@@ -119,7 +119,7 @@ func face_handles() -> Array:
 	return out
 
 
-## Move one side of the box by `amount` metres along its outward normal; the opposite side stays put.
+## Move one side of the box by `amount` meters along its outward normal; the opposite side stays put.
 static func resized(d: Dictionary, axis: int, sgn: float, amount: float) -> Dictionary:
 	var out := d.duplicate(true)
 	var sz := Vector3(d["size"][0], d["size"][1], d["size"][2])

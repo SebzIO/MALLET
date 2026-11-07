@@ -12,7 +12,7 @@ const DEFAULTS := {
 	"shape": "box", "position": [0.0, 0.0, 0.0], "size": [16.0, 8.0, 16.0], "yaw": 0.0, "pitch": 0.0, "roll": 0.0,
 	"sides": 16, "steps": 8, "hollow": false, "wall": 1.0, "cutter": false,
 	"look": "grid", "color": "9aa3ad",
-	"material": "",                      ## library material for the whole block ("" = use look + colour)
+	"material": "",                      ## library material for the whole block ("" = use look + color)
 	"uv_scale": 1.0, "uv_offset": [0.0, 0.0], "uv_rot": 0.0,   ## texture size multiplier, shift (repeats), turn
 	"faces": {},                         ## per side: {slot: {material, uv_scale, uv_offset, uv_rot}} overriding the above
 	"glow": 0.0,                         ## makes the block's surfaces shine (neon, lamps, lava)
@@ -150,7 +150,7 @@ static func world_pieces(s: Dictionary, cutters: Array = []) -> Array:
 
 
 ## A mesh from world-space pieces, in the block's own space (`xf` = the block's transform). UVs are world-aligned
-## (projected along each face's main axis), so textures line up across neighbouring blocks like in Hammer.
+## (projected along each face's main axis), so textures line up across neighboring blocks like in Hammer.
 static func mesh(pieces: Array, xf: Transform3D) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -204,7 +204,7 @@ static func face_uv(p: Vector3, n: Vector3, f: Dictionary) -> Vector2:
 	return uv + Vector2(f["uv_offset"][0], f["uv_offset"][1])
 
 
-## The block's mesh with a surface per material (library materials per side, or the look + colour), in the
+## The block's mesh with a surface per material (library materials per side, or the look + color), in the
 ## block's own space. Returns [ArrayMesh, Array of the surfaces' materials].
 static func mesh_faces(pieces: Array, xf: Transform3D, s: Dictionary) -> Array:
 	var inv := xf.affine_inverse()

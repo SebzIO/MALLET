@@ -30,6 +30,6 @@ func count(img: Image, rect: Rect2) -> int:
 	for y in range(int(rect.position.y), int(rect.end.y), 2):
 		for x in range(int(rect.position.x), int(rect.end.x), 2):
 			var c := img.get_pixel(x, y)
-			if c.b > 0.85 and c.r < 0.45 and c.g > 0.6:  # the outline colour (0.3, 0.75, 1.0)
+			if c.b > 0.85 and c.r < 0.45 and c.g > 0.6:  # the outline color (0.3, 0.75, 1.0)
 				n += 1
 	return n

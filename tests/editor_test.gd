@@ -55,11 +55,11 @@ func _run() -> void:
 	for i in 10:
 		motion(top, c0s + Vector2(px_per_m * 40.0 * (i + 1) / 10.0, 0))
 	mouse(top, c0s + Vector2(px_per_m * 40.0, 0), false)
-	print("ramp centre moved by ", (r.center() - c0).snapped(Vector3.ONE * 0.1), " (expected ~(40, 0, 0))")
+	print("ramp center moved by ", (r.center() - c0).snapped(Vector3.ONE * 0.1), " (expected ~(40, 0, 0))")
 
 	# nudge up twice (PgUp) and rotate 15 degrees
 	key(KEY_PAGEUP); key(KEY_PAGEUP); key(KEY_BRACKETRIGHT)
-	print("after nudge+rotate centre ", r.center().snapped(Vector3.ONE * 0.1))
+	print("after nudge+rotate center ", r.center().snapped(Vector3.ONE * 0.1))
 	# make it solid with a base
 	ed._edit_prop("solid", true)
 	ed._edit_prop("base_depth", 12.0)
@@ -69,7 +69,7 @@ func _run() -> void:
 	var before: int = ed._undo.size()
 	for i in before:
 		ed.undo()
-	print("after %d undos: centre %s solid %s" % [before, (ed.ramps_root.get_child(0) as RampNode).center().snapped(Vector3.ONE * 0.1), (ed.ramps_root.get_child(0) as RampNode).solid])
+	print("after %d undos: center %s solid %s" % [before, (ed.ramps_root.get_child(0) as RampNode).center().snapped(Vector3.ONE * 0.1), (ed.ramps_root.get_child(0) as RampNode).solid])
 	for i in before:
 		ed.redo()
 
@@ -77,11 +77,11 @@ func _run() -> void:
 	await shot("e03_single_view")
 	ed._toggle_views()
 
-	# recolour the selected ramp: it must show its real colour (outline, not tint)
+	# recolor the selected ramp: it must show its real color (outline, not tint)
 	ed._select(ed.ramps_root.get_child(0))
 	ed._edit_prop("color", Color(0.9, 0.2, 0.6))
 	await shot("e03b_recolour_selected")
-	# Space over the top view maximises it, Space again restores four views
+	# Space over the top view maximizes it, Space again restores four views
 	var topv: ViewPane = ed.panes[1]
 	root.warp_mouse(topv.get_global_rect().get_center())
 	await process_frame

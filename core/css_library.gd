@@ -8,7 +8,7 @@ extends RefCounted
 const ARCHIVES := ["cstrike/cstrike_pak_dir.vpk", "hl2/hl2_textures_dir.vpk", "hl2/hl2_misc_dir.vpk"]
 const INDEX_PATH := "user://css_index.json"
 const INDEX_VERSION := 1
-const U := 39.37                        ## Source units per metre
+const U := 39.37                        ## Source units per meter
 ## Folders that hold no world textures (models, effects, interface...).
 const SKIP := ["models/", "sprites/", "effects/", "particle/", "particles/", "vgui/", "console/", "hud/", "debug/",
 	"editor/", "tools/", "overlays/", "decals/", "skybox/", "cable/", "engine/", "shadertest/", "dev/dev_", "voice/",

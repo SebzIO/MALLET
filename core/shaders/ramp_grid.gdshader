@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled;
 // Dev grid: lines every 1/8 of the face across and every 5 m along, heavier on the edges and ridge.
-// `square` (blocks and cubes, whose UVs are world metres / 4): an even grid, a line every metre both ways.
+// `square` (blocks and cubes, whose UVs are world meters / 4): an even grid, a line every meter both ways.
 uniform vec4 tint : source_color = vec4(0.62, 0.66, 0.72, 1.0);
 uniform bool square = false;
 void fragment() {

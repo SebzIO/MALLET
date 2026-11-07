@@ -1,6 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled;
-// Nebula: deep space clouds and twinkling stars, fixed in world space so neighbouring ramps line up.
+// Nebula: deep space clouds and twinkling stars, fixed in world space so neighboring ramps line up.
 uniform vec4 tint : source_color = vec4(0.85, 0.2, 0.9, 1.0);
 varying vec3 wp;
 void vertex() { wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }

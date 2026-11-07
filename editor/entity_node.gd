@@ -1,8 +1,8 @@
 class_name EntityNode
 extends Node3D
 ## A placeable gameplay object.
-##   Platforms (start, finish): `position` is the centre of the platform's top surface, where the player stands.
-##   Volumes (kill zone, booster): `position` is the centre of the box. Players pass through them.
+##   Platforms (start, finish): `position` is the center of the platform's top surface, where the player stands.
+##   Volumes (kill zone, booster): `position` is the center of the box. Players pass through them.
 
 const KINDS := {
 	"start": {"label": "Start platform", "size": Vector3(20, 2, 26), "color": Color(0.25, 0.75, 0.4), "zone": 10.0},
@@ -16,9 +16,9 @@ const KINDS := {
 const PICK_ONLY_LAYER := 1 << 19
 
 var kind := "start"
-var size := Vector3(20, 2, 26)          ## width (x), height/thickness (y), depth (z) in metres
+var size := Vector3(20, 2, 26)          ## width (x), height/thickness (y), depth (z) in meters
 var yaw := 0.0                          ## degrees; start platform: spawn facing; booster: push direction
-var strength := 1000.0                  ## booster: speed in u/s (SurfsUp units, 39.37 per metre)
+var strength := 1000.0                  ## booster: speed in u/s (SurfsUp units, 39.37 per meter)
 var pitch := 20.0                       ## booster: degrees above horizontal the push points
 var mode := 0                           ## booster: 0 = add to the player's speed, 1 = set it
 var number := 2                         ## stage plate: its stage number; teleport: the stage it sends you to
@@ -117,7 +117,7 @@ func rebuild() -> void:
 	bs.size = size
 	_shape.shape = bs
 	if is_volume():
-		# a see-through box centred on `position`; the picking body never collides with the player
+		# a see-through box centered on `position`; the picking body never collides with the player
 		var box := BoxMesh.new()
 		box.size = size
 		_mesh.mesh = box

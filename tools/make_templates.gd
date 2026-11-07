@@ -52,7 +52,7 @@ func arc_at(p0: Vector3, v0: Vector3, t: float) -> Vector3:
 	return p0 + v0 * t + Vector3.DOWN * 0.5 * JumpCheck.G * t * t
 
 
-## The next ramp's ridge start, placed so the rider's arc meets the start of its face `gap` metres on.
+## The next ramp's ridge start, placed so the rider's arc meets the start of its face `gap` meters on.
 func next_start(ex: Array, speed: float, gap: float, side: float) -> Vector3:
 	return JumpCheck.next_ramp_start(ex[0], ex[1], speed, gap, side, tan(deg_to_rad(ANGLE)))
 
@@ -79,7 +79,7 @@ func course(plate_pos: Vector3, plate_yaw: float, specs: Array, colors: Array, l
 	return [out, ex, JumpCheck.speed_at(y0, JumpCheck.START_SPEED, ex[0].y)]
 
 
-## A platform the last arc drops into, `drop` metres below the exit (its zone catches the arc 5 m above the slab).
+## A platform the last arc drops into, `drop` meters below the exit (its zone catches the arc 5 m above the slab).
 func landing(ex: Array, speed: float, drop: float) -> Vector3:
 	var v: Vector3 = ex[1] * speed
 	# time to fall `drop` from the exit along the arc

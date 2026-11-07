@@ -40,7 +40,7 @@ func _run() -> void:
 	var cc0 := built_in.filter(func(e): return not e.has("credit"))
 	check("library: 19 ambientCG materials + 170 by Getridou + 18 by LURKing", cc0.size() == 19 and built_in.size() == 207, "(%d, %d)" % [cc0.size(), built_in.size()])
 	var m := MaterialLibrary.material("Bricks104")
-	check("a material has colour, normal and roughness maps", m.albedo_texture != null and m.normal_texture != null and m.roughness_texture != null)
+	check("a material has color, normal and roughness maps", m.albedo_texture != null and m.normal_texture != null and m.roughness_texture != null)
 	check("metals get a metalness map", MaterialLibrary.material("Metal009").metallic_texture != null)
 
 	ed = load("res://editor/main.tscn").instantiate()

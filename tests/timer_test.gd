@@ -57,9 +57,9 @@ func _run() -> void:
 		var vp := root.get_viewport().get_visible_rect().size
 		var box: Control = play._hud_box
 		var cross: Control = play._hud_cross
-		check("play HUD (time, speed, keys line) centred in the view", absf(box.position.x + box.size.x * 0.5 - vp.x * 0.5) < 1.5
+		check("play HUD (time, speed, keys line) centered in the view", absf(box.position.x + box.size.x * 0.5 - vp.x * 0.5) < 1.5
 			and absf(cross.position.x + cross.size.x * 0.5 - vp.x * 0.5) < 1.5 and absf(cross.position.y + cross.size.y * 0.5 - vp.y * 0.5) < 1.5,
-			"(box centre %.0f, cross centre %.0f, view %.0f)" % [box.position.x + box.size.x * 0.5, cross.position.x + cross.size.x * 0.5, vp.x * 0.5])
+			"(box center %.0f, cross center %.0f, view %.0f)" % [box.position.x + box.size.x * 0.5, cross.position.x + cross.size.x * 0.5, vp.x * 0.5])
 		check("finish speed shown: %d u/s entering the finish at 900" % roundi(play.finish_speed),
 			absf(play.finish_speed - 900.0) < 2.0 and play._info_label.text.contains("finish %d u/s" % roundi(play.finish_speed)), play._info_label.text)
 		var truth := crossing_time(xs, gap, dt) - crossing_time(xs, 0.0, dt)

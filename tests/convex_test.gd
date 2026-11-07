@@ -11,7 +11,7 @@ func check(label: String, good: bool, detail := "") -> void:
 	ok = ok and good
 
 
-## Volume of a convex piece: split each face into triangles and sum tetrahedra from the centre.
+## Volume of a convex piece: split each face into triangles and sum tetrahedra from the center.
 func volume(piece: Array) -> float:
 	var pts := Convex.points(piece)
 	var c := Vector3.ZERO

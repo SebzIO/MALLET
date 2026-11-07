@@ -26,7 +26,7 @@ them into the map only if the map maker turns that on; they remain Valve's.
 
 ## Inspiration: Cube 2: Sauerbraten
 
-Build mode is modelled on the in-game editor of Cube 2: Sauerbraten (http://sauerbraten.org,
+Build mode is modeled on the in-game editor of Cube 2: Sauerbraten (http://sauerbraten.org,
 https://github.com/embeddedc/sauerbraten; engine source under the zlib license, by Wouter van Oortmerssen, Lee Salzman
 and contributors). MALLET re-implements its editing ideas (cubes with 1/8-step corners, wheel editing, grid power,
 key layout) in its own GDScript; no Sauerbraten code or assets are included.

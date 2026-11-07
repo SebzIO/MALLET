@@ -420,7 +420,7 @@ func _process(_delta: float) -> void:
 	var fin := "   ·   finish %d u/s" % roundi(finish_speed) if finish_speed > 0.0 else ""
 	_info_label.text = "top %d u/s%s%s%s   ·   R restart   ·   Backspace checkpoint%s   ·   Esc editor" % [roundi(top_speed), fin, stage, best,
 		("   ·   G ghost " + ("on" if show_ghost else "off")) if not ghost.is_empty() else ""]
-	# centre the HUD for the window, once its text is set (anchors don't apply under a CanvasLayer)
+	# center the HUD for the window, once its text is set (anchors don't apply under a CanvasLayer)
 	var vp := get_viewport().get_visible_rect().size
 	_hud_box.reset_size()
 	_hud_box.position = Vector2((vp.x - _hud_box.size.x) * 0.5, vp.y - _hud_box.size.y - 24)

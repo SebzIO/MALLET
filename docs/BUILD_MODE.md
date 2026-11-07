@@ -1,7 +1,7 @@
 # Build mode (0.6): Sauerbraten-style building in MALLET
 
 Build mode (press **E** in the editor) lets you fly around the map in first person and build with cubes in real
-time: point at a face, roll the mouse wheel, and cubes come out of it. It is modelled on the in-game editor of
+time: point at a face, roll the mouse wheel, and cubes come out of it. It is modeled on the in-game editor of
 **Cube 2: Sauerbraten** (source: <https://github.com/embeddedc/sauerbraten>). MALLET re-implements the ideas in
 GDScript; no Sauerbraten code is copied.
 
@@ -20,7 +20,7 @@ A leaf stores:
 
 A cube must stay **convex** (`isvalidcube` checks every corner against every face plane). Faces that aren't flat
 are drawn as two triangles. `subdividecube` splits a cube into 8 by sampling its edges at corners, midpoints and
-centre. `remip` merges 8 children back into one when nothing would change.
+center. `remip` merges 8 children back into one when nothing would change.
 
 **Editing** (`src/engine/octaedit.cpp`):
 

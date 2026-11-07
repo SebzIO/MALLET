@@ -132,7 +132,7 @@ var _css_status := ""
 var welcome: WelcomeScreen
 # ramp generator (while _gen_ramp is set, the side panel shows the generator and the ramp is a live preview)
 var _gen_ramp: RampNode = null
-var _gen_source: RampNode = null        ## the ramp the new one continues from (null = place at the view centre)
+var _gen_source: RampNode = null        ## the ramp the new one continues from (null = place at the view center)
 var _gen_shape := "spiral"
 var _gen_values := {}                   ## shape -> {param: value}, remembered between uses
 var _gen_follow := true
@@ -490,7 +490,7 @@ func _build_props(props: VBoxContainer) -> void:
 	var cp := ColorPickerButton.new()
 	cp.custom_minimum_size = Vector2(0, 26)
 	cp.color_changed.connect(func(c): _edit_prop("color", c))
-	_add_row(_ramp_props, "Colour", cp)
+	_add_row(_ramp_props, "Color", cp)
 	_fields["color"] = cp
 	_fields["color_label"] = _ramp_props.get_child(cp.get_index() - 1)
 	var rmat := Button.new()
@@ -594,7 +594,7 @@ func _build_props(props: VBoxContainer) -> void:
 	help.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
 	help.text = ("Drag yellow handles to reshape · drag the object to move it (Shift = up/down in 3D view)\n"
 		+ "Double-click a ramp to add a bend\nArrows / PgUp PgDn nudge · [ ] rotate\n"
-		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · I prop · P play\nR generate a ramp shape · L lock / unlock a point\nSpace maximise the view under the mouse (again: back to four)\nF frame · G snap to grid · F11 fullscreen\n"
+		+ "N ramp · B start · M finish · K kill zone · J booster · T stage · Y teleport · I prop · P play\nR generate a ramp shape · L lock / unlock a point\nSpace maximize the view under the mouse (again: back to four)\nF frame · G snap to grid · F11 fullscreen\n"
 		+ "Del delete · Ctrl+D duplicate · Ctrl+Z undo · Ctrl+S save")
 	props.add_child(help)
 
@@ -618,8 +618,8 @@ func _build_map_props(props: VBoxContainer) -> void:
 			_refresh_props())
 	_add_row(_map_props, "Sky preset", preset)
 	_fields["env_preset"] = preset
-	for spec in [["sky_top", "Sky colour (top)"], ["sky_horizon", "Sky colour (horizon)"], ["ground", "Below the horizon"],
-			["sun_color", "Sun colour"], ["ambient_color", "Shadow fill colour"], ["fog_color", "Fog colour"]]:
+	for spec in [["sky_top", "Sky color (top)"], ["sky_horizon", "Sky color (horizon)"], ["ground", "Below the horizon"],
+			["sun_color", "Sun color"], ["ambient_color", "Shadow fill color"], ["fog_color", "Fog color"]]:
 		var key: String = spec[0]
 		var c := ColorPickerButton.new()
 		c.custom_minimum_size = Vector2(0, 24)
@@ -798,7 +798,7 @@ func _refresh_props() -> void:
 		_fields["text_depth"][0].get_parent().visible = tn.data["mode"] != "flat"
 		_fields["text_depth"][0].get_parent().get_parent().get_child(_fields["text_depth"][0].get_parent().get_index() - 1).visible = tn.data["mode"] != "flat"
 		var tb: Button = _fields["text_mat"]
-		tb.text = "  " + (MaterialLibrary.display_name(tn.data["material"]) if tn.data["material"] != "" else "Plain colour (pick a material\u2026)")
+		tb.text = "  " + (MaterialLibrary.display_name(tn.data["material"]) if tn.data["material"] != "" else "Plain color (pick a material\u2026)")
 		tb.icon = MaterialLibrary.preview(tn.data["material"]) if tn.data["material"] != "" else null
 		_fields["text_color"].color = Color.html(tn.data["color"])
 		_updating_ui = false
@@ -832,7 +832,7 @@ func _refresh_props() -> void:
 				"uv_offset": b.data.get("uv_offset", [0.0, 0.0]), "uv_rot": float(b.data.get("uv_rot", 0.0))}
 		_fields["block_side"].select(0 if _block_side == "all" else BlockShape.SLOTS.find(_block_side) + 1)
 		var mbtn: Button = _fields["block_mat"]
-		mbtn.text = "  " + (MaterialLibrary.display_name(fs["material"]) if fs["material"] != "" else "No material (Look & colour below) \u2026")
+		mbtn.text = "  " + (MaterialLibrary.display_name(fs["material"]) if fs["material"] != "" else "No material (Look & color below) \u2026")
 		mbtn.icon = MaterialLibrary.preview(fs["material"]) if fs["material"] != "" else null
 		_set_field("block_uv_scale", float(fs["uv_scale"]))
 		_set_field("block_uv_u", float(fs["uv_offset"][0]))
@@ -891,7 +891,7 @@ func _refresh_props() -> void:
 			_set_field(key, r.get(key))
 		_fields["color"].color = r.color
 		_fields["look"].select(Look.LOOK_ORDER.find(r.look))
-		_fields["color_label"].text = "Colour (%s)" % Look.RAMP_LOOKS[r.look][2]
+		_fields["color_label"].text = "Color (%s)" % Look.RAMP_LOOKS[r.look][2]
 		_tex_box.visible = r.look in ["texture", "material"]
 		_fields["tex_name"].visible = r.look == "texture"
 		var rmb: Button = _fields["ramp_material"]
@@ -1327,7 +1327,7 @@ func _draw_direction(cam: Camera3D, ov: Control, r: RampNode, is_selected: bool)
 		if cam.is_position_behind(ahead):
 			continue
 		var d := cam.unproject_position(ahead) - sp
-		if d.length() < 0.5:                            # travelling straight at or away from this view
+		if d.length() < 0.5:                            # traveling straight at or away from this view
 			continue
 		travelled = 0.0
 		d = d.normalized()
@@ -1359,7 +1359,7 @@ func _draw_lines(cam: Camera3D, ov: Control, lines: Array, col: Color, width: fl
 			ov.draw_line(cam.unproject_position(line[i - 1]), cam.unproject_position(line[i]), col, width)
 
 
-## A small padlock icon centred on `at`.
+## A small padlock icon centered on `at`.
 func _draw_padlock(ov: Control, at: Vector2, col: Color) -> void:
 	for pass_col in [Color(0, 0, 0, 0.8), col]:
 		var grow := 1.5 if pass_col.a > 0.75 and pass_col.r == 0.0 else 0.0
@@ -1367,7 +1367,7 @@ func _draw_padlock(ov: Control, at: Vector2, col: Color) -> void:
 		ov.draw_rect(Rect2(at + Vector2(-6 - grow, -2 - grow), Vector2(12 + grow * 2, 9 + grow * 2)), pass_col, true)
 
 
-## The best run's path, coloured by speed: blue slow -> green -> yellow -> red at its top speed.
+## The best run's path, colored by speed: blue slow -> green -> yellow -> red at its top speed.
 func _draw_ghost_path(cam: Camera3D, ov: Control) -> void:
 	var s: Array = best_ghost.get("samples", [])
 	var n := s.size() / 4
@@ -1456,7 +1456,7 @@ func _refresh_lock_props(r: RampNode) -> void:
 	if n == 0:
 		text = "Select a point and lock it (L) to freeze the ramp up to there. Everything after it becomes a new section you can reshape freely - the locked part never changes."
 	else:
-		text = "%d locked section%s (grey) + the editable section (blue). Points up to %d are frozen; the orange line is the seam. Slope angle and face length now only change the editable section; they blend in from the seam." % [
+		text = "%d locked section%s (gray) + the editable section (blue). Points up to %d are frozen; the orange line is the seam. Slope angle and face length now only change the editable section; they blend in from the seam." % [
 			n, "" if n == 1 else "s", r.lock_index()]
 	_fields["lock_info"].text = text
 	var lock_btn: Button = _fields["lock_btn"]
@@ -1864,7 +1864,7 @@ func _build_block_props(props: VBoxContainer) -> void:
 	var cp := ColorPickerButton.new()
 	cp.custom_minimum_size = Vector2(0, 26)
 	cp.color_changed.connect(func(c): _edit_prop("block_color", c))
-	_add_row(look_box, "Colour", cp)
+	_add_row(look_box, "Color", cp)
 	_fields["block_color"] = cp
 	_add_slider(look_box, "block_glow", "Glow", 0.0, 8.0, 0.1)
 	var water_box := VBoxContainer.new()
@@ -1873,7 +1873,7 @@ func _build_block_props(props: VBoxContainer) -> void:
 	var wc := ColorPickerButton.new()
 	wc.custom_minimum_size = Vector2(0, 26)
 	wc.color_changed.connect(func(c): _edit_prop("block_water_color", c))
-	_add_row(water_box, "Water colour", wc)
+	_add_row(water_box, "Water color", wc)
 	_fields["block_water_color"] = wc
 	_add_slider(water_box, "block_clarity", "Clarity", 0.0, 1.0, 0.05)
 	var deadly := CheckButton.new()
@@ -1986,7 +1986,7 @@ func _draw_end() -> void:
 
 # ------------------------------------------------------------------------------------------------ position fields
 ## Position of the selection as three numbers you can drag without limit (or click to type). For text lying on a
-## block face: Across and Up on that face, measured from its centre (type 0 to centre it).
+## block face: Across and Up on that face, measured from its center (type 0 to center it).
 var _pos_box: GridContainer
 var _pos_fields: Array = []
 var _pos_labels: Array = []
@@ -2025,7 +2025,7 @@ func _pos_value(i: int) -> float:
 	var c: Vector3 = _pos_state.get("center", Vector3.ZERO)
 	var face: Dictionary = _pos_state.get("face", {})
 	if not face.is_empty():
-		return (c - (face["centre"] as Vector3)).dot(_pos_axis(i))
+		return (c - (face["center"] as Vector3)).dot(_pos_axis(i))
 	return c[i]
 
 
@@ -2080,7 +2080,7 @@ func _build_light_props(props: VBoxContainer) -> void:
 	var cp := ColorPickerButton.new()
 	cp.custom_minimum_size = Vector2(0, 26)
 	cp.color_changed.connect(func(c): _edit_prop("light_color", c))
-	_add_row(_light_props, "Colour", cp)
+	_add_row(_light_props, "Color", cp)
 	_fields["light_color"] = cp
 	_add_slider(_light_props, "light_energy", "Brightness", 0.0, 16.0, 0.1)
 	_add_slider(_light_props, "light_range", "Reach (m)", 1.0, 400.0, 1.0)
@@ -2105,7 +2105,7 @@ func _add_light(kind: String) -> void:
 	lights_root.add_child(l)
 	l.from_dict({"kind": kind, "position": [c.x, c.y + 6.0, c.z]})
 	_select(l)
-	_set_status("New %s. Colour, brightness and reach are in the panel." % l.label().to_lower())
+	_set_status("New %s. Color, brightness and reach are in the panel." % l.label().to_lower())
 
 
 func _add_water_clicked() -> void:
@@ -2259,7 +2259,7 @@ func _build_text_props(props: VBoxContainer) -> void:
 	_add_row(_text_props, "Font", font)
 	_fields["text_font"] = font
 	var align := OptionButton.new()
-	for a in ["Left", "Centre", "Right"]:
+	for a in ["Left", "Center", "Right"]:
 		align.add_item(a)
 	align.focus_mode = Control.FOCUS_NONE
 	align.item_selected.connect(func(i): _edit_prop("text_align", ["left", "center", "right"][i]))
@@ -2289,7 +2289,7 @@ func _build_text_props(props: VBoxContainer) -> void:
 	var cp := ColorPickerButton.new()
 	cp.custom_minimum_size = Vector2(0, 26)
 	cp.color_changed.connect(func(c): _edit_prop("text_color", c))
-	_add_row(look, "Colour", cp)
+	_add_row(look, "Color", cp)
 	_fields["text_color"] = cp
 	_add_slider(look, "text_glow", "Glow", 0.0, 8.0, 0.1)
 
@@ -2350,11 +2350,11 @@ func _place_text_on_surface(pane: ViewPane, mouse: Vector2) -> void:
 	var centred := _centre_text_on_face(selected)
 	_mark_blocks()
 	_refresh_props()
-	_set_status("Text placed on the surface%s. Drag it along the face; it snaps to the face's centre lines." % (
+	_set_status("Text placed on the surface%s. Drag it along the face; it snaps to the face's center lines." % (
 		(" (snapped to the %s)" % centred) if centred != "" else ""))
 
 
-## The block face a text lies flat on: {block, poly, normal, centre, ax, ay, size_x, size_y} (ax / ay: the text's
+## The block face a text lies flat on: {block, poly, normal, center, ax, ay, size_x, size_y} (ax / ay: the text's
 ## own across / up directions; sizes: the face's extent along them), or {} if it isn't on one.
 func _text_face(t: TextNode) -> Dictionary:
 	var xf := t.global_transform
@@ -2391,7 +2391,7 @@ func _text_face(t: TextNode) -> Dictionary:
 		lo = lo.min(p2)
 		hi = hi.max(p2)
 	fc += ax * (lo.x + hi.x) * 0.5 + ay * (lo.y + hi.y) * 0.5     # the middle of the face's extent
-	return {"block": b, "poly": poly, "normal": out_dir, "centre": fc, "ax": ax, "ay": ay,
+	return {"block": b, "poly": poly, "normal": out_dir, "center": fc, "ax": ax, "ay": ay,
 		"size_x": hi.x - lo.x, "size_y": hi.y - lo.y}
 
 
@@ -2403,7 +2403,7 @@ func _keep_on_face(t: TextNode, face: Dictionary, origin: Dictionary) -> void:
 	var fix := -n * (p - p0).dot(n)                       # back onto the face's plane
 	var box := t.local_box
 	var mid := t.global_transform * Vector3(box.get_center().x, box.get_center().y, 0.0) + fix
-	var off := mid - (face["centre"] as Vector3)
+	var off := mid - (face["center"] as Vector3)
 	for k in [["ax", "size_x", box.size.x], ["ay", "size_y", box.size.y]]:
 		var a: Vector3 = face[k[0]]
 		var lim: float = maxf(face[k[1]] * 0.5 - float(k[2]) * 0.5, 0.0)   # the whole text stays on the face
@@ -2414,15 +2414,15 @@ func _keep_on_face(t: TextNode, face: Dictionary, origin: Dictionary) -> void:
 		t.translate_by(fix)
 
 
-## If the text lies flat on a block's face, snap it onto that face's centre lines when it's close to them (each
-## direction on its own, like design apps). Returns what it snapped to ("centre", "middle line", ...) or "".
+## If the text lies flat on a block's face, snap it onto that face's center lines when it's close to them (each
+## direction on its own, like design apps). Returns what it snapped to ("center", "middle line", ...) or "".
 func _centre_text_on_face(t: TextNode) -> String:
 	var face := _text_face(t)
 	if face.is_empty():
 		return ""
 	var box := t.local_box
 	var mid := t.global_transform * Vector3(box.get_center().x, box.get_center().y, 0.0)
-	var fc: Vector3 = face["centre"]
+	var fc: Vector3 = face["center"]
 	var ax: Vector3 = face["ax"]
 	var ay: Vector3 = face["ay"]
 	var dx := (fc - mid).dot(ax)
@@ -2438,9 +2438,9 @@ func _centre_text_on_face(t: TextNode) -> String:
 	if fix.length() > 1e-6:
 		t.translate_by(fix)
 	if got.size() == 2:
-		return "centre"
+		return "center"
 	if got.has("x"):
-		return "centre line (left to right)"
+		return "center line (left to right)"
 	if got.has("y"):
 		return "middle line (top to bottom)"
 	return ""
@@ -2474,7 +2474,7 @@ func _open_picker(cb: Callable) -> void:
 		var row := HBoxContainer.new()
 		box.add_child(row)
 		var none := Button.new()
-		none.text = "No material (use the Look & colour)"
+		none.text = "No material (use the Look & color)"
 		none.focus_mode = Control.FOCUS_NONE
 		none.pressed.connect(func(): _picker.hide(); _picker_cb.call(""))
 		row.add_child(none)
@@ -2751,7 +2751,7 @@ func _paste_clicked() -> void:
 	if typeof(data) != TYPE_DICTIONARY or not (data.has("mallet_clipboard") or data.has("surfforge_clipboard")):
 		_set_status("Nothing to paste: copy something in MALLET first (Ctrl+C).")
 		return
-	# centre of what was copied
+	# center of what was copied
 	var objs := _paste(data, Vector3.ZERO, true)
 	if objs.is_empty():
 		return
@@ -2905,7 +2905,7 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 		if o != selected:
 			_draw_lines(cam, ov, o.outline if o is RampNode else o.outline_lines(), Color(0.55, 0.85, 1.0, 0.7), 1.5)
 	var lines: Array[PackedVector3Array] = selected.outline if selected is RampNode else selected.outline_lines()
-	_draw_lines(cam, ov, lines, Color(0.3, 0.75, 1.0, 0.95), 2.0)   # selection outline (keeps the real colour visible)
+	_draw_lines(cam, ov, lines, Color(0.3, 0.75, 1.0, 0.95), 2.0)   # selection outline (keeps the real color visible)
 	if selected is RampNode:                       # the locked part: muted
 		_draw_lines(cam, ov, selected.outline_frozen, Color(0.62, 0.64, 0.7, 0.9), 2.0)
 	if selected is RampNode:
@@ -3376,7 +3376,7 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 		if centred != "":
 			_set_status("Snapped to the %s of the face (drag further to let go)" % centred)
 		else:
-			_set_status("Moved by (%.0f, %.0f, %.0f) - centre now (%.0f, %.0f, %.0f)" % [delta.x, delta.y, delta.z, c.x, c.y, c.z])
+			_set_status("Moved by (%.0f, %.0f, %.0f) - center now (%.0f, %.0f, %.0f)" % [delta.x, delta.y, delta.z, c.x, c.y, c.z])
 	_refresh_info()
 
 
@@ -3497,7 +3497,7 @@ func _add_ramp_clicked() -> void:
 		a = a.snapped(Vector3.ONE * snap_step)
 		b = b.snapped(Vector3.ONE * snap_step)
 	_select(_make_ramp(a, b))
-	_set_status("New ramp added at the view centre.")
+	_set_status("New ramp added at the view center.")
 
 
 # ================================================================================================= ramp generator
@@ -3724,7 +3724,7 @@ func _add_entity(kind: String, zone_only := false) -> void:
 		if e.kind == kind and kind in ["start", "finish"] and not zone_only and not e.zone_only:
 			e.position = c
 			_select(e)
-			_set_status("Moved the %s to the view centre (a map has one)." % e.label().to_lower())
+			_set_status("Moved the %s to the view center (a map has one)." % e.label().to_lower())
 			return
 	var n := EntityNode.create(kind)
 	n.position = c
@@ -3742,7 +3742,7 @@ func _add_entity(kind: String, zone_only := false) -> void:
 			n.number = free.min() if not free.is_empty() else (stages.max() if not stages.is_empty() else 2)
 	entities_root.add_child(n)
 	_select(n)
-	_set_status(("Added a %s: put it on your own platform (its floor is where the player stands). More boxes of the same kind " 		+ "(and stage number) make one zone of any shape.") % n.label().to_lower() if zone_only else "Added %s at the view centre." % n.label().to_lower())
+	_set_status(("Added a %s: put it on your own platform (its floor is where the player stands). More boxes of the same kind " 		+ "(and stage number) make one zone of any shape.") % n.label().to_lower() if zone_only else "Added %s at the view center." % n.label().to_lower())
 
 
 func _extend_clicked() -> void:
@@ -3902,7 +3902,7 @@ func frame_course(cam: OrbitCamera, aspect: float) -> void:
 	cam.yaw = atan2(-course.x, -course.z) + deg_to_rad(42.0)
 	cam.pitch = deg_to_rad(-32)
 	cam._apply()
-	# measure the points along the camera's right/up/forward axes, centre on them and back off until they fit
+	# measure the points along the camera's right/up/forward axes, center on them and back off until they fit
 	var bx := cam.global_basis.x
 	var by := cam.global_basis.y
 	var bz := cam.global_basis.z

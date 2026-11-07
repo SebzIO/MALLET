@@ -109,16 +109,16 @@ func _run() -> void:
 	check("can't be dragged past the face's edge (the whole text stays on)", absf(t.center().z - (-8.0 + half)) < 0.05,
 		"(z %.2f, edge at %.2f)" % [t.center().z, -8.0 + half])
 
-	# position fields: Across / Up for text on a face; typing 0 centres it
+	# position fields: Across / Up for text on a face; typing 0 centers it
 	await settle()
 	ed._process(0.0)
 	check("panel shows Across / Up for text on a face", ed._pos_box.visible and ed._pos_labels[0].text == "Across")
 	ed._pos_fields[0].typed.emit(0.0)
 	ed._pos_fields[1].typed.emit(0.0)
 	ed._process(0.0)
-	var fc: Vector3 = ed._text_face(t)["centre"]
+	var fc: Vector3 = ed._text_face(t)["center"]
 	var mid: Vector3 = t.global_transform * Vector3(t.local_box.get_center().x, t.local_box.get_center().y, 0)
-	check("typing 0 / 0 centres it on the face", mid.distance_to(fc) < 0.02, "(%.3f m off)" % mid.distance_to(fc))
+	check("typing 0 / 0 centers it on the face", mid.distance_to(fc) < 0.02, "(%.3f m off)" % mid.distance_to(fc))
 	ed._pos_fields[1].changed_by.emit(1.5)
 	mid = t.global_transform * Vector3(t.local_box.get_center().x, t.local_box.get_center().y, 0)
 	check("dragging the Up field moves it 1.5 m up the face", absf(mid.y - fc.y - 1.5) < 0.02)

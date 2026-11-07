@@ -49,7 +49,7 @@ func _run() -> void:
 	var s2 := zone("start", Vector3(16, 100, 0))
 	var f := zone("finish", Vector3(0, 20, 300), Vector3(30, 8, 30))
 	check("two start zones can be added (a zone of any shape)", ed.entities_root.get_children().filter(func(e): return e.kind == "start").size() == 2)
-	check("a zone box is labelled as a zone", s1.label() == "Start zone" and f.label() == "Finish zone", "(%s, %s)" % [s1.label(), f.label()])
+	check("a zone box is labeled as a zone", s1.label() == "Start zone" and f.label() == "Finish zone", "(%s, %s)" % [s1.label(), f.label()])
 	check("its zone is the box itself (16 x 10 x 16 from its floor)", s1.zone_aabb().is_equal_approx(AABB(Vector3(-8, 100, -8), Vector3(16, 10, 16))), "(%s)" % s1.zone_aabb())
 	check("it has no platform the player could stand on", s1._body.collision_layer == EntityNode.PICK_ONLY_LAYER and not s1._mesh.visible)
 	ed._add_entity("start")

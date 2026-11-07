@@ -113,7 +113,7 @@ func translate_by(delta: Vector3) -> void:
 	position += delta
 
 
-## Turn about the object's centre (keeps it in place on screen).
+## Turn about the object's center (keeps it in place on screen).
 func rotate_by(deg: float) -> void:
 	var c := center()
 	yaw = wrapf(yaw + deg, -180.0, 180.0)

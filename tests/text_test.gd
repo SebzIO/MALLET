@@ -84,7 +84,7 @@ CD", "height": 2.0, "position": [0, 120, 0]})
 	await settle()
 	check("multi-line text: two lines are about twice as tall", two.local_box.size.y > one.local_box.size.y * 1.7,
 		"(%.2f vs %.2f m)" % [two.local_box.size.y, one.local_box.size.y])
-	# centring on a face: the wall's front face is 40 x 16, centre (0, 48, -98)
+	# centering on a face: the wall's front face is 40 x 16, center (0, 48, -98)
 	var sn := text({"text": "MID", "height": 2.0, "depth": 0.3, "position": [0, 0, 0]})
 	await settle()
 	var put := func(x: float, y: float) -> void:
@@ -94,7 +94,7 @@ CD", "height": 2.0, "position": [0, 120, 0]})
 	await settle()
 	var r1: String = ed._centre_text_on_face(sn)
 	var c1: Vector3 = sn.center()
-	check("near the middle of a face: snaps to its centre", r1 == "centre" and absf(c1.x) < 0.01 and absf(c1.y - 48.0) < 0.01,
+	check("near the middle of a face: snaps to its center", r1 == "center" and absf(c1.x) < 0.01 and absf(c1.y - 48.0) < 0.01,
 		"(%s, %.2f, %.2f)" % [r1, c1.x, c1.y])
 	put.call(6.0, 48.4)
 	await settle()
@@ -104,7 +104,7 @@ CD", "height": 2.0, "position": [0, 120, 0]})
 		"(%s, %.2f, %.2f)" % [r2, c2.x, c2.y])
 	put.call(10.0, 55.0)
 	await settle()
-	check("far from both centre lines: left alone", ed._centre_text_on_face(sn) == "")
+	check("far from both center lines: left alone", ed._centre_text_on_face(sn) == "")
 	for t in [one, two, sn]:
 		t.queue_free()
 	await settle()

@@ -13,18 +13,18 @@ Double-click `Run MALLET.cmd` (uses Godot 4.5.1), or open this folder as a proje
 ## Controls
 | Action | How |
 |---|---|
-| Views | Perspective + Top / Front / Side like Hammer · **Space** maximises the view under the mouse (again to restore) · **V** toggles one big 3D view |
+| Views | Perspective + Top / Front / Side like Hammer · **Space** maximizes the view under the mouse (again to restore) · **V** toggles one big 3D view |
 | Select | Left-click a ramp or platform in any view |
 | Reshape a ramp | Drag its yellow handles (in 3D: Shift+drag = up/down; ortho views move along what you see) |
 | Move anything | Drag the object itself · arrows / PgUp PgDn nudge by the snap step · **[ ]** rotate 15° |
 | Add a bend | Double-click the selected ramp, or **Add Bend** · **Extend** makes it longer |
-| Ramp style | Hollow (open V) or Solid (flat bottom, optional base depth) · width, height, smoothness, tilt, colour |
+| Ramp style | Hollow (open V) or Solid (flat bottom, optional base depth) · width, height, smoothness, tilt, color |
 | Platforms | **B** start platform (green: spawn + timer start, arrow = facing) · **M** finish platform (blue) |
 | Zones | **K** kill zone (red: touching it respawns you) · **J** booster (yellow: arrow = push direction; strength in u/s; Add or Set speed) · an automatic kill floor sits 60 m below the map |
 | Stages | **T** stage plate (purple, auto-numbered 2, 3…: checkpoint + split) · **Y** teleport (sends you to a stage plate; keep speed or stop) · labels in every view, dashed line from a selected teleport to its plate · play mode: falls/kills return you to your stage, Backspace = back to stage, R = restart run, finish needs every stage |
 | Play | **P**: spawn on the start platform; the timer runs from leaving the start to landing on the finish · speed is capped at 400 u/s in the start zone (SurfsUp default: no prespeed) · R restart · Esc back |
 | Camera | 3D: right-drag orbit · middle-drag pan · wheel zoom · right-drag + WASD/QE fly · ortho: right/middle-drag pan, wheel zoom |
-| Look & feel | Nothing selected → **Map** panel: sky preset (Clear day, Sunset, Overcast, Night, Aurora, Deep space) and every colour, sun direction/height/colour/brightness, stars, aurora, nebula, fog. Ramp panel → **Look**: plain colour, glazed ceramic, brushed steel, dev grid, aurora (animated), nebula, neon edges, or your own image (PNG/JPG/WebP, size along the ramp in metres). Everything is embedded in the exported map. |
+| Look & feel | Nothing selected → **Map** panel: sky preset (Clear day, Sunset, Overcast, Night, Aurora, Deep space) and every color, sun direction/height/color/brightness, stars, aurora, nebula, fog. Ramp panel → **Look**: plain color, glazed ceramic, brushed steel, dev grid, aurora (animated), nebula, neon edges, or your own image (PNG/JPG/WebP, size along the ramp in meters). Everything is embedded in the exported map. |
 | Jump checker | Select a ramp: arcs show where riders fly off its end at full speed (solid) and at 85% speed (dashed): **green** = lands on a ramp, platform, teleport or booster, **red** = falls to a kill zone or the kill floor. The ramp panel shows the exit speed and the outcome. Toolbar **Jump arcs: all ramps** shows every jump at once. Speed comes from the drop since the start/stage plate (from 400 u/s); arcs assume no air strafing. |
 | Export | **Export to SurfsUp**: writes `<name>.pck` into SurfsUp's Maps folder (auto-detected, remembered); in game press ~ and type `map <name>`. Restart SurfsUp before reloading a map you replaced. |
 | Keys | N ramp · R generate a ramp shape · L lock/unlock the selected point · Del delete point/object · Ctrl+D duplicate · F frame · G snap · Ctrl+Z/Y undo/redo · Ctrl+S save |
@@ -50,14 +50,14 @@ Maps save as `.mallet` (plain JSON, engine-neutral so other exporters can be add
 9. Direction arrows ✅ (toggle, editor-only) with ramp start / end markers, Flip direction (the ramp stays put)
 10. Locking ✅ (L) freeze a ramp up to a point; the rest is a new section with its own slope/face, joined with no
     kink (tangent lock at seam) and no step (settings blend in); unlock merges; undo/redo covers it
-11. Ghost replay ✅ race your best run (saved with the map), its path drawn coloured by speed
+11. Ghost replay ✅ race your best run (saved with the map), its path drawn colored by speed
 12. Props ✅ (I) glTF models: place, turn, size, solid or decoration; exported with compressed textures
 13. CS:S export ✅ Hammer .vmf (ramps as func_detail hull brushes, timer zones map_start / map_end / sN_start,
     teleports, boosters, kill floor, sky, sun, sv_airaccelerate) and one-click compile with CS:S's vbsp/vvis/vrad
 14. Structures ✅ (0.2) blocks, shapes, hollow rooms, live cutters, multi-select, groups, copy/paste
 15. Materials ✅ (0.3) starter library + your own images, per-side materials, Alt+click painting, CS:S packing
 16. Text ✅ (0.4) flat signs, solid 3D letters (embossed on a surface), multi-line, any font, place on a surface
-    with snapping to the face's centre lines
+    with snapping to the face's center lines
 17. Lights, water, prefabs ✅ (0.5) point + spot lights, water and deadly liquids, glowing blocks, 7 starter
     prefabs + save your own (Edit > Save selection as prefab)
 18. Build mode ✅ (0.6) first-person, Sauerbraten-style cube building: wheel cubes out / in, 1/8 face and corner

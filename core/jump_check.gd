@@ -6,7 +6,7 @@ extends RefCounted
 ## air strafing, the honest baseline: good players can stretch and bend a jump beyond it.
 
 const G := 20.32                       ## m/s^2, SurfsUp gravity (800 u/s^2)
-const U := 39.37                       ## SurfsUp units per metre
+const U := 39.37                       ## SurfsUp units per meter
 const START_SPEED := 400.0 / U         ## the start / stage zone caps speed at 400 u/s
 const RIDER_BELOW_RIDGE := 2.0         ## riders surf a little below the ridge
 const DT := 1.0 / 30.0
@@ -27,7 +27,7 @@ static func exit_of(ridge: PackedVector3Array) -> Array:
 
 
 ## Where to put the next ramp's first ridge point so a rider leaving `exit_point` along `exit_dir` at `speed`
-## (m/s) lands on its face after flying `gap` metres horizontally. `side` +1 / -1 picks which face they land on:
+## (m/s) lands on its face after flying `gap` meters horizontally. `side` +1 / -1 picks which face they land on:
 ## the ridge is moved 3 m sideways so the arc meets the face 3 m out from the ridge, just under its top.
 ## `slope` is the tan of that face's angle (RampShape.face_slope).
 static func next_ramp_start(exit_point: Vector3, exit_dir: Vector3, speed: float, gap: float, side: float,

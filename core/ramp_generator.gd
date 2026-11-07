@@ -5,7 +5,7 @@ extends RefCounted
 ## heading along -Z, "right" = +X) and then placed at a start point and heading.
 
 const SHAPES := {
-	"spiral": {"label": "Spiral", "about": "Winds down around a centre point, like a helter-skelter.",
+	"spiral": {"label": "Spiral", "about": "Winds down around a center point, like a helter-skelter.",
 		"params": [["radius", "Radius (m)", 30.0, 300.0, 5.0, 90.0], ["turns", "Turns", 0.25, 3.0, 0.05, 0.75],
 			["drop", "Drop (m)", 0.0, 400.0, 5.0, 90.0], ["hand", "Turn to the right", 0.0, 1.0, 1.0, 1.0]]},
 	"s_curve": {"label": "S-curve", "about": "Snakes left and right as it falls.",
@@ -45,7 +45,7 @@ static func generate(shape: String, p: Dictionary, start: Vector3, yaw_deg: floa
 			var centre := Vector3(side * r, 0, 0)
 			for i in n:
 				var a := total * i / (n - 1)
-				# start at the origin heading -Z, circling the centre on the chosen side
+				# start at the origin heading -Z, circling the center on the chosen side
 				local.append(centre + Vector3(-side * r * cos(a), 0, -r * sin(a)) + Vector3(0, -float(p["drop"]) * i / (n - 1), 0))
 		"s_curve":
 			var bends: int = int(p["bends"])

@@ -1,5 +1,5 @@
 extends SceneTree
-## F3's Centre on selection / Fit to selection (the user's lamp texture that straddled four 1 m cubes): the texture's
+## F3's Center on selection / Fit to selection (the user's lamp texture that straddled four 1 m cubes): the texture's
 ## middle lands in the middle of the selection, Fit makes one repeat span it, turned textures too, and CS:S exports
 ## put it in the same place - also for a cube object moved off the texture's grid. Saves a top-down picture.
 ## Run: godot --path D:/SurfForge --resolution 900x900 -s res://tests/texture_place_test.gd -- <out folder>
@@ -38,8 +38,8 @@ func _run() -> void:
 	var k := Vector4i(40, 0, 56, 0)
 	check("before: the lamp (texture middle) isn't on that cube", uv_at(w, k, 3, mid).distance_to(Vector2(0.5, 0.5)) > 0.1, "(%s)" % uv_at(w, k, 3, mid))
 	w.place_texture(one, false)
-	check("Centre: the texture's middle is the cube's middle", uv_at(w, k, 3, mid).distance_to(Vector2(0.5, 0.5)) < 0.001, "(%s)" % uv_at(w, k, 3, mid))
-	check("Centre keeps its size (8 m)", is_equal_approx(float(CubeWorld.parse_slot(w.leaves[k][1][3])["s"]), 1.0))
+	check("Center: the texture's middle is the cube's middle", uv_at(w, k, 3, mid).distance_to(Vector2(0.5, 0.5)) < 0.001, "(%s)" % uv_at(w, k, 3, mid))
+	check("Center keeps its size (8 m)", is_equal_approx(float(CubeWorld.parse_slot(w.leaves[k][1][3])["s"]), 1.0))
 	var nb := Vector4i(48, 0, 56, 0)
 	check("...and only the selected face changes", CubeWorld.parse_slot(w.leaves[nb][1][3])["u"] == 0.0)
 	w.place_texture(one, true)
@@ -54,10 +54,10 @@ func _run() -> void:
 		return d)
 	w.place_texture(wall, false)
 	var wk := Vector4i(24, 0, 56, 0)
-	check("Centre works on a 5 m side, turned 90 degrees", uv_at(w, wk, 0, Vector3(3.0, 0.5, 7.5)).distance_to(Vector2(0.5, 0.5)) < 0.001,
+	check("Center works on a 5 m side, turned 90 degrees", uv_at(w, wk, 0, Vector3(3.0, 0.5, 7.5)).distance_to(Vector2(0.5, 0.5)) < 0.001,
 		"(%s)" % uv_at(w, wk, 0, Vector3(3.0, 0.5, 7.5)))
 
-	# CS:S puts it in the same place, with the object moved off the texture's grid (back at full size, centred)
+	# CS:S puts it in the same place, with the object moved off the texture's grid (back at full size, centered)
 	w.set_slot_param(one, false, func(d: Dictionary) -> Dictionary:
 		d["s"] = 1.0
 		return d)
@@ -87,9 +87,9 @@ func _run() -> void:
 		if uv.distance_to(Vector2(0.5, 0.5)) < 0.002:
 			found = true
 		where = uv
-	check("CS:S: the lamp is centred on the same cube (object moved off-grid)", found, "(%s)" % where)
+	check("CS:S: the lamp is centered on the same cube (object moved off-grid)", found, "(%s)" % where)
 
-	# a picture: the floor from above, the middle cube centred
+	# a picture: the floor from above, the middle cube centered
 	var root3 := Node3D.new()
 	root.add_child(root3)
 	for ck in w.render_chunks():

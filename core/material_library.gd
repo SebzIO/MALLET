@@ -1,6 +1,6 @@
 class_name MaterialLibrary
 extends RefCounted
-## The starter material library (res://materials, CC0 textures from ambientCG): real materials with colour, surface
+## The starter material library (res://materials, CC0 textures from ambientCG): real materials with color, surface
 ## detail (normal map), roughness and, for metals, metalness. Everything is built as embedded compressed textures so
 ## a SurfsUp export carries it inside the map; CS:S exports convert it to Valve's format (see VmfExporter).
 
@@ -96,7 +96,7 @@ static func display_name(id: String) -> String:
 	return entry(id).get("name", id) if id != "" else "None"
 
 
-## Metres one repeat of the texture covers on a surface (at texture scale 1).
+## Meters one repeat of the texture covers on a surface (at texture scale 1).
 static func world_size(id: String) -> float:
 	return float(entry(id).get("size", 2.0))
 
@@ -183,7 +183,7 @@ static func material(id: String, tint := Color.WHITE) -> StandardMaterial3D:
 		m.emission_enabled = true
 		m.emission = Color.WHITE
 		m.emission_texture = gl
-		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY   # (ADD would light the whole face: colour + map)
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY   # (ADD would light the whole face: color + map)
 		m.emission_energy_multiplier = GLOW_ENERGY
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_materials[key] = m

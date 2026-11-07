@@ -10,11 +10,11 @@ const DEFAULT_COLOR := Color(0.93, 0.92, 0.89)
 var points := PackedVector3Array()   ## control points the ridge passes through (world space)
 var style := "v"                     ## "v" (both faces) / "half_left" / "half_right" (one face, seen along travel)
 var angle := 56.0                    ## slope angle of the faces, degrees from level (left face in Freeform)
-var face_length := 10.5              ## slant length of a face, ridge to edge, metres (left face in Freeform)
+var face_length := 10.5              ## slant length of a face, ridge to edge, meters (left face in Freeform)
 var angle_right := 56.0              ## Freeform only: the right face's own angle
 var face_length_right := 10.5        ## Freeform only: the right face's own length
 var slice := "vertical"              ## profile held in a vertical slice, or "perpendicular" to travel
-var detail := 1.0                    ## cross-sections per metre of path (smoothness / polygon count)
+var detail := 1.0                    ## cross-sections per meter of path (smoothness / polygon count)
 var freeform := false                ## lets the right face have its own angle and length
 var frozen: Array = []               ## locked sections, first to last (see RampShape.sections)
 var seam_tangent_lock := true        ## the editable section leaves its seam along the locked section's tangent
@@ -32,7 +32,7 @@ var color := DEFAULT_COLOR
 var look := "color"                  ## material preset (see Look.RAMP_LOOKS)
 var texture := ""                    ## look "texture": image file on disk
 var material := ""                   ## look "material": a library material id
-var tex_scale := 20.0                ## look "texture": metres one copy of the image covers
+var tex_scale := 20.0                ## look "texture": meters one copy of the image covers
 var _material_key := ""
 
 var _mesh_instance := MeshInstance3D.new()
@@ -215,7 +215,7 @@ func translate_by(delta: Vector3) -> void:
 	rebuild()
 
 
-## Turn the whole ramp around its centre (degrees, seen from above).
+## Turn the whole ramp around its center (degrees, seen from above).
 func rotate_by(deg: float) -> void:
 	var c := center()
 	var b := Basis(Vector3.UP, deg_to_rad(deg))

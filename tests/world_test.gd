@@ -46,7 +46,7 @@ func _run() -> void:
 	check("Add > Light makes a point light", pl is LightNode and pl._light is OmniLight3D)
 	ed._edit_prop("light_energy", 6.0)
 	ed._edit_prop("light_color", Color.html("ff0000"))
-	check("brightness and colour edit the real light", is_equal_approx(pl._light.light_energy, 6.0) and pl._light.light_color.r > 0.99 and pl._light.light_color.g < 0.01)
+	check("brightness and color edit the real light", is_equal_approx(pl._light.light_energy, 6.0) and pl._light.light_color.r > 0.99 and pl._light.light_color.g < 0.01)
 	ed._edit_prop("light_kind", "spot")
 	check("switching to a spot light", pl._light is SpotLight3D and ed._fields["light_spot_box"].visible)
 	ed._edit_prop("light_kind", "point")

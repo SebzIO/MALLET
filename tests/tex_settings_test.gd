@@ -50,7 +50,7 @@ func _run() -> void:
 				sum += c
 				n += 1
 		var avg := sum / n
-		var textured := avg.r > avg.b * 1.25                  # bricks are red-brown; the white fallback is grey
+		var textured := avg.r > avg.b * 1.25                  # bricks are red-brown; the white fallback is gray
 		print("%-56s %s (avg %s)" % ["%s bricks show their texture" % names[i], "OK  " if textured else "FAIL", avg])
 		ok = ok and textured
 	print("TEX SETTINGS: ", "PASS" if ok else "FAIL")

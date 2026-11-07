@@ -988,7 +988,7 @@ func _ent_prop(idx: int, dir: int) -> void:
 					var c := Color.html(d["color"])
 					c[idx - 2] = clampf(c[idx - 2] + dir * 16.0 / 255.0, 0.0, 1.0)
 					d["color"] = c.to_html(false)
-					what = "colour #%s" % d["color"]
+					what = "color #%s" % d["color"]
 		elif o is EntityNode:
 			match idx:
 				1:
@@ -1204,8 +1204,8 @@ func _build_tex_panel() -> void:
 	box.add_child(pick)
 	var place := HBoxContainer.new()                    # Hammer's justify: put a texture where you want it
 	box.add_child(place)
-	for spec in [["Centre on selection", false, "Shift the texture so its middle is in the middle of the selection"],
-			["Fit to selection", true, "Size the texture so one repeat spans the selection, and centre it"]]:
+	for spec in [["Center on selection", false, "Shift the texture so its middle is in the middle of the selection"],
+			["Fit to selection", true, "Size the texture so one repeat spans the selection, and center it"]]:
 		var pb := Button.new()
 		pb.text = spec[0]
 		pb.tooltip_text = spec[2]
@@ -1234,7 +1234,7 @@ func _build_tex_panel() -> void:
 	box.add_child(rot)
 	_tex_fields["r"] = rot
 	var col := ColorPickerButton.new()
-	col.text = "Colour"
+	col.text = "Color"
 	col.custom_minimum_size = Vector2(0, 28)
 	col.color_changed.connect(func(c): _tex_param("c", c.to_html(false)))
 	box.add_child(col)
@@ -1264,7 +1264,7 @@ func _build_tex_panel() -> void:
 	box.add_child(close)
 
 
-## F3's Centre / Fit buttons on the selected (or aimed-at) faces.
+## F3's Center / Fit buttons on the selected (or aimed-at) faces.
 func place_texture(fit: bool) -> void:
 	var s := op_sel()
 	if s.is_empty() or s.get("model") == null:
@@ -1274,7 +1274,7 @@ func place_texture(fit: bool) -> void:
 		w.place_texture(s, fit)
 		return s)
 	_refresh_tex_panel()
-	say("Texture fitted to the selection" if fit else "Texture centred on the selection")
+	say("Texture fitted to the selection" if fit else "Texture centered on the selection")
 
 
 func _open_tex_panel() -> void:
@@ -1474,7 +1474,7 @@ func update_target() -> void:
 
 
 ## Walk the line of sight through a cube object's grid (cells of grid power p) and return the first cell with
-## anything in it: {cell (ticks), orient (the face it was entered through), point (where, metres, object space)}.
+## anything in it: {cell (ticks), orient (the face it was entered through), point (where, meters, object space)}.
 func _first_occupied(m: CubeModelNode, from_w: Vector3, dir_w: Vector3, max_d: float, p: int) -> Dictionary:
 	var w: CubeWorld = m.world
 	if w.count() == 0 and w.mats.is_empty():
@@ -1613,7 +1613,7 @@ func _draw() -> void:
 					_line(seg[i], seg[i + 1], Color(1.0, 0.55, 0.1))
 	_line(Vector3.ZERO, Vector3.ZERO, Color.BLACK)
 	_im.surface_end()
-	last_fill_count = _fills.filter(func(f): return f.size() == 4).size()   # (corner squares; the face fill has a colour)
+	last_fill_count = _fills.filter(func(f): return f.size() == 4).size()   # (corner squares; the face fill has a color)
 	if not _fills.is_empty():                            # the selected corner squares, filled
 		_im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 		for f in _fills:

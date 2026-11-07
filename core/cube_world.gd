@@ -3,7 +3,7 @@ extends RefCounted
 ## Cube geometry you build by hand, the way Cube 2: Sauerbraten's editor works (its ideas re-implemented here, not
 ## its code): a grid of cubes at power-of-two sizes; pull cubes out of faces and push them back in, push a face or
 ## corners in 1/8 steps for slopes and bevels, sculpt it like a heightmap, texture each face (with Sauerbraten's
-## texture settings: scale, rotate, offset, scroll, colour, see-through, a blend layer you paint in), and fill empty
+## texture settings: scale, rotate, offset, scroll, color, see-through, a blend layer you paint in), and fill empty
 ## space with materials (water, lava, glass, clip, noclip, gameclip, death, alpha).
 ##
 ## A cube is 8 corners, each on its own 0..8 grid inside the cube (Sauerbraten stores the same thing as 12 edges of
@@ -125,7 +125,7 @@ static func orient_step(o: int) -> Vector3i:
 ## A face's texture: a library material id plus Sauerbraten's texture settings (vscale, vrotate, voffset, vscroll,
 ## vcolor, valpha, vlayer), written as "id" or "id|s=2;r=1;u=0.25;..." so faces with equal settings share a mesh
 ## surface. Keys: s scale, r rotate (0-3 quarter turns, 4 flip across, 5 flip up), u / v offset (repeats),
-## su / sv scroll (repeats a second), c colour (hex), a see-through (0-1), l blend layer texture.
+## su / sv scroll (repeats a second), c color (hex), a see-through (0-1), l blend layer texture.
 const SLOT_DEFAULTS := {"id": "", "s": 1.0, "r": 0, "u": 0.0, "v": 0.0, "su": 0.0, "sv": 0.0, "c": "ffffff", "a": 1.0, "l": ""}
 
 
@@ -183,7 +183,7 @@ static func slot_uv(p: Vector3, n: Vector3, sl: Dictionary, layer := false) -> V
 	return uv + Vector2(sl["u"], sl["v"])
 
 
-## The material for a face slot (texture, colour, see-through, scrolling, blend layer).
+## The material for a face slot (texture, color, see-through, scrolling, blend layer).
 static func material_for(slot: String, alpha_mat := false) -> Material:
 	var key := slot + ("#alpha" if alpha_mat else "")
 	if _materials.has(key):
@@ -413,7 +413,7 @@ static func child_corners(c: PackedByteArray, o: int) -> PackedByteArray:
 	return out
 
 
-## Where a child's corner goes: it stays on as many of its cell's walls as it can, so neighbouring pieces still meet
+## Where a child's corner goes: it stays on as many of its cell's walls as it can, so neighboring pieces still meet
 ## edge to edge. Its own spot if that's solid; else the nearest solid point sliding along one of its 3 edges; else
 ## within one of its 3 walls; else anywhere. (Taking the nearest point in any direction moved corners off the
 ## walls diagonally, leaving wedge-shaped gaps between pieces of a slope.)
@@ -801,7 +801,7 @@ static func leaf_planes(v: Array) -> Array:
 	return cut_planes(cut_from_corners(v[0]))
 
 
-## Is wall o of a leaf a whole, flat square (so a neighbour's full face can hide it)?
+## Is wall o of a leaf a whole, flat square (so a neighbor's full face can hide it)?
 static func leaf_face_full(v: Array, o: int) -> bool:
 	var cut := _cut_of(v)
 	if cut.is_empty():
@@ -1007,7 +1007,7 @@ func _bulk_end() -> void:
 		for y in range(_fdiv(lo.y, RENDER_TICKS), _fdiv(hi.y, RENDER_TICKS) + 1):
 			for z in range(_fdiv(lo.z, RENDER_TICKS), _fdiv(hi.z, RENDER_TICKS) + 1):
 				dirty[Vector3i(x, y, z)] = true
-	for k in leaves_in(lo, hi - lo + Vector3i.ONE):     # big neighbours that start in another chunk
+	for k in leaves_in(lo, hi - lo + Vector3i.ONE):     # big neighbors that start in another chunk
 		dirty[render_key(k)] = true
 
 
@@ -1605,8 +1605,8 @@ func _edit_slots(sel: Dictionary, all_faces: bool, fn: Callable) -> void:
 			_put(k, _v(v[0], t, _blend_of(v), _cut_of(v)))
 
 
-## F3's Centre / Fit: place the texture on the selected faces so its middle is in the middle of the selection (Hammer's
-## "justify centre"); `fit` also sizes it so one repeat spans the selection's longer side. Works out the shift through
+## F3's Center / Fit: place the texture on the selected faces so its middle is in the middle of the selection (Hammer's
+## "justify center"); `fit` also sizes it so one repeat spans the selection's longer side. Works out the shift through
 ## slot_uv itself, so turned and flipped textures land right too. Only the faces the selection is on change.
 func place_texture(sel: Dictionary, fit: bool) -> void:
 	var o: int = sel["orient"]
@@ -1711,7 +1711,7 @@ func set_material(sel: Dictionary, mat: String) -> void:
 			_put_mat(Vector4i(c.x, c.y, c.z, p), mat)
 
 
-## Material cells as boxes in metres (this object's space): {material: [AABB, ...]}.
+## Material cells as boxes in meters (this object's space): {material: [AABB, ...]}.
 func material_boxes() -> Dictionary:
 	var out := {}
 	for k in mats:
@@ -1732,7 +1732,7 @@ func cube_in_mat(k: Vector4i, m: String) -> bool:
 
 # ------------------------------------------------------------------------------------------------ heightmap
 ## Heightmap mode (Sauerbraten's hmapedit): treat the tops of the cubes as terrain and move its corner points with a
-## brush centred on `center` (ticks, a corner point of the grid) - dir 1 lowers, -1 raises. `around_y` (ticks) is
+## brush centered on `center` (ticks, a corner point of the grid) - dir 1 lowers, -1 raises. `around_y` (ticks) is
 ## roughly where the surface is. Raising past a cube's top builds new cubes; lowering past its bottom digs them away.
 func hmap_edit(center: Vector3i, around_y: int, p: int, brush: Array, dir: int) -> void:
 	_top_cache = {}                                      # column tops don't change until the columns are written
@@ -2015,7 +2015,7 @@ static func _top_whole(c: PackedByteArray) -> bool:
 	return true
 
 
-## Sauerbraten's pushside: a top corner with no height whose two neighbours have none either is moved across to the
+## Sauerbraten's pushside: a top corner with no height whose two neighbors have none either is moved across to the
 ## other side (along x), so the cube only covers the part of its cell where it has height (on a slope, the part
 ## where the cube below is full) - otherwise its flat bottom would hang over empty space.
 static func _fold_flat_corners(c: PackedByteArray) -> void:
@@ -2232,14 +2232,14 @@ func _face_hidden(k: Vector4i, c: PackedByteArray, o: int) -> bool:
 		return false
 	var sz := size_of(k.w)
 	var st := orient_step(o) * sz
-	var nk = Vector4i(k.x + st.x, k.y + st.y, k.z + st.z, k.w)   # (usually a neighbour of the same size: one lookup)
+	var nk = Vector4i(k.x + st.x, k.y + st.y, k.z + st.z, k.w)   # (usually a neighbor of the same size: one lookup)
 	if not leaves.has(nk):
 		var same := Vector3i(nk.x, nk.y, nk.z)
 		nk = _leaf_at_from(_beyond(k, o), k.w + 1)
 		if nk == null:                                   # smaller cubes beyond: hidden if they cover all of it
 			return _covered(same, k.w, o, _see_through(k))
 	if not mats.is_empty() and (cube_in_mat(nk, "alpha") or cube_in_mat(nk, "noclip")) != (cube_in_mat(k, "alpha") or cube_in_mat(k, "noclip")):
-		return false                                     # a see-through or pass-through neighbour doesn't hide it
+		return false                                     # a see-through or pass-through neighbor doesn't hide it
 	return leaf_face_full(leaves[nk], o ^ 1)
 
 
@@ -2323,12 +2323,12 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 			continue
 		var flat := not outline and c == FULL and bl.is_empty()
 		var sz := size_of(k.w)
-		var quick := c == FULL and no_mats                   # whole cube, no materials: inline same-size neighbour test
+		var quick := c == FULL and no_mats                   # whole cube, no materials: inline same-size neighbor test
 		for o in 6:
 			if quick:
 				var st: Vector3i = _STEPS[o]
 				var nv = leaves.get(Vector4i(k.x + st.x * sz, k.y + st.y * sz, k.z + st.z * sz, k.w))
-				if nv == null:                               # a bigger neighbour? (the one holding the tick beyond)
+				if nv == null:                               # a bigger neighbor? (the one holding the tick beyond)
 					var np := Vector3i(k.x, k.y, k.z)
 					np[o >> 1] += sz if o & 1 else -1
 					for q in range(k.w + 1, MAX_P + 1):
@@ -2350,7 +2350,7 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 					continue
 			elif _face_hidden(k, c, o):
 				continue
-			if flat:                                         # whole faces: merged with their neighbours below
+			if flat:                                         # whole faces: merged with their neighbors below
 				var d := o >> 1
 				var sk: String = v[1][o]
 				if alpha or noclip:

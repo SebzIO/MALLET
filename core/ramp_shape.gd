@@ -25,18 +25,18 @@ const DEFAULTS := {
 	"solid": false,                ## closed flat bottom instead of an open shell
 	"base_depth": 0.0,             ## solid: how far the bottom extends below the face edges
 	"angle": 56.0,                 ## slope angle of the faces (left face in Freeform), degrees from level
-	"face_length": 10.5,           ## slant length of each face, ridge to edge (left face in Freeform), metres
+	"face_length": 10.5,           ## slant length of each face, ridge to edge (left face in Freeform), meters
 	"angle_right": 56.0,           ## Freeform only
 	"face_length_right": 10.5,     ## Freeform only
 	"slice": "vertical",           ## "vertical" or "perpendicular" (how the profile is held on climbs and drops)
-	"detail": 1.0,                 ## stations per metre along the spine (smoothness / polygon count)
+	"detail": 1.0,                 ## stations per meter along the spine (smoothness / polygon count)
 	"freeform": false,             ## lets the right face have its own angle and length
 	"frozen": [],                  ## locked sections, first to last: {end, angle, face_length, angle_right,
 	                               ## face_length_right, end_ghost, tangent_lock} (see "Sections" below)
 	"seam_tangent_lock": true,     ## the editable section leaves its seam along the locked section's tangent
 }
-const SEAM_BLEND := 30.0         ## metres over which a section bends from the inherited seam direction to its own
-const SETTINGS_BLEND := 20.0     ## metres over which a section's angle / face length blend in from the seam
+const SEAM_BLEND := 30.0         ## meters over which a section bends from the inherited seam direction to its own
+const SETTINGS_BLEND := 20.0     ## meters over which a section's angle / face length blend in from the seam
 
 
 ## A complete, consistent set of ramp settings from a (possibly partial) dictionary. Outside Freeform the right
@@ -109,10 +109,10 @@ static func _eval(points: PackedVector3Array, i: int, t: float, ghosts := []) ->
 	return _catmull_rom(c[0], c[1], c[2], c[3], t)
 
 
-## Stations evenly spaced by arc length (about `spacing` metres apart, the ends exactly on the first and last
+## Stations evenly spaced by arc length (about `spacing` meters apart, the ends exactly on the first and last
 ## point), each with the spine's own tangent there (the curve's derivative, not differences between vertices).
 ## `ghosts` = [before the first point, after the last point] (null = mirror). `start_tangent`, if given, bends
-## the first SEAM_BLEND metres so the spine leaves its first point exactly along it (a smooth seam).
+## the first SEAM_BLEND meters so the spine leaves its first point exactly along it (a smooth seam).
 ## Returns {"pos": PackedVector3Array, "tan": PackedVector3Array, "dist": PackedFloat32Array, "length": float}.
 static func stations(points: PackedVector3Array, spacing: float, ghosts := [], start_tangent := Vector3.ZERO) -> Dictionary:
 	if start_tangent == Vector3.ZERO or points.size() < 2:
@@ -280,7 +280,7 @@ static func spine(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 	return {"pos": pos, "tan": tan, "dist": dist, "length": offset, "values": values, "seams": seams}
 
 
-## Points along the spine about `spacing` metres apart.
+## Points along the spine about `spacing` meters apart.
 static func sample_path(points: PackedVector3Array, spacing: float) -> PackedVector3Array:
 	return stations(points, spacing)["pos"]
 
@@ -367,7 +367,7 @@ static func frames(st: Dictionary, s: Dictionary) -> Array:
 	rights.resize(n)
 	ups.resize(n)
 	# right = horizontal heading x world up. Where the spine is (nearly) vertical there is no heading: reuse the
-	# neighbour's right, so nothing jumps and no NaN appears.
+	# neighbor's right, so nothing jumps and no NaN appears.
 	var valid := -1
 	for i in n:
 		var ff := Vector3(tan[i].x, 0.0, tan[i].z)
@@ -512,7 +512,7 @@ static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, e: Vector
 		st.add_vertex(pair[0])
 
 
-## Length of a sampled path in metres.
+## Length of a sampled path in meters.
 static func path_length(ridge: PackedVector3Array) -> float:
 	var l := 0.0
 	for i in range(1, ridge.size()):

@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled;
-// Glazed ceramic: off-white glaze, a coloured double rim line along both edges, very glossy.
-uniform vec4 tint : source_color = vec4(0.13, 0.25, 0.59, 1.0);   // rim colour
+// Glazed ceramic: off-white glaze, a colored double rim line along both edges, very glossy.
+uniform vec4 tint : source_color = vec4(0.13, 0.25, 0.59, 1.0);   // rim color
 float hash(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 4375.85); }
 void fragment() {
 	float e = min(UV.x, abs(1.0 - UV.x));

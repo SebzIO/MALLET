@@ -9,14 +9,14 @@ extends RefCounted
 ## spawn_<zone>. Teleports and kill zones are trigger_teleports, boosters trigger_pushes, the kill floor a field of
 ## trigger_teleports sending you to the nearest stage. A skybox shell seals the map so it compiles without a leak.
 ##
-## Source is Z-up and 1 unit = 1 inch: (x, y, z)_source = (x, -z, y)_godot * 39.37, the same 39.37 units per metre
+## Source is Z-up and 1 unit = 1 inch: (x, y, z)_source = (x, -z, y)_godot * 39.37, the same 39.37 units per meter
 ## SurfsUp uses, so speeds and gravity match.
 
 const U := 39.37
 const LIMIT := 16384.0                   ## Source maps must fit inside +-16384 units on every axis
 const SKY_MARGIN := 256.0                ## room between the map and the skybox walls (6.5 m)
 const SKY_THICK := 64.0
-const MIN_SEGMENT := 2.0                 ## metres: ramp cross-sections closer than this are merged (brush budget)
+const MIN_SEGMENT := 2.0                 ## meters: ramp cross-sections closer than this are merged (brush budget)
 const MAX_BRUSHES := 8192                ## Source's brush limit
 const RAMP_MATERIAL := "DEV/DEV_MEASUREGENERIC01B"
 const PLATFORM_MATERIAL := "DEV/DEV_MEASUREWALL01C"
@@ -60,7 +60,7 @@ static func export_vmf(map: Dictionary, path: String, opts := {}) -> Dictionary:
 		"glowing": ex.glowing_materials.keys()}
 
 
-## Source coordinates of a Godot point (centred on the map).
+## Source coordinates of a Godot point (centered on the map).
 func src(v: Vector3) -> Vector3:
 	return Vector3(v.x, -v.z, v.y) * U - _off
 
@@ -119,7 +119,7 @@ func build(map: Dictionary, opts := {}) -> String:
 			hi = hi.max(c)
 	var kill_y := SurfsUpExporter.kill_floor_y(map)
 	lo.y = minf(lo.y, kill_y - 2.0)
-	# ---- centre the map in Source space and check it fits
+	# ---- center the map in Source space and check it fits
 	var s_lo := Vector3(lo.x, -hi.z, lo.y) * U
 	var s_hi := Vector3(hi.x, -lo.z, hi.y) * U
 	_off = ((s_lo + s_hi) * 0.5).round()
@@ -322,7 +322,7 @@ func build(map: Dictionary, opts := {}) -> String:
 			if i < nx:
 				var cx := x0 + (i + 0.5) * cell
 				var cy := y0 + (j + 0.5) * cell
-				var g := Vector3((cx + _off.x) / U, kill_y, -(cy + _off.y) / U)      # the cell's centre, back in Godot space
+				var g := Vector3((cx + _off.x) / U, kill_y, -(cy + _off.y) / U)      # the cell's center, back in Godot space
 				owner = _nearest_plate(plates, g, false)
 			if i == nx or owner != run_owner:
 				if i > 0 and run_owner != "":
@@ -640,7 +640,7 @@ func _cube_solid(w: CubeWorld, k: Vector4i, xf := Transform3D.IDENTITY) -> Strin
 var variant_materials := {}              ## extra VMTs: name -> {"name", "base" or "color", "params"}
 
 
-## A texture with Sauerbraten-style settings Source can do in the material itself (colour, see-through, scrolling).
+## A texture with Sauerbraten-style settings Source can do in the material itself (color, see-through, scrolling).
 func _slot_material(sl: Dictionary, alpha_mat: bool) -> String:
 	var params := ""
 	var tint := Color.html(sl["c"])
@@ -674,7 +674,7 @@ func _css_variant(id: String, params: String) -> String:
 	return "MALLET/" + name.to_upper()
 
 
-## A material made just for the map (glass, lava): a plain colour.
+## A material made just for the map (glass, lava): a plain color.
 func _special_material(name: String, c: Color, params: String) -> String:
 	variant_materials[name] = {"name": name, "color": c.to_html(false), "params": params, "surface": "glass" if name == "sf_glass" else "concrete"}
 	return "MALLET/" + name.to_upper()
@@ -728,7 +728,7 @@ func _material_axes(nrm: Vector3, fs: Dictionary) -> Array:
 	var size: float = MaterialLibrary.world_size(fs["material"]) * maxf(float(fs["uv_scale"]), 0.01)
 	var px := MaterialLibrary.texture_px(fs["material"])   # (the game's own size for CS:S materials)
 	var scale := size * U / px
-	# the map is centred in Source space; shift textures back so they line up exactly as in the editor
+	# the map is centered in Source space; shift textures back so they line up exactly as in the editor
 	var su: float = _off.dot(u2) / scale + float(fs["uv_offset"][0]) * px
 	var sv: float = _off.dot(v2) / scale + float(fs["uv_offset"][1]) * px
 	if fs.has("origin"):                                 # a cube object's textures are laid out from its own origin
@@ -776,7 +776,7 @@ static func write_materials(ids: Array, root: String) -> Array:
 	return out
 
 
-## A material variant (a library texture with extra settings) or a plain-colour material made for the map.
+## A material variant (a library texture with extra settings) or a plain-color material made for the map.
 static func _write_variant(d: Dictionary, dir: String) -> Array:
 	var out := []
 	var name: String = d["name"]
