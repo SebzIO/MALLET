@@ -12,8 +12,8 @@ From the pack's own README: "Content within is considered royalty free under the
 through its use" (CC-BY-SA). MALLET is free; please credit Getridou if you use these textures in your maps, and don't
 sell them.
 
-What MALLET did to them: converted from Cube 2: Sauerbraten's format (diffuse / normal / specular / glow PNGs) to
-MALLET's library (colour, normal, roughness and glow JPGs, at most 1024 px), with Sauerbraten's own texture scale.
+What MALLET did to them: converted from Tesseract's format (the Cube 2: Sauerbraten fork they were made for) (diffuse / normal / specular / glow PNGs) to
+MALLET's library (colour, normal, roughness and glow JPGs, at most 1024 px), with Tesseract's own texture scale.
 Height (parallax), ambient-occlusion and environment-map settings aren't used.
 
 Textures by LURKing

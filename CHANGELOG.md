@@ -7,7 +7,7 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 
 - **Getridou's materials**: 170 materials made by Getridou (a few from photos his friends sent him), shipped with his
   permission (thank you!). They have their own "Getridou" section in the material picker with his credit, and "by
-  Getridou" on each one. Converted from Sauerbraten's format with its own texture scale (most repeat every 16 m, as
+  Getridou" on each one. Converted from Tesseract's format with its own texture scale (most repeat every 8 m, as
   Getridou made them); colour, surface detail, shininess and glow.
 - **LURKing's materials**: 18 more from Getridou's friend LURKing, in their own "LURKing" section, with credit.
 - Materials can **glow**: lit windows, lamps, signs and flames shine by themselves, in the editor, in SurfsUp, and in

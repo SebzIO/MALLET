@@ -36,7 +36,7 @@ func _run() -> void:
 		if MaterialLibrary.entry(id)["maps"].has("glow"):
 			glowing.append(id)
 	check("every map of every Getridou material loads", bad.is_empty(), "%s" % [bad.slice(0, 5)])
-	check("Sauerbraten's scale: a 1024 px texture repeats every 16 m", is_equal_approx(MaterialLibrary.world_size("getridou_artbark"), 16.0))
+	check("Tesseract's scale: a 1024 px texture repeats every 8 m", is_equal_approx(MaterialLibrary.world_size("getridou_artbark"), 8.0))
 	var m := MaterialLibrary.material("getridou_traflight")
 	check("a glow map makes the material shine (emission)", m.emission_enabled and m.emission_texture != null and glowing.size() >= 20,
 		"(%d glowing)" % glowing.size())

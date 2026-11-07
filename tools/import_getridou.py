@@ -1,4 +1,5 @@
-"""Import Getridou's texture pack (Cube 2: Sauerbraten .tex materials) into MALLET's material library.
+"""Import Getridou's texture pack (Tesseract .tex materials; Tesseract is the Sauerbraten fork he made them for) into
+MALLET's material library.
 
 Getridou confirmed (2026-11-06): every texture in the folder is original work. The arcabal_ / azzie_ / cynthia_ ones
 are his, made from photos those friends sent him, and the unprefixed ones are his too. The lurking_ ones are by his
@@ -14,8 +15,9 @@ For each material (its .tex file says which images it uses):
   glow     -> glow.jpg             (only when the .tex shader glows and its glowcolor isn't black; a grey glow
                                     mask takes the colour texture's colours, so a green lamp glows green)
   preview.jpg (128 px) for the texture browser
-Size (metres one repeat covers) follows Sauerbraten exactly: TEX_SCALE 8, one Sauerbraten unit = one MALLET tick
-(0.125 m), so size = width_px x texscale / 64 (a 1024 px texture repeats every 16 m).
+Size (metres one repeat covers) follows Tesseract exactly: TEX_SCALE 16 (Sauerbraten's was 8), one Tesseract /
+Sauerbraten unit = one MALLET tick (0.125 m), so size = width_px x texscale / 128 (a 1024 px texture repeats every
+8 m). (Getridou, 2026-11-06: the .tex files are Tesseract's; Sauerbraten itself used one .cfg per map.)
 Height (displacement), ambient occlusion and environment-map settings aren't used (MALLET has no parallax yet).
 """
 import json
@@ -204,7 +206,7 @@ def main():
         names.add(name)
         artist = artist_of(t["source_name"])
         e = {"id": mid, "name": name, "category": artist, "credit": artist,
-             "size": round(width * t["texscale"] / 64.0, 3), "surface": surface_of(name), "maps": e_maps}
+             "size": round(width * t["texscale"] / 128.0, 3), "surface": surface_of(name), "maps": e_maps}
         friend = t["source_name"].lower().split("_")[0].split("-")[0]
         if friend in FRIENDS:                            # made by Getridou from a friend's photo
             e["photo"] = FRIENDS[friend]
