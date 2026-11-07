@@ -26,7 +26,7 @@ PATTERN = re.compile(r"\b(" + "|".join(sorted(WORDS, key=len, reverse=True)) + r
 TEXT_EXT = (".md", ".txt")
 CODE_EXT = (".gd", ".gdshader")
 SKIP = ("materials/library.json",)
-SKIP_DIRS = ("addons/",)               # third-party code stays exactly as its authors wrote it
+SKIP_DIRS = ("addons/", "materials/sauerbraten_licenses/")   # third-party code and license texts stay exactly as written
 
 
 def fix_word(m):
