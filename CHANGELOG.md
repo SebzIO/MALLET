@@ -3,7 +3,7 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
-## Unreleased
+## 0.11.1 preview — 2026-11-07: Sauerbraten-style selection moving
 
 - Build mode, Sauerbraten-style selection moving (asked for by a Sauerbraten player): hold the right mouse button
   inside the selection and drag to move the selection box (the cubes stay; V then pastes there). With Shift held when
