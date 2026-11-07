@@ -3,7 +3,7 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
-## Unreleased
+## 0.11.2 preview — 2026-11-07: Sauerbraten textures, better water, lava and glass
 
 - **Sauerbraten's textures**: 315 materials from the ten Cube 2: Sauerbraten texture packs whose own licenses allow
   shipping them (aard, cloward, drakker, trak5, sheik, tomek, painkillah, g_pack, ik2k, rorschach), each credited with
