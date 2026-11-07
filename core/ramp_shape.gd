@@ -49,6 +49,8 @@ const END_DEFAULTS := {"shape": "square", "length": 12.0, "amount": 0.5, "cut": 
 const END_SHAPES := ["square", "taper", "round", "flare"]
 const MIN_END_SCALE := 0.05      ## a taper / round end starts this small (a point would be a broken brush in CS:S)
 const STAND_NORMAL_Y := 0.7      ## Source: steeper than this (normal.y < 0.7, about 45.6 degrees) is surfable
+const STRIP_TOLERANCE := 0.03   ## meters: how far a texture may bend where a ramp changes width (see build)
+const MAX_STRIPS := 160               ## (a rounded end widens about 4 m in its first meter)
 const SEAM_BLEND := 30.0         ## meters over which a section bends from the inherited seam direction to its own
 const SETTINGS_BLEND := 20.0     ## meters over which a section's angle / face length blend in from the seam
 
@@ -664,11 +666,25 @@ static func build(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 		var a := f
 		var b := (f + 1) % pc
 		for i in n - 1:
-			var v0 := dist[i] / UV_METRES
-			var v1 := dist[i + 1] / UV_METRES
-			_quad(stool, rings[i][a], rings[i][b], rings[i + 1][b], rings[i + 1][a],
-				Vector2(ucoord[f], v0), Vector2(ucoord[f + 1], v0), Vector2(ucoord[f + 1], v1), Vector2(ucoord[f], v1))
-			tris += 2
+			# Where two cross-sections differ in width (shaped ends, sections blending) the piece between them is a
+			# trapezoid, and two triangles would bend every texture along their diagonal. Cut it into strips along
+			# the true across-the-face lines instead, enough that the bend stays under STRIP_TOLERANCE.
+			var wa: float = rings[i][a].distance_to(rings[i][b])
+			var wb: float = rings[i + 1][a].distance_to(rings[i + 1][b])
+			var strips := clampi(int(ceil(absf(wa - wb) / STRIP_TOLERANCE)), 1, MAX_STRIPS)
+			for k in strips:
+				var f0 := float(k) / strips
+				var f1 := float(k + 1) / strips
+				var p0: Vector3 = rings[i][a].lerp(rings[i][b], f0)
+				var p1: Vector3 = rings[i][a].lerp(rings[i][b], f1)
+				var q1: Vector3 = rings[i + 1][a].lerp(rings[i + 1][b], f1)
+				var q0: Vector3 = rings[i + 1][a].lerp(rings[i + 1][b], f0)
+				var u0 := lerpf(ucoord[f], ucoord[f + 1], f0)
+				var u1 := lerpf(ucoord[f], ucoord[f + 1], f1)
+				_quad(stool, p0, p1, q1, q0, Vector2(u0, _v_at(i, p0, dist, ridge, tans, touched)),
+					Vector2(u1, _v_at(i, p1, dist, ridge, tans, touched)), Vector2(u1, _v_at(i + 1, q1, dist, ridge, tans, touched)),
+					Vector2(u0, _v_at(i + 1, q0, dist, ridge, tans, touched)))
+				tris += 2
 	# end caps, wound the same way as the sides: a side quad's geometric normal tells us which winding faces out
 	var e0 := pp[1] - pp[0]
 	var out2 := Vector2(e0.y, -e0.x)                     # outward normal of a counter-clockwise polygon edge
@@ -770,6 +786,16 @@ static func _cut_end(rings: Array, ridge: PackedVector3Array, tans: PackedVector
 			rings[i] = ring
 			touched[i] = true
 	return touched
+
+
+## Texture v (meters along the ramp / UV_METRES) of a point of cross-section i. A diagonal cut moved its points along
+## the ramp, so there each point's own distance along is used (else the texture smears across the cut).
+static func _v_at(i: int, q: Vector3, dist: PackedFloat32Array, ridge: PackedVector3Array, tans: PackedVector3Array,
+		touched: Dictionary) -> float:
+	if not touched.has(i):
+		return dist[i] / UV_METRES
+	var th := Vector3(tans[i].x, 0.0, tans[i].z).normalized()
+	return (dist[i] + (q - ridge[i]).dot(th)) / UV_METRES
 
 
 static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, e: Vector3,

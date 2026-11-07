@@ -65,6 +65,19 @@ func _run() -> void:
 			if geo["triangles"] == 0 or not no_nan(geo) or not probs.is_empty():
 				bad.append("%s%s: %s" % [it["name"], " (solid)" if solid else "", probs])
 	check("every starter builds hollow and solid: no NaN, no folds, rules hold", bad.is_empty(), str(bad))
+	# textures stay straight where a ramp changes width: every piece is cut into enough strips (no hidden clamp)
+	var worst := 0.0
+	for it in starters:
+		var geo := build(it["design"])
+		var rings: Array = geo["rings"]
+		var pc: int = (rings[0] as PackedVector3Array).size()
+		for i in rings.size() - 1:
+			for f in pc:
+				var dw := absf(rings[i][f].distance_to(rings[i][(f + 1) % pc]) - rings[i + 1][f].distance_to(rings[i + 1][(f + 1) % pc]))
+				worst = maxf(worst, dw / clampi(int(ceil(dw / RampShape.STRIP_TOLERANCE)), 1, RampShape.MAX_STRIPS))
+	check("texture bend where a ramp changes width stays under 3 cm (every starter)", worst <= RampShape.STRIP_TOLERANCE + 1e-4, "%.3f m" % worst)
+	var tapered := build({"ends": {"end": {"shape": "taper", "length": 12.0}}})
+	check("...a tapered ramp gets the extra strips, a plain one none", tapered["triangles"] > plain["triangles"] + 100)
 	var bulge := {"profile": {"left": [[0.5, 0.05]]}}
 	var g56 := build(bulge)
 	var spec70 := RampShape.spec({"profile": {"left": [[0.5, 0.05]]}, "angle": 70.0, "face_length": 14.0})

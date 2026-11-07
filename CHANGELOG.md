@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.14.1 preview — 2026-11-07: Looks stay straight on shaped ends
+
+- Every ramp look (ceramic rims, dev grid, neon edges, images, library materials, your own shaders) stays straight
+  where a ramp tapers, rounds off or flares. Before, the texture bent into steps there: each piece of the ramp between
+  two cross-sections of different widths was drawn as two triangles, which bend a texture along their diagonal. Those
+  pieces are now cut into thin strips along the true lines across the face (the bend stays under 3 cm), so it also
+  holds for anything added later. Plain ramps are drawn exactly as before.
+- Textures no longer smear at a diagonal cut: each point there uses its own distance along the ramp.
+
 ## 0.14.0 preview — 2026-11-07: The ramp creator
 
 - **Ramp creator** (Add > Ramp creator…, or Ramp creator… in a ramp's panel): design a ramp's shape with a live 3D
