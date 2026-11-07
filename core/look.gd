@@ -38,8 +38,9 @@ const RAMP_LOOKS := {
 	"neon": ["Neon edges", "ramp_neon", "glow color"],
 	"texture": ["Image texture", "", "tint"],
 	"material": ["Library material", "", "tint"],
+	"shader": ["Your own shader", "", "fallback color"],
 }
-const LOOK_ORDER := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "neon", "texture", "material"]
+const LOOK_ORDER := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "neon", "texture", "material", "shader"]
 
 ## Liquids (block water and build mode's water / lava): style "water" (waves, depth, foam) or "lava" (crust over glowing
 ## cracks). "css": the CS:S water material it exports as (lava exports as a self-lit color).
@@ -107,9 +108,14 @@ static func _c(env: Dictionary, key: String) -> Color:
 	return Color.html(env.get(key, default_environment()[key]))
 
 
-static func build_environment(env: Dictionary) -> Environment:
-	var e := Environment.new()
-	var sky := Sky.new()
+## The map's sky material: your own sky shader (environment "sky_shader" + "sky_params") when it works, else the
+## built-in one. Second value: whether it moves (needs redrawing every frame).
+static func sky_material(env: Dictionary) -> Array:
+	var id := String(env.get("sky_shader", ""))
+	if id != "":
+		var um := UserShaders.material(id, env.get("sky_params", {}))
+		if um:
+			return [um, UserShaders.entry(id)["animated"]]
 	var mat := ShaderMaterial.new()
 	mat.shader = shader("sky")
 	mat.set_shader_parameter("top_color", _c(env, "sky_top"))
@@ -118,9 +124,15 @@ static func build_environment(env: Dictionary) -> Environment:
 	mat.set_shader_parameter("stars", float(env.get("stars", 0.0)))
 	mat.set_shader_parameter("aurora", float(env.get("aurora", 0.0)))
 	mat.set_shader_parameter("nebula", float(env.get("nebula", 0.0)))
-	sky.sky_material = mat
-	sky.process_mode = Sky.PROCESS_MODE_REALTIME if float(env.get("aurora", 0.0)) > 0.0 or float(env.get("nebula", 0.0)) > 0.0 \
-		or float(env.get("stars", 0.0)) > 0.0 else Sky.PROCESS_MODE_AUTOMATIC
+	return [mat, float(env.get("aurora", 0.0)) > 0.0 or float(env.get("nebula", 0.0)) > 0.0 or float(env.get("stars", 0.0)) > 0.0]
+
+
+static func build_environment(env: Dictionary) -> Environment:
+	var e := Environment.new()
+	var sky := Sky.new()
+	var sm := sky_material(env)
+	sky.sky_material = sm[0]
+	sky.process_mode = Sky.PROCESS_MODE_REALTIME if sm[1] else Sky.PROCESS_MODE_AUTOMATIC
 	e.background_mode = Environment.BG_SKY
 	e.sky = sky
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -168,8 +180,13 @@ static func image_texture(path: String) -> Texture2D:
 
 ## Material for a ramp. `texture_scale` = how many meters one copy of the image covers.
 ## `square`: for blocks and cubes (world-meter UVs): the Dev grid as even 1 m squares instead of the ramp layout.
+## `shader_id` / `shader_params`: look "shader" (your own surface shader; a plain `color` while it doesn't work).
 static func ramp_material(look: String, color: Color, texture_path := "", texture_scale := 20.0, material_id := "",
-		face_length := 10.5, square := false) -> Material:
+		face_length := 10.5, square := false, shader_id := "", shader_params := {}) -> Material:
+	if look == "shader":
+		var um := UserShaders.material(shader_id, shader_params)
+		if um:
+			return um
 	if look == "material" and MaterialLibrary.has(material_id):
 		# ramp UVs: u = 0..1 across the face, v = meters along / 20; size the library texture to the real world
 		var size := MaterialLibrary.world_size(material_id) * maxf(texture_scale / 20.0, 0.05)
@@ -239,3 +256,48 @@ static func glass_material(id: String) -> ShaderMaterial:
 	m.set_shader_parameter("frost", float(p["frost"]))
 	return m
 
+
+
+## Source's six skybox faces: suffix -> [the way the face looks, the image's up], in Source coordinates (x east,
+## y north, z up). Worked out from the seams and suns of CS:S's own skies and maps.
+const SKYBOX_FACES := {"rt": [Vector3(1, 0, 0), Vector3(0, 0, 1)], "bk": [Vector3(0, 1, 0), Vector3(0, 0, 1)],
+	"lf": [Vector3(-1, 0, 0), Vector3(0, 0, 1)], "ft": [Vector3(0, -1, 0), Vector3(0, 0, 1)],
+	"up": [Vector3(0, 0, 1), Vector3(-1, 0, 0)], "dn": [Vector3(0, 0, -1), Vector3(1, 0, 0)]}
+
+
+## Render the map's sky (built-in or your own shader, with its sun) into the six images of a Source skybox.
+## Needs a node in the scene tree to borrow frames from. Returns suffix -> Image (RGB8, size x size).
+static func bake_skybox(env: Dictionary, host: Node, size := 512) -> Dictionary:
+	var vp := SubViewport.new()
+	vp.size = Vector2i(size, size)
+	vp.own_world_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	var we := WorldEnvironment.new()
+	var e := build_environment(env)
+	e.glow_enabled = false                               # (glow would bleed differently at each face's edges)
+	we.environment = e
+	vp.add_child(we)
+	var sun := DirectionalLight3D.new()
+	apply_sun(sun, env)
+	sun.shadow_enabled = false
+	vp.add_child(sun)
+	var cam := Camera3D.new()
+	cam.fov = 90.0
+	cam.far = 100.0
+	vp.add_child(cam)
+	host.add_child(vp)
+	cam.current = true
+	var out := {}
+	for sfx in SKYBOX_FACES:
+		var f: Vector3 = SKYBOX_FACES[sfx][0]
+		var u: Vector3 = SKYBOX_FACES[sfx][1]
+		cam.basis = Basis.looking_at(Vector3(f.x, f.z, -f.y), Vector3(u.x, u.z, -u.y))   # (Source -> Godot axes)
+		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		await RenderingServer.frame_post_draw
+		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		await RenderingServer.frame_post_draw
+		var img := vp.get_texture().get_image()
+		img.convert(Image.FORMAT_RGB8)
+		out[sfx] = img
+	vp.queue_free()
+	return out

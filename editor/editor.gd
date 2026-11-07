@@ -149,6 +149,8 @@ var _gen_about: Label
 var _gen_warning: Label
 var _gen_shape_buttons := {}
 const SETTINGS_PATH := "user://settings.cfg"
+const BAKED_SKY_LABEL := "This map's sky (made into a skybox)"
+const BLOCK_LOOKS := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "neon", "material", "shader"]   ## (no "texture")
 
 
 func _ready() -> void:
@@ -193,6 +195,8 @@ func has_unsaved_changes() -> bool:
 
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN and is_inside_tree() and world_env != null:
+		_rescan_shaders()
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and get_tree().current_scene == self:
 		if has_unsaved_changes():
 			_ask_save_before_quit()
@@ -234,6 +238,7 @@ func _build_world() -> void:
 	sun = DirectionalLight3D.new()
 	add_child(sun)
 	environment = Look.default_environment()
+	UserShaders.scan()                                   # (your own shaders: before anything asks for one)
 	_apply_environment()
 
 	var grid := MeshInstance3D.new()
@@ -326,7 +331,7 @@ func _build_ui_main() -> void:
 		["Turn right 15°", KEY_BRACKETRIGHT, func(): _rotate_selected(15.0)]])
 	_menu(bar, "View ▾", [
 		["Frame selection", KEY_F, _frame_clicked], ["Fullscreen", KEY_F11, _toggle_fullscreen],
-		["Mouse sensitivity…", KEY_NONE, _open_mouse_settings], [],
+		["Mouse sensitivity…", KEY_NONE, _open_mouse_settings], ["Your shaders folder…", KEY_NONE, _open_shaders_folder], [],
 		["Jump arcs: all ramps", KEY_NONE, func(): show_all_arcs = not show_all_arcs; _sync_view_menu(); _map_changed(), "arcs"],
 		["Direction arrows", KEY_NONE, func(): show_direction = not show_direction; _sync_view_menu(), "arrows"],
 		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"],
@@ -518,6 +523,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_tex_box.add_child(tex_name)
 	_fields["tex_name"] = tex_name
 	_add_slider(_tex_box, "tex_scale", "Image size along the ramp (m)", 1.0, 200.0, 1.0)
+	_surface_shader_box(_ramp_props, "")
 
 	_build_gen_props(props)
 	_build_prop_props(props)
@@ -620,7 +626,7 @@ func _build_map_props(props: VBoxContainer) -> void:
 		if i < keys.size():
 			_checkpoint()
 			var keep := {}                                 # (a sky preset doesn't change the water / lava / glass looks)
-			for k in ["water_look", "lava_look", "glass_look"]:
+			for k in ["water_look", "lava_look", "glass_look", "sky_shader", "sky_params"]:
 				if environment.has(k):
 					keep[k] = environment[k]
 			environment = Look.preset_environment(keys[i])
@@ -629,6 +635,31 @@ func _build_map_props(props: VBoxContainer) -> void:
 			_refresh_props())
 	_add_row(_map_props, "Sky preset", preset)
 	_fields["env_preset"] = preset
+	# the sky itself: MALLET's built-in sky (colors, stars, aurora, nebula below) or one of your own sky shaders
+	var sky_row := HBoxContainer.new()
+	var sky_pick := OptionButton.new()
+	sky_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sky_pick.focus_mode = Control.FOCUS_NONE
+	sky_pick.clip_text = true
+	sky_pick.tooltip_text = "MALLET's own sky, or a sky shader from your shaders folder (Folder\u2026 opens it)."
+	sky_pick.item_selected.connect(func(i): _pick_sky_shader(String(sky_pick.get_item_metadata(i))))
+	sky_row.add_child(sky_pick)
+	sky_row.add_child(_shaders_folder_button())
+	_add_row(_map_props, "Sky", sky_row)
+	_fields["env_sky_shader"] = sky_pick
+	var sky_params := VBoxContainer.new()
+	sky_params.add_theme_constant_override("separation", 6)
+	_map_props.add_child(sky_params)
+	_fields["env_sky_params"] = sky_params
+	var builtin := VBoxContainer.new()
+	builtin.add_theme_constant_override("separation", 6)
+	_map_props.add_child(builtin)
+	_fields["env_sky_builtin"] = builtin
+	for spec in [["sky_top", "Sky color (top)"], ["sky_horizon", "Sky color (horizon)"], ["ground", "Below the horizon"]]:
+		_env_color(builtin, spec[0], spec[1])
+	_add_slider(builtin, "env_stars", "Stars", 0.0, 1.0, 0.05)
+	_add_slider(builtin, "env_aurora", "Aurora", 0.0, 1.0, 0.05)
+	_add_slider(builtin, "env_nebula", "Nebula clouds", 0.0, 1.0, 0.05)
 	for spec in [["water_look", "Build mode water", Look.LIQUID_ORDER.filter(func(k): return Look.LIQUIDS[k]["style"] == "water"), Look.LIQUIDS],
 			["lava_look", "Build mode lava", Look.LIQUID_ORDER.filter(func(k): return Look.LIQUIDS[k]["style"] == "lava"), Look.LIQUIDS],
 			["glass_look", "Build mode glass", Look.GLASS_ORDER, Look.GLASS]]:
@@ -642,21 +673,12 @@ func _build_map_props(props: VBoxContainer) -> void:
 		ob.set_meta("ids", ids)
 		_add_row(_map_props, spec[1], ob)
 		_fields["env_" + key] = ob
-	for spec in [["sky_top", "Sky color (top)"], ["sky_horizon", "Sky color (horizon)"], ["ground", "Below the horizon"],
-			["sun_color", "Sun color"], ["ambient_color", "Shadow fill color"], ["fog_color", "Fog color"]]:
-		var key: String = spec[0]
-		var c := ColorPickerButton.new()
-		c.custom_minimum_size = Vector2(0, 24)
-		c.color_changed.connect(func(col): _edit_env(key, col.to_html(false)))
-		_add_row(_map_props, spec[1], c)
-		_fields["env_" + key] = c
+	for spec in [["sun_color", "Sun color"], ["ambient_color", "Shadow fill color"], ["fog_color", "Fog color"]]:
+		_env_color(_map_props, spec[0], spec[1])
 	_add_slider(_map_props, "env_sun_yaw", "Sun direction (°)", -180.0, 180.0, 1.0)
 	_add_slider(_map_props, "env_sun_pitch", "Sun height (°)", 0.0, 90.0, 1.0)
 	_add_slider(_map_props, "env_sun_energy", "Sun brightness", 0.0, 3.0, 0.05)
 	_add_slider(_map_props, "env_ambient_energy", "Shadow fill brightness", 0.0, 3.0, 0.05)
-	_add_slider(_map_props, "env_stars", "Stars", 0.0, 1.0, 0.05)
-	_add_slider(_map_props, "env_aurora", "Aurora", 0.0, 1.0, 0.05)
-	_add_slider(_map_props, "env_nebula", "Nebula clouds", 0.0, 1.0, 0.05)
 	var fog := CheckButton.new()
 	fog.text = "Fog"
 	fog.focus_mode = Control.FOCUS_NONE
@@ -672,6 +694,304 @@ func _build_map_props(props: VBoxContainer) -> void:
 	_image_dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Images"])
 	_image_dialog.file_selected.connect(func(path): _edit_prop("texture", path); _refresh_props())
 	_ui.add_child(_image_dialog)
+
+
+func _env_color(parent: Container, key: String, label: String) -> void:
+	var c := ColorPickerButton.new()
+	c.custom_minimum_size = Vector2(0, 24)
+	c.color_changed.connect(func(col): _edit_env(key, col.to_html(false)))
+	_add_row(parent, label, c)
+	_fields["env_" + key] = c
+
+
+# ------------------------------------------------------------------------------------------------ your own shaders
+## A "Folder…" button: opens your shaders folder.
+func _shaders_folder_button() -> Button:
+	var b := Button.new()
+	b.text = "Folder\u2026"
+	b.focus_mode = Control.FOCUS_NONE
+	b.tooltip_text = ("Open your shaders folder. Put Godot .gdshader files in it (shader_type sky; or shader_type spatial;)\n"
+		+ "and switch back to MALLET: they show up here, with a control for every setting. Guide: docs/SHADERS.md")
+	b.pressed.connect(_open_shaders_folder)
+	return b
+
+
+func _open_shaders_folder() -> void:
+	var dir := UserShaders.folder()
+	OS.shell_open(dir)
+	_set_status("Your shaders folder: %s  -  save a .gdshader there, then switch back to MALLET (the examples show how)." % dir)
+
+
+## Pick up new, changed and removed files in your shaders folder (at start and whenever MALLET gets the focus back),
+## and redraw whatever uses them.
+func _rescan_shaders() -> void:
+	var in_use := _used_shaders(environment, ramps_root.get_children().map(func(r): return r.to_dict()),
+		blocks_root.get_children().map(func(b): return b.data))
+	var changed := UserShaders.scan()
+	if changed.is_empty():
+		return
+	UserShaders.add_embedded(in_use)                     # (a file deleted while this map uses it: keep the map's copy)
+	_apply_environment()
+	for r in ramps_root.get_children():
+		if (r as RampNode).look == "shader":
+			r._update_material()
+	for b in blocks_root.get_children():
+		if (b as BlockNode).data.get("look", "") == "shader":
+			_rebuild_blocks()
+			break
+	_refresh_props()
+	var bad := []
+	for id in changed:
+		if UserShaders.has(id) and not UserShaders.ok(id):
+			bad.append("%s: %s" % [id, UserShaders.problem(id)])
+	if not bad.is_empty():
+		_set_status("Shader error - " + " | ".join(bad))
+	else:
+		_set_status("Shaders reloaded: " + ", ".join(changed))
+
+
+## Fill a shader list: (for skies) MALLET's own first, then your shaders of that kind; broken and missing ones marked.
+func _fill_shader_choice(ob: OptionButton, kind: String, current: String) -> void:
+	ob.clear()
+	if kind == "sky":
+		ob.add_item("MALLET's sky (colors below)")
+		ob.set_item_metadata(0, "")
+	for id in UserShaders.ids(kind, true):
+		var e := UserShaders.entry(id)
+		ob.add_item(String(id) + ("  (has an error)" if e["shader"] == null else "") + ("  (only in this map)" if e["path"] == "" else ""))
+		ob.set_item_metadata(ob.item_count - 1, id)
+	if current != "" and not UserShaders.has(current):
+		ob.add_item(current + "  (missing)")
+		ob.set_item_metadata(ob.item_count - 1, current)
+	if ob.item_count == 0:
+		ob.add_item("No surface shaders yet: click Folder\u2026")
+		ob.set_item_metadata(0, "")
+		ob.set_item_disabled(0, true)
+	for i in ob.item_count:
+		if String(ob.get_item_metadata(i)) == current:
+			ob.select(i)
+
+
+## A ramp's / block's "Your own shader" settings: which shader, and its controls. `prefix` "" (ramps) or "block_".
+func _surface_shader_box(parent: Container, prefix: String) -> void:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	parent.add_child(box)
+	var row := HBoxContainer.new()
+	var ob := OptionButton.new()
+	ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ob.focus_mode = Control.FOCUS_NONE
+	ob.clip_text = true
+	ob.item_selected.connect(func(i):
+		if not _updating_ui:
+			_edit_prop(prefix + "shader", String(ob.get_item_metadata(i)))
+			_refresh_props())
+	row.add_child(ob)
+	row.add_child(_shaders_folder_button())
+	_add_row(box, "Shader", row)
+	var params := VBoxContainer.new()
+	params.add_theme_constant_override("separation", 6)
+	box.add_child(params)
+	_fields[prefix + "shader_box"] = box
+	_fields[prefix + "shader"] = ob
+	_fields[prefix + "shader_params"] = params
+
+
+## A control for every setting (uniform) of your shader, in `box`. `params` = the current settings; `on_change` gets
+## (uniform name, stored value), or ("", null) to go back to the shader's own values. The controls are only made
+## again when the shader or the object changes (never while dragging one), otherwise just updated.
+func _fill_shader_controls(box: VBoxContainer, id: String, params: Dictionary, owner_key: String, on_change: Callable,
+		fallback: String) -> void:
+	var sig := "%s|%d|%s|%s" % [id, UserShaders.version(id), owner_key, UserShaders.problem(id) if id != "" else ""]
+	if box.get_meta("sig", "") == sig:
+		for f in box.get_meta("setters", []):
+			f.call(params)
+		return
+	box.set_meta("sig", sig)
+	for c in box.get_children():
+		box.remove_child(c)
+		c.queue_free()
+	var setters := []
+	box.set_meta("setters", setters)
+	if id == "":
+		return
+	if not UserShaders.ok(id):
+		var l := Label.new()
+		l.text = "This shader can't be used yet:\n%s\n\nFix the file and switch back to MALLET. Until then you see %s." % [UserShaders.problem(id), fallback]
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4))
+		box.add_child(l)
+		return
+	var e := UserShaders.entry(id)
+	if e["path"] == "":
+		var n := Label.new()
+		n.text = "This shader came with the map (it isn't in your shaders folder)."
+		n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		n.add_theme_font_size_override("font_size", 12)
+		n.add_theme_color_override("font_color", Color(0.75, 0.78, 0.85))
+		box.add_child(n)
+	if e["uniforms"].is_empty():
+		var n := Label.new()
+		n.text = "This shader has no settings (add uniforms to get controls here)."
+		n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		n.add_theme_font_size_override("font_size", 12)
+		box.add_child(n)
+	for u in e["uniforms"]:
+		var name: String = u["name"]
+		var ctl: Control
+		match u["type"]:
+			"float", "int":
+				var row := HBoxContainer.new()
+				var sl := HSlider.new()
+				var sb := SpinBox.new()
+				for r in [sl, sb]:
+					r.min_value = u["min"]
+					r.max_value = u["max"]
+					r.step = u["step"]
+				sb.allow_greater = u.get("free", false)
+				sb.allow_lesser = u.get("free", false)
+				sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+				sl.focus_mode = Control.FOCUS_NONE
+				sb.custom_minimum_size = Vector2(86, 0)
+				sl.value_changed.connect(func(v): sb.set_value_no_signal(v); on_change.call(name, UserShaders.encode(u, v)))
+				sb.value_changed.connect(func(v): sl.set_value_no_signal(v); on_change.call(name, UserShaders.encode(u, v)))
+				row.add_child(sl)
+				row.add_child(sb)
+				setters.append(func(p): var v = UserShaders.value_of(u, p); sl.set_value_no_signal(v); sb.set_value_no_signal(v))
+				ctl = row
+			"bool":
+				var cb := CheckButton.new()
+				cb.focus_mode = Control.FOCUS_NONE
+				cb.text = "On"
+				cb.toggled.connect(func(on): on_change.call(name, on))
+				setters.append(func(p): cb.set_pressed_no_signal(bool(UserShaders.value_of(u, p))))
+				ctl = cb
+			"color":
+				var cp := ColorPickerButton.new()
+				cp.custom_minimum_size = Vector2(0, 24)
+				cp.edit_alpha = u["alpha"]
+				cp.color_changed.connect(func(c): on_change.call(name, UserShaders.encode(u, c)))
+				setters.append(func(p): cp.color = UserShaders.value_of(u, p))
+				ctl = cp
+			"vec2", "vec3", "vec4":
+				var row := HBoxContainer.new()
+				var n: int = {"vec2": 2, "vec3": 3, "vec4": 4}[u["type"]]
+				var boxes := []
+				for i in n:
+					var sb := SpinBox.new()
+					sb.min_value = -100000.0
+					sb.max_value = 100000.0
+					sb.step = 0.01
+					sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					boxes.append(sb)
+					row.add_child(sb)
+				for sb in boxes:
+					sb.value_changed.connect(func(_v):
+						var vals: Array = boxes.map(func(bx): return bx.value)
+						on_change.call(name, vals))
+				setters.append(func(p):
+					var v = UserShaders.value_of(u, p)
+					for i in n:
+						boxes[i].set_value_no_signal(v[i]))
+				ctl = row
+			"image":
+				var row := HBoxContainer.new()
+				var pick := Button.new()
+				pick.focus_mode = Control.FOCUS_NONE
+				pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				pick.clip_text = true
+				pick.alignment = HORIZONTAL_ALIGNMENT_LEFT
+				pick.pressed.connect(func(): _choose_shader_image(func(path): on_change.call(name, path)))
+				var clear := Button.new()
+				clear.text = "\u2715"
+				clear.focus_mode = Control.FOCUS_NONE
+				clear.tooltip_text = "No image"
+				clear.pressed.connect(func(): on_change.call(name, ""); _refresh_props())
+				row.add_child(pick)
+				row.add_child(clear)
+				setters.append(func(p):
+					var path := String(p.get(name, ""))
+					pick.text = path.get_file() if path != "" else "Choose image\u2026"
+					pick.tooltip_text = path)
+				ctl = row
+		_add_row(box, u["label"], ctl)
+		if u["tip"] != "":
+			ctl.tooltip_text = u["tip"]
+			var lab: Label = box.get_child(ctl.get_index() - 1)
+			lab.tooltip_text = u["tip"]
+			lab.mouse_filter = Control.MOUSE_FILTER_STOP
+	if not e["uniforms"].is_empty():
+		var reset := Button.new()
+		reset.text = "Back to the shader's own values"
+		reset.focus_mode = Control.FOCUS_NONE
+		reset.pressed.connect(func(): on_change.call("", null); _refresh_props())
+		box.add_child(reset)
+	for f in setters:
+		f.call(params)
+
+
+var _shader_image_dialog: FileDialog
+var _shader_image_done: Callable
+
+
+func _choose_shader_image(done: Callable) -> void:
+	if _shader_image_dialog == null:
+		_shader_image_dialog = FileDialog.new()
+		_shader_image_dialog.access = FileDialog.ACCESS_FILESYSTEM
+		_shader_image_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_shader_image_dialog.use_native_dialog = true
+		_shader_image_dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Images"])
+		_shader_image_dialog.file_selected.connect(func(path): _shader_image_done.call(path); _refresh_props())
+		_ui.add_child(_shader_image_dialog)
+	_shader_image_done = done
+	_shader_image_dialog.popup_centered_ratio(0.6)
+
+
+func _pick_sky_shader(id: String) -> void:
+	if _updating_ui:
+		return
+	_checkpoint()
+	environment["sky_shader"] = id
+	environment["sky_params"] = {}
+	_apply_environment()
+	_refresh_props()
+	if id != "" and not UserShaders.ok(id):
+		_set_status("That sky shader has an error, so the built-in sky stays for now: " + UserShaders.problem(id))
+
+
+func _set_sky_param(name: String, value) -> void:
+	if _updating_ui:
+		return
+	_checkpoint("sky:" + name)
+	var p: Dictionary = (environment.get("sky_params", {}) as Dictionary).duplicate(true)
+	if name == "":
+		p.clear()
+	else:
+		p[name] = value
+	environment["sky_params"] = p
+	# a slider drag only changes one setting of the sky that's already showing: no need to build it all again
+	var id := String(environment.get("sky_shader", ""))
+	var m = world_env.environment.sky.sky_material if world_env.environment and world_env.environment.sky else null
+	if name != "" and m is ShaderMaterial and UserShaders.ok(id) and m.shader == UserShaders.entry(id)["shader"]:
+		for u in UserShaders.entry(id)["uniforms"]:
+			if u["name"] == name:
+				m.set_shader_parameter(name, UserShaders.decode(u, value))
+		return
+	_apply_environment()
+
+
+## The shaders a map uses (sky, ramps, blocks) with their code, saved into the map so it looks the same elsewhere.
+static func _used_shaders(env: Dictionary, ramp_list: Array, block_list: Array) -> Dictionary:
+	var out := {}
+	var ids := [String(env.get("sky_shader", ""))]
+	for d in ramp_list + block_list:
+		if d.get("look", "") == "shader":
+			ids.append(String(d.get("shader", "")))
+	for id in ids:
+		if id != "" and UserShaders.code(id) != "":
+			out[id] = UserShaders.code(id)
+	return out
 
 
 func _apply_environment() -> void:
@@ -713,6 +1033,10 @@ func _refresh_map_props() -> void:
 	_fields["env_preset"].select(p if p >= 0 else keys.size())
 	for key in ["sky_top", "sky_horizon", "ground", "sun_color", "ambient_color", "fog_color"]:
 		_fields["env_" + key].color = Color.html(environment[key])
+	var sky_id := String(environment.get("sky_shader", ""))
+	_fill_shader_choice(_fields["env_sky_shader"], "sky", sky_id)
+	_fill_shader_controls(_fields["env_sky_params"], sky_id, environment.get("sky_params", {}), "map", _set_sky_param, "MALLET's built-in sky")
+	_fields["env_sky_builtin"].visible = not UserShaders.ok(sky_id)
 	for key in ["sun_yaw", "sun_pitch", "sun_energy", "ambient_energy", "stars", "aurora", "nebula", "fog_density"]:
 		_set_field("env_" + key, float(environment[key]))
 	_fields["env_fog"].button_pressed = bool(environment["fog"])
@@ -888,7 +1212,12 @@ func _refresh_props() -> void:
 		_set_field("block_wall", float(b.data["wall"]))
 		_fields["block_hollow"].set_pressed_no_signal(bool(b.data["hollow"]))
 		_fields["block_cutter"].set_pressed_no_signal(b.is_cutter())
-		_fields["block_look"].select(Look.LOOK_ORDER.find(b.data["look"]))
+		_fields["block_look"].select(maxi(BLOCK_LOOKS.find(b.data["look"]), 0))
+		_fields["block_shader_box"].visible = b.data["look"] == "shader"
+		if b.data["look"] == "shader":
+			_fill_shader_choice(_fields["block_shader"], "surface", String(b.data.get("shader", "")))
+			_fill_shader_controls(_fields["block_shader_params"], String(b.data.get("shader", "")), b.data.get("shader_params", {}),
+				"block%d" % b.get_instance_id(), func(n, v): _edit_prop("block_shader_param", [n, v]), "a plain color (the Color above)")
 		_fields["block_color"].color = Color.html(b.data["color"])
 		_fields["block_sides_box"].visible = b.data["shape"] in ["cylinder", "arch", "cone", "sphere"]
 		_fields["block_steps_box"].visible = b.data["shape"] == "stairs"
@@ -968,6 +1297,11 @@ func _refresh_props() -> void:
 		rmb.text = "  " + (MaterialLibrary.display_name(r.material) if r.material != "" else "Choose a material\u2026")
 		rmb.icon = MaterialLibrary.preview(r.material) if r.material != "" else null
 		_fields["tex_name"].text = r.texture.get_file() if r.texture != "" else "No image chosen (PNG / JPG / WebP)"
+		_fields["shader_box"].visible = r.look == "shader"
+		if r.look == "shader":
+			_fill_shader_choice(_fields["shader"], "surface", r.shader)
+			_fill_shader_controls(_fields["shader_params"], r.shader, r.shader_params, "ramp%d" % r.get_instance_id(),
+				func(n, v): _edit_prop("shader_param", [n, v]), "a plain color (the Color above)")
 		_set_field("tex_scale", r.tex_scale)
 	else:
 		var e := selected as EntityNode
@@ -1216,8 +1550,12 @@ func _map_dict() -> Dictionary:
 	for cm in cube_models_root.get_children():
 		if (cm as CubeModelNode).world.count() > 0 or not (cm as CubeModelNode).world.mats.is_empty():
 			cms.append(_with_group(cm))
-	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
+	var d := {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(true), "ramps": rs, "entities": es,
 		"props": ps, "blocks": bs, "texts": ts, "lights": ls, "particles": pfx, "cube_models": cms, "folders": outliner.folders.duplicate(true)}
+	var used := _used_shaders(environment, rs, bs)
+	if not used.is_empty():
+		d["shaders"] = used                              # (your own shaders' code: the map looks the same anywhere)
+	return d
 
 
 func _load_dict(data: Dictionary) -> void:
@@ -1225,6 +1563,7 @@ func _load_dict(data: Dictionary) -> void:
 	_gen_ramp = null
 	_gen_source = null
 	play.finish_speed = 0.0                  # another map's finish speed would mislead
+	UserShaders.add_embedded(data.get("shaders", {}))
 	environment = Look.default_environment()
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
@@ -1979,11 +2318,10 @@ func _build_block_props(props: VBoxContainer) -> void:
 	_block_props.add_child(look_box)
 	_fields["block_look_box"] = look_box
 	var look := OptionButton.new()
-	for k in Look.LOOK_ORDER:
-		if k != "texture":
-			look.add_item(Look.RAMP_LOOKS[k][0])
+	for k in BLOCK_LOOKS:
+		look.add_item(Look.RAMP_LOOKS[k][0])
 	look.focus_mode = Control.FOCUS_NONE
-	look.item_selected.connect(func(i): _edit_prop("block_look", Look.LOOK_ORDER[i]))
+	look.item_selected.connect(func(i): _edit_prop("block_look", BLOCK_LOOKS[i]))
 	_add_row(look_box, "Look", look)
 	_fields["block_look"] = look
 	var cp := ColorPickerButton.new()
@@ -1992,6 +2330,7 @@ func _build_block_props(props: VBoxContainer) -> void:
 	_add_row(look_box, "Color", cp)
 	_fields["block_color"] = cp
 	_add_slider(look_box, "block_glow", "Glow", 0.0, 8.0, 0.1)
+	_surface_shader_box(look_box, "block_")
 	var water_box := VBoxContainer.new()
 	_block_props.add_child(water_box)
 	_fields["block_water_box"] = water_box
@@ -4222,7 +4561,20 @@ func _edit_prop(key: String, value) -> void:
 			"block_hollow": d["hollow"] = value
 			"block_wall": d["wall"] = value
 			"block_cutter": d["cutter"] = value
-			"block_look": d["look"] = value
+			"block_look":
+				d["look"] = value
+				if value == "shader" and String(d.get("shader", "")) == "" and not UserShaders.ids("surface").is_empty():
+					d["shader"] = UserShaders.ids("surface")[0]
+			"block_shader":
+				d["shader"] = value
+				d["shader_params"] = {}
+			"block_shader_param":
+				var sp: Dictionary = (d.get("shader_params", {}) as Dictionary).duplicate(true)
+				if value[0] == "":
+					sp.clear()
+				else:
+					sp[value[0]] = value[1]
+				d["shader_params"] = sp
 			"block_color": d["color"] = (value as Color).to_html(false)
 			"block_glow": d["glow"] = value
 			"block_water_color": d["water_color"] = (value as Color).to_html(false)
@@ -4263,7 +4615,7 @@ func _edit_prop(key: String, value) -> void:
 		if key in ["block_x", "block_y", "block_z"]:
 			_last_block["size"] = b.data["size"].duplicate()
 		_rebuild_blocks()
-		if key in ["block_shape", "block_hollow", "block_cutter", "block_mat", "block_deadly"]:
+		if key in ["block_shape", "block_hollow", "block_cutter", "block_mat", "block_deadly", "block_look"]:
 			_refresh_props()
 		_refresh_info()
 		return
@@ -4278,6 +4630,22 @@ func _edit_prop(key: String, value) -> void:
 		return
 	if selected is RampNode:
 		var r := selected as RampNode
+		if key == "shader_param":                       # (one setting of your shader: just the material)
+			var sp: Dictionary = r.shader_params.duplicate(true)
+			if value[0] == "":
+				sp.clear()
+			else:
+				sp[value[0]] = value[1]
+			r.shader_params = sp
+			r._update_material()
+			return
+		if key == "shader":
+			r.shader = value
+			r.shader_params = {}
+			r._update_material()
+			return
+		if key == "look" and value == "shader" and r.shader == "" and not UserShaders.ids("surface").is_empty():
+			r.shader = UserShaders.ids("surface")[0]
 		r.set(key, value)
 		if not r.freeform:                              # outside Freeform both faces always match
 			r.angle_right = r.angle
@@ -4601,8 +4969,11 @@ func _build_css_dialog() -> void:
 	ls.text = "Sky"
 	grid.add_child(ls)
 	_css_sky = OptionButton.new()
+	_css_sky.add_item(BAKED_SKY_LABEL)                  # (rendered from this map's own sky into a skybox)
 	for sky in VmfExporter.SKY_CHOICES:
 		_css_sky.add_item(sky)
+	_css_sky.tooltip_text = ("This map's sky: MALLET renders the map's sky (your own sky shader too) into a 6-sided\n"
+		+ "skybox that goes inside the map. The others are CS:S's own skies.")
 	grid.add_child(_css_sky)
 	var la := Label.new()
 	la.text = "sv_airaccelerate (set when the map loads)"
@@ -4640,7 +5011,7 @@ func _css_clicked() -> void:
 	_css_name.text = cfg.get_value("css", "name_" + current_path.md5_text(), default_name)
 	_css_dir.text = cfg.get_value("css", "dir", OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS).path_join("MALLET exports/css"))
 	var sky: String = VmfExporter.SKIES.get(environment.get("preset", "day"), "sky_day01_01")
-	_css_sky.select(maxi(VmfExporter.SKY_CHOICES.find(sky), 0))
+	_css_sky.select(0 if String(environment.get("sky_shader", "")) != "" else maxi(VmfExporter.SKY_CHOICES.find(sky), 0) + 1)
 	var css := VmfExporter.find_css()
 	_css_compile.disabled = css == ""
 	_css_compile.button_pressed = css != "" and cfg.get_value("css", "compile", true)
@@ -4654,7 +5025,12 @@ func _do_css_export() -> void:
 		_show_message("Can't export yet", "Map names can only use letters, numbers, _ and - (no spaces).")
 		return
 	var vmf := _css_dir.text.strip_edges().path_join(map_name + ".vmf")
-	var res := VmfExporter.export_vmf(_map_dict(), vmf, {"skyname": _css_sky.get_item_text(_css_sky.selected), "airaccelerate": int(_css_aa.value)})
+	var opts := {"skyname": _css_sky.get_item_text(_css_sky.selected), "airaccelerate": int(_css_aa.value)}
+	if _css_sky.selected == 0:                          # this map's own sky, rendered into the six skybox images
+		_set_status("Making the sky into a CS:S skybox...")
+		opts["skyname"] = "mallet_" + map_name.to_lower()
+		opts["sky_faces"] = await Look.bake_skybox(environment, self)
+	var res := VmfExporter.export_vmf(_map_dict(), vmf, opts)
 	if res["error"] != "":
 		_show_message("Can't export to CS:S yet", res["error"])
 		_set_status("CS:S export failed: " + res["error"])
@@ -4669,7 +5045,7 @@ func _do_css_export() -> void:
 	if not _css_compile.button_pressed or _css_compile.disabled:
 		var files := VmfExporter.write_materials(res.get("materials", []), vmf.get_base_dir())
 		if not files.is_empty():
-			notes += "\n\nThe map's textures are in %s/materials/mallet - copy that materials folder into cstrike (or compile here, which packs them into the map)." % vmf.get_base_dir()
+			notes += "\n\nThe map's textures and sky are in %s/materials - copy that materials folder into cstrike (or compile here, which packs them into the map)." % vmf.get_base_dir()
 		_show_message("Exported for CS:S", "Wrote %s (%d brushes).\n\n%s" % [vmf, res["brushes"], notes])
 		_set_status("Wrote %s - open it in Hammer or compile it with vbsp / vvis / vrad." % vmf.get_file())
 		return

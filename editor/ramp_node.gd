@@ -33,6 +33,8 @@ var look := "color"                  ## material preset (see Look.RAMP_LOOKS)
 var texture := ""                    ## look "texture": image file on disk
 var material := ""                   ## look "material": a library material id
 var tex_scale := 20.0                ## look "texture": meters one copy of the image covers
+var shader := ""                     ## look "shader": your own surface shader (UserShaders id)
+var shader_params := {}              ## ...and its settings (uniform name -> stored value)
 var _material_key := ""
 
 var _mesh_instance := MeshInstance3D.new()
@@ -94,9 +96,12 @@ func set_selected(on: bool) -> void:
 func _update_material() -> void:
 	# selection is shown with an outline, so the material is always the ramp's real look
 	var key := "%s|%s|%s|%s|%s|%s" % [look, color.to_html(), texture, tex_scale, material, face_length]
+	if look == "shader":
+		key += "|%s|%d|%s" % [shader, UserShaders.version(shader), JSON.stringify(shader_params)]
 	if key != _material_key:
 		_material_key = key
-		_mesh_instance.material_override = Look.ramp_material(look, color, texture, tex_scale, material, face_length)
+		_mesh_instance.material_override = Look.ramp_material(look, color, texture, tex_scale, material, face_length, false,
+			shader, shader_params)
 
 
 ## Lines along each edge of the cross-section and round both end caps (locked part and editable part kept
@@ -150,7 +155,7 @@ func to_dict() -> Dictionary:
 		"face_length_right": face_length_right, "slice": slice, "detail": detail, "freeform": freeform,
 		"frozen": frozen.duplicate(true), "seam_tangent_lock": seam_tangent_lock,
 		"solid": solid, "base_depth": base_depth, "color": color.to_html(false), "look": look, "texture": texture,
-		"tex_scale": tex_scale, "material": material}
+		"tex_scale": tex_scale, "material": material, "shader": shader, "shader_params": shader_params.duplicate(true)}
 
 
 func from_dict(data: Dictionary) -> void:
@@ -168,6 +173,8 @@ func from_dict(data: Dictionary) -> void:
 	texture = data.get("texture", "")
 	tex_scale = data.get("tex_scale", 20.0)
 	material = data.get("material", "")
+	shader = data.get("shader", "")
+	shader_params = (data.get("shader_params", {}) as Dictionary).duplicate(true)
 	if is_inside_tree():
 		rebuild()
 

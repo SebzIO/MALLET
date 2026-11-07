@@ -143,6 +143,8 @@ func build(map: Dictionary, opts := {}) -> String:
 		if rd.get("look", "") == "material" and MaterialLibrary.has(rd.get("material", "")):
 			rmat = _mat_name(rd["material"])
 			used_materials[rd["material"]] = true
+		elif rd.get("look", "") == "shader":
+			rmat = _shader_material(rd.get("shader", ""), rd.get("shader_params", {}), RAMP_MATERIAL)
 		var rb := _ramp_brushes(geo, rmat)
 		if not rb.is_empty():
 			details.append("entity
@@ -234,6 +236,8 @@ func build(map: Dictionary, opts := {}) -> String:
 
 	# ---- point and brush entities
 	var sky: String = opts.get("skyname", SKIES.get(env.get("preset", "day"), "sky_day01_01"))
+	if opts.get("sky_faces", {}) is Dictionary and not opts.get("sky_faces", {}).is_empty():
+		variant_materials["skybox " + sky] = {"skybox": sky, "faces": opts["sky_faces"]}   # (the map's own sky, baked)
 	var entities := PackedStringArray()
 	var plates := []                                     # [godot spawn position, destination name]
 	var spawned := {}                                    # zone name -> its spawn is made (several boxes, one zone)
@@ -632,10 +636,26 @@ func _block_solid(piece: Array, bs: Dictionary) -> String:
 			else:
 				mats.append(_mat_name(fs["material"]))
 			axes.append(_material_axes(nrm, fs))
+		elif bs["look"] == "shader":
+			mats.append(_shader_material(bs.get("shader", ""), bs.get("shader_params", {}), PLATFORM_MATERIAL))
+			axes.append(_axes(nrm_src))
 		else:
 			mats.append(BLOCK_MATERIALS.get(bs["look"], PLATFORM_MATERIAL))
 			axes.append(_axes(nrm_src))
 	return _solid(sides, mats, axes)
+
+
+## Your own surface shader in CS:S (which can't run shaders): its first image, else its first color.
+func _shader_material(id: String, params: Dictionary, fallback: String) -> String:
+	var base := UserShaders.css_base(id, params)
+	if base.has("image"):
+		var name := "shader_%s_%x" % [id.to_lower().validate_filename().replace(" ", "_"), hash(base["image"]) & 0xffffff]
+		variant_materials[name] = {"name": name, "image": base["image"], "params": "", "surface": "concrete"}
+		return "MALLET/" + name.to_upper()
+	if base.has("color"):
+		var c: Color = base["color"]
+		return _special_material("shader_%s" % c.to_html(false), c, "")
+	return fallback
 
 
 ## One cube from build mode as a brush, each side with its own texture and texture settings.
@@ -822,6 +842,9 @@ static func write_materials(ids: Array, root: String) -> Array:
 	var dir := root.path_join("materials/mallet")
 	DirAccess.make_dir_recursive_absolute(dir)
 	for id in ids:
+		if id is Dictionary and id.has("skybox"):
+			out.append_array(_write_skybox(id["skybox"], id["faces"], root))
+			continue
 		if id is Dictionary:
 			out.append_array(_write_variant(id, dir))
 			continue
@@ -856,9 +879,13 @@ static func _write_variant(d: Dictionary, dir: String) -> Array:
 	var out := []
 	var name: String = d["name"]
 	var base: String = d.get("base", name)
-	if d.has("color"):
-		var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
-		img.fill(Color.html(d["color"]))
+	if d.has("color") or d.has("image"):
+		var img: Image = null
+		if d.has("image"):
+			img = Image.load_from_file(d["image"])
+		if img == null or img.is_empty():
+			img = Image.create(64, 64, false, Image.FORMAT_RGBA8)
+			img.fill(Color.html(d.get("color", "9aa3ad")))
 		var vtf := dir.path_join(name + ".vtf")
 		_write_vtf(img, vtf)
 		out.append(["materials/mallet/%s.vtf" % name, vtf])
@@ -868,6 +895,61 @@ static func _write_variant(d: Dictionary, dir: String) -> Array:
 		d.get("basetexture", "mallet/" + base), d.get("surface", "concrete"), d.get("params", "")])   # (CS:S variants: the game's texture)
 	f.close()
 	out.append(["materials/mallet/%s.vmt" % name, vmt])
+	return out
+
+
+## A baked skybox (Look.bake_skybox): materials/skybox/<name><rt / bk / lf / ft / up / dn>, unlit and unfogged,
+## stored uncompressed (smooth sky gradients band badly in DXT1).
+static func _write_skybox(name: String, faces: Dictionary, root: String) -> Array:
+	var out := []
+	var dir := root.path_join("materials/skybox")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for sfx in faces:
+		var img: Image = (faces[sfx] as Image).duplicate()
+		img.convert(Image.FORMAT_RGB8)
+		var w := img.get_width()
+		var h := img.get_height()
+		var px := img.get_data()
+		for i in w * h:                                  # RGB -> BGR (Source's BGR888)
+			var r := px[i * 3]
+			px[i * 3] = px[i * 3 + 2]
+			px[i * 3 + 2] = r
+		var hd := StreamPeerBuffer.new()
+		hd.big_endian = false
+		hd.put_data("VTF".to_ascii_buffer())
+		hd.put_u8(0)
+		hd.put_u32(7)
+		hd.put_u32(2)
+		hd.put_u32(80)
+		hd.put_u16(w)
+		hd.put_u16(h)
+		hd.put_u32(0x4 | 0x8 | 0x100 | 0x200)            # clamp s / t, no mipmaps, no lower detail levels
+		hd.put_u16(1)
+		hd.put_u16(0)
+		hd.put_u32(0)
+		for k in 3:
+			hd.put_float(0.5)
+		hd.put_u32(0)
+		hd.put_float(1.0)
+		hd.put_u32(3)                                    # BGR888
+		hd.put_u8(1)                                     # one mip level
+		hd.put_u32(0xFFFFFFFF)
+		hd.put_u8(0)
+		hd.put_u8(0)
+		hd.put_u16(1)
+		while hd.get_size() < 80:
+			hd.put_u8(0)
+		var vtf := dir.path_join(name + sfx + ".vtf")
+		var f := FileAccess.open(vtf, FileAccess.WRITE)
+		f.store_buffer(hd.data_array)
+		f.store_buffer(px)
+		f.close()
+		var vmt := dir.path_join(name + sfx + ".vmt")
+		var g := FileAccess.open(vmt, FileAccess.WRITE)
+		g.store_string("\"UnlitGeneric\"\n{\n\t\"$basetexture\" \"skybox/%s%s\"\n\t\"$nofog\" \"1\"\n\t\"$ignorez\" \"1\"\n}\n" % [name, sfx])
+		g.close()
+		out.append(["materials/skybox/%s%s.vtf" % [name, sfx], vtf])
+		out.append(["materials/skybox/%s%s.vmt" % [name, sfx], vmt])
 	return out
 
 

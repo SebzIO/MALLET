@@ -65,6 +65,7 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	root.set_meta("made_with", MalletVersion.full())
 	var lowest := INF
 
+	UserShaders.add_embedded(map.get("shaders", {}))   # (your own shaders travel inside the map, as code)
 	var look_env: Dictionary = Look.default_environment()
 	look_env.merge(map.get("environment", {}), true)
 	var env := WorldEnvironment.new()
@@ -92,7 +93,8 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		var ridge: PackedVector3Array = geo["ridge"]
 		var mesh: ArrayMesh = geo["mesh"]
 		var mat := Look.ramp_material(rd.get("look", "color"), Color.html(rd.get("color", "edebe3")), rd.get("texture", ""),
-			rd.get("tex_scale", 20.0), rd.get("material", ""), float(sp["face_length"]))
+			rd.get("tex_scale", 20.0), rd.get("material", ""), float(sp["face_length"]), false, rd.get("shader", ""),
+			rd.get("shader_params", {}))
 		mesh.surface_set_material(0, mat)
 		var body := StaticBody3D.new()
 		body.name = "Ramp%d" % i

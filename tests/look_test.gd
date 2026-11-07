@@ -36,7 +36,7 @@ func _run() -> void:
 	var first: RampNode = ed.ramps_root.get_child(0)
 	var colors := {"color": Color(0.93, 0.92, 0.89), "ceramic": Color(0.13, 0.25, 0.59), "steel": Color(0.8, 0.82, 0.86),
 		"grid": Color(0.62, 0.66, 0.72), "aurora": Color(0.15, 1.0, 0.6), "nebula": Color(0.85, 0.2, 0.9),
-		"neon": Color(0.1, 0.9, 1.0), "texture": Color.WHITE, "material": Color.WHITE}
+		"neon": Color(0.1, 0.9, 1.0), "texture": Color.WHITE, "material": Color.WHITE, "shader": Color(0.9, 0.5, 0.2)}
 	var i := 0
 	for look in Look.LOOK_ORDER:
 		var r: RampNode = first if i == 0 else RampNode.new()

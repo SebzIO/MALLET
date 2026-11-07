@@ -3,6 +3,26 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.13.0 preview — 2026-11-07: Your own skies and shaders
+
+- **Your shaders folder** (View > Your shaders folder…, or the Folder… button beside a shader list): put Godot
+  `.gdshader` files in it and they show up in MALLET. `shader_type sky;` files are skies (Map panel > Sky),
+  `shader_type spatial;` files are surfaces (a ramp's or block's Look > Your own shader). Save a file and switch back
+  to MALLET: it reloads on its own.
+- **Every setting becomes a control**: each uniform in the shader turns into a slider, color picker, switch, number
+  boxes or an image chooser, with the uniform's comment as its tooltip. "Back to the shader's own values" resets them.
+- **Two commented examples** come in the folder: a cloudy sky with a sun, and a surface with glowing, sliding stripes
+  and an optional image. The guide is docs/SHADERS.md.
+- The sky preset, sun, shadow fill and fog settings keep working with your own sky.
+- **Safe**: a shader with an error is never used. The panel shows the line and the message, and MALLET keeps the
+  built-in sky or a plain color until it's fixed.
+- **Maps carry their shaders**: a saved map holds the code of the shaders it uses, so it looks the same on someone
+  else's computer, and a deleted shader file doesn't break the open map.
+- **SurfsUp** exports embed the shaders in the map. **CS:S** exports can make the map's own sky (built-in or yours)
+  into a real 6-sided skybox packed into the map ("This map's sky" in the export window, picked automatically for
+  your own sky); surface shaders export as their first image, else their first color.
+- Fixed: picking "Library material" in a block's Look list chose the image look instead.
+
 ## 0.12.2 preview — 2026-11-07: Outliner menu fixes
 
 - The Outliner's right-click menu opens where you click (it used to open off to the right, shifted by where the

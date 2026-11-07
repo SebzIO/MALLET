@@ -6,7 +6,7 @@ next to Source's Hammer: that is the whole idea of this editor.
 1.0.0 is reached only when **every** milestone below is done **and the user says so**. Each milestone ships as its
 own preview (0.10.0, 0.11.0, …) with a tester zip; fixes in between are 0.x.y. Never 1.0.0 by default.
 
-Where we are: **0.11.0** (2026-11-07): new materials, CS:S textures, glow. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
+Where we are: **0.13.0** (2026-11-07): your own sky and surface shaders; before it lights, particles, materials. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
 have been tested by the user and a friend.
 
 ---
@@ -46,14 +46,14 @@ Do this first, so every later feature, file and screenshot already carries the n
       env_spark, env_steam, func_precipitation) or a note that it can't be shown there.
 - [x] Check the cost: a map's particle count / lights shown in the info panel, with a warning when it gets heavy.
 
-## 0.13.0: Your own skies and shaders
-- [ ] A **user shaders folder** (opened from the menu): drop in a Godot `.gdshader` (sky, or surface material) and
+## 0.13.0: Your own skies and shaders ✅ (2026-11-07)
+- [x] A **user shaders folder** (opened from the menu): drop in a Godot `.gdshader` (sky, or surface material) and
       it shows up in MALLET. Its `uniform`s automatically become sliders / color pickers in the panel, so a shader
       writer also makes something non-coders can tweak.
-- [ ] Ship a commented **template** for a sky shader and a surface shader, and a short guide (docs/SHADERS.md).
-- [ ] Custom **sun / ambient / fog** controls stay alongside a custom sky.
-- [ ] Safety: a shader that doesn't compile shows its error and falls back (no white faces, no crash).
-- [ ] Export: SurfsUp embeds the shader with the map (as today's built-in looks). CS:S can't run shaders: MALLET
+- [x] Ship a commented **template** for a sky shader and a surface shader, and a short guide (docs/SHADERS.md).
+- [x] Custom **sun / ambient / fog** controls stay alongside a custom sky.
+- [x] Safety: a shader that doesn't compile shows its error and falls back (no white faces, no crash).
+- [x] Export: SurfsUp embeds the shader with the map (as today's built-in looks). CS:S can't run shaders: MALLET
       bakes the custom sky into a 6-sided **skybox** (cubemap → VTF) so CS:S still gets the look; custom surface
       shaders export as their base texture.
 
