@@ -3,6 +3,16 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## Unreleased
+
+- Build mode, Sauerbraten-style selection moving (asked for by a Sauerbraten player): hold the right mouse button
+  inside the selection and drag to move the selection box (the cubes stay; V then pastes there). With Shift held when
+  you let go, a copy of the cubes it started on is left there (copy + paste in one go). A plain right click still
+  extends the selection or turns it to a face.
+- Build mode: after C, a red box shows where V will paste. Pasting onto a face you aim at now grows away from that
+  face whichever way it faces (on a -x / -y / -z face it used to grow back into the cubes).
+- (Checked: a copy pasted after making the grid smaller keeps its exact shape, made of cubes at the new grid size.)
+
 ## 0.11.0 preview — 2026-11-07: materials (Getridou, LURKing, CS:S), glow, texture placing
 
 - **Getridou's materials**: 170 materials made by Getridou (a few from photos his friends sent him), shipped with his

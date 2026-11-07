@@ -24,6 +24,7 @@ const HELP := [
 	["R + wheel  /  X", "rotate  /  flip the selection"], ["", ""],
 	["Left click (drag)", "select faces (or an entity)"], ["Shift + drag", "move the selected cubes"],
 	["Right click", "extend the selection / turn it to this face"],
+	["Right drag  /  + Shift", "move the selection  /  ...leaving a copy of its cubes there"],
 	["Space  /  J", "drop the selection  /  go to it"],
 	["C / V  /  Delete", "copy / paste  /  delete"], ["Z or U  /  I", "undo / redo"], ["", ""],
 	["H (or hold Alt)", "heightmap mode;  B + wheel: brush"],
@@ -284,7 +285,13 @@ func _mouse_button(e: InputEventMouseButton) -> void:
 				_drag = ""
 		MOUSE_BUTTON_RIGHT:
 			if e.pressed and not target.is_empty():
-				_right_click()
+				if not sel.is_empty() and sel.get("model") != null and _in_sel(target["sel"]):
+					_drag = "selmove"                    # Sauerbraten: right-drag inside the selection moves the box
+					_selmove = {"start_sel": sel.duplicate(), "start": _plane_cell(sel), "moved": false}
+				else:
+					_right_click()
+			elif not e.pressed and _drag == "selmove":
+				_end_selmove(Input.is_key_pressed(KEY_SHIFT))
 		MOUSE_BUTTON_WHEEL_UP:
 			if e.pressed:
 				wheel(1)
@@ -703,14 +710,30 @@ func copy() -> void:
 		(" and %d entities" % ent_sel.size()) if not ent_sel.is_empty() else ""])
 
 
-## V: paste into the selection, or with none, on top of the face you aim at.
-func paste() -> void:
+## Where V puts the clipboard: into the selection, or with none, out from the face you aim at (growing away from it,
+## whichever way it faces). Also drawn as the red paste box. {} when there's nowhere.
+func _paste_dest() -> Dictionary:
 	var s := op_sel()
 	if s.is_empty() or clip.is_empty():
-		return
+		return {}
 	if sel.is_empty() and target.get("hit", false):
 		s = CubeWorld.moved(s, 1)
 		s["model"] = target["model"]
+		var o: int = s["orient"]
+		if clip.has("cubes") and not o & 1:            # facing -x / -y / -z: the copy grows back from the face
+			var d := o >> 1
+			var g := CubeWorld.size_of(s["p"])
+			var oo: Vector3i = s["o"]
+			oo[d] -= maxi((clip["s"] as Vector3i)[d] - g, 0)
+			s["o"] = oo
+	return s
+
+
+## V: paste into the selection, or with none, on top of the face you aim at.
+func paste() -> void:
+	var s := _paste_dest()
+	if s.is_empty():
+		return
 	var dest: Vector3 = _frame(s.get("model")) * (Vector3(s["o"]) * CubeWorld.TICK)
 	if clip.has("cubes"):
 		var out = _edit(s, func(w: CubeWorld): return w.paste(s, clip))
@@ -880,6 +903,45 @@ func _update_corner_drag() -> void:
 
 static func _on_cube(t: Dictionary) -> bool:
 	return not t.is_empty() and t.get("on_cube", false)
+
+
+# ------------------------------------------------------------------------------------------------ moving the selection
+var _selmove := {}                       ## right-drag: {"start_sel", "start" cell, "moved"}
+
+
+## Right-drag: the selection box follows the crosshair across its face's plane (its cubes stay where they are).
+func _update_selmove() -> void:
+	var s0: Dictionary = _selmove["start_sel"]
+	var delta: Vector3i = _plane_cell(s0) - (_selmove["start"] as Vector3i)
+	delta[s0["orient"] >> 1] = 0
+	var keep = s0.get("model")
+	sel = s0.duplicate()
+	sel["o"] = (s0["o"] as Vector3i) + delta
+	sel["model"] = keep
+	if delta != Vector3i.ZERO:
+		_selmove["moved"] = true
+
+
+## Letting go of the right button: a click (no move) does what a right click does; a move keeps the box where it is,
+## and with Shift, copies the cubes it started on into it (copy + paste in one go).
+func _end_selmove(shift: bool) -> void:
+	_drag = ""
+	var s0: Dictionary = _selmove["start_sel"]
+	if not _selmove["moved"]:
+		sel = s0
+		_right_click()
+		return
+	if shift:
+		var to := sel.duplicate()
+		var c: Dictionary = (s0["model"] as CubeModelNode).world.copy(s0)
+		var out = _edit(to, func(w: CubeWorld): return w.paste(to, c))
+		if out != null:
+			sel = (out as Dictionary).duplicate()
+			sel["orient"] = s0["orient"]
+			sel["model"] = s0["model"]
+		say("Copied here")
+	else:
+		say("Selection moved: V pastes here, C copies what's in it")
 
 
 # ------------------------------------------------------------------------------------------------ moving cubes (editcut)
@@ -1353,6 +1415,8 @@ func _process(delta: float) -> void:
 			_update_corner_drag()
 		"cut":
 			_update_cut()
+		"selmove":
+			_update_selmove()
 		"entity":
 			_update_ent_drag()
 		"paint":
@@ -1590,6 +1654,12 @@ func _draw() -> void:
 				var a0 := TAU * i / 24.0
 				var a1 := TAU * (i + 1) / 24.0
 				_line(pc + Vector3(cos(a0), 0.02, sin(a0)) * blend_radius, pc + Vector3(cos(a1), 0.02, sin(a1)) * blend_radius, Color(1, 0.4, 0.9))
+	if clip.has("cubes") and _drag != "select":      # where V will paste: a red box (Sauerbraten's paste highlight)
+		var ps := _paste_dest()
+		if not ps.is_empty():
+			var pxf := _frame(ps.get("model"))
+			var plo := Vector3(ps["o"]) * CubeWorld.TICK
+			_box(pxf, plo, plo + Vector3(clip["s"]) * CubeWorld.TICK, Color(1.0, 0.25, 0.2, 0.9))
 	if not sel.is_empty():
 		var xf := _frame(sel.get("model"))
 		var g := CubeWorld.metres(sel["p"])
