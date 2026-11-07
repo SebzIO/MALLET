@@ -6,7 +6,7 @@ next to Source's Hammer: that is the whole idea of this editor.
 1.0.0 is reached only when **every** milestone below is done **and the user says so**. Each milestone ships as its
 own preview (0.10.0, 0.11.0, …) with a tester zip; fixes in between are 0.x.y. Never 1.0.0 by default.
 
-Where we are: **0.10.0** (2026-11-06), the rename. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
+Where we are: **0.11.0** (2026-11-07): new materials, CS:S textures, glow. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
 have been tested by the user and a friend.
 
 ---
@@ -25,7 +25,7 @@ Do this first, so every later feature, file and screenshot already carries the n
 - [x] Code / tests / docs: class names (`MalletVersion` …), launcher `.cmd` files, memory notes, handover.
       (The local folders `D:\SurfForge` and `D:\SurfForge_builds` keep their names: development only.)
 
-## 0.11.0: Materials
+## 0.11.0: Materials (0.11.0 released 2026-11-07; the unticked items follow in 0.11.x)
 - [x] **Getridou's materials pack** (170 materials incl. his friends' photo textures + 18 by LURKing, glow maps, credit in the picker / THIRD_PARTY / README /
       materials/GETRIDOU.txt).
 - [ ] **Sauerbraten's materials**: its texture packs come from many artists under **different licenses** (some free
