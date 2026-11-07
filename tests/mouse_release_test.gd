@@ -163,6 +163,40 @@ func _run() -> void:
 		check("build mode (placed particles, left %s): the Outliner takes clicks" % how, not ed.build.active and outliner_got > before2,
 			"(menu was at %s, %d particles, mouse mode %d)" % [menu.position, ed.particles_root.get_child_count(), Input.mouse_mode])
 
+	# Outliner right-click menu: opens at the mouse, and has Duplicate and Delete
+	ed._load_dict({})
+	ed._add_light("point")
+	await process_frame
+	await process_frame
+	ed.outliner.refresh(true)
+	await process_frame
+	var t: Tree = ed.outliner.tree
+	var row: TreeItem = t.get_root().get_first_child()
+	var rr := t.get_item_area_rect(row)
+	var rat := t.get_global_rect().position + rr.get_center()
+	move(rat, Vector2.ZERO)
+	await process_frame
+	button(rat, MOUSE_BUTTON_RIGHT, true)
+	await process_frame
+	button(rat, MOUSE_BUTTON_RIGHT, false)
+	await process_frame
+	await process_frame
+	var om: PopupMenu = ed.outliner._menu
+	check("Outliner right-click: the menu opens at the mouse", om.visible and Vector2(om.position).distance_to(rat) < 4.0,
+		"(menu at %s, mouse %s)" % [om.position, rat])
+	check("...with Duplicate and Delete", om.get_item_index(8) >= 0 and om.get_item_index(9) >= 0)
+	om.id_pressed.emit(8)
+	await process_frame
+	check("...Duplicate makes a second light", ed.lights_root.get_child_count() == 2)
+	om.hide()
+	ed._select(ed.lights_root.get_child(1))
+	om.id_pressed.emit(9)
+	await process_frame
+	await process_frame
+	check("...Delete removes it", ed.lights_root.get_child_count() == 1)
+	var far: Vector2i = Outliner.menu_position(root, Vector2(100, 100))
+	check("menus open inside the window (not shifted by where the window is)", far == Vector2i(100, 100) or not root.gui_embed_subwindows)
+
 	# a fire is picked by its flames, not only by its base
 	for c in ed.particles_root.get_children():
 		c.free()

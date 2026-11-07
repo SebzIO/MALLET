@@ -15,6 +15,7 @@ var folders: Array = []                  ## [{"id", "name", "parent" ("" = top l
 var tree := Tree.new()
 var filter := LineEdit.new()
 var _menu := PopupMenu.new()
+var _right_at := Vector2(-1, -1)
 var _signature := ""
 var _syncing := false
 var _icons := {}
@@ -61,7 +62,7 @@ func _ready() -> void:
 	tree.item_edited.connect(_item_edited)
 	tree.button_clicked.connect(_button_clicked)
 	tree.item_collapsed.connect(_item_collapsed)
-	tree.item_mouse_selected.connect(func(_p, b): if b == MOUSE_BUTTON_RIGHT: _open_menu())
+	tree.item_mouse_selected.connect(func(_p, b): if b == MOUSE_BUTTON_RIGHT: _open_menu(_right_at))
 	tree.set_drag_forwarding(_get_drag, _can_drop, _drop)
 	add_child(tree)
 	var tip := Label.new()
@@ -294,6 +295,8 @@ func _tree_input(ev: InputEvent) -> void:
 		editor._frame_clicked()                          # F: focus the selection, as in the views
 		tree.accept_event()
 		return
+	if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_RIGHT and ev.pressed:
+		_right_at = tree.get_global_transform_with_canvas() * ev.position     # (where the menu opens)
 	if not (ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT):
 		return
 	var item := tree.get_item_at_position(ev.position)
@@ -538,7 +541,7 @@ func _is_inside(id: String, outer: String) -> bool:
 
 
 # ------------------------------------------------------------------------------------------------ right-click menu
-func _open_menu() -> void:
+func _open_menu(at_mouse := Vector2(-1, -1)) -> void:
 	_menu.clear()
 	_menu.add_item("Rename (double-click)", 1)
 	_menu.add_item("New folder with the selection", 2)
@@ -547,13 +550,30 @@ func _open_menu() -> void:
 	_menu.add_item("Hide", 4)
 	_menu.add_item("Show", 5)
 	_menu.add_item("Show everything", 6)
+	if not editor.selection().is_empty():
+		_menu.add_separator()
+		_menu.add_item("Duplicate (Ctrl+D)", 8)
+		_menu.add_item("Delete (Del)", 9)
 	var it := tree.get_selected()
 	if it and (it.get_metadata(0) as Dictionary).has("folder"):
 		_menu.add_separator()
 		_menu.add_item("Delete this folder (keeps what's in it)", 7)
-	_menu.position = Vector2i(get_viewport().get_mouse_position()) + get_window().position
 	_menu.reset_size()
+	var at := menu_position(get_viewport(), at_mouse if at_mouse.x >= 0.0 else get_viewport().get_mouse_position())
+	if get_viewport().gui_embed_subwindows:              # (kept inside the window near its edges)
+		var room := Vector2i(get_viewport().get_visible_rect().size) - _menu.size
+		at = at.clamp(Vector2i.ZERO, room.max(Vector2i.ZERO))
+	_menu.position = at
 	_menu.popup()
+
+
+## Where a popup opens at the mouse: inside the window (where MALLET draws its menus), or on the screen when menus
+## are separate windows.
+static func menu_position(vp: Viewport, mouse: Vector2) -> Vector2i:
+	var at := Vector2i(mouse)
+	if not vp.gui_embed_subwindows:
+		at += vp.get_window().position
+	return at
 
 
 func _menu_pressed(id: int) -> void:
@@ -577,6 +597,8 @@ func _menu_pressed(id: int) -> void:
 			var it := tree.get_selected()
 			if it:
 				delete_folder((it.get_metadata(0) as Dictionary)["folder"])
+		8: editor._duplicate_clicked()
+		9: editor._delete_clicked()
 
 
 # ------------------------------------------------------------------------------------------------ icons

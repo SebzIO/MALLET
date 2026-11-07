@@ -3,6 +3,12 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.12.2 preview — 2026-11-07: Outliner menu fixes
+
+- The Outliner's right-click menu opens where you click (it used to open off to the right, shifted by where the
+  MALLET window sits on the screen), and stays inside the window near its edges.
+- The Outliner's right-click menu has Duplicate (Ctrl+D) and Delete (Del).
+
 ## 0.12.1 preview — 2026-11-07: Fixes for particles and the mouse
 
 - A fire (and smoke, sparks, embers, mist, magic) can be clicked and dragged by its flames, not only by the small box
