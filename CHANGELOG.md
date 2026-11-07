@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## Unreleased
+
+- **Sauerbraten's textures**: 315 materials from the ten Cube 2: Sauerbraten texture packs whose own licenses allow
+  shipping them (aard, cloward, drakker, trak5, sheik, tomek, painkillah, g_pack, ik2k, rorschach), each credited with
+  its artist and license in the picker. Every pack was checked by hand; the ones left out and why are in
+  materials/SAUERBRATEN.txt.
+- The material picker's search box is ready to type in as soon as it opens (F2 in build mode too).
+
 ## 0.11.1 preview — 2026-11-07: Sauerbraten-style selection moving
 
 - Build mode, Sauerbraten-style selection moving (asked for by a Sauerbraten player): hold the right mouse button

@@ -2509,7 +2509,7 @@ func _open_picker(cb: Callable) -> void:
 				if e["category"] != cat:
 					continue
 				if e.has("credit") and not credit.visible:
-					credit.text = "Textures by %s - thank you! Used with permission." % e["credit"]
+					credit.text = ("Textures by %s - thank you! License: %s." % [e["credit"], e["license"]]) if e.has("license") 						else "Textures by %s - thank you! Used with permission." % e["credit"]
 					credit.visible = true
 				var b := Button.new()
 				b.icon = MaterialLibrary.preview(e["id"])
@@ -2542,6 +2542,9 @@ func _open_picker(cb: Callable) -> void:
 				fo.search(q))
 		_ui.add_child(_picker)
 	_picker.popup_centered()
+	var search: LineEdit = _fields["picker_search"]   # type straight away to search (F2 in build mode too)
+	search.grab_focus()
+	search.select_all()
 
 
 ## CS:S's own materials in the picker (when CS:S is installed): one collapsed row per folder; a folder's

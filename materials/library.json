@@ -2656,6 +2656,3997 @@
         "normal": "normal.jpg",
         "roughness": "roughness.jpg"
       }
+    },
+    {
+      "id": "sauer_aard_aardfdry256_1",
+      "name": "Aardfdry256 1",
+      "category": "Sauerbraten \u00b7 aard",
+      "credit": "Aardappel (Wouter van Oortmerssen)",
+      "license": "free to use in any way",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_aard_aardmbr16_2",
+      "name": "Aardmbr16 2",
+      "category": "Sauerbraten \u00b7 aard",
+      "credit": "Aardappel (Wouter van Oortmerssen)",
+      "license": "free to use in any way",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_aard_aardmmet32_1",
+      "name": "Aardmmet32 1",
+      "category": "Sauerbraten \u00b7 aard",
+      "credit": "Aardappel (Wouter van Oortmerssen)",
+      "license": "free to use in any way",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_aard_aardograss_1",
+      "name": "Aardograss 1",
+      "category": "Sauerbraten \u00b7 aard",
+      "credit": "Aardappel (Wouter van Oortmerssen)",
+      "license": "free to use in any way",
+      "size": 2.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_aard_plain",
+      "name": "Plain",
+      "category": "Sauerbraten \u00b7 aard",
+      "credit": "Aardappel (Wouter van Oortmerssen)",
+      "license": "free to use in any way",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_aard_sketch128",
+      "name": "Sketch128",
+      "category": "Sauerbraten \u00b7 aard",
+      "credit": "Aardappel (Wouter van Oortmerssen)",
+      "license": "free to use in any way",
+      "size": 0.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_aard_sketch32",
+      "name": "Sketch32",
+      "category": "Sauerbraten \u00b7 aard",
+      "credit": "Aardappel (Wouter van Oortmerssen)",
+      "license": "free to use in any way",
+      "size": 0.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_aard_sketch64",
+      "name": "Sketch64",
+      "category": "Sauerbraten \u00b7 aard",
+      "credit": "Aardappel (Wouter van Oortmerssen)",
+      "license": "free to use in any way",
+      "size": 0.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_cloward_bricksdiffuse",
+      "name": "Bricks",
+      "category": "Sauerbraten \u00b7 cloward",
+      "credit": "Ben Cloward",
+      "license": "free for any project, personal or professional",
+      "size": 8.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_cloward_cobblestonesdiffuse",
+      "name": "Cobblestones",
+      "category": "Sauerbraten \u00b7 cloward",
+      "credit": "Ben Cloward",
+      "license": "free for any project, personal or professional",
+      "size": 8.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_cloward_metalsheetdiffuse",
+      "name": "Metal Sheet",
+      "category": "Sauerbraten \u00b7 cloward",
+      "credit": "Ben Cloward",
+      "license": "free for any project, personal or professional",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_cloward_stonewalldiffuse",
+      "name": "Stonewall",
+      "category": "Sauerbraten \u00b7 cloward",
+      "credit": "Ben Cloward",
+      "license": "free for any project, personal or professional",
+      "size": 8.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_drakker_no_diving",
+      "name": "No diving",
+      "category": "Sauerbraten \u00b7 drakker",
+      "credit": "David \"Drakker\" Pelletier",
+      "license": "public domain",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_base1a",
+      "name": "Base1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_base1b",
+      "name": "Base1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_base1c",
+      "name": "Base1c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_basictrim1a",
+      "name": "Basictrim1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_basictrim1b",
+      "name": "Basictrim1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_ceil1a",
+      "name": "Ceil1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_comp1a",
+      "name": "Comp1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_comp1b",
+      "name": "Comp1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_comp1c",
+      "name": "Comp1c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_comp1d",
+      "name": "Comp1d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_comp1e",
+      "name": "Comp1e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_crate1a",
+      "name": "Crate1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_crate1b",
+      "name": "Crate1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_crate1c",
+      "name": "Crate1c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_crate1d",
+      "name": "Crate1d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_crate1e",
+      "name": "Crate1e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_floor2a",
+      "name": "Floor2a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_floor2b",
+      "name": "Floor2b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_floor2c",
+      "name": "Floor2c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_floor2d",
+      "name": "Floor2d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_floor2e",
+      "name": "Floor2e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_floor2f",
+      "name": "Floor2f",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_grate1a",
+      "name": "Grate1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_grate2a",
+      "name": "Grate2a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_graypanel1",
+      "name": "Graypanel1",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_graypanel2",
+      "name": "Graypanel2",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_graypanel3",
+      "name": "Graypanel3",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_holes1a",
+      "name": "Holes1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_holes1b",
+      "name": "Holes1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_light1a",
+      "name": "Light1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_light2a",
+      "name": "Light2a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_light3a",
+      "name": "Light3a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_panel1a",
+      "name": "Panel1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_panel2a",
+      "name": "Panel2a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_pipe1a",
+      "name": "Pipe1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_pipe1d",
+      "name": "Pipe1d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_pipez1a",
+      "name": "Pipez1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_pits1a",
+      "name": "Pits1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_ribs1a",
+      "name": "Ribs1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_stair1a",
+      "name": "Stair1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 0.5,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_thingy1a",
+      "name": "Thingy1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile1a",
+      "name": "Tile1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile1b",
+      "name": "Tile1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile1c",
+      "name": "Tile1c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile1d",
+      "name": "Tile1d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile1e",
+      "name": "Tile1e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile2a",
+      "name": "Tile2a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile2b",
+      "name": "Tile2b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile2c",
+      "name": "Tile2c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile2d",
+      "name": "Tile2d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile3a",
+      "name": "Tile3a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile3b",
+      "name": "Tile3b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile3c",
+      "name": "Tile3c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile3d",
+      "name": "Tile3d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile3e",
+      "name": "Tile3e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile4a",
+      "name": "Tile4a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile4b",
+      "name": "Tile4b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile4c",
+      "name": "Tile4c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile4d",
+      "name": "Tile4d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile4e",
+      "name": "Tile4e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile5a",
+      "name": "Tile5a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile5b",
+      "name": "Tile5b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile5c",
+      "name": "Tile5c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile5d",
+      "name": "Tile5d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_tile5e",
+      "name": "Tile5e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim1a",
+      "name": "Trim1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim1b",
+      "name": "Trim1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim2a",
+      "name": "Trim2a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim2b",
+      "name": "Trim2b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim3a",
+      "name": "Trim3a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim3b",
+      "name": "Trim3b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim3c",
+      "name": "Trim3c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim3d",
+      "name": "Trim3d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim3e",
+      "name": "Trim3e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim4a",
+      "name": "Trim4a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim4b",
+      "name": "Trim4b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim4c",
+      "name": "Trim4c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim4d",
+      "name": "Trim4d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim4e",
+      "name": "Trim4e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim5a",
+      "name": "Trim5a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim5b",
+      "name": "Trim5b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim5c",
+      "name": "Trim5c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim5d",
+      "name": "Trim5d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim5e",
+      "name": "Trim5e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim6a",
+      "name": "Trim6a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim6b",
+      "name": "Trim6b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim6c",
+      "name": "Trim6c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim6d",
+      "name": "Trim6d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim6e",
+      "name": "Trim6e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim7a",
+      "name": "Trim7a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim7b",
+      "name": "Trim7b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim7c",
+      "name": "Trim7c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim7d",
+      "name": "Trim7d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim7e",
+      "name": "Trim7e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim8a",
+      "name": "Trim8a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim8b",
+      "name": "Trim8b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim8c",
+      "name": "Trim8c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim8d",
+      "name": "Trim8d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim8e",
+      "name": "Trim8e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim9a",
+      "name": "Trim9a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim9b",
+      "name": "Trim9b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim9c",
+      "name": "Trim9c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim9d",
+      "name": "Trim9d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trim9e",
+      "name": "Trim9e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trisec1a",
+      "name": "Trisec1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trisec1b",
+      "name": "Trisec1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trisec1c",
+      "name": "Trisec1c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_trisec1d",
+      "name": "Trisec1d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel1a",
+      "name": "Vertpanel1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel1b",
+      "name": "Vertpanel1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel1c",
+      "name": "Vertpanel1c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel1d",
+      "name": "Vertpanel1d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel1e",
+      "name": "Vertpanel1e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel2a",
+      "name": "Vertpanel2a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel2b",
+      "name": "Vertpanel2b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel2c",
+      "name": "Vertpanel2c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel2d",
+      "name": "Vertpanel2d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_vertpanel2e",
+      "name": "Vertpanel2e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall1a",
+      "name": "Wall1a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall1b",
+      "name": "Wall1b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall1c",
+      "name": "Wall1c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall1d",
+      "name": "Wall1d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall1e",
+      "name": "Wall1e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall2a",
+      "name": "Wall2a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall2b",
+      "name": "Wall2b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall2c",
+      "name": "Wall2c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall2d",
+      "name": "Wall2d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall2e",
+      "name": "Wall2e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall3a",
+      "name": "Wall3a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall3b",
+      "name": "Wall3b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall3c",
+      "name": "Wall3c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall3d",
+      "name": "Wall3d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall3e",
+      "name": "Wall3e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall4a",
+      "name": "Wall4a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall4b",
+      "name": "Wall4b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall4c",
+      "name": "Wall4c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall4d",
+      "name": "Wall4d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall4e",
+      "name": "Wall4e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall5a",
+      "name": "Wall5a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall5b",
+      "name": "Wall5b",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall5c",
+      "name": "Wall5c",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall5d",
+      "name": "Wall5d",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall5e",
+      "name": "Wall5e",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall6a",
+      "name": "Wall6a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_trak5_wall7a",
+      "name": "Wall7a",
+      "category": "Sauerbraten \u00b7 trak5",
+      "credit": "Georges 'TRaK' Grondin",
+      "license": "MIT",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "sauer_sheik_plasma",
+      "name": "Plasma",
+      "category": "Sauerbraten \u00b7 sheik",
+      "credit": "Fan|Sheik",
+      "license": "CC BY-SA 4.0",
+      "size": 8.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_tomek_snow10_d",
+      "name": "Snow10",
+      "category": "Sauerbraten \u00b7 tomek",
+      "credit": "tomek",
+      "license": "CC BY",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_tomek_snow2_d",
+      "name": "Snow2",
+      "category": "Sauerbraten \u00b7 tomek",
+      "credit": "tomek",
+      "license": "CC BY",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_tomek_snow7_d",
+      "name": "Snow7",
+      "category": "Sauerbraten \u00b7 tomek",
+      "credit": "tomek",
+      "license": "CC BY",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_tomek_snow8_d",
+      "name": "Snow8",
+      "category": "Sauerbraten \u00b7 tomek",
+      "credit": "tomek",
+      "license": "CC BY",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_arabic_rosetonb_cc",
+      "name": "Pk arabic roseton B",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 2.2,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_arabic_rosetonr_cc",
+      "name": "Pk arabic roseton R",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 2.2,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_arabic_rosetony_cc",
+      "name": "Pk arabic roseton Y",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 2.2,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_arlequin_blue_cc",
+      "name": "Pk arlequin blue",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 1.6,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_arlequin_brown_cc",
+      "name": "Pk arlequin brown",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_arlequin_cc",
+      "name": "Pk arlequin",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 1.6,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_broken_vitral_cc",
+      "name": "Pk broken vitral",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 1.6,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_cotage_cc",
+      "name": "Pk cotage",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 1.6,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_cotage_color_cc",
+      "name": "Pk cotage color",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 1.6,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_flower_vitral_cc",
+      "name": "Pk flower vitral",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 1.6,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_flwh_vitral_cc",
+      "name": "Pk flwh vitral",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 1.6,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_painkillah_pk_roseton_vitral_cc",
+      "name": "Pk roseton vitral",
+      "category": "Sauerbraten \u00b7 painkillah",
+      "credit": "PainKillAH",
+      "license": "CC BY-NC-SA 2.5",
+      "size": 2.4,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks02a",
+      "name": "G bricks02a",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 8.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks03",
+      "name": "G bricks03",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks05",
+      "name": "G bricks05",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks09",
+      "name": "G bricks09",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 8.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks10",
+      "name": "G bricks10",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks26",
+      "name": "G bricks26",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 8.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks27",
+      "name": "G bricks27",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 8.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks29",
+      "name": "G bricks29",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 8.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks30",
+      "name": "G bricks30",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 8.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_bricks33",
+      "name": "G bricks33",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_concrete05",
+      "name": "G concrete05",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_crate01",
+      "name": "G crate01",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 2.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_facade01",
+      "name": "G facade01",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_floor01",
+      "name": "G floor01",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_floor04",
+      "name": "G floor04",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_floor10",
+      "name": "G floor10",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 8.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_grates09",
+      "name": "G grates09",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_metbas0c1",
+      "name": "G metbas0c1",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 8.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_metbas5b",
+      "name": "G metbas5b",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_metbas6",
+      "name": "G metbas6",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_metfloor3b",
+      "name": "G metfloor3b",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_metfloor5b",
+      "name": "G metfloor5b",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_metfloor7b",
+      "name": "G metfloor7b",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_mettrim03",
+      "name": "G mettrim03",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_sewer02",
+      "name": "G sewer02",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "sauer_g_pack_g_wood02",
+      "name": "G wood02",
+      "category": "Sauerbraten \u00b7 g_pack",
+      "credit": "Guilhem 'Gui' Bedos",
+      "license": "free for non-commercial use, with credit and its readme",
+      "size": 8.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_brick_12832a",
+      "name": "Ik brick 12832a",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_brick_12864a",
+      "name": "Ik brick 12864a",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_brick_3216d",
+      "name": "Ik brick 3216d",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_brick_6432a",
+      "name": "Ik brick 6432a",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_brick_6464a",
+      "name": "Ik brick 6464a",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_brick_6464c",
+      "name": "Ik brick 6464c",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_brick_trimh32a",
+      "name": "Ik brick trimh32a",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_brickwall_gry",
+      "name": "Ik brickwall gry",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_cliff256",
+      "name": "Ik cliff256",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_cliff256_mod",
+      "name": "Ik cliff256 mod",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_floor_brick128a",
+      "name": "Ik floor brick128a",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_floor_brick128b",
+      "name": "Ik floor brick128b",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_floor_tile128b",
+      "name": "Ik floor tile128b",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_floor_wood128b",
+      "name": "Ik floor wood128b",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_floor_wood128d",
+      "name": "Ik floor wood128d",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_ground_cobbles128",
+      "name": "Ik ground cobbles128",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_ground_deadgrass128",
+      "name": "Ik ground deadgrass128",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_ground_grass128",
+      "name": "Ik ground grass128",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_ground_lawn128",
+      "name": "Ik ground lawn128",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_ground_pavement128",
+      "name": "Ik ground pavement128",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_ground_pebbles128",
+      "name": "Ik ground pebbles128",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "gravel",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_sky_day_back",
+      "name": "Ik sky day back",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_stonestep25632",
+      "name": "Ik stonestep25632",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_tree128moss",
+      "name": "Ik tree128moss",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_wood_planks128b",
+      "name": "Ik wood planks128b",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_wood_planks128d",
+      "name": "Ik wood planks128d",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_wood_trimh64d",
+      "name": "Ik wood trimh64d",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_wood_trimh64e",
+      "name": "Ik wood trimh64e",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_woodv256a",
+      "name": "Ik woodv256a",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_woodwall128128b",
+      "name": "Ik woodwall128128b",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 4.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_wpaperplain128a",
+      "name": "Ik wpaperplain128a",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_wpaperplain128b",
+      "name": "Ik wpaperplain128b",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_wpaperplain128c",
+      "name": "Ik wpaperplain128c",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_wpaperplain128d",
+      "name": "Ik wpaperplain128d",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_ik2k_ik_wpaperplain128e",
+      "name": "Ik wpaperplain128e",
+      "category": "Sauerbraten \u00b7 ik2k",
+      "credit": "Iikka \"Fingers\" Keranen",
+      "license": "free for non-commercial use and distribution, may be modified",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_128_ivbr_trim02",
+      "name": "128 ivbr trim02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_128_tar_metflr01",
+      "name": "128 tar metflr01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1_concrete01",
+      "name": "1 concrete01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1_rust_grill01",
+      "name": "1 rust grill01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1_rust_grill02",
+      "name": "1 rust grill02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1_rust_grill02b",
+      "name": "1 rust grill02b",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1_slimey01",
+      "name": "1 slimey01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1_th_trim01",
+      "name": "1 th trim01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1_th_trim02",
+      "name": "1 th trim02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_clocktrim01",
+      "name": "1r clocktrim01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_clocktrim03b",
+      "name": "1r clocktrim03b",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_column01",
+      "name": "1r column01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.25,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_floor02",
+      "name": "1r floor02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_grill02",
+      "name": "1r grill02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_light01",
+      "name": "1r light01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_metbrick01",
+      "name": "1r metbrick01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_metpan05",
+      "name": "1r metpan05",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_metrim1",
+      "name": "1r metrim1",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_metwl01",
+      "name": "1r metwl01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_plain_met02",
+      "name": "1r plain met02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_squ_pan03",
+      "name": "1r squ pan03",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_squ_pan04b",
+      "name": "1r squ pan04b",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_steps",
+      "name": "1r steps",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_1r_thickpan03",
+      "name": "1r thickpan03",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_256_gate_rock07",
+      "name": "256 gate rock07",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_256_gate_water02",
+      "name": "256 gate water02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_256_iv_floor01",
+      "name": "256 iv floor01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_256_iv_floor02",
+      "name": "256 iv floor02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_256_tar_ccolumn01",
+      "name": "256 tar ccolumn01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_064_red_girder02",
+      "name": "2 064 red girder02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_128_redpan02",
+      "name": "2 128 redpan02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_256_red_thin02",
+      "name": "2 256 red thin02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 0.5,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_256_red_thin03",
+      "name": "2 256 red thin03",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 0.5,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_256_redsup01",
+      "name": "2 256 redsup01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_32_red_thin02",
+      "name": "2 32 red thin02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_c_thinredtrim03",
+      "name": "2 c thinredtrim03",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_c_thinredtrimlight01",
+      "name": "2 c thinredtrimlight01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_c_tiles01",
+      "name": "2 c tiles01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_conc_celing01",
+      "name": "2 conc celing01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_conc_floorpat02_s",
+      "name": "2 conc floorpat02 s",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_conc_l01",
+      "name": "2 conc l01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_conc_wall02",
+      "name": "2 conc wall02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_floor02",
+      "name": "2 floor02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_largemet03",
+      "name": "2 largemet03",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_red_floorr01",
+      "name": "2 red floorr01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_red_floorw01",
+      "name": "2 red floorw01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_redtrim03",
+      "name": "2 redtrim03",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2_whitetrim03",
+      "name": "2 whitetrim03",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_2r_plaster_floor01",
+      "name": "2r plaster floor01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "plaster",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_3i_crust",
+      "name": "3i crust",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_3i_rockyfloor",
+      "name": "3i rockyfloor",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_3m_metflr_tiles",
+      "name": "3m metflr tiles",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_3r_colrust01b_32",
+      "name": "3r colrust01b 32",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 0.5,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_3r_colrust01b",
+      "name": "3r colrust01b",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_3r_light01b",
+      "name": "3r light01b",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_3r_lighthh01b",
+      "name": "3r lighthh01b",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_3r_metblock01",
+      "name": "3r metblock01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_3r_plaster02",
+      "name": "3r plaster02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "plaster",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_4_conc_floor01",
+      "name": "4 conc floor01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_4_met01",
+      "name": "4 met01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_4_met05b",
+      "name": "4 met05b",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_5_bricks01",
+      "name": "5 bricks01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_5_faces",
+      "name": "5 faces",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_5_light01b",
+      "name": "5 light01b",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_5_slabfloor",
+      "name": "5 slabfloor",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_5_trim02",
+      "name": "5 trim02",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_64_column",
+      "name": "64 column",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_64_iv_column01",
+      "name": "64 iv column01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_64_warm01",
+      "name": "64 warm01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_hh3_64by64_light_c01",
+      "name": "Hh3 64by64 light c01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 1.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_hh3_m_light01",
+      "name": "Hh3 m light01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_hh3_m_light03",
+      "name": "Hh3 m light03",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_hh3_mw_light01",
+      "name": "Hh3 mw light01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_hh3_mw_light03",
+      "name": "Hh3 mw light03",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_j128_brick01",
+      "name": "J128 brick01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_j128_item",
+      "name": "J128 item",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_j128_metpan01",
+      "name": "J128 metpan01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_j128_metpan05",
+      "name": "J128 metpan05",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 2.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "sauer_rorschach_j256_cobl01",
+      "name": "J256 cobl01",
+      "category": "Sauerbraten \u00b7 rorschach",
+      "credit": "Kevin 'Rorshach' Johnstone",
+      "license": "convert to other engines freely, with credit (color maps only)",
+      "size": 4.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
     }
   ]
 }

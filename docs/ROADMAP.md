@@ -28,10 +28,8 @@ Do this first, so every later feature, file and screenshot already carries the n
 ## 0.11.0: Materials (0.11.0 released 2026-11-07; the unticked items follow in 0.11.x)
 - [x] **Getridou's materials pack** (170 materials incl. his friends' photo textures + 18 by LURKing, glow maps, credit in the picker / THIRD_PARTY / README /
       materials/GETRIDOU.txt).
-- [ ] **Sauerbraten's materials**: its texture packs come from many artists under **different licenses** (some free
-      to share, some not for redistribution). Go through them pack by pack: ship the ones whose license allows it,
-      with each artist credited; list the rest as "can't ship" (or import them from a Sauerbraten install the user
-      already has, if their license allows that).
+- [x] **Sauerbraten's materials**: 315 from the ten packs whose licenses allow it (tools/import_sauerbraten.py,
+      materials/SAUERBRATEN.txt lists every pack in or out and why; license files ship with them).
 - [x] **CS:S materials** from the user's own install (core/css_library.gd reads VPK / VMT / VTF): 2,851 world
       materials in the picker, CS:S exports use them by name, SurfsUp exports copy them in only with the export
       window's switch on (the user's decision 2026-11-06), else a similar MALLET material stands in.

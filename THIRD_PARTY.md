@@ -18,6 +18,14 @@ arcabal, azzie and cynthia) and by his friend **LURKing** (Discord: TheBlackBigF
 with credit. His pack's terms: royalty free as long as no profit is made (CC-BY-SA); MALLET is free. Converted from
 Sauerbraten's format; details and what was left out in `materials/GETRIDOU.txt`.
 
+## Cube 2: Sauerbraten texture packs (materials/sauer_*)
+
+Ten packs whose own licenses allow shipping them: aard (Aardappel), cloward (Ben Cloward), drakker (David "Drakker"
+Pelletier), trak5 (Georges 'TRaK' Grondin, MIT), sheik (Fan|Sheik, CC BY-SA 4.0), tomek (CC BY), painkillah
+(PainKillAH, CC BY-NC-SA 2.5), g_pack (Guilhem 'Gui' Bedos, non-commercial), ik2k (Iikka "Fingers" Keranen,
+non-commercial) and rorschach (Kevin 'Rorshach' Johnstone, color maps only). Their license files are in
+`materials/sauerbraten_licenses/`; which packs were left out and why is in `materials/SAUERBRATEN.txt`.
+
 ## Counter-Strike: Source materials (not included)
 
 MALLET doesn't ship any of Valve's textures. When CS:S is installed, MALLET reads its world materials from that

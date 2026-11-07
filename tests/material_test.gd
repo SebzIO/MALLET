@@ -38,7 +38,18 @@ func _run() -> void:
 	var out: String = OS.get_cmdline_user_args()[0]
 	var built_in := MaterialLibrary.entries().filter(func(e): return String(e["dir"]).begins_with("res://"))
 	var cc0 := built_in.filter(func(e): return not e.has("credit"))
-	check("library: 19 ambientCG materials + 170 by Getridou + 18 by LURKing", cc0.size() == 19 and built_in.size() == 207, "(%d, %d)" % [cc0.size(), built_in.size()])
+	var sauer := built_in.filter(func(e): return String(e["id"]).begins_with("sauer_"))
+	check("Sauerbraten packs: 315 materials, each credited with its license", sauer.size() == 315
+		and sauer.all(func(e): return e.has("credit") and e.has("license") and String(e["category"]).begins_with("Sauerbraten")), "(%d)" % sauer.size())
+	check("...each pack's license file ships with it", FileAccess.file_exists("res://materials/sauerbraten_licenses/trak5/readme.txt")
+		and FileAccess.file_exists("res://materials/SAUERBRATEN.txt"))
+	var bad_maps := []
+	for e in sauer:
+		for map in e["maps"]:
+			if MaterialLibrary.image(e["id"], map) == null:
+				bad_maps.append(e["id"] + "/" + map)
+	check("...every map of every one loads", bad_maps.is_empty(), "%s" % [bad_maps.slice(0, 4)])
+	check("library: 19 ambientCG + 170 Getridou + 18 LURKing + 315 Sauerbraten", cc0.size() == 19 and built_in.size() == 522, "(%d, %d)" % [cc0.size(), built_in.size()])
 	var m := MaterialLibrary.material("Bricks104")
 	check("a material has color, normal and roughness maps", m.albedo_texture != null and m.normal_texture != null and m.roughness_texture != null)
 	check("metals get a metalness map", MaterialLibrary.material("Metal009").metallic_texture != null)

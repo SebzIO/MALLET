@@ -79,6 +79,9 @@ Templates live in `templates/` and are rebuilt (with every jump re-proven and fr
 - **Getridou**: the 170 materials in the Getridou category, made by him and shipped with his permission. Thank you!
   (https://www.instagram.com/getridou/ · Discord: Getridou)
 - **LURKing**: the 18 materials in the LURKing category, shared with credit. Thank you! (Discord: TheBlackBigFoot)
+- **Cube 2: Sauerbraten texture artists**: 315 materials from ten packs whose licenses allow it - Aardappel, Ben
+  Cloward, David "Drakker" Pelletier, Georges 'TRaK' Grondin, Fan|Sheik, tomek, PainKillAH, Guilhem 'Gui' Bedos,
+  Iikka "Fingers" Keranen and Kevin 'Rorshach' Johnstone (materials/SAUERBRATEN.txt).
 - **ambientCG** (CC0): the starter materials.
 - **Mark Arneman**: SUCC, SurfsUp's movement code (MIT), used for play mode.
 - **Cube 2: Sauerbraten**: the inspiration for build mode.

@@ -1,0 +1,38 @@
+Textures from Cube 2: Sauerbraten
+=================================
+
+MALLET ships these texture packs from Cube 2: Sauerbraten (http://sauerbraten.org) because each pack's own license
+allows it. Thank you to every artist below! Each pack's license file is in sauerbraten_licenses/<pack>/.
+
+Sauerbraten's README says its media isn't free to reuse unless a pack says so, so every pack was checked by hand
+(2026-11-07). In MALLET they're in the material picker as "Sauerbraten · <pack>".
+
+Included
+--------
+  aard        Aardappel (Wouter van Oortmerssen)   "completely free to use in any way you like"
+  cloward     Ben Cloward                          "Feel free to use these textures for any project"
+  drakker     David "Drakker" Pelletier            public domain (credit given)
+  trak5       Georges 'TRaK' Grondin               MIT license (its notice is in sauerbraten_licenses/trak5)
+  sheik       Fan|Sheik                            CC BY-SA 4.0
+  tomek       tomek                                CC BY (Creative Commons Attribution)
+  painkillah  PainKillAH                           CC BY-NC-SA 2.5 (non-commercial)
+  g_pack      Guilhem 'Gui' Bedos                  free for non-commercial use, with credit and its readme
+  ik2k        Iikka "Fingers" Keranen              free for non-commercial use and distribution, may be modified
+  rorschach   Kevin 'Rorshach' Johnstone           free to convert to other engines, with credit. Color maps only:
+                                                   the normal / specular / height maps in that folder are by
+                                                   Mayhem, with no license.
+
+Non-commercial packs (painkillah, g_pack, ik2k): MALLET is free; don't sell maps or anything else made with them.
+Share-alike packs (sheik, painkillah): changed versions must use the same license.
+
+Not included
+------------
+  no license file (Sauerbraten: not free to reuse): akari, argh, blendbrush, blikjebier, blindabuser, caustics, dg,
+    jon, kurt, makke, mayhem, meister, misanthropx, models, ratboy, redon, shmutzwurst, sinsch, skur, sprite, staffy,
+    textures, base, darc, schwenz
+  only for Sauerbraten / Cube or Quake / Doom maps: gor, aftas, lunaran
+  no editing or converting allowed: evil_textures, gibbie, subverse, than_ind
+  not the uploader's own work: payne (Remedy's), hero (CGTextures), satan (made from lunaran + gor), and the
+    "selected sets" in dash, golgotha, loopix, mitaman, noctua
+  credit asked, but no clear permission to ship them in another program: philipk, egyptsoc, tech1soc, jf1
+  skyboxes (for custom skies later): penguins (CC BY-SA), humus, hazel, socksky, skyboxes
