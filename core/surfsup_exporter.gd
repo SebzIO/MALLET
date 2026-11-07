@@ -494,6 +494,51 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 ## Height of the automatic kill floor: KILL_MARGIN below the lowest ramp or platform.
 ## `models`: the cube objects as [CubeWorld, Transform3D] when the caller has them already (the editor's live ones);
 ## otherwise they're read from the map (slow for big ones: every cube is parsed).
+## How many different CS:S materials the map uses.
+static func css_count(map: Dictionary) -> int:
+	var found := {}
+	_walk_css(map, func(id: String) -> String:
+		found[id] = true
+		return id)
+	return found.size()
+
+
+## The map with every CS:S material swapped for a similar one of MALLET's own (by surface: brick, wood, metal...).
+static func without_css(map: Dictionary) -> Dictionary:
+	return _walk_css(map.duplicate(true), func(id: String) -> String: return css_stand_in(id))
+
+
+const STAND_INS := [["brick", "Bricks104"], ["wood", "Wood051"], ["metal", "Metal009"], ["chain", "Metal009"],
+	["vent", "Metal009"], ["tile", "Tiles107"], ["plaster", "PaintedPlaster017"], ["gravel", "Gravel043"],
+	["dirt", "Gravel043"], ["sand", "Gravel043"], ["grass", "Grass004"], ["plastic", "Plastic010"],
+	["rock", "PavingStones138"], ["stone", "PavingStones138"], ["carpet", "Plastic010"]]
+
+
+static func css_stand_in(id: String) -> String:
+	var e := MaterialLibrary.entry(id)
+	var key := (String(e.get("surface", "")) + " " + id).to_lower()
+	for pair in STAND_INS:
+		if key.contains(pair[0]):
+			return pair[1]
+	return "Concrete034"
+
+
+## Every string in the map that names a CS:S material ("css:..." on its own, or a texture slot "css:...|settings")
+## goes through `f`, which returns the id to use instead. Returns the (changed) value.
+static func _walk_css(v, f: Callable):
+	if v is Dictionary:
+		for k in v:
+			v[k] = _walk_css(v[k], f)
+	elif v is Array:
+		for i in v.size():
+			v[i] = _walk_css(v[i], f)
+	elif v is String and (v as String).begins_with("css:"):
+		var s := v as String
+		var bar := s.find("|")
+		return f.call(s if bar < 0 else s.substr(0, bar)) + ("" if bar < 0 else s.substr(bar))
+	return v
+
+
 static func kill_floor_y(map: Dictionary, models = null) -> float:
 	var lowest := INF
 	for rd in map.get("ramps", []):
@@ -551,7 +596,11 @@ static func _add(root: Node, parent: Node, child: Node) -> void:
 
 
 ## Writes <maps_dir>/<map_name>.pck. Returns "" on success or an error message.
-static func export_pack(map: Dictionary, map_name: String, maps_dir: String) -> String:
+## `css_textures`: copy CS:S's own textures (from the map maker's CS:S install) into the map; otherwise surfaces using
+## them get a similar MALLET material instead (css_stand_in).
+static func export_pack(map: Dictionary, map_name: String, maps_dir: String, css_textures := false) -> String:
+	if not css_textures:
+		map = without_css(map)
 	if not valid_name(map_name):
 		return "Map names can only use letters, numbers, _ and - (no spaces)."
 	var problems := check(map)

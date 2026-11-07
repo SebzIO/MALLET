@@ -572,6 +572,8 @@ static func _nearest_plate(plates: Array, p: Vector3, above: bool) -> String:
 
 # ------------------------------------------------------------------------------------------------ materials
 static func _mat_name(id: String) -> String:
+	if CssLibrary.is_css(id):
+		return id.substr(4)                              # CS:S's own material: every CS:S player has it
 	return "mallet/" + id.to_lower()
 
 
@@ -592,7 +594,9 @@ func _block_solid(piece: Array, bs: Dictionary) -> String:
 		var fs := BlockShape.face_settings(bs, BlockShape.slot_of((inv * nrm).normalized()))
 		if fs["material"] != "" and MaterialLibrary.has(fs["material"]):
 			used_materials[fs["material"]] = true
-			if float(bs.get("glow", 0.0)) > 0.0:
+			if float(bs.get("glow", 0.0)) > 0.0 and CssLibrary.is_css(fs["material"]):
+				mats.append(_css_variant(fs["material"], "\t\"$selfillum\" \"1\"\n"))   # (a self-lit copy of the game's own)
+			elif float(bs.get("glow", 0.0)) > 0.0:
 				glowing_materials[fs["material"]] = true
 				mats.append(_mat_name(fs["material"]) + "_glow")
 			else:
@@ -653,9 +657,20 @@ func _slot_material(sl: Dictionary, alpha_mat: bool) -> String:
 				Vector2(su, sv).length(), rad_to_deg(atan2(sv, su))]
 	if params == "":
 		return _mat_name(sl["id"])
+	if CssLibrary.is_css(sl["id"]):
+		return _css_variant(sl["id"], params)
 	var name := "%s_v%x" % [String(sl["id"]).to_lower(), hash(params) & 0xffffff]
 	variant_materials[name] = {"name": name, "base": String(sl["id"]).to_lower(), "params": params,
 		"surface": MaterialLibrary.entry(sl["id"]).get("surface", "concrete")}
+	return "MALLET/" + name.to_upper()
+
+
+## A CS:S material with extra settings: a VMT of our own over the game's texture (only the small .vmt is packed).
+func _css_variant(id: String, params: String) -> String:
+	var e := MaterialLibrary.entry(id)
+	var name := "css_%s_v%x" % [String(id).substr(4).get_file(), hash(id + params) & 0xffffff]
+	variant_materials[name] = {"name": name, "basetexture": e.get("basetexture", id.substr(4)), "params": params,
+		"surface": e.get("surface", "concrete")}
 	return "MALLET/" + name.to_upper()
 
 
@@ -711,12 +726,13 @@ func _material_axes(nrm: Vector3, fs: Dictionary) -> Array:
 	var u2 := u * cos(th) - v * sin(th)
 	var v2 := u * sin(th) + v * cos(th)
 	var size: float = MaterialLibrary.world_size(fs["material"]) * maxf(float(fs["uv_scale"]), 0.01)
-	var scale := size * U / VTF_SIZE
+	var px := MaterialLibrary.texture_px(fs["material"])   # (the game's own size for CS:S materials)
+	var scale := size * U / px
 	# the map is centred in Source space; shift textures back so they line up exactly as in the editor
-	var su: float = _off.dot(u2) / scale + float(fs["uv_offset"][0]) * VTF_SIZE
-	var sv: float = _off.dot(v2) / scale + float(fs["uv_offset"][1]) * VTF_SIZE
-	return ["[%s %s %s %s] %s" % [_n(u2.x), _n(u2.y), _n(u2.z), _n(fmod(su, VTF_SIZE)), _n(scale)],
-		"[%s %s %s %s] %s" % [_n(v2.x), _n(v2.y), _n(v2.z), _n(fmod(sv, VTF_SIZE)), _n(scale)]]
+	var su: float = _off.dot(u2) / scale + float(fs["uv_offset"][0]) * px
+	var sv: float = _off.dot(v2) / scale + float(fs["uv_offset"][1]) * px
+	return ["[%s %s %s %s] %s" % [_n(u2.x), _n(u2.y), _n(u2.z), _n(fmod(su, px)), _n(scale)],
+		"[%s %s %s %s] %s" % [_n(v2.x), _n(v2.y), _n(v2.z), _n(fmod(sv, px)), _n(scale)]]
 
 
 ## Write the library materials a map uses as Source files under `root` (materials/mallet/<id>.vtf + .vmt).
@@ -729,6 +745,8 @@ static func write_materials(ids: Array, root: String) -> Array:
 		if id is Dictionary:
 			out.append_array(_write_variant(id, dir))
 			continue
+		if CssLibrary.is_css(id):
+			continue                                     # (the game's own: nothing to write)
 		var img := MaterialLibrary.image(id, "color")
 		if img == null:
 			continue
@@ -766,8 +784,8 @@ static func _write_variant(d: Dictionary, dir: String) -> Array:
 		out.append(["materials/mallet/%s.vtf" % name, vtf])
 	var vmt := dir.path_join(name + ".vmt")
 	var f := FileAccess.open(vmt, FileAccess.WRITE)
-	f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"mallet/%s\"\n\t\"$surfaceprop\" \"%s\"\n%s}\n" % [base,
-		d.get("surface", "concrete"), d.get("params", "")])
+	f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"%s\"\n\t\"$surfaceprop\" \"%s\"\n%s}\n" % [
+		d.get("basetexture", "mallet/" + base), d.get("surface", "concrete"), d.get("params", "")])   # (CS:S variants: the game's texture)
 	f.close()
 	out.append(["materials/mallet/%s.vmt" % name, vmt])
 	return out

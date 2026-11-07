@@ -18,6 +18,12 @@ arcabal, azzie and cynthia) and by his friend **LURKing** (Discord: TheBlackBigF
 with credit. His pack's terms: royalty free as long as no profit is made (CC-BY-SA); MALLET is free. Converted from
 Sauerbraten's format; details and what was left out in `materials/GETRIDOU.txt`.
 
+## Counter-Strike: Source materials (not included)
+
+MALLET doesn't ship any of Valve's textures. When CS:S is installed, MALLET reads its world materials from that
+install (the VPK archives) to show them in the editor; CS:S exports refer to them by name. A SurfsUp export copies
+them into the map only if the map maker turns that on; they remain Valve's.
+
 ## Inspiration: Cube 2: Sauerbraten
 
 Build mode is modelled on the in-game editor of Cube 2: Sauerbraten (http://sauerbraten.org,

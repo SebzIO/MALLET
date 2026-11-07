@@ -73,13 +73,23 @@ static func add_user_image(path: String) -> String:
 
 
 static func has(id: String) -> bool:
+	if CssLibrary.is_css(id):
+		return not CssLibrary.entry(id).is_empty()
 	entries()
 	return _by_id.has(id)
 
 
+## A material's library entry (CS:S materials from the install come from CssLibrary, with ids "css:<path>").
 static func entry(id: String) -> Dictionary:
+	if CssLibrary.is_css(id):
+		return CssLibrary.entry(id)
 	entries()
 	return _by_id.get(id, {})
+
+
+## Pixels across the texture as exported to CS:S: the game's own size for CS:S materials, else the converted size.
+static func texture_px(id: String) -> int:
+	return int(entry(id).get("px", VmfExporter.VTF_SIZE)) if CssLibrary.is_css(id) else VmfExporter.VTF_SIZE
 
 
 static func display_name(id: String) -> String:
@@ -100,6 +110,8 @@ static func categories() -> Array:
 
 
 static func image(id: String, map: String) -> Image:
+	if CssLibrary.is_css(id):
+		return CssLibrary.image(id, map)
 	var e := entry(id)
 	if not e.get("maps", {}).has(map):
 		return null
@@ -111,6 +123,8 @@ static func image(id: String, map: String) -> Image:
 
 
 static func preview(id: String) -> Texture2D:
+	if CssLibrary.is_css(id):
+		return CssLibrary.preview(id)
 	if _previews.has(id):
 		return _previews[id]
 	var bytes := FileAccess.get_file_as_bytes(entry(id).get("dir", starter_dir() + id + "/") + "preview.jpg")

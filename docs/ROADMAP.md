@@ -32,9 +32,9 @@ Do this first, so every later feature, file and screenshot already carries the n
       to share, some not for redistribution). Go through them pack by pack: ship the ones whose licence allows it,
       with each artist credited; list the rest as "can't ship" (or import them from a Sauerbraten install the user
       already has, if their licence allows that).
-- [ ] **CS:S materials**: Valve's textures can't be shipped with MALLET. Instead, when CS:S is installed, MALLET can
-      read the textures from the user's own copy to show them in the editor and use them in CS:S exports (the
-      exported map then uses the real game material). They're never copied into MALLET or into SurfsUp exports.
+- [x] **CS:S materials** from the user's own install (core/css_library.gd reads VPK / VMT / VTF): 2,851 world
+      materials in the picker, CS:S exports use them by name, SurfsUp exports copy them in only with the export
+      window's switch on (the user's decision 2026-11-06), else a similar MALLET material stands in.
 - [ ] **Better liquids and glass**: new water (waves, depth colour, foam at edges), lava (glow, slow flow), glass
       (reflections, tint, frosted option), each with a few presets; exported to SurfsUp; closest CS:S equivalents.
 - [ ] Texture browser: categories / search / credits so a few hundred materials stay easy to find. (Search and

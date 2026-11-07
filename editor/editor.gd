@@ -2527,6 +2527,7 @@ func _open_picker(cb: Callable) -> void:
 				_fields["pick_" + id] = b
 				items.append([b, ("%s %s %s %s %s" % [e["name"], e["id"], cat, e.get("surface", ""),
 					"glow" if (e.get("maps", {}) as Dictionary).has("glow") else ""]).to_lower()])
+		var css_folders := _picker_css_section(box)
 		search.text_changed.connect(func(t: String):
 			var q := t.strip_edges().to_lower()
 			for sec in sections:
@@ -2536,9 +2537,49 @@ func _open_picker(cb: Callable) -> void:
 					shown += 1 if it[0].visible else 0
 				sec[0].visible = shown > 0
 				sec[2].visible = shown > 0
-				sec[1].visible = shown > 0 and (sec[1] as Label).text != "")
+				sec[1].visible = shown > 0 and (sec[1] as Label).text != ""
+			for fo in css_folders:                       # CS:S folders: open (and fill) only the ones with matches
+				fo.search(q))
 		_ui.add_child(_picker)
 	_picker.popup_centered()
+
+
+## CS:S's own materials in the picker (when CS:S is installed): one collapsed row per folder; a folder's
+## thumbnails are only made when it's opened (there are thousands). Returns the folders (for the search box).
+func _picker_css_section(box: VBoxContainer) -> Array:
+	var out := []
+	if not CssLibrary.available():
+		return out
+	var by_folder := {}
+	for e in CssLibrary.entries():
+		var c: String = e["category"]
+		if not by_folder.has(c):
+			by_folder[c] = []
+		by_folder[c].append(e)
+	if by_folder.is_empty():
+		return out
+	var head := Label.new()
+	head.text = "Counter-Strike: Source (from your CS:S install)"
+	head.add_theme_font_size_override("font_size", 15)
+	box.add_child(head)
+	var note := Label.new()
+	note.text = "Valve's own textures: CS:S exports use them as they are; SurfsUp exports copy them in only if you turn that on when exporting."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD
+	note.add_theme_font_size_override("font_size", 12)
+	note.add_theme_color_override("font_color", Color(0.7, 0.74, 0.82))
+	box.add_child(note)
+	var cats := by_folder.keys()
+	cats.sort()
+	for c in cats:
+		var fo := PickerCssFolder.new()
+		fo.setup(self, box, c, by_folder[c])
+		out.append(fo)
+	return out
+
+
+func _picker_pick(id: String) -> void:
+	_picker.hide()
+	_picker_cb.call(id)
 
 
 func _own_image_dialog() -> FileDialog:
@@ -4236,6 +4277,19 @@ func _build_export_dialog() -> void:
 	browse.text = "Browse…"
 	browse.pressed.connect(func(): _dir_dialog.current_dir = _export_dir.text; _dir_dialog.popup_centered_ratio(0.6))
 	row.add_child(browse)
+	var css := CheckButton.new()                         # CS:S's own textures: Valve's, so copying them in is a choice
+	css.text = "Copy CS:S textures into the map"
+	css.tooltip_text = "Surfaces using Counter-Strike: Source materials get the real textures, copied from your own CS:S install.
+They're Valve's textures: leave this off and those surfaces get a similar MALLET material instead."
+	css.focus_mode = Control.FOCUS_NONE
+	box.add_child(css)
+	_fields["export_css"] = css
+	var css_note := Label.new()
+	css_note.autowrap_mode = TextServer.AUTOWRAP_WORD
+	css_note.add_theme_font_size_override("font_size", 12)
+	css_note.add_theme_color_override("font_color", Color(0.72, 0.76, 0.84))
+	box.add_child(css_note)
+	_fields["export_css_note"] = css_note
 	var note := Label.new()
 	note.text = "If SurfsUp is running and you are replacing a map you already loaded, restart SurfsUp before loading it again."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -4394,6 +4448,11 @@ func _export_clicked() -> void:
 	var default_name := current_path.get_file().get_basename() if current_path != "" else "surf_mymap"
 	_export_name.text = cfg.get_value("export", "name_" + current_path.md5_text(), default_name)
 	_export_dir.text = cfg.get_value("export", "maps_dir", SurfsUpExporter.guess_maps_dir())
+	var n_css := SurfsUpExporter.css_count(_map_dict())
+	_fields["export_css"].button_pressed = cfg.get_value("export", "css_textures", false)
+	_fields["export_css"].visible = n_css > 0
+	_fields["export_css_note"].visible = n_css > 0
+	_fields["export_css_note"].text = ("This map uses %d CS:S material%s. They're Valve's textures, copied from your CS:S " 		+ "install when this is on; off, those surfaces get a similar MALLET material.") % [n_css, "" if n_css == 1 else "s"]
 	_export_dialog.popup_centered()
 	_export_name.grab_focus()
 
@@ -4401,7 +4460,8 @@ func _export_clicked() -> void:
 func _do_export() -> void:
 	var map_name := _export_name.text.strip_edges()
 	var dir := _export_dir.text.strip_edges()
-	var err := SurfsUpExporter.export_pack(_map_dict(), map_name, dir)
+	var css_on: bool = _fields["export_css"].visible and _fields["export_css"].button_pressed
+	var err := SurfsUpExporter.export_pack(_map_dict(), map_name, dir, css_on)
 	if err != "":
 		var a := AcceptDialog.new()
 		a.title = "Can't export yet"
@@ -4414,6 +4474,8 @@ func _do_export() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value("export", "maps_dir", dir)
+	if _fields["export_css"].visible:
+		cfg.set_value("export", "css_textures", _fields["export_css"].button_pressed)
 	cfg.set_value("export", "name_" + current_path.md5_text(), map_name)
 	cfg.save(SETTINGS_PATH)
 	_set_status("Exported %s.pck to %s - in SurfsUp press ~ and type:  map %s" % [map_name, dir, map_name])

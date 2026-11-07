@@ -13,6 +13,11 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - Materials can **glow**: lit windows, lamps, signs and flames shine by themselves, in the editor, in SurfsUp, and in
   CS:S (self-illuminated). A grey glow mask glows in the texture's own colours.
 - The material picker has a **search** box (name, surface, category, "glow").
+- **CS:S's own materials**: with Counter-Strike: Source installed, its 2,851 world materials (brick, concrete, metal,
+  de_dust, cs_italy...) appear in the picker, read straight from your CS:S install (MALLET doesn't ship them). One
+  row per folder, opened on click; search finds them too. CS:S exports use them as they are: the game's own
+  materials at the game's texture scale, nothing to pack. SurfsUp exports get a switch, "Copy CS:S textures into the
+  map" (remembered): on copies the real textures in; off swaps in a similar MALLET material (brick, wood, metal...).
 
 ## 0.10.0 preview — 2026-11-06: SurfForge is now MALLET
 
