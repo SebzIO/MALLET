@@ -630,7 +630,7 @@ func _cube_solid(w: CubeWorld, k: Vector4i, xf := Transform3D.IDENTITY) -> Strin
 			used_materials[id] = true
 			mats.append(_slot_material(sl, alpha))
 			axes.append(_material_axes(nrm, {"material": id, "uv_scale": float(sl["s"]), "uv_rot": float(int(sl["r"]) % 4) * 90.0,
-				"uv_offset": [float(sl["u"]), float(sl["v"])]}))
+				"uv_offset": [float(sl["u"]), float(sl["v"])], "origin": xf.origin}))   # (cube textures follow their object)
 		else:
 			mats.append(BLOCK_MATERIALS.get("grid", PLATFORM_MATERIAL))
 			axes.append(_axes(nrm_src))
@@ -731,8 +731,13 @@ func _material_axes(nrm: Vector3, fs: Dictionary) -> Array:
 	# the map is centred in Source space; shift textures back so they line up exactly as in the editor
 	var su: float = _off.dot(u2) / scale + float(fs["uv_offset"][0]) * px
 	var sv: float = _off.dot(v2) / scale + float(fs["uv_offset"][1]) * px
-	return ["[%s %s %s %s] %s" % [_n(u2.x), _n(u2.y), _n(u2.z), _n(fmod(su, px)), _n(scale)],
-		"[%s %s %s %s] %s" % [_n(v2.x), _n(v2.y), _n(v2.z), _n(fmod(sv, px)), _n(scale)]]
+	if fs.has("origin"):                                 # a cube object's textures are laid out from its own origin
+		var og: Vector3 = fs["origin"]
+		var os := Vector3(og.x, -og.z, og.y) * U
+		su -= os.dot(u2) / scale
+		sv -= os.dot(v2) / scale
+	return ["[%s %s %s %s] %s" % [_n(u2.x), _n(u2.y), _n(u2.z), _n(fmod(su, px)), _n6(scale)],
+		"[%s %s %s %s] %s" % [_n(v2.x), _n(v2.y), _n(v2.z), _n(fmod(sv, px)), _n6(scale)]]
 
 
 ## Write the library materials a map uses as Source files under `root` (materials/mallet/<id>.vtf + .vmt).
@@ -860,6 +865,14 @@ static func _write_vtf(src_img: Image, path: String, glow: Image = null) -> void
 func _next() -> int:
 	_id += 1
 	return _id
+
+
+## A texture scale: small ones (textures fitted to a small face) need more than 3 decimals, or the rounding slides
+## the texture across faces far from the map's middle.
+static func _n6(v: float) -> String:
+	var s := "%.6f" % v
+	s = s.rstrip("0").rstrip(".")
+	return "0" if s == "-0" or s == "" else s
 
 
 static func _n(v: float) -> String:

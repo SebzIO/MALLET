@@ -1202,7 +1202,18 @@ func _build_tex_panel() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		_refresh_tex_panel()))
 	box.add_child(pick)
-	for spec in [["s", "Scale", 0.25, 8.0, 0.05], ["u", "Shift across", 0.0, 1.0, 0.01], ["v", "Shift up", 0.0, 1.0, 0.01],
+	var place := HBoxContainer.new()                    # Hammer's justify: put a texture where you want it
+	box.add_child(place)
+	for spec in [["Centre on selection", false, "Shift the texture so its middle is in the middle of the selection"],
+			["Fit to selection", true, "Size the texture so one repeat spans the selection, and centre it"]]:
+		var pb := Button.new()
+		pb.text = spec[0]
+		pb.tooltip_text = spec[2]
+		var fit: bool = spec[1]
+		pb.pressed.connect(func(): place_texture(fit))
+		place.add_child(pb)
+		_tex_fields["place_fit" if fit else "place_centre"] = pb
+	for spec in [["s", "Scale", 0.05, 8.0, 0.01], ["u", "Shift across", 0.0, 1.0, 0.01], ["v", "Shift up", 0.0, 1.0, 0.01],
 			["su", "Scroll across (per second)", -2.0, 2.0, 0.05], ["sv", "Scroll up (per second)", -2.0, 2.0, 0.05],
 			["a", "See-through (1 = solid)", 0.05, 1.0, 0.05]]:
 		var l := Label.new()
@@ -1251,6 +1262,19 @@ func _build_tex_panel() -> void:
 	close.text = "Done (F3)"
 	close.pressed.connect(_close_tex_panel)
 	box.add_child(close)
+
+
+## F3's Centre / Fit buttons on the selected (or aimed-at) faces.
+func place_texture(fit: bool) -> void:
+	var s := op_sel()
+	if s.is_empty() or s.get("model") == null:
+		say("Select some faces first")
+		return
+	_edit(s, func(w: CubeWorld):
+		w.place_texture(s, fit)
+		return s)
+	_refresh_tex_panel()
+	say("Texture fitted to the selection" if fit else "Texture centred on the selection")
 
 
 func _open_tex_panel() -> void:

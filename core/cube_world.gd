@@ -1605,6 +1605,33 @@ func _edit_slots(sel: Dictionary, all_faces: bool, fn: Callable) -> void:
 			_put(k, _v(v[0], t, _blend_of(v), _cut_of(v)))
 
 
+## F3's Centre / Fit: place the texture on the selected faces so its middle is in the middle of the selection (Hammer's
+## "justify centre"); `fit` also sizes it so one repeat spans the selection's longer side. Works out the shift through
+## slot_uv itself, so turned and flipped textures land right too. Only the faces the selection is on change.
+func place_texture(sel: Dictionary, fit: bool) -> void:
+	var o: int = sel["orient"]
+	var d := o >> 1
+	var g := metres(sel["p"])
+	var lo := Vector3(sel["o"]) * TICK
+	var hi := lo + Vector3(sel["s"]) * g
+	var n := Vector3(orient_step(o))
+	var c := (lo + hi) * 0.5
+	c[d] = hi[d] if o & 1 else lo[d]
+	var span := 0.0
+	for i in 3:
+		if i != d:
+			span = maxf(span, hi[i] - lo[i])
+	set_slot_param(sel, false, func(sl: Dictionary) -> Dictionary:
+		if fit and sl["id"] != "":
+			sl["s"] = maxf(span / maxf(MaterialLibrary.world_size(sl["id"]) if MaterialLibrary.has(sl["id"]) else BlockShape.UV_METRES, 0.001), 0.01)
+		sl["u"] = 0.0
+		sl["v"] = 0.0
+		var at := slot_uv(c, n, sl)                      # where the selection's middle falls in the texture
+		sl["u"] = snappedf(fposmod(0.5 - at.x, 1.0), 0.0001)
+		sl["v"] = snappedf(fposmod(0.5 - at.y, 1.0), 0.0001)
+		return sl)
+
+
 ## The texture slot of the face a selection is on (the first cube in it), or "".
 func slot_at(sel: Dictionary) -> String:
 	var g := size_of(sel["p"])

@@ -99,8 +99,10 @@ func _run() -> void:
 	var search: LineEdit = ed._fields["picker_search"]
 	search.text = "brickwall045j"
 	search.text_changed.emit("brickwall045j")
+	# (the button and its folder, not the popup window itself: a popup closes when another window - the compiler's
+	# console above - takes the focus)
 	check("searching opens the right folder and shows it", ed._fields.has("pick_" + id) and (ed._fields["pick_" + id] as Button).visible
-		and (ed._fields["pick_" + id] as Button).is_visible_in_tree())
+		and (ed._fields["pick_" + id] as Button).get_parent().visible)
 	ed._picker.hide()
 	print("CSS MATERIALS: ", "PASS" if ok else "FAIL")
 	quit()

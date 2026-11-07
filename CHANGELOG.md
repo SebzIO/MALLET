@@ -13,6 +13,12 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - Materials can **glow**: lit windows, lamps, signs and flames shine by themselves, in the editor, in SurfsUp, and in
   CS:S (self-illuminated). A grey glow mask glows in the texture's own colours.
 - The material picker has a **search** box (name, surface, category, "glow").
+- Build mode F3: **Centre on selection** puts a texture's middle in the middle of the selected faces (a lamp
+  texture's lamp lands on the cube you picked), **Fit to selection** also sizes it so one repeat spans them. The
+  texture scale can now go down to 0.05.
+- CS:S exports: a cube object's textures line up exactly as in the editor even when the object was moved off the
+  texture's grid, and small texture scales are written precisely (they used to slide across faces far from the map's
+  middle).
 - **CS:S's own materials**: with Counter-Strike: Source installed, its 2,851 world materials (brick, concrete, metal,
   de_dust, cs_italy...) appear in the picker, read straight from your CS:S install (MALLET doesn't ship them). One
   row per folder, opened on click; search finds them too. CS:S exports use them as they are: the game's own
