@@ -38,13 +38,13 @@ Do this first, so every later feature, file and screenshot already carries the n
 - [x] Texture browser: categories / search / credits (F2 in build mode is the same picker, search focused on open).
 
 ## 0.12.0: Worldbuilding (lights and particles)
-- [ ] More light types: area / rectangle lights, colored and flickering / pulsing lights, light presets (torch,
-      neon strip, lamp), lights placeable from build mode as today.
-- [ ] Particles: an emitter object with presets (fire, smoke, sparks, snow, rain, dust, waterfall mist, magic glow)
+- [x] More light types: strip lights (a glowing tube, standing in for area / rectangle lights), flicker / candle /
+      pulse / strobe / fluorescent effects, light presets (torch, neon strip, lamp and more), placeable from build mode.
+- [x] Particles: an emitter object with presets (fire, smoke, sparks, embers, snow, rain, dust, waterfall mist, magic)
       and simple settings (amount, size, color, speed, area). Visible live in the editor and play mode.
-- [ ] Export: SurfsUp gets real Godot particles; CS:S gets the nearest stock effect (env_smokestack, env_spark,
-      info_particle_system with a built-in effect) or a note that it can't be shown there.
-- [ ] Check the cost: a map's particle count / lights shown in the info panel, with a warning when it gets heavy.
+- [x] Export: SurfsUp gets real Godot particles; CS:S gets the nearest stock effect (env_fire, env_smokestack,
+      env_spark, env_steam, func_precipitation) or a note that it can't be shown there.
+- [x] Check the cost: a map's particle count / lights shown in the info panel, with a warning when it gets heavy.
 
 ## 0.13.0: Your own skies and shaders
 - [ ] A **user shaders folder** (opened from the menu): drop in a Godot `.gdshader` (sky, or surface material) and

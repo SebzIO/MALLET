@@ -1,17 +1,42 @@
 class_name LightNode
 extends Node3D
-## A light: a point light shining all around, or a spot light shining a cone (along its facing, tilted by pitch).
-## Lights the editor view straight away, and exports as a real light to SurfsUp and as light / light_spot to CS:S.
+## A light: a point light shining all around, a spot light shining a cone (along its facing, tilted by pitch), or a
+## strip (a glowing tube lighting along its length: neon, fluorescent tubes). Effects (flicker, candle, pulse, strobe,
+## fluorescent buzz) are an AnimationPlayer - SurfsUp maps can't hold scripts - and Source's own light styles in CS:S.
+## Lights the editor view straight away, and exports as real lights to SurfsUp and as light / light_spot to CS:S.
 
 const PICK_ONLY_LAYER := 1 << 19
-const KINDS := ["point", "spot"]
+const KINDS := ["point", "spot", "strip"]
 const DEFAULTS := {
 	"kind": "point", "position": [0.0, 0.0, 0.0], "color": "ffd9a0", "energy": 2.0, "range": 30.0,
 	"angle": 40.0, "yaw": 0.0, "pitch": -60.0, "shadows": true,
+	"effect": "none",                    ## EFFECTS: none, flicker, candle, pulse, strobe, fluorescent
+	"length": 4.0,                       ## strip: meters long (along its local x axis)
 }
+const EFFECTS := ["none", "flicker", "candle", "pulse", "strobe", "fluorescent"]
+const EFFECT_LABELS := ["Steady", "Flicker (fire)", "Candle", "Slow pulse", "Strobe", "Fluorescent buzz"]
+const CSS_STYLES := {"none": 0, "flicker": 1, "candle": 6, "pulse": 2, "strobe": 4, "fluorescent": 10}   ## Source light styles
+## Presets: a starting point, everything stays editable.
+const PRESETS := {
+	"lamp": {"label": "Lamp", "kind": "point", "color": "ffd9a0", "energy": 2.0, "range": 30.0, "effect": "none"},
+	"torch": {"label": "Torch", "kind": "point", "color": "ff9a40", "energy": 2.5, "range": 14.0, "effect": "candle"},
+	"candle": {"label": "Candle", "kind": "point", "color": "ffb060", "energy": 0.8, "range": 6.0, "effect": "candle", "shadows": false},
+	"campfire": {"label": "Campfire", "kind": "point", "color": "ff7a2a", "energy": 3.5, "range": 20.0, "effect": "flicker"},
+	"spotlight": {"label": "Spotlight", "kind": "spot", "color": "ffffff", "energy": 4.0, "range": 60.0, "angle": 35.0, "effect": "none"},
+	"neon_pink": {"label": "Neon strip (pink)", "kind": "strip", "color": "ff3ad0", "energy": 3.0, "range": 10.0, "length": 4.0,
+		"effect": "none", "shadows": false},
+	"neon_cyan": {"label": "Neon strip (cyan)", "kind": "strip", "color": "30e8ff", "energy": 3.0, "range": 10.0, "length": 4.0,
+		"effect": "none", "shadows": false},
+	"fluorescent": {"label": "Fluorescent tube", "kind": "strip", "color": "e8f4ff", "energy": 2.5, "range": 14.0, "length": 2.5,
+		"effect": "fluorescent", "shadows": false},
+	"alarm": {"label": "Alarm (red strobe)", "kind": "point", "color": "ff2020", "energy": 4.0, "range": 25.0, "effect": "strobe"},
+	"party": {"label": "Party (purple pulse)", "kind": "point", "color": "8a5cff", "energy": 3.0, "range": 20.0, "effect": "pulse"},
+}
+const PRESET_ORDER := ["lamp", "torch", "candle", "campfire", "spotlight", "neon_pink", "neon_cyan", "fluorescent", "alarm", "party"]
 
 var data := DEFAULTS.duplicate(true)
 var _light: Light3D
+var _rig: Node3D
 var _bulb := MeshInstance3D.new()
 var _body := StaticBody3D.new()
 
@@ -23,7 +48,114 @@ static func spec(d: Dictionary) -> Dictionary:
 			s[k] = d[k]
 	if not s["kind"] in KINDS:
 		s["kind"] = "point"
+	if not s["effect"] in EFFECTS:
+		s["effect"] = "none"
 	return s
+
+
+## How many lights a strip spreads its light over (one per 2.5 m, up to 4).
+static func strip_count(s: Dictionary) -> int:
+	return clampi(ceili(float(s["length"]) / 2.5), 1, 4)
+
+
+## Where a strip's lights sit, along its local x axis (meters).
+static func strip_points(s: Dictionary) -> Array:
+	var n := strip_count(s)
+	var length := float(s["length"])
+	var out := []
+	for i in n:
+		out.append(Vector3(-length * 0.5 + length * (i + 0.5) / n, 0, 0))
+	return out
+
+
+## Everything the light is, as nodes (the editor's and the SurfsUp export's): the light(s), a strip's glowing tube,
+## and the effect's AnimationPlayer (autoplay, no script). Not positioned: the caller sets its transform.
+static func make_rig(s: Dictionary) -> Node3D:
+	var rig := Node3D.new()
+	var lights: Array = []
+	if s["kind"] == "strip":
+		var each := s.duplicate()
+		each["kind"] = "point"
+		var n := strip_count(s)
+		each["energy"] = float(s["energy"]) / sqrt(float(n))
+		var pts := strip_points(s)
+		for i in n:
+			var l := make_light(each)
+			l.name = "Light%d" % i
+			l.position = pts[i]
+			rig.add_child(l)
+			lights.append(l)
+		var tube := MeshInstance3D.new()
+		tube.name = "Tube"
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.06
+		cyl.bottom_radius = 0.06
+		cyl.height = float(s["length"])
+		var tm := StandardMaterial3D.new()
+		tm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		tm.albedo_color = Color.html(s["color"]).lightened(0.4)
+		cyl.material = tm
+		tube.mesh = cyl
+		tube.rotation = Vector3(0, 0, PI / 2)
+		tube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		rig.add_child(tube)
+	else:
+		var l := make_light(s)
+		l.name = "Light0"
+		rig.add_child(l)
+		lights.append(l)
+	if s["effect"] != "none":
+		rig.add_child(_effect_player(s, lights))
+	return rig
+
+
+## The effect: the lights' brightness over time, looped, as an Animation (plays by itself, also in SurfsUp).
+static func _effect_player(s: Dictionary, lights: Array) -> AnimationPlayer:
+	var e := float(s["energy"]) / (sqrt(float(lights.size())) if s["kind"] == "strip" else 1.0)
+	var keys := []                       # [time, brightness x]
+	var length := 2.0
+	var nearest := false
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	match s["effect"]:
+		"flicker":
+			length = 1.6
+			for i in 17:
+				keys.append([length * i / 16.0, rng.randf_range(0.55, 1.15)])
+		"candle":
+			length = 2.4
+			for i in 13:
+				keys.append([length * i / 12.0, rng.randf_range(0.8, 1.05)])
+		"pulse":
+			length = 2.0
+			for i in 9:
+				keys.append([length * i / 8.0, 0.55 + 0.45 * cos(TAU * i / 8.0)])
+		"strobe":
+			length = 0.5
+			nearest = true
+			keys = [[0.0, 1.3], [0.08, 0.0], [0.5, 0.0]]
+		"fluorescent":
+			length = 3.0
+			nearest = true
+			keys = [[0.0, 1.0], [1.7, 0.15], [1.76, 1.0], [1.84, 0.3], [1.9, 1.0], [3.0, 1.0]]
+	keys[keys.size() - 1][1] = keys[0][1]                   # (seamless loop)
+	var anim := Animation.new()
+	anim.length = length
+	anim.loop_mode = Animation.LOOP_LINEAR
+	for l in lights:
+		var t := anim.add_track(Animation.TYPE_VALUE)
+		anim.track_set_path(t, NodePath("%s:light_energy" % (l as Node).name))
+		anim.track_set_interpolation_type(t, Animation.INTERPOLATION_NEAREST if nearest else Animation.INTERPOLATION_LINEAR)
+		anim.value_track_set_update_mode(t, Animation.UPDATE_DISCRETE if nearest else Animation.UPDATE_CONTINUOUS)
+		for k in keys:
+			anim.track_insert_key(t, minf(k[0], length), e * float(k[1]))
+	var lib := AnimationLibrary.new()
+	lib.add_animation("fx", anim)
+	var ap := AnimationPlayer.new()
+	ap.name = "Effect"
+	ap.add_animation_library("", lib)
+	ap.autoplay = "fx"
+	return ap
 
 
 static func basis_of(s: Dictionary) -> Basis:
@@ -68,17 +200,18 @@ func _ready() -> void:
 
 
 func label() -> String:
-	return "Spot light" if data["kind"] == "spot" else "Light"
+	return {"spot": "Spot light", "strip": "Light strip"}.get(data["kind"], "Light")
 
 
 func rebuild() -> void:
 	var s := spec(data)
 	var p: Array = s["position"]
 	transform = Transform3D(basis_of(s), Vector3(p[0], p[1], p[2]))
-	if _light:
-		_light.queue_free()
-	_light = make_light(s)
-	add_child(_light)
+	if _rig:
+		_rig.queue_free()
+	_rig = make_rig(s)
+	add_child(_rig)
+	_light = _rig.get_child(0) as Light3D                  # (the main light: the only one, or a strip's first)
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_color = Color.html(s["color"]).lightened(0.3)
@@ -103,6 +236,17 @@ func outline_lines() -> Array[PackedVector3Array]:
 		out.append(ring)
 		for i in 4:
 			out.append(PackedVector3Array([xf.origin, ring[i * 8]]))
+	elif data["kind"] == "strip":
+		var hl := float(data["length"]) * 0.5                 # the tube, and its reach around it
+		out.append(PackedVector3Array([xf * Vector3(-hl, 0, 0), xf * Vector3(hl, 0, 0)]))
+		for sgn in [-1.0, 1.0]:
+			var ring := PackedVector3Array()
+			for i in 17:
+				var a := PI * i / 16.0
+				ring.append(xf * Vector3(sgn * hl + sgn * sin(a) * r, cos(a) * r, 0))
+			out.append(ring)
+		out.append(PackedVector3Array([xf * Vector3(-hl, r, 0), xf * Vector3(hl, r, 0)]))
+		out.append(PackedVector3Array([xf * Vector3(-hl, -r, 0), xf * Vector3(hl, -r, 0)]))
 	else:
 		for axis in 3:
 			var ring := PackedVector3Array()

@@ -105,7 +105,7 @@ block piece and a CS:S brush are, so build mode needs no translation layer:
 - **Heightmap** (H / Alt) with brushes (B + wheel), including smoothing.
 - **Blend painting** (keypad 1-5, 0 off, 8 / 9 brush size) of a face's blend layer.
 - **Entities:** Tab places them; click / drag; 1-4 + wheel attributes (a light's radius and r g b exactly like
-  Sauerbraten); R + wheel, X, Delete; keypad Enter selects entities in the cube selection; C / V copy them with the
+  Sauerbraten; particles: effect, amount, size, area); R + wheel, X, Delete; keypad Enter selects entities in the cube selection; C / V copy them with the
   cubes.
 - **Toggles:** 5 hidehud, 6 entselsnap, 7 outline, 8 wireframe, L fullbright; F5 savemap, F9 texture name; K is a
   no-op (lighting is live).

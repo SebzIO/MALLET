@@ -310,7 +310,29 @@ func build(map: Dictionary, opts := {}) -> String:
 			lkv["angles"] = "0 %s 0" % _n(rad_to_deg(atan2(sd.y, sd.x)))
 			lkv["_cone"] = _n(float(ls["angle"]) * 0.5)
 			lkv["_inner_cone"] = _n(float(ls["angle"]) * 0.35)
+		var style: int = LightNode.CSS_STYLES.get(ls["effect"], 0)
+		if style != 0:
+			lkv["style"] = str(style)                    # Source's own flicker / pulse / strobe
+		if ls["kind"] == "strip":                        # a strip: a light along its length, like the editor's
+			var n := LightNode.strip_count(ls)
+			var e := float(ls["energy"]) / sqrt(float(n))
+			lkv["_light"] = "%d %d %d %d" % [lc.r8, lc.g8, lc.b8, int(e * 120.0)]
+			var lxf := Transform3D(LightNode.basis_of(ls), Vector3(lp[0], lp[1], lp[2]))
+			for q in LightNode.strip_points(ls):
+				entities.append(_point_entity(lkv.duplicate(), src(lxf * (q as Vector3))))
+			continue
 		entities.append(_point_entity(lkv, src(Vector3(lp[0], lp[1], lp[2]))))
+	var no_fx := 0
+	for pd in map.get("particles", []):
+		var ps := ParticleNode.spec(pd)
+		var css: String = ParticleNode.PRESETS[ps["preset"]]["css"]
+		if css == "":
+			no_fx += 1
+			continue
+		for e in _particle_entities(ps, css, kill_y):
+			entities.append(e)
+	if no_fx > 0:
+		warnings.append("%d particle effect(s) (floating dust, magic sparkles) have no CS:S match, so they're left out." % no_fx)
 	if kept_speed > 0:
 		warnings.append("%d teleport(s) keep the player's speed in SurfsUp; CS:S teleports stop the player instead." % kept_speed)
 	if boosters > 0:
@@ -693,6 +715,45 @@ static func _box_piece(bx: AABB) -> Array:
 	for i in 8:
 		pts.append(bx.position + bx.size * Vector3(i & 1, (i >> 1) & 1, (i >> 2) & 1))
 	return Convex.from_points(pts)
+
+
+## A particle effect as Source's nearest stock entity: fire, smoke stack, sparks, steam, or a rain / snow brush.
+func _particle_entities(ps: Dictionary, css: String, kill_y: float) -> Array:
+	var pp: Array = ps["position"]
+	var at := Vector3(pp[0], pp[1], pp[2])
+	var area: Array = ps["area"]
+	var size := float(ps["size"])
+	var col := Color.html(ps["color"]) if ps["color"] != "" else Color.html(ParticleNode.PRESETS[ps["preset"]]["colors"][1])
+	var rgb := "%d %d %d" % [col.r8, col.g8, col.b8]
+	match css:
+		"env_fire":
+			return [_point_entity({"classname": "env_fire", "spawnflags": "13", "firesize": _n(maxf(float(area[0]), float(area[2])) * U * size * 1.5),
+				"fireattack": "1", "firetype": "0", "damagescale": "0", "health": "30"}, src(at))]
+		"env_smokestack":
+			var embers: bool = ps["preset"] == "embers"
+			return [_point_entity({"classname": "env_smokestack", "InitialState": "1", "BaseSpread": _n(float(area[0]) * U * 0.5),
+				"SpreadSpeed": "15", "Speed": _n(40.0 * float(ps["speed"])), "StartSize": _n((4.0 if embers else 30.0) * size),
+				"EndSize": _n((2.0 if embers else 90.0) * size), "Rate": _n((20.0 if embers else 12.0) * float(ps["amount"])),
+				"JetLength": _n(120.0 if embers else 180.0), "rendercolor": rgb, "renderamt": "255" if embers else "160",
+				"SmokeMaterial": "sprites/glow01.vmt" if embers else "particle/SmokeStack.vmt", "twist": "0", "WindAngle": "0", "WindSpeed": "0"}, src(at))]
+		"env_spark":
+			return [_point_entity({"classname": "env_spark", "spawnflags": "64", "MaxDelay": "1", "Magnitude": "2", "TrailLength": "1",
+				"angles": "-90 0 0"}, src(at))]
+		"env_steam":
+			return [_point_entity({"classname": "env_steam", "InitialState": "1", "type": "0", "SpreadSpeed": "20",
+				"Speed": _n(30.0 * float(ps["speed"])), "StartSize": _n(60.0 * size), "EndSize": _n(160.0 * size),
+				"Rate": _n(10.0 * float(ps["amount"])), "JetLength": "120", "rendercolor": rgb, "renderamt": "60", "angles": "-90 0 0"}, src(at))]
+		"func_precipitation":                          # a brush from the area down to the kill floor: it rains / snows inside it
+			var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(float(ps["yaw"]))), at)
+			var top := float(area[1]) * 0.5
+			var bottom := kill_y - at.y
+			var corners := []
+			for i in 8:
+				corners.append(src(xf * Vector3(float(area[0]) * (0.5 if i & 1 else -0.5), top if i & 2 else bottom,
+					float(area[2]) * (0.5 if i & 4 else -0.5))))
+			return [_brush_entity({"classname": "func_precipitation", "preciptype": "3" if ps["preset"] == "snow" else "0",
+				"renderamt": "100", "rendercolor": "100 100 100"}, _hull(corners))]
+	return []
 
 
 func _box_src(bx: AABB, xf: Transform3D) -> Array:

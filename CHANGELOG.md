@@ -3,6 +3,24 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.12.0 preview — 2026-11-07: Lights and particles
+
+- **Light presets**: lamp, torch, candle, campfire, spotlight, pink and cyan neon strips, fluorescent tube, red alarm
+  strobe, purple party pulse. Everything stays editable after picking one.
+- **Light effects**: steady, flicker (fire), candle, slow pulse, strobe, fluorescent buzz. They play live in the editor,
+  in play mode and in SurfsUp (as an animation, since SurfsUp maps can't hold scripts); CS:S gets Source's own light
+  styles.
+- **Light strips**: a glowing tube that lights along its length (neon signs, fluorescent tubes). CS:S gets a light
+  every few meters along it.
+- **Particles**: fire, smoke, sparks, embers, snow, rain, floating dust, mist / waterfall spray and magic sparkles,
+  from a box-shaped area, with amount, size, speed, area and an optional own color. Add > Particles, or Tab in build
+  mode (1-4 + wheel: effect, amount, size, area). SurfsUp gets the same particles; CS:S gets the nearest stock effect
+  (env_fire, env_smokestack, env_spark, env_steam, rain / snow as func_precipitation). Dust and magic sparkles have
+  no CS:S match and are left out with a note.
+- **Map weight**: with nothing selected, the info panel counts the map's lights, how many cast shadows, and how many
+  particles are alive at a time, and warns when it gets heavy for slower computers.
+- Build mode's Tab menu can also place a light strip.
+
 ## 0.11.2 preview — 2026-11-07: Sauerbraten textures, better water, lava and glass
 
 - **Sauerbraten's textures**: 315 materials from the ten Cube 2: Sauerbraten texture packs whose own licenses allow

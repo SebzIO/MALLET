@@ -25,12 +25,14 @@ var props_root := Node3D.new()
 var blocks_root := Node3D.new()
 var texts_root := Node3D.new()
 var lights_root := Node3D.new()
+var particles_root := Node3D.new()           ## particle effects (fire, smoke, snow...)
 var cube_models_root := Node3D.new()     ## cube objects built in build mode (E)
 var outliner := Outliner.new()           ## every object by name, in folders
 var _outliner_panel: PanelContainer
 var _cube_panel: VBoxContainer
 var build := BuildMode.new()
 var _light_props: VBoxContainer
+var _particle_props: VBoxContainer
 var _prefab_popup: PopupPanel
 var _prefab_name_dialog: ConfirmationDialog
 var _text_props: VBoxContainer
@@ -252,6 +254,7 @@ func _build_world() -> void:
 	add_child(blocks_root)
 	add_child(texts_root)
 	add_child(lights_root)
+	add_child(particles_root)
 	add_child(cube_models_root)
 	build.setup(self, cube_models_root)
 	add_child(build)
@@ -309,6 +312,8 @@ func _build_ui_main() -> void:
 		["Kill zone", KEY_K, func(): _add_entity("kill")], ["Booster", KEY_J, func(): _add_entity("booster")], [],
 		["Prop (glTF model)…", KEY_I, _add_prop_clicked], ["Text", KEY_X, _add_text_clicked], [],
 		["Light", KEY_U, func(): _add_light("point")], ["Spot light", KEY_NONE, func(): _add_light("spot")],
+		["Light strip (neon, tubes)", KEY_NONE, func(): _add_light("strip")],
+		["Particles (fire, smoke, snow, rain\u2026)", KEY_NONE, func(): _add_particles("fire")],
 		["Water", KEY_H, _add_water_clicked], [], ["Prefab\u2026", KEY_NONE, _open_prefabs]])
 	_menu(bar, "Edit ▾", [
 		["Copy", KEY_MASK_CTRL | KEY_C, _copy], ["Paste", KEY_MASK_CTRL | KEY_V, _paste_clicked],
@@ -519,6 +524,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_build_block_props(props)
 	_build_text_props(props)
 	_build_light_props(props)
+	_build_particle_props(props)
 	_cube_panel = VBoxContainer.new()
 	_cube_panel.visible = false
 	props.add_child(_cube_panel)
@@ -762,6 +768,7 @@ func _refresh_props() -> void:
 		_block_props.visible = false
 		_text_props.visible = false
 		_light_props.visible = false
+		_particle_props.visible = false
 		_cube_panel.visible = false
 		_fields["head"].text = "Generate a ramp"
 		_refresh_info()
@@ -771,6 +778,7 @@ func _refresh_props() -> void:
 	_block_props.visible = false
 	_text_props.visible = false
 	_light_props.visible = false
+	_particle_props.visible = false
 	_cube_panel.visible = false
 	if selected == null:
 		_ramp_props.visible = false
@@ -787,9 +795,27 @@ func _refresh_props() -> void:
 	_block_props.visible = selected is BlockNode
 	_text_props.visible = selected is TextNode
 	_light_props.visible = selected is LightNode
+	_particle_props.visible = selected is ParticleNode
 	_cube_panel.visible = selected is CubeModelNode
 	if selected is CubeModelNode:
 		_fields["head"].text = String(selected.get_meta("name", "Cube object"))
+		_updating_ui = false
+		_refresh_info()
+		return
+	if selected is ParticleNode:
+		var ps := ParticleNode.spec((selected as ParticleNode).data)
+		_fields["head"].text = (selected as ParticleNode).label()
+		_fields["fx_preset"].select(ParticleNode.PRESET_ORDER.find(ps["preset"]))
+		_fields["fx_own_color"].set_pressed_no_signal(ps["color"] != "")
+		_fields["fx_color"].visible = ps["color"] != ""
+		if ps["color"] != "":
+			_fields["fx_color"].color = Color.html(ps["color"])
+		_set_field("fx_amount", float(ps["amount"]))
+		_set_field("fx_size", float(ps["size"]))
+		_set_field("fx_speed", float(ps["speed"]))
+		_set_field("fx_area_x", float(ps["area"][0]))
+		_set_field("fx_area_y", float(ps["area"][1]))
+		_set_field("fx_area_z", float(ps["area"][2]))
 		_updating_ui = false
 		_refresh_info()
 		return
@@ -805,6 +831,11 @@ func _refresh_props() -> void:
 		_set_field("light_pitch", float(ln.data["pitch"]))
 		_fields["light_shadows"].set_pressed_no_signal(bool(ln.data["shadows"]))
 		_fields["light_spot_box"].visible = ln.data["kind"] == "spot"
+		_fields["light_strip_box"].visible = ln.data["kind"] == "strip"
+		_fields["light_effect"].select(maxi(LightNode.EFFECTS.find(ln.data.get("effect", "none")), 0))
+		_set_field("light_length", float(ln.data.get("length", 4.0)))
+		_set_field("light_strip_yaw", float(ln.data["yaw"]))
+		_fields["light_preset"].select(0)
 		_updating_ui = false
 		_refresh_info()
 		return
@@ -965,6 +996,41 @@ func _refresh_props() -> void:
 	_refresh_info()
 
 
+## How heavy the map's lights and particles are for players' computers, with a warning when it's a lot.
+static func map_weight(map: Dictionary) -> Dictionary:
+	var lights := 0
+	var shadowed := 0
+	for ld in map.get("lights", []):
+		var ls := LightNode.spec(ld)
+		var n := LightNode.strip_count(ls) if ls["kind"] == "strip" else 1
+		lights += n
+		if ls["shadows"]:
+			shadowed += n
+	var particles := 0
+	for pd in map.get("particles", []):
+		particles += ParticleNode.particle_count(ParticleNode.spec(pd))
+	var warn := []
+	if shadowed > 8:
+		warn.append("%d lights cast shadows: shadows are the costly part. Turn shadows off on the small ones." % shadowed)
+	if lights > 40:
+		warn.append("%d lights is a lot: slower computers will struggle." % lights)
+	if particles > 6000:
+		warn.append("%d particles at a time is a lot: lower the Amount of the big rain / snow areas." % particles)
+	return {"lights": lights, "shadowed": shadowed, "particles": particles, "warnings": warn}
+
+
+static func map_weight_text(map: Dictionary) -> String:
+	var w := map_weight(map)
+	if w["lights"] == 0 and w["particles"] == 0:
+		return ""
+	var t := "\n\nMap weight: %d light(s), %d with shadows; %d particle(s) at a time." % [w["lights"], w["shadowed"], w["particles"]]
+	for m in w["warnings"]:
+		t += "\n\u26a0 " + m
+	if (w["warnings"] as Array).is_empty():
+		t += " Light enough for most computers."
+	return t
+
+
 func _refresh_info() -> void:
 	if _fields.has("clear_best"):
 		_fields["clear_best"].visible = selected == null and not best_ghost.is_empty()
@@ -979,7 +1045,8 @@ func _refresh_info() -> void:
 		_info.text = ("Nothing selected - click a ramp or platform in any view to edit it.\n\n"
 			+ "Ramps: %d\nStart: %s   Finish: %s\nStages: %d   Teleports: %d\nBoosters: %d   Kill zones: %d"
 			% [ramps_root.get_child_count(), "yes" if counts.has("start") else "missing", "yes" if counts.has("finish") else "missing",
-				counts.get("stage", 0), counts.get("teleport", 0), counts.get("booster", 0), counts.get("kill", 0)]) + best_txt
+				counts.get("stage", 0), counts.get("teleport", 0), counts.get("booster", 0), counts.get("kill", 0)]) \
+			+ map_weight_text(_map_dict()) + best_txt
 		return
 	if selected is RampNode:
 		var r := selected as RampNode
@@ -1010,10 +1077,22 @@ func _refresh_info() -> void:
 		var bb: AABB = cm.world.bounds()
 		_info.text = "Cube object: %d cubes, %.0f x %.0f x %.0f m.\nBuilt in build mode; here it moves, turns, copies and groups as one object (and can be a prefab).\n\nSurfsUp: exact collision per cube. CS:S: a brush per cube." % [
 			cm.world.count(), bb.size.x, bb.size.y, bb.size.z]
+	elif selected is ParticleNode:
+		var pn := selected as ParticleNode
+		var ps := ParticleNode.spec(pn.data)
+		var css: String = ParticleNode.PRESETS[ps["preset"]]["css"]
+		_info.text = "%s: %d particles at a time.\nPlays live here and in play mode.\n\nSurfsUp: the same particles. CS:S: %s." % [
+			pn.label(), ParticleNode.particle_count(ps), ("a stock " + css + " (Source's nearest effect)") if css != "" else "nothing (Source has no such effect)"]
 	elif selected is LightNode:
 		var ln := selected as LightNode
-		_info.text = "%s\nReaches %.0f m. Lights the editor view straight away.\n\nSurfsUp: a real light. CS:S: a %s entity (lighting is baked when the map compiles)." % [
-			ln.label(), float(ln.data["range"]), "light_spot" if ln.data["kind"] == "spot" else "light"]
+		var fx: String = ln.data.get("effect", "none")
+		_info.text = "%s\nReaches %.0f m. Lights the editor view straight away.%s\n\nSurfsUp: %s. CS:S: %s (lighting is baked when the map compiles%s)." % [
+			ln.label(), float(ln.data["range"]),
+			("\nEffect: " + LightNode.EFFECT_LABELS[LightNode.EFFECTS.find(fx)].to_lower() + ".") if fx != "none" else "",
+			"%d real lights along the tube" % LightNode.strip_count(LightNode.spec(ln.data)) if ln.data["kind"] == "strip" else "a real light",
+			"%d light entities" % LightNode.strip_count(LightNode.spec(ln.data)) if ln.data["kind"] == "strip"
+				else ("a light_spot entity" if ln.data["kind"] == "spot" else "a light entity"),
+			"; the effect is a Source light style" if fx != "none" else ""]
 	elif selected is TextNode:
 		var tn := selected as TextNode
 		var pieces_txt := "working it out…"
@@ -1130,12 +1209,15 @@ func _map_dict() -> Dictionary:
 	var ls := []
 	for l in lights_root.get_children():
 		ls.append(_with_group(l))
+	var pfx := []
+	for p in particles_root.get_children():
+		pfx.append(_with_group(p))
 	var cms := []
 	for cm in cube_models_root.get_children():
 		if (cm as CubeModelNode).world.count() > 0 or not (cm as CubeModelNode).world.mats.is_empty():
 			cms.append(_with_group(cm))
 	return {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(), "ramps": rs, "entities": es,
-		"props": ps, "blocks": bs, "texts": ts, "lights": ls, "cube_models": cms, "folders": outliner.folders.duplicate(true)}
+		"props": ps, "blocks": bs, "texts": ts, "lights": ls, "particles": pfx, "cube_models": cms, "folders": outliner.folders.duplicate(true)}
 
 
 func _load_dict(data: Dictionary) -> void:
@@ -1147,7 +1229,7 @@ func _load_dict(data: Dictionary) -> void:
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
 	_select(null)
-	for root in [ramps_root, entities_root, props_root, blocks_root, texts_root, lights_root, cube_models_root]:
+	for root in [ramps_root, entities_root, props_root, blocks_root, texts_root, lights_root, particles_root, cube_models_root]:
 		for c in root.get_children():
 			root.remove_child(c)
 			c.queue_free()
@@ -1189,6 +1271,11 @@ func _load_dict(data: Dictionary) -> void:
 		lights_root.add_child(l)
 		l.from_dict(ld)
 		_take_group(l, ld)
+	for pd in data.get("particles", []):
+		var pn := ParticleNode.new()
+		particles_root.add_child(pn)
+		pn.from_dict(pd)
+		_take_group(pn, pd)
 	_rebuild_blocks()
 
 
@@ -1220,7 +1307,7 @@ func _make_ramp(a: Vector3, b: Vector3) -> RampNode:
 
 
 func _all_objects() -> Array:
-	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children() + blocks_root.get_children() + texts_root.get_children() + lights_root.get_children() + cube_models_root.get_children()
+	return ramps_root.get_children() + entities_root.get_children() + props_root.get_children() + blocks_root.get_children() + texts_root.get_children() + lights_root.get_children() + particles_root.get_children() + cube_models_root.get_children()
 
 
 # ================================================================================================= undo / redo
@@ -2115,13 +2202,32 @@ func _build_light_props(props: VBoxContainer) -> void:
 	_light_props.add_theme_constant_override("separation", 6)
 	_light_props.visible = false
 	props.add_child(_light_props)
+	var preset := OptionButton.new()                     # a starting point: torch, neon strip, alarm...
+	preset.add_item("Pick a preset…")
+	for k in LightNode.PRESET_ORDER:
+		preset.add_item(LightNode.PRESETS[k]["label"])
+	preset.focus_mode = Control.FOCUS_NONE
+	preset.item_selected.connect(func(i):
+		if i > 0 and not _updating_ui:
+			_edit_prop("light_preset", LightNode.PRESET_ORDER[i - 1])
+			_refresh_props())
+	_add_row(_light_props, "Preset", preset)
+	_fields["light_preset"] = preset
 	var kind := OptionButton.new()
 	kind.add_item("Point light (shines all around)")
 	kind.add_item("Spot light (a cone)")
+	kind.add_item("Light strip (a glowing tube: neon, fluorescent)")
 	kind.focus_mode = Control.FOCUS_NONE
 	kind.item_selected.connect(func(i): _edit_prop("light_kind", LightNode.KINDS[i]))
 	_add_row(_light_props, "Kind", kind)
 	_fields["light_kind"] = kind
+	var fx := OptionButton.new()
+	for l in LightNode.EFFECT_LABELS:
+		fx.add_item(l)
+	fx.focus_mode = Control.FOCUS_NONE
+	fx.item_selected.connect(func(i): _edit_prop("light_effect", LightNode.EFFECTS[i]))
+	_add_row(_light_props, "Effect", fx)
+	_fields["light_effect"] = fx
 	var cp := ColorPickerButton.new()
 	cp.custom_minimum_size = Vector2(0, 26)
 	cp.color_changed.connect(func(c): _edit_prop("light_color", c))
@@ -2129,6 +2235,11 @@ func _build_light_props(props: VBoxContainer) -> void:
 	_fields["light_color"] = cp
 	_add_slider(_light_props, "light_energy", "Brightness", 0.0, 16.0, 0.1)
 	_add_slider(_light_props, "light_range", "Reach (m)", 1.0, 400.0, 1.0)
+	var strip := VBoxContainer.new()
+	_light_props.add_child(strip)
+	_fields["light_strip_box"] = strip
+	_add_slider(strip, "light_length", "Length (m)", 0.5, 20.0, 0.5)
+	_add_slider(strip, "light_strip_yaw", "Facing (\u00b0)", -180.0, 180.0, 5.0)
 	var spot := VBoxContainer.new()
 	_light_props.add_child(spot)
 	_fields["light_spot_box"] = spot
@@ -2141,6 +2252,48 @@ func _build_light_props(props: VBoxContainer) -> void:
 	sh.toggled.connect(func(on): _edit_prop("light_shadows", on))
 	_light_props.add_child(sh)
 	_fields["light_shadows"] = sh
+
+
+## Particle effects: the preset, its color, how many, how big, how fast, and the area they start in.
+func _build_particle_props(props: VBoxContainer) -> void:
+	_particle_props = VBoxContainer.new()
+	_particle_props.add_theme_constant_override("separation", 6)
+	_particle_props.visible = false
+	props.add_child(_particle_props)
+	var preset := OptionButton.new()
+	for k in ParticleNode.PRESET_ORDER:
+		preset.add_item(ParticleNode.PRESETS[k]["label"])
+	preset.focus_mode = Control.FOCUS_NONE
+	preset.item_selected.connect(func(i): _edit_prop("fx_preset", ParticleNode.PRESET_ORDER[i]); _refresh_props())
+	_add_row(_particle_props, "Effect", preset)
+	_fields["fx_preset"] = preset
+	var own := CheckButton.new()
+	own.text = "Own color"
+	own.focus_mode = Control.FOCUS_NONE
+	own.toggled.connect(func(on): _edit_prop("fx_own_color", on); _refresh_props())
+	_particle_props.add_child(own)
+	_fields["fx_own_color"] = own
+	var cp := ColorPickerButton.new()
+	cp.custom_minimum_size = Vector2(0, 26)
+	cp.color_changed.connect(func(c): _edit_prop("fx_color", c))
+	_particle_props.add_child(cp)
+	_fields["fx_color"] = cp
+	_add_slider(_particle_props, "fx_amount", "Amount (x the preset)", 0.1, 5.0, 0.1)
+	_add_slider(_particle_props, "fx_size", "Size (x)", 0.2, 5.0, 0.1)
+	_add_slider(_particle_props, "fx_speed", "Speed (x)", 0.1, 4.0, 0.1)
+	_add_slider(_particle_props, "fx_area_x", "Area width (m)", 0.1, 200.0, 0.1)
+	_add_slider(_particle_props, "fx_area_y", "Area height (m)", 0.1, 100.0, 0.1)
+	_add_slider(_particle_props, "fx_area_z", "Area depth (m)", 0.1, 200.0, 0.1)
+
+
+func _add_particles(preset: String) -> void:
+	_checkpoint()
+	var c := _view_center()
+	var pn := ParticleNode.new()
+	particles_root.add_child(pn)
+	pn.from_dict({"preset": preset, "position": [c.x, c.y + 2.0, c.z], "area": ParticleNode.PRESETS[preset]["area"]})
+	_select(pn)
+	_set_status("New particle effect. Pick fire, smoke, snow, rain and more in the panel; the box is where they start.")
 
 
 func _add_light(kind: String) -> void:
@@ -2774,12 +2927,13 @@ func _kind_of(o: Node3D) -> String:
 	if o is PropNode: return "props"
 	if o is TextNode: return "texts"
 	if o is LightNode: return "lights"
+	if o is ParticleNode: return "particles"
 	if o is CubeModelNode: return "cube_models"
 	return "blocks"
 
 
 func _clip_of(objs: Array) -> Dictionary:
-	var clip := {"mallet_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": [], "texts": [], "lights": [], "cube_models": []}
+	var clip := {"mallet_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": [], "texts": [], "lights": [], "particles": [], "cube_models": []}
 	for o in objs:
 		clip[_kind_of(o)].append(_with_group(o))
 	return clip
@@ -2823,7 +2977,7 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 	var made := []
 	var skipped := 0
 	var groups := {}                                     # pasted groups get fresh ids
-	for kind in ["ramps", "entities", "props", "blocks", "texts", "lights", "cube_models"]:
+	for kind in ["ramps", "entities", "props", "blocks", "texts", "lights", "particles", "cube_models"]:
 		for d in data.get(kind, []):
 			if kind == "entities" and d.get("kind", "") in ["start", "finish"] and not d.get("zone_only", false) and _find_plate(d["kind"]):
 				skipped += 1
@@ -2845,6 +2999,9 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 				"lights":
 					o = LightNode.new()
 					lights_root.add_child(o)
+				"particles":
+					o = ParticleNode.new()
+					particles_root.add_child(o)
 				"cube_models":
 					o = CubeModelNode.new()
 					cube_models_root.add_child(o)
@@ -3297,7 +3454,7 @@ func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
 		if hit.is_empty():
 			break
 		var obj: Node3D = null
-		for key in ["ramp", "entity", "prop", "block", "text", "light", "cube_model"]:
+		for key in ["ramp", "entity", "prop", "block", "text", "light", "particle", "cube_model"]:
 			if hit.collider.has_meta(key):
 				obj = hit.collider.get_meta(key)
 				break
@@ -3823,7 +3980,7 @@ func _bend_clicked() -> void:
 
 
 func _duplicate_clicked() -> void:
-	if selected is LightNode and selection().size() == 1:
+	if (selected is LightNode or selected is ParticleNode) and selection().size() == 1:
 		_paste(_clip_of([selected]), Vector3(10, 0, 0))
 		return
 	if selected is CubeModelNode and selection().size() == 1:
@@ -3976,6 +4133,28 @@ func _edit_prop(key: String, value) -> void:
 	if selected == null or _updating_ui:
 		return
 	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])
+	if selected is ParticleNode:
+		var pn := selected as ParticleNode
+		var pd: Dictionary = pn.data.duplicate(true)
+		var area: Array = (pd["area"] as Array).duplicate()
+		match key:
+			"fx_preset":
+				pd["preset"] = value
+				pd["area"] = (ParticleNode.PRESETS[value]["area"] as Array).duplicate()
+				pd["color"] = ""
+			"fx_own_color": pd["color"] = ParticleNode.PRESETS[pd["preset"]]["colors"][1].substr(0, 6) if value else ""
+			"fx_color": pd["color"] = (value as Color).to_html(false)
+			"fx_amount": pd["amount"] = value
+			"fx_size": pd["size"] = value
+			"fx_speed": pd["speed"] = value
+			"fx_area_x": area[0] = value
+			"fx_area_y": area[1] = value
+			"fx_area_z": area[2] = value
+		if key.begins_with("fx_area"):
+			pd["area"] = area
+		pn.from_dict(pd)
+		_refresh_info()
+		return
 	if selected is LightNode:
 		var ln := selected as LightNode
 		var ld: Dictionary = ln.data.duplicate(true)
@@ -3988,6 +4167,15 @@ func _edit_prop(key: String, value) -> void:
 			"light_yaw": ld["yaw"] = value
 			"light_pitch": ld["pitch"] = value
 			"light_shadows": ld["shadows"] = value
+			"light_effect": ld["effect"] = value
+			"light_length": ld["length"] = value
+			"light_strip_yaw": ld["yaw"] = value
+			"light_preset":
+				for k in LightNode.PRESETS[value]:
+					if k != "label":
+						ld[k] = LightNode.PRESETS[value][k]
+				if ld["kind"] == "strip":
+					ld["pitch"] = 0.0                    # (strips lie level)
 		ln.from_dict(ld)
 		if key == "light_kind":
 			_refresh_props()

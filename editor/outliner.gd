@@ -7,7 +7,7 @@ extends VBoxContainer
 ## (and come along in copy / paste and prefabs).
 
 const KIND_COLORS := {"RampNode": Color(0.35, 0.6, 1.0), "EntityNode": Color(0.35, 0.85, 0.45), "BlockNode": Color(0.65, 0.68, 0.72),
-	"TextNode": Color(0.95, 0.95, 0.95), "LightNode": Color(1.0, 0.85, 0.3), "PropNode": Color(1.0, 0.55, 0.25),
+	"TextNode": Color(0.95, 0.95, 0.95), "LightNode": Color(1.0, 0.85, 0.3), "ParticleNode": Color(1.0, 0.5, 0.8), "PropNode": Color(1.0, 0.55, 0.25),
 	"CubeModelNode": Color(0.3, 0.85, 0.8), "folder": Color(0.95, 0.75, 0.35)}
 
 var editor: Node

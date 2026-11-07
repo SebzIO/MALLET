@@ -392,12 +392,28 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	var li := 0
 	for ld in map.get("lights", []):
 		var ls := LightNode.spec(ld)
-		var l := LightNode.make_light(ls)
+		var l := LightNode.make_rig(ls)                 # (strips and effects included: an AnimationPlayer, no script)
 		l.name = "Light%d" % li
 		var lp: Array = ls["position"]
 		l.transform = Transform3D(LightNode.basis_of(ls), Vector3(lp[0], lp[1], lp[2]))
 		_add(root, lights, l)
+		_own_all(root, l)
 		li += 1
+
+	# particles: the same GPU particles the editor shows (no script)
+	if not map.get("particles", []).is_empty():
+		var fxs := Node3D.new()
+		fxs.name = "Particles"
+		_add(root, root, fxs)
+		var pi := 0
+		for pd in map.get("particles", []):
+			var ps := ParticleNode.spec(pd)
+			var fx := ParticleNode.make_emitter(ps)
+			fx.name = "Particles%d" % pi
+			var pp: Array = ps["position"]
+			fx.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(float(ps["yaw"]))), Vector3(pp[0], pp[1], pp[2]))
+			_add(root, fxs, fx)
+			pi += 1
 
 	# text: the letters' mesh, and for solid 3D text an exact convex collision shape per piece 
 	var texts := Node3D.new()
@@ -588,6 +604,13 @@ static func _zone(root: Node, name: String, kind: String, xf: Transform3D, size:
 	cs.shape = shape
 	_add(root, a, cs)
 	return a
+
+
+## Everything under `n` belongs to the saved scene (nodes built with children, like a light's rig).
+static func _own_all(root: Node, n: Node) -> void:
+	for c in n.get_children():
+		c.owner = root
+		_own_all(root, c)
 
 
 static func _add(root: Node, parent: Node, child: Node) -> void:

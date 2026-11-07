@@ -998,7 +998,7 @@ func _select_ents_in_sel() -> void:
 	var lo := Vector3(s["o"]) * CubeWorld.TICK
 	var box := AABB(lo, Vector3(s["s"]) * CubeWorld.metres(s["p"]))
 	ent_sel = []
-	for root in [editor.lights_root, editor.entities_root, editor.props_root, editor.texts_root]:
+	for root in [editor.lights_root, editor.particles_root, editor.entities_root, editor.props_root, editor.texts_root]:
 		for o in root.get_children():
 			if box.has_point(xf.affine_inverse() * (o as Node3D).center()):
 				ent_sel.append(o)
@@ -1051,6 +1051,26 @@ func _ent_prop(idx: int, dir: int) -> void:
 					c[idx - 2] = clampf(c[idx - 2] + dir * 16.0 / 255.0, 0.0, 1.0)
 					d["color"] = c.to_html(false)
 					what = "color #%s" % d["color"]
+		elif o is ParticleNode:                       # 1 effect, 2 amount, 3 size, 4 area
+			match idx:
+				1:
+					var order := ParticleNode.PRESET_ORDER
+					d["preset"] = order[posmod(order.find(d["preset"]) + dir, order.size())]
+					d["area"] = (ParticleNode.PRESETS[d["preset"]]["area"] as Array).duplicate()
+					what = ParticleNode.PRESETS[d["preset"]]["label"].to_lower()
+				2:
+					d["amount"] = clampf(float(d["amount"]) + dir * 0.1, 0.1, 5.0)
+					what = "amount x%.1f" % d["amount"]
+				3:
+					d["size"] = clampf(float(d["size"]) + dir * 0.1, 0.2, 5.0)
+					what = "size x%.1f" % d["size"]
+				4:
+					var a: Array = (d["area"] as Array).duplicate()
+					var k := 1.0 + dir * 0.1
+					a[0] = clampf(float(a[0]) * k, 0.1, 200.0)
+					a[2] = clampf(float(a[2]) * k, 0.1, 200.0)
+					d["area"] = a
+					what = "area %.1f x %.1f m" % [a[0], a[2]]
 		elif o is EntityNode:
 			match idx:
 				1:
@@ -1099,7 +1119,7 @@ func _open_place_menu() -> void:
 	_menu.clear()
 	_menu.set_meta("kind", "place")
 	var items := [["Light", 100], ["Spot light", 101], ["Start platform", 102], ["Finish platform", 103], ["Stage plate", 104],
-		["Teleport", 105], ["Kill zone", 106], ["Booster", 107], ["Text", 108]]
+		["Teleport", 105], ["Kill zone", 106], ["Booster", 107], ["Text", 108], ["Light strip (neon)", 109], ["Particles (fire, smoke, snow\u2026)", 110]]
 	for it in items:
 		_menu.add_item(it[0], it[1])
 	_show_menu()
@@ -1122,6 +1142,17 @@ func _place(id: int) -> void:
 			var p := at + n * 1.5
 			l.from_dict({"kind": "point" if id == 100 else "spot", "position": [p.x, p.y, p.z]})
 			o = l
+		109:
+			var l := LightNode.new()
+			editor.lights_root.add_child(l)
+			var p := at + n * 0.5
+			l.from_dict(LightNode.PRESETS["neon_pink"].merged({"position": [p.x, p.y, p.z], "yaw": rad_to_deg(yaw), "pitch": 0.0}))
+			o = l
+		110:
+			var pn := ParticleNode.new()
+			editor.particles_root.add_child(pn)
+			pn.from_dict({"preset": "fire", "position": [at.x, at.y + 0.1, at.z], "area": ParticleNode.PRESETS["fire"]["area"]})
+			o = pn
 		102, 103, 104, 105, 106, 107:
 			var kind: String = ["start", "finish", "stage", "teleport", "kill", "booster"][id - 102]
 			var e := EntityNode.create(kind)
