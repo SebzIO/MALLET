@@ -209,6 +209,10 @@ static func material_for(slot: String, alpha_mat := false) -> Material:
 			if base.roughness_texture:
 				sm.set_shader_parameter("rough_tex", base.roughness_texture)
 				sm.set_shader_parameter("has_rough", true)
+			if base.emission_texture:
+				sm.set_shader_parameter("glow_tex", base.emission_texture)
+				sm.set_shader_parameter("has_glow", true)
+				sm.set_shader_parameter("glow_energy", MaterialLibrary.GLOW_ENERGY)
 		else:
 			tint = tint * Color.html("9aa3ad")
 		sm.set_shader_parameter("tint", tint)

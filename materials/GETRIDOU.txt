@@ -1,0 +1,20 @@
+Textures by Getridou
+====================
+
+The materials in the "Getridou" category (folders getridou_*) are by Getridou, who made them himself and gave
+MALLET's author permission to ship them in MALLET, with credit. Thank you, Getridou!
+
+  Instagram: https://www.instagram.com/getridou/
+  Discord:   Getridou
+
+From the pack's own README: "Content within is considered royalty free under the condition that no profit is made
+through its use" (CC-BY-SA). MALLET is free; please credit Getridou if you use these textures in your maps, and don't
+sell them.
+
+What MALLET did to them: converted from Cube 2: Sauerbraten's format (diffuse / normal / specular / glow PNGs) to
+MALLET's library (colour, normal, roughness and glow JPGs, at most 1024 px), with Sauerbraten's own texture scale.
+Height (parallax), ambient-occlusion and environment-map settings aren't used.
+
+Not included: the textures in the same folder by other artists (LURKing, cynthia, azzie, arcabal) and the ones with
+no artist named (whitebrick01, officefacade01-03, sydstone02, redrock01, labtile01, labhex, greycarpet01,
+bristone01). That collection's licence limits them to the game "Valhalla" unless their own creators give permission.

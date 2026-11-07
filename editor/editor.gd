@@ -2484,17 +2484,33 @@ func _open_picker(cb: Callable) -> void:
 		own.tooltip_text = "Use any PNG / JPG / WebP as a material. It joins 'Your images' in this library."
 		own.pressed.connect(func(): _picker.hide(); _own_image_dialog().popup_centered_ratio(0.6))
 		row.add_child(own)
+		var search := LineEdit.new()                     # type to narrow a big library down
+		search.placeholder_text = "Search materials (brick, metal, glow...)"
+		search.clear_button_enabled = true
+		box.add_child(search)
+		_fields["picker_search"] = search
+		var sections := []                               # [header, credit label, grid, [[button, words]]]
 		for cat in MaterialLibrary.categories():
 			var head := Label.new()
 			head.text = cat
 			head.add_theme_font_size_override("font_size", 15)
 			box.add_child(head)
+			var credit := Label.new()
+			credit.add_theme_font_size_override("font_size", 12)
+			credit.add_theme_color_override("font_color", Color(0.7, 0.74, 0.82))
+			credit.visible = false
+			box.add_child(credit)
 			var grid := GridContainer.new()
 			grid.columns = 4
 			box.add_child(grid)
+			var items := []
+			sections.append([head, credit, grid, items])
 			for e in MaterialLibrary.entries():
 				if e["category"] != cat:
 					continue
+				if e.has("credit") and not credit.visible:
+					credit.text = "Textures by %s - thank you! Used with permission." % e["credit"]
+					credit.visible = true
 				var b := Button.new()
 				b.icon = MaterialLibrary.preview(e["id"])
 				b.text = e["name"]
@@ -2503,11 +2519,24 @@ func _open_picker(cb: Callable) -> void:
 				b.expand_icon = true
 				b.custom_minimum_size = Vector2(128, 132)
 				b.focus_mode = Control.FOCUS_NONE
-				b.tooltip_text = "%s - one repeat covers %.1f m" % [e["name"], float(e["size"])]
+				b.tooltip_text = "%s - one repeat covers %.1f m%s%s" % [e["name"], float(e["size"]),
+					" - glows" if (e.get("maps", {}) as Dictionary).has("glow") else "", (" - by " + e["credit"]) if e.has("credit") else ""]
 				var id: String = e["id"]
 				b.pressed.connect(func(): _picker.hide(); _picker_cb.call(id))
 				grid.add_child(b)
 				_fields["pick_" + id] = b
+				items.append([b, ("%s %s %s %s %s" % [e["name"], e["id"], cat, e.get("surface", ""),
+					"glow" if (e.get("maps", {}) as Dictionary).has("glow") else ""]).to_lower()])
+		search.text_changed.connect(func(t: String):
+			var q := t.strip_edges().to_lower()
+			for sec in sections:
+				var shown := 0
+				for it in sec[3]:
+					it[0].visible = q == "" or (it[1] as String).contains(q)
+					shown += 1 if it[0].visible else 0
+				sec[0].visible = shown > 0
+				sec[2].visible = shown > 0
+				sec[1].visible = shown > 0 and (sec[1] as Label).text != "")
 		_ui.add_child(_picker)
 	_picker.popup_centered()
 

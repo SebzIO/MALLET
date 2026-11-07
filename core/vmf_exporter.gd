@@ -735,10 +735,11 @@ static func write_materials(ids: Array, root: String) -> Array:
 		var name: String = String(id).to_lower()
 		var vtf := dir.path_join(name + ".vtf")
 		var vmt := dir.path_join(name + ".vmt")
-		_write_vtf(img, vtf)
+		var glow := MaterialLibrary.image(id, "glow")       # glowing parts: the texture's alpha, lit by $selfillum
+		_write_vtf(img, vtf, glow)
 		var f := FileAccess.open(vmt, FileAccess.WRITE)
-		f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"mallet/%s\"\n\t\"$surfaceprop\" \"%s\"\n}\n" % [name,
-			MaterialLibrary.entry(id).get("surface", "concrete")])
+		f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"mallet/%s\"\n\t\"$surfaceprop\" \"%s\"\n%s}\n" % [name,
+			MaterialLibrary.entry(id).get("surface", "concrete"), "\t\"$selfillum\" \"1\"\n" if glow else ""])
 		f.close()
 		# a self-lit version for glowing blocks (the same texture, shining)
 		var gvmt := dir.path_join(name + "_glow.vmt")
@@ -773,21 +774,36 @@ static func _write_variant(d: Dictionary, dir: String) -> Array:
 
 
 ## A Valve texture file (VTF 7.2): DXT1-compressed with a full mipmap chain, smallest mip first.
-static func _write_vtf(src_img: Image, path: String) -> void:
+## With `glow`: DXT5, the glow map's brightness in the alpha channel (Source's $selfillum lights those parts).
+static func _write_vtf(src_img: Image, path: String, glow: Image = null) -> void:
 	var img: Image = src_img.duplicate()
 	if img.is_compressed():
 		img.decompress()
 	img.convert(Image.FORMAT_RGB8)
 	img.resize(VTF_SIZE, VTF_SIZE, Image.INTERPOLATE_LANCZOS)
+	var dxt5 := glow != null
+	if dxt5:
+		var mask: Image = glow.duplicate()
+		if mask.is_compressed():
+			mask.decompress()
+		mask.convert(Image.FORMAT_RGB8)
+		mask.resize(VTF_SIZE, VTF_SIZE, Image.INTERPOLATE_LANCZOS)
+		img.convert(Image.FORMAT_RGBA8)
+		var px := img.get_data()
+		var mk := mask.get_data()
+		for i in VTF_SIZE * VTF_SIZE:
+			px[i * 4 + 3] = maxi(mk[i * 3], maxi(mk[i * 3 + 1], mk[i * 3 + 2]))
+		img = Image.create_from_data(VTF_SIZE, VTF_SIZE, false, Image.FORMAT_RGBA8, px)
 	img.generate_mipmaps()
 	img.compress(Image.COMPRESS_S3TC, Image.COMPRESS_SOURCE_GENERIC)
+	dxt5 = img.get_format() == Image.FORMAT_DXT5          # (a mask with no dark parts compresses to DXT1)
 	var data := img.get_data()
 	var levels := img.get_mipmap_count() + 1
 	var chunks := []
 	var at := 0
 	for l in levels:
 		var w := maxi(VTF_SIZE >> l, 1)
-		var size := maxi((w + 3) / 4, 1) * maxi((w + 3) / 4, 1) * 8
+		var size := maxi((w + 3) / 4, 1) * maxi((w + 3) / 4, 1) * (16 if dxt5 else 8)
 		chunks.append(data.slice(at, at + size))
 		at += size
 	var h := StreamPeerBuffer.new()
@@ -799,7 +815,7 @@ static func _write_vtf(src_img: Image, path: String) -> void:
 	h.put_u32(80)                         # header size
 	h.put_u16(VTF_SIZE)
 	h.put_u16(VTF_SIZE)
-	h.put_u32(0)                          # flags
+	h.put_u32(0x2000 if dxt5 else 0)      # flags (EIGHTBITALPHA when the alpha holds the glow mask)
 	h.put_u16(1)                          # frames
 	h.put_u16(0)                          # first frame
 	h.put_u32(0)                          # padding
@@ -807,7 +823,7 @@ static func _write_vtf(src_img: Image, path: String) -> void:
 		h.put_float(0.5)                  # reflectivity
 	h.put_u32(0)                          # padding
 	h.put_float(1.0)                      # bumpmap scale
-	h.put_u32(13)                         # high-res format: DXT1
+	h.put_u32(15 if dxt5 else 13)         # high-res format: DXT5 / DXT1
 	h.put_u8(levels)
 	h.put_u32(0xFFFFFFFF)                 # no low-res thumbnail
 	h.put_u8(0)

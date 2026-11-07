@@ -7,6 +7,7 @@ extends RefCounted
 const DIR := "res://materials/"
 const USER_DIR := "user://materials/"     ## your own images, added from the picker
 const MAX_SIZE := 1024
+const GLOW_ENERGY := 1.6                  ## how bright a material's glow map shines
 
 static var _entries: Array = []
 static var _by_id := {}
@@ -163,6 +164,13 @@ static func material(id: String, tint := Color.WHITE) -> StandardMaterial3D:
 		m.metallic = 1.0
 		m.metallic_texture = mt
 		m.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	var gl := texture(id, "glow")                        # lit parts (signs, lamps, screens) shine by themselves
+	if gl:
+		m.emission_enabled = true
+		m.emission = Color.WHITE
+		m.emission_texture = gl
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY   # (ADD would light the whole face: colour + map)
+		m.emission_energy_multiplier = GLOW_ENERGY
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_materials[key] = m
 	return m

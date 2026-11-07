@@ -26,9 +26,8 @@ Do this first, so every later feature, file and screenshot already carries the n
       (The local folders `D:\SurfForge` and `D:\SurfForge_builds` keep their names: development only.)
 
 ## 0.11.0: Materials
-- [ ] **Getridou's materials pack**: ship it in the material library, in its own category, with credit to Getridou
-      in the texture browser, THIRD_PARTY.md, the About text and the GitHub README (his credit there is enough, per
-      the user). Keep a short note of his permission with the pack (`materials/getridou/LICENSE.txt`).
+- [x] **Getridou's materials pack** (161 materials, glow maps, credit in the picker / THIRD_PARTY / README /
+      materials/GETRIDOU.txt; other artists' textures in that folder left out).
 - [ ] **Sauerbraten's materials**: its texture packs come from many artists under **different licences** (some free
       to share, some not for redistribution). Go through them pack by pack: ship the ones whose licence allows it,
       with each artist credited; list the rest as "can't ship" (or import them from a Sauerbraten install the user
@@ -38,7 +37,8 @@ Do this first, so every later feature, file and screenshot already carries the n
       exported map then uses the real game material). They're never copied into MALLET or into SurfsUp exports.
 - [ ] **Better liquids and glass**: new water (waves, depth colour, foam at edges), lava (glow, slow flow), glass
       (reflections, tint, frosted option), each with a few presets; exported to SurfsUp; closest CS:S equivalents.
-- [ ] Texture browser: categories / search / credits so a few hundred materials stay easy to find.
+- [ ] Texture browser: categories / search / credits so a few hundred materials stay easy to find. (Search and
+      credits done; build mode's texture menu still to do.)
 
 ## 0.12.0: Worldbuilding (lights and particles)
 - [ ] More light types: area / rectangle lights, coloured and flickering / pulsing lights, light presets (torch,

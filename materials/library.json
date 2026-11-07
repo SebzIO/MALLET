@@ -232,6 +232,2075 @@
         "normal": "normal.jpg",
         "roughness": "roughness.jpg"
       }
+    },
+    {
+      "id": "getridou_artbark",
+      "name": "Artbark",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_artdecorock1",
+      "name": "Artdecorock 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_asbestos1",
+      "name": "Asbestos 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_asbestos2",
+      "name": "Asbestos 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_asphalt1",
+      "name": "Asphalt 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_asphalt2",
+      "name": "Asphalt 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_bathtile1",
+      "name": "Bathtile 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_bathtile2",
+      "name": "Bathtile 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_biosteel_acid",
+      "name": "Biosteel acid",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_biosteel_inert",
+      "name": "Biosteel inert",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_biosteel_saturated",
+      "name": "Biosteel saturated",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_bluerock1",
+      "name": "Bluerock 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_brassvent",
+      "name": "Brassvent",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_bricklattice1",
+      "name": "Bricklattice 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_brickmatrix",
+      "name": "Brickmatrix",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_brisfauna1",
+      "name": "Brisfauna 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_brisfoundation1",
+      "name": "Brisfoundation 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_brisfoundation2",
+      "name": "Brisfoundation 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_brisstone2",
+      "name": "Brisstone 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "getridou_brisstone3",
+      "name": "Brisstone 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_brushsteel",
+      "name": "Brushsteel",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_cbdmetalgold",
+      "name": "Cbdmetalgold",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_cbdmetalsilver",
+      "name": "Cbdmetalsilver",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_ceramictile1",
+      "name": "Ceramictile 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_ceramictile2",
+      "name": "Ceramictile 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_classbrick1",
+      "name": "Classbrick 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_concretelight",
+      "name": "Concretelight",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_conurban1",
+      "name": "Conurban 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_crookwood1",
+      "name": "Crookwood 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_debris1",
+      "name": "Debris 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_debris2",
+      "name": "Debris 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_decaywall1",
+      "name": "Decaywall 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_emucoat",
+      "name": "Emucoat",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "getridou_entmetal1",
+      "name": "Entmetal 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_entmetal2",
+      "name": "Entmetal 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_envmarble",
+      "name": "Envmarble",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_escalatorgrate",
+      "name": "Escalatorgrate",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_featherflower",
+      "name": "Featherflower",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_flora4",
+      "name": "Flora 4",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_fogresin1",
+      "name": "Fogresin 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_fogresin2",
+      "name": "Fogresin 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_garagefacade",
+      "name": "Garagefacade",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_grate3",
+      "name": "Grate 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_gravel1",
+      "name": "Gravel 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "gravel",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_greentarp",
+      "name": "Greentarp",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 23.625,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_greycarpet1",
+      "name": "Greycarpet 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "carpet",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_handrail",
+      "name": "Handrail",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_insulroof",
+      "name": "Insulroof",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_irongrid1",
+      "name": "Irongrid 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_justholes",
+      "name": "Justholes",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_labcamo1",
+      "name": "Labcamo 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "getridou_labhex1",
+      "name": "Labhex 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_labtile1",
+      "name": "Labtile 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_labtile2",
+      "name": "Labtile 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "getridou_labtile3",
+      "name": "Labtile 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "getridou_labtile4",
+      "name": "Labtile 4",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_labtile5",
+      "name": "Labtile 5",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_labtrim1",
+      "name": "Labtrim 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_lightpadbris",
+      "name": "Lightpadbris",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_marblepillars",
+      "name": "Marblepillars",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_megaconc1",
+      "name": "Megaconc 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_megaconc2",
+      "name": "Megaconc 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_megaconc3",
+      "name": "Megaconc 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_metalfencedoors",
+      "name": "Metalfencedoors",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_metalmesh1",
+      "name": "Metalmesh 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_mosaicburleigh",
+      "name": "Mosaicburleigh",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_mosswall1",
+      "name": "Mosswall 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_netframe1",
+      "name": "Netframe 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_officefacade2",
+      "name": "Officefacade 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_officefacade3",
+      "name": "Officefacade 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_officefacade4",
+      "name": "Officefacade 4",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_officefacade5",
+      "name": "Officefacade 5",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_officefacade6",
+      "name": "Officefacade 6",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_officefacade7",
+      "name": "Officefacade 7",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_officefacade8",
+      "name": "Officefacade 8",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_officewood1",
+      "name": "Officewood 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_pipefacade1",
+      "name": "Pipefacade 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_plywood1",
+      "name": "Plywood 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_plywood2",
+      "name": "Plywood 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_porefascia",
+      "name": "Porefascia",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_precast2",
+      "name": "Precast 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_ramrad",
+      "name": "Ramrad",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_redrock1",
+      "name": "Redrock 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "getridou_roadsign1",
+      "name": "Roadsign 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_runebrick",
+      "name": "Runebrick",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_sand1",
+      "name": "Sand 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "dirt",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sandstone1",
+      "name": "Sandstone 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "dirt",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sandstone2",
+      "name": "Sandstone 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "dirt",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "getridou_scaffold1",
+      "name": "Scaffold 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_shalerock1",
+      "name": "Shalerock 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_shedskin",
+      "name": "Shedskin",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "getridou_simptrim1",
+      "name": "Simptrim 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg"
+      }
+    },
+    {
+      "id": "getridou_simptrim2",
+      "name": "Simptrim 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_slabstain",
+      "name": "Slabstain",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_smashmeth",
+      "name": "Smashmeth",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_snakeskin1",
+      "name": "Snakeskin 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "getridou_snakeskin2",
+      "name": "Snakeskin 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "getridou_soulstatic",
+      "name": "Soulstatic",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "getridou_stainsteel2",
+      "name": "Stainsteel 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_starry",
+      "name": "Starry",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "getridou_sydbrick1",
+      "name": "Sydbrick 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydbrick2",
+      "name": "Sydbrick 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydfabric1",
+      "name": "Sydfabric 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "carpet",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydfascia2",
+      "name": "Sydfascia 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydfauna2",
+      "name": "Sydfauna 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydfauna3",
+      "name": "Sydfauna 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydfoundation1",
+      "name": "Sydfoundation 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydmetal2",
+      "name": "Sydmetal 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydmetal3",
+      "name": "Sydmetal 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydmetal4",
+      "name": "Sydmetal 4",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydshutter1",
+      "name": "Sydshutter 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydstone1",
+      "name": "Sydstone 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydstone10",
+      "name": "Sydstone 10",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydstone11",
+      "name": "Sydstone 11",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydstone2",
+      "name": "Sydstone 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydstone5",
+      "name": "Sydstone 5",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydstone6",
+      "name": "Sydstone 6",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydstone7",
+      "name": "Sydstone 7",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydstone8",
+      "name": "Sydstone 8",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydstone9",
+      "name": "Sydstone 9",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile1",
+      "name": "Sydtile 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile10",
+      "name": "Sydtile 10",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile11",
+      "name": "Sydtile 11",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile12",
+      "name": "Sydtile 12",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile13",
+      "name": "Sydtile 13",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile14",
+      "name": "Sydtile 14",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile15",
+      "name": "Sydtile 15",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile16",
+      "name": "Sydtile 16",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile17",
+      "name": "Sydtile 17",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.016,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile2",
+      "name": "Sydtile 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile3",
+      "name": "Sydtile 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile4",
+      "name": "Sydtile 4",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile5",
+      "name": "Sydtile 5",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile7",
+      "name": "Sydtile 7",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile8",
+      "name": "Sydtile 8",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydtile9",
+      "name": "Sydtile 9",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 4.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydvent1",
+      "name": "Sydvent 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sydwood1",
+      "name": "Sydwood 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_tilegate",
+      "name": "Tilegate",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_toxinmat1",
+      "name": "Toxinmat 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_toxinmat2",
+      "name": "Toxinmat 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_traflight",
+      "name": "Traflight",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "getridou_trimtile1",
+      "name": "Trimtile 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_trimtile2",
+      "name": "Trimtile 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_trimtile3",
+      "name": "Trimtile 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_trimtile4",
+      "name": "Trimtile 4",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "getridou_trimtile5",
+      "name": "Trimtile 5",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_urbtunnel",
+      "name": "Urbtunnel",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_valpearlite1",
+      "name": "Valpearlite 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_valrock1",
+      "name": "Valrock 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_valtransmission",
+      "name": "Valtransmission",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "getridou_vmsunit",
+      "name": "Vmsunit",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_wallrough",
+      "name": "Wallrough",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "getridou_wallsmooth",
+      "name": "Wallsmooth",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "getridou_warflame",
+      "name": "Warflame",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "glow": "glow.jpg"
+      }
+    },
+    {
+      "id": "getridou_whitebrick1",
+      "name": "Whitebrick 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_whitebrick3",
+      "name": "Whitebrick 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "brick",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_woodpanelbris1",
+      "name": "Woodpanelbris 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.031,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_woodplank1",
+      "name": "Woodplank 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 11.812,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_woodplank2",
+      "name": "Woodplank 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 4.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_woodplank3",
+      "name": "Woodplank 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
     }
   ]
 }

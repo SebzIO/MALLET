@@ -12,6 +12,9 @@ uniform sampler2D albedo_tex : source_color, hint_default_white, filter_linear_m
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D rough_tex : hint_roughness_r, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform bool has_normal = false;
+uniform sampler2D glow_tex : source_color, hint_default_black, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform bool has_glow = false;
+uniform float glow_energy = 1.6;
 uniform bool has_rough = false;
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float alpha = 1.0;
@@ -34,6 +37,9 @@ void fragment() {
 		nm = mix(nm, ln, w);
 	}
 	ALBEDO = c.rgb;
+	if (has_glow) {
+		EMISSION = texture(glow_tex, uv).rgb * tint.rgb * glow_energy;
+	}
 	NORMAL_MAP = nm;
 	ROUGHNESS = r;
 #ifdef SEE_THROUGH

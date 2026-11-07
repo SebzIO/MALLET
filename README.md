@@ -31,9 +31,6 @@ Double-click `Run MALLET.cmd` (uses Godot 4.5.1), or open this folder as a proje
 
 Maps save as `.mallet` (plain JSON, engine-neutral so other exporters can be added).
 
-## Credits
-Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
-
 ## Layout
 - `core/` – engine-agnostic geometry (ramp generation) and exporters (`surfsup_exporter.gd`)
 - `editor/` – the editor app
@@ -77,3 +74,11 @@ Prefabs live in `prefabs/` and are rebuilt by `godot --headless --path . -s res:
 
 Templates live in `templates/` and are rebuilt (with every jump re-proven and fresh thumbnails) by
 `godot --path . --resolution 1600x900 -s res://tools/make_templates.gd`.
+
+## Credits
+- **Getridou**: the 161 materials in the Getridou category, made by him and shipped with his permission. Thank you!
+  (https://www.instagram.com/getridou/ · Discord: Getridou)
+- **ambientCG** (CC0): the starter materials.
+- **Mark Arneman**: SUCC, SurfsUp's movement code (MIT), used for play mode.
+- **Cube 2: Sauerbraten**: the inspiration for build mode.
+See THIRD_PARTY.md for the details.

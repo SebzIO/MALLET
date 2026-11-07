@@ -275,8 +275,9 @@ func _run() -> void:
 	# ---- N: a second cube object
 	await tap(KEY_N)
 	look(Vector3(30.5, 12.5, 12), Vector3(30.5, 12.5, 0))
-	await frames(2)
+	await frames(5)                                       # (after a CS:S compile the machine is busy: a few more)
 	await wheel(-1)
+	await frames(2)
 	check("N, then building: a second cube object", models().size() == 2)
 
 	# ---- P: play from here, Esc comes back to build mode

@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## Unreleased (0.11.0: materials)
+
+- **Getridou's materials**: 161 materials made by Getridou, shipped with his permission (thank you!). They have their
+  own "Getridou" section in the material picker with his credit, and "by Getridou" on each one. Converted from
+  Sauerbraten's format with its own texture scale (most repeat every 16 m, as Getridou made them); colour, surface
+  detail (125), shininess (139) and glow (25). The rest of that folder (other artists, or no artist named) isn't
+  included: see materials/GETRIDOU.txt.
+- Materials can **glow**: lit windows, lamps, signs and flames shine by themselves, in the editor, in SurfsUp, and in
+  CS:S (self-illuminated). A grey glow mask glows in the texture's own colours.
+- The material picker has a **search** box (name, surface, category, "glow").
+
 ## 0.10.0 preview — 2026-11-06: SurfForge is now MALLET
 
 - The editor has a new name: **MALLET**, Mapping And Level Layout Editor Tool. (Hammer is Source's editor; a mallet is
