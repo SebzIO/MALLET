@@ -1,5 +1,5 @@
 shader_type sky;
-// SurfForge sky: gradient + sun disc, with optional stars, animated aurora curtains and nebula clouds.
+// MALLET sky: gradient + sun disc, with optional stars, animated aurora curtains and nebula clouds.
 
 uniform vec3 top_color : source_color = vec3(0.32, 0.46, 0.68);
 uniform vec3 horizon_color : source_color = vec3(0.68, 0.74, 0.82);

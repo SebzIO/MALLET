@@ -159,9 +159,9 @@ func _run() -> void:
 	check("the eye hides it, and a click goes straight through", not b.visible and picked != b)
 
 	# save / load
-	ed.save_map(out + "/outliner_test.sfmap")
+	ed.save_map(out + "/outliner_test.mallet")
 	ed._load_dict({})
-	ed.load_map(out + "/outliner_test.sfmap")
+	ed.load_map(out + "/outliner_test.mallet")
 	await settle()
 	ol.refresh(true)
 	var r1b: RampNode = null

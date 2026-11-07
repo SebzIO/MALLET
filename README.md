@@ -1,9 +1,14 @@
-# SurfForge
+# MALLET
 
-A surf map editor that does the heavy lifting: shape ramps by dragging, test them, and export straight to SurfsUp.
+**Mapping And Level Layout Editor Tool**, formerly SurfForge. Source's editor is Hammer; a mallet is the simpler tool
+anyone can pick up. MALLET is a surf map editor that does the heavy lifting: shape ramps by dragging, build with cubes,
+test your runs, and export straight to SurfsUp or Counter-Strike: Source.
+
+Maps are `.mallet` files (maps from SurfForge, `.sfmap`, still open). On its first start MALLET copies your
+SurfForge settings, own materials and prefabs across.
 
 ## Run
-Double-click `Run SurfForge.cmd` (uses Godot 4.5.1), or open this folder as a project in Godot and press F5.
+Double-click `Run MALLET.cmd` (uses Godot 4.5.1), or open this folder as a project in Godot and press F5.
 
 ## Controls
 | Action | How |
@@ -24,7 +29,7 @@ Double-click `Run SurfForge.cmd` (uses Godot 4.5.1), or open this folder as a pr
 | Export | **Export to SurfsUp**: writes `<name>.pck` into SurfsUp's Maps folder (auto-detected, remembered); in game press ~ and type `map <name>`. Restart SurfsUp before reloading a map you replaced. |
 | Keys | N ramp · R generate a ramp shape · L lock/unlock the selected point · Del delete point/object · Ctrl+D duplicate · F frame · G snap · Ctrl+Z/Y undo/redo · Ctrl+S save |
 
-Maps save as `.sfmap` (plain JSON, engine-neutral so other exporters can be added).
+Maps save as `.mallet` (plain JSON, engine-neutral so other exporters can be added).
 
 ## Credits
 Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
@@ -64,7 +69,7 @@ Play mode uses SUCC by Mark Arneman (MIT): see `THIRD_PARTY.md`.
     heightmap, blend painting, entities from first person, play from here (docs/BUILD_MODE.md)
 20. Outliner ✅ (0.8) names, folders (nested), select / move whole folders, hide, find
 21. Required before 1.0 (planned, not started): playtest builds - Export > Test build makes a small download that
-    drops testers onto the map, and their runs (routes, deaths, times) reach SurfForge live through a relay
+    drops testers onto the map, and their runs (routes, deaths, times) reach MALLET live through a relay
     server on the user's VPS, several testers at once (docs/PLAYTEST.md)
 22. Next: decided with you
 

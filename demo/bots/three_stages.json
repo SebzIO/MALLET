@@ -1,5 +1,5 @@
 {
-  "map": "res://templates/3_three_stages.sfmap",
+  "map": "res://templates/3_three_stages.mallet",
   "params": {
     "air_lead": 1.3833826482296,
     "damp": 0.204338778648525,

@@ -7,7 +7,7 @@ func _init() -> void:
 	var maps: String = OS.get_cmdline_user_args()[0]
 	DirAccess.make_dir_recursive_absolute(maps)
 	var map := {
-		"format": "surfforge-map", "version": 2,
+		"format": "mallet-map", "version": 2,
 		"ramps": [
 			{"points": [[-60, 120, 0], [0, 105, 20], [60, 90, 0]], "width": 13.0, "height": 8.125, "detail": 1.0, "roll": 0.0, "color": "e04f9a"},
 			{"points": [[100, 80, 40], [180, 60, 60]], "width": 13.0, "height": 8.125, "detail": 1.0, "roll": 0.0, "solid": true, "base_depth": 10.0, "color": "4fa3e0"},

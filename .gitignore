@@ -1,4 +1,4 @@
 .godot/
 tests/out/
-maps/smoke_test.sfmap
+maps/smoke_test.mallet
 *.tmp

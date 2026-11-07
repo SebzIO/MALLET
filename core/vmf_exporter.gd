@@ -351,7 +351,7 @@ func build(map: Dictionary, opts := {}) -> String:
 	_out = PackedStringArray()
 	_out.append("versioninfo\n{\n\t\"editorversion\" \"400\"\n\t\"editorbuild\" \"8864\"\n\t\"mapversion\" \"1\"\n\t\"formatversion\" \"100\"\n\t\"prefab\" \"0\"\n}\n")
 	_out.append("visgroups\n{\n}\nviewsettings\n{\n\t\"bSnapToGrid\" \"1\"\n\t\"bShowGrid\" \"1\"\n\t\"bShowLogicalGrid\" \"0\"\n\t\"nGridSpacing\" \"64\"\n\t\"bShow3DGrid\" \"0\"\n}\n")
-	_out.append("world\n{\n\t\"id\" \"%d\"\n\t\"mapversion\" \"1\"\n\t\"classname\" \"worldspawn\"\n\t\"skyname\" \"%s\"\n\t\"maxpropscreenwidth\" \"-1\"\n\t\"detailvbsp\" \"detail.vbsp\"\n\t\"detailmaterial\" \"detail/detailsprites\"\n\t\"comment\" \"Made with %s\"\n" % [_next(), sky, SurfForgeVersion.full()])
+	_out.append("world\n{\n\t\"id\" \"%d\"\n\t\"mapversion\" \"1\"\n\t\"classname\" \"worldspawn\"\n\t\"skyname\" \"%s\"\n\t\"maxpropscreenwidth\" \"-1\"\n\t\"detailvbsp\" \"detail.vbsp\"\n\t\"detailmaterial\" \"detail/detailsprites\"\n\t\"comment\" \"Made with %s\"\n" % [_next(), sky, MalletVersion.full()])
 	_out.append("".join(world))
 	_out.append("}\n")
 	_out.append("".join(details))
@@ -572,7 +572,7 @@ static func _nearest_plate(plates: Array, p: Vector3, above: bool) -> String:
 
 # ------------------------------------------------------------------------------------------------ materials
 static func _mat_name(id: String) -> String:
-	return "surfforge/" + id.to_lower()
+	return "mallet/" + id.to_lower()
 
 
 ## One block piece as a brush, each side with its block side's material and texture placement.
@@ -656,13 +656,13 @@ func _slot_material(sl: Dictionary, alpha_mat: bool) -> String:
 	var name := "%s_v%x" % [String(sl["id"]).to_lower(), hash(params) & 0xffffff]
 	variant_materials[name] = {"name": name, "base": String(sl["id"]).to_lower(), "params": params,
 		"surface": MaterialLibrary.entry(sl["id"]).get("surface", "concrete")}
-	return "SURFFORGE/" + name.to_upper()
+	return "MALLET/" + name.to_upper()
 
 
 ## A material made just for the map (glass, lava): a plain colour.
 func _special_material(name: String, c: Color, params: String) -> String:
 	variant_materials[name] = {"name": name, "color": c.to_html(false), "params": params, "surface": "glass" if name == "sf_glass" else "concrete"}
-	return "SURFFORGE/" + name.to_upper()
+	return "MALLET/" + name.to_upper()
 
 
 static func _box_piece(bx: AABB) -> Array:
@@ -719,11 +719,11 @@ func _material_axes(nrm: Vector3, fs: Dictionary) -> Array:
 		"[%s %s %s %s] %s" % [_n(v2.x), _n(v2.y), _n(v2.z), _n(fmod(sv, VTF_SIZE)), _n(scale)]]
 
 
-## Write the library materials a map uses as Source files under `root` (materials/surfforge/<id>.vtf + .vmt).
+## Write the library materials a map uses as Source files under `root` (materials/mallet/<id>.vtf + .vmt).
 ## Returns the written files as [path inside the game, file on disk].
 static func write_materials(ids: Array, root: String) -> Array:
 	var out := []
-	var dir := root.path_join("materials/surfforge")
+	var dir := root.path_join("materials/mallet")
 	DirAccess.make_dir_recursive_absolute(dir)
 	for id in ids:
 		if id is Dictionary:
@@ -737,18 +737,18 @@ static func write_materials(ids: Array, root: String) -> Array:
 		var vmt := dir.path_join(name + ".vmt")
 		_write_vtf(img, vtf)
 		var f := FileAccess.open(vmt, FileAccess.WRITE)
-		f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"surfforge/%s\"\n\t\"$surfaceprop\" \"%s\"\n}\n" % [name,
+		f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"mallet/%s\"\n\t\"$surfaceprop\" \"%s\"\n}\n" % [name,
 			MaterialLibrary.entry(id).get("surface", "concrete")])
 		f.close()
 		# a self-lit version for glowing blocks (the same texture, shining)
 		var gvmt := dir.path_join(name + "_glow.vmt")
 		var g := FileAccess.open(gvmt, FileAccess.WRITE)
-		g.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"surfforge/%s\"\n\t\"$selfillum\" \"1\"\n\t\"$surfaceprop\" \"%s\"\n}\n" % [name,
+		g.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"mallet/%s\"\n\t\"$selfillum\" \"1\"\n\t\"$surfaceprop\" \"%s\"\n}\n" % [name,
 			MaterialLibrary.entry(id).get("surface", "concrete")])
 		g.close()
-		out.append(["materials/surfforge/%s_glow.vmt" % name, gvmt])
-		out.append(["materials/surfforge/%s.vtf" % name, vtf])
-		out.append(["materials/surfforge/%s.vmt" % name, vmt])
+		out.append(["materials/mallet/%s_glow.vmt" % name, gvmt])
+		out.append(["materials/mallet/%s.vtf" % name, vtf])
+		out.append(["materials/mallet/%s.vmt" % name, vmt])
 	return out
 
 
@@ -762,13 +762,13 @@ static func _write_variant(d: Dictionary, dir: String) -> Array:
 		img.fill(Color.html(d["color"]))
 		var vtf := dir.path_join(name + ".vtf")
 		_write_vtf(img, vtf)
-		out.append(["materials/surfforge/%s.vtf" % name, vtf])
+		out.append(["materials/mallet/%s.vtf" % name, vtf])
 	var vmt := dir.path_join(name + ".vmt")
 	var f := FileAccess.open(vmt, FileAccess.WRITE)
-	f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"surfforge/%s\"\n\t\"$surfaceprop\" \"%s\"\n%s}\n" % [base,
+	f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"mallet/%s\"\n\t\"$surfaceprop\" \"%s\"\n%s}\n" % [base,
 		d.get("surface", "concrete"), d.get("params", "")])
 	f.close()
-	out.append(["materials/surfforge/%s.vmt" % name, vmt])
+	out.append(["materials/mallet/%s.vmt" % name, vmt])
 	return out
 
 
@@ -903,7 +903,7 @@ static func compile(vmf: String, css: String, quality := "fast", materials: Arra
 	var bin := css + "/bin/x64/" if FileAccess.file_exists(css + "/bin/x64/vbsp.exe") else css + "/bin/"
 	var game := css + "/cstrike"
 	var log := PackedStringArray()
-	# custom textures: into cstrike/materials/surfforge so vbsp / vrad find them, and packed into the map below
+	# custom textures: into cstrike/materials/mallet so vbsp / vrad find them, and packed into the map below
 	var packed := write_materials(materials, game) if not materials.is_empty() else []
 	var steps := [["vbsp.exe", ["-game", game, vmf]], ["vvis.exe", (["-fast"] if quality == "fast" else []) + ["-game", game, vmf]],
 		["vrad.exe", (["-fast"] if quality == "fast" else ["-final"]) + ["-game", game, vmf]]]

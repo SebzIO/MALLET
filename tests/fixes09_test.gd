@@ -80,11 +80,11 @@ func _run() -> void:
 	check("#15 an empty never-saved map has nothing to lose", not ed.has_unsaved_changes())
 	ed._make_ramp(Vector3(-40, 60, 0), Vector3(40, 40, 0))
 	check("#15 a never-saved map with a ramp asks before closing", ed.has_unsaved_changes())
-	ed.save_map(out + "/unsaved.sfmap")
+	ed.save_map(out + "/unsaved.mallet")
 	check("#15 after saving nothing is lost", not ed.has_unsaved_changes())
 	(ed.ramps_root.get_child(0) as RampNode).translate_by(Vector3(5, 0, 0))
 	check("#15 moving the ramp after saving counts as a change", ed.has_unsaved_changes())
-	ed.load_map(out + "/unsaved.sfmap")
+	ed.load_map(out + "/unsaved.mallet")
 	check("#15 opening the map again: no changes", not ed.has_unsaved_changes())
 
 	# ---- #5: ground grid on / off (remembered)

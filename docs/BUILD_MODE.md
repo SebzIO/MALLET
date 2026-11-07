@@ -1,8 +1,8 @@
-# Build mode (0.6): Sauerbraten-style building in SurfForge
+# Build mode (0.6): Sauerbraten-style building in MALLET
 
 Build mode (press **E** in the editor) lets you fly around the map in first person and build with cubes in real
 time: point at a face, roll the mouse wheel, and cubes come out of it. It is modelled on the in-game editor of
-**Cube 2: Sauerbraten** (source: <https://github.com/embeddedc/sauerbraten>). SurfForge re-implements the ideas in
+**Cube 2: Sauerbraten** (source: <https://github.com/embeddedc/sauerbraten>). MALLET re-implements the ideas in
 GDScript; no Sauerbraten code is copied.
 
 ## What Sauerbraten's editor does (from reading its source)
@@ -51,12 +51,12 @@ centre. `remip` merges 8 children back into one when nothing would change.
 Other bindings: Space cancels the selection, X flips, C/V copy and paste, Z/U undo, I redo, 0 toggles `allfaces`,
 F2 opens the texture menu. Left drag selects, right click extends the selection, middle click selects corners.
 
-## How it maps onto SurfForge
+## How it maps onto MALLET
 
-A Sauerbraten cube with pushed corners is **always a convex solid with 8 corners**. That is exactly what a SurfForge
+A Sauerbraten cube with pushed corners is **always a convex solid with 8 corners**. That is exactly what a MALLET
 block piece and a CS:S brush are, so build mode needs no translation layer:
 
-| Sauerbraten | SurfForge |
+| Sauerbraten | MALLET |
 | --- | --- |
 | octree leaf with 12 edges | `CubeWorld` leaf: 8 corners × 3 coordinates (0..8), plus 6 texture ids |
 | `gridpower` (units) | grid power p: cubes are 2^p m, from 0.125 m to 64 m (default 1 m) |
@@ -72,7 +72,7 @@ block piece and a CS:S brush are, so build mode needs no translation layer:
 
 **Differences from Sauerbraten, made on purpose:**
 
-- **Building in mid-air.** In Sauerbraten you pull cubes out of existing ones. SurfForge maps start empty, so
+- **Building in mid-air.** In Sauerbraten you pull cubes out of existing ones. MALLET maps start empty, so
   when you aim at nothing, the wheel builds where you're looking.
 - **Building on anything.** You can also pull cubes out of blocks, ramps and platforms.
 - **Pasting.** With nothing selected, V pastes on top of the face you aim at.
@@ -93,7 +93,7 @@ block piece and a CS:S brush are, so build mode needs no translation layer:
 
 ## Done in 0.7
 
-- **Cube objects** (SurfForge's own addition: Sauerbraten's whole map is one cube world). Each build is an object you
+- **Cube objects** (MALLET's own addition: Sauerbraten's whole map is one cube world). Each build is an object you
   move, turn, copy and group in the editor views; build mode edits it in its own grid wherever it is. N starts a new
   one.
 - **Materials** (T): water, lava, glass, clip, noclip, gameclip, death, alpha; M shows / hides the invisible ones.
@@ -109,12 +109,12 @@ block piece and a CS:S brush are, so build mode needs no translation layer:
   cubes.
 - **Toggles:** 5 hidehud, 6 entselsnap, 7 outline, 8 wireframe, L fullbright; F5 savemap, F9 texture name; K is a
   no-op (lighting is live).
-- **P** plays from where you stand and returns to build mode. **Ctrl+P** (SurfForge's own) plays from the
+- **P** plays from where you stand and returns to build mode. **Ctrl+P** (MALLET's own) plays from the
   map's start like the editor's Play, and also returns to build mode.
 
 ## Left out on purpose
 
-- **Lighting bakes** (calclight, patchlight, lightmap settings): SurfForge lights are live, and CS:S bakes its own
+- **Lighting bakes** (calclight, patchlight, lightmap settings): MALLET lights are live, and CS:S bakes its own
   when it compiles.
-- **PVS, waypoints, newmap / mapenlarge:** Godot culls on its own, SurfForge has no bots, and maps have no fixed size.
+- **PVS, waypoints, newmap / mapenlarge:** Godot culls on its own, MALLET has no bots, and maps have no fixed size.
 - **The console:** its commands are keys and menus here (T and F3).

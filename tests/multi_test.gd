@@ -128,9 +128,9 @@ func _run() -> void:
 	ed._rebuild_blocks()
 	ed._set_selection([g1, g2])
 	key(KEY_G, true)
-	ed.save_map(out + "/multi.sfmap")
+	ed.save_map(out + "/multi.mallet")
 	ed._new_map()
-	ed.load_map(out + "/multi.sfmap")
+	ed.load_map(out + "/multi.mallet")
 	await process_frame
 	ed._select_with_group(ed.blocks_root.get_child(0))
 	check("a group is still a group after save / load", ed.selection().size() == 2)

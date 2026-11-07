@@ -6,23 +6,23 @@ next to Source's Hammer: that is the whole idea of this editor.
 1.0.0 is reached only when **every** milestone below is done **and the user says so**. Each milestone ships as its
 own preview (0.10.0, 0.11.0, …) with a tester zip; fixes in between are 0.x.y. Never 1.0.0 by default.
 
-Where we are: **0.9.3** (2026-11-06). Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
+Where we are: **0.10.0** (2026-11-06), the rename. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
 have been tested by the user and a friend.
 
 ---
 
-## 0.10.0: SurfForge becomes MALLET
+## 0.10.0: SurfForge becomes MALLET ✅ (released 2026-11-06)
 Do this first, so every later feature, file and screenshot already carries the new name.
-- [ ] Rename everywhere the user sees it: window title, welcome screen, About text, version string
+- [x] Rename everywhere the user sees it: window title, welcome screen, About text, version string
       ("MALLET 0.10.0 preview"), menus, status messages, help text, READ ME FIRST, THIRD_PARTY, CHANGELOG heading.
-- [ ] Program files: `MALLET.exe` / `MALLET.pck`, zip `MALLET-0.10.0-windows.zip`, Godot project name.
-- [ ] Map files: new extension **`.mallet`**. Open / Save use it; **old `.sfmap` maps still open**
+- [x] Program files: `MALLET.exe` / `MALLET.pck`, zip `MALLET-0.10.0-windows.zip`, Godot project name.
+- [x] Map files: new extension **`.mallet`**. Open / Save use it; **old `.mallet` maps still open**
       (and are saved as `.mallet`). Templates and prefabs renamed too.
-- [ ] Your own data moves with you: Godot keeps settings, your own materials and prefabs under the project name, so
+- [x] Your own data moves with you: Godot keeps settings, your own materials and prefabs under the project name, so
       on first start MALLET copies them over from the old SurfForge folder (mouse settings, fly speed, prefabs, own
       materials, export folders).
-- [ ] Exports: the `made_with` stamp in SurfsUp maps, CS:S file comments, tester build names.
-- [ ] Code / tests / docs: class names (`SurfForgeVersion` …), launcher `.cmd` files, memory notes, handover.
+- [x] Exports: the `made_with` stamp in SurfsUp maps, CS:S file comments, tester build names.
+- [x] Code / tests / docs: class names (`MalletVersion` …), launcher `.cmd` files, memory notes, handover.
       (The local folders `D:\SurfForge` and `D:\SurfForge_builds` keep their names: development only.)
 
 ## 0.11.0: Materials

@@ -85,7 +85,7 @@ func _run() -> void:
 	await process_frame
 
 	# --- saved with the map, back on load, never exported
-	var path := out + "/ghost_test.sfmap"
+	var path := out + "/ghost_test.mallet"
 	ed.save_map(path)
 	var saved_ghost: Dictionary = ed.best_ghost.duplicate(true)
 	ed._new_map()

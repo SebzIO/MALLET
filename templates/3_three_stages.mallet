@@ -109,7 +109,7 @@
     "sun_pitch": 7.0,
     "sun_yaw": 70.0
   },
-  "format": "surfforge-map",
+  "format": "mallet-map",
   "ramps": [
     {
       "angle": 56.0,

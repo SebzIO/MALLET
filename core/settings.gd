@@ -1,6 +1,6 @@
 class_name Settings
 extends RefCounted
-## Your own SurfForge settings (not part of any map), kept in user://preferences.cfg so they survive restarts:
+## Your own MALLET settings (not part of any map), kept in user://preferences.cfg so they survive restarts:
 ## mouse sensitivity for the editor's 3D view, build mode and play mode, and inverted mouse up / down. (Its own file:
 ## settings.cfg is the editor's export folders, and two writers of one file would wipe out each other's entries.)
 
@@ -15,6 +15,11 @@ const DEFAULTS := {
 }
 
 static var _cfg: ConfigFile = null
+
+
+## Read the file again (after Migrate copied the old SurfForge one in).
+static func reload() -> void:
+	_cfg = null
 
 
 static func _load() -> void:

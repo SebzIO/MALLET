@@ -15,8 +15,8 @@ static var _materials := {}
 static var _previews := {}
 
 
-## Where the starter materials are: inside the project, or (in an exported SurfForge, which can't pack this folder)
-## the "materials" folder next to SurfForge.exe.
+## Where the starter materials are: inside the project, or (in an exported MALLET, which can't pack this folder)
+## the "materials" folder next to MALLET.exe.
 static func starter_dir() -> String:
 	if FileAccess.file_exists(DIR + "library.json"):
 		return DIR

@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.10.0 preview — 2026-11-06: SurfForge is now MALLET
+
+- The editor has a new name: **MALLET**, Mapping And Level Layout Editor Tool. (Hammer is Source's editor; a mallet is
+  the simpler tool anyone can pick up.) Everything is renamed: the window, welcome screen, menus and messages, the
+  program (`MALLET.exe`) and the tester zip.
+- Maps are saved as **`.mallet`**, prefabs as `.malletprefab`. Maps and prefabs from SurfForge (`.sfmap`,
+  `.sfprefab`) still open, and saving an old map writes a `.mallet` beside it. Objects copied in SurfForge still paste.
+- On its first start MALLET copies your SurfForge settings (mouse, fly speed, grid, export folders), your own
+  materials and your prefabs across, once, never overwriting anything.
+- CS:S exports put the map's textures in `materials/mallet` (was `materials/surfforge`).
+- Everything below this line was released under the SurfForge name.
+
 ## 0.9.3 preview — 2026-11-06: square grid on blocks and cubes
 
 - Blocks and untextured cubes show the Dev grid as even 1 m squares. They borrowed the ramp's grid, which is

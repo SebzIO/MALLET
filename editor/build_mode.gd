@@ -409,7 +409,7 @@ func _key(e: InputEventKey) -> void:
 		KEY_7: _toggle("outline")
 		KEY_8: _toggle("wireframe")
 		KEY_L: _toggle("fullbright")
-		KEY_K: say("Lighting is live in SurfForge - nothing to bake")
+		KEY_K: say("Lighting is live in MALLET - nothing to bake")
 		KEY_T: _open_commands()
 		KEY_TAB: _open_place_menu()
 		KEY_KP_ENTER: _select_ents_in_sel()

@@ -3,7 +3,7 @@ config_version=5
 
 [application]
 
-config/name="SurfForge"
+config/name="MALLET"
 config/version="0.8.9"
 config/description="A surf map editor that does the heavy lifting."
 run/main_scene="res://editor/main.tscn"

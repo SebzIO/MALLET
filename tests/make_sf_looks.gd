@@ -16,10 +16,10 @@ func _init() -> void:
 		i += 1
 	var play_z := -105.0 + Look.LOOK_ORDER.find("aurora") * 30.0
 	var env := Look.preset_environment("aurora")
-	var map := {"format": "surfforge-map", "version": 2, "environment": env, "ramps": ramps,
+	var map := {"format": "mallet-map", "version": 2, "environment": env, "ramps": ramps,
 		"entities": [{"kind": "start", "position": [-84, 128, play_z], "size": [20, 2, 26], "yaw": -90.0},
 			{"kind": "finish", "position": [110, 60, play_z], "size": [40, 2, 40], "yaw": 0.0}]}
 	print("export: '", SurfsUpExporter.export_pack(map, "sf_looks", SurfsUpExporter.guess_maps_dir()), "'")
-	var f := FileAccess.open("res://maps/sf_looks.sfmap", FileAccess.WRITE)
+	var f := FileAccess.open("res://maps/sf_looks.mallet", FileAccess.WRITE)
 	f.store_string(JSON.stringify(map, "  "))
 	quit()

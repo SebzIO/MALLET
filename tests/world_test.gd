@@ -109,11 +109,11 @@ func _run() -> void:
 	ed._rebuild_blocks()
 
 	# save / load
-	ed.save_map(out + "/world_test.sfmap")
+	ed.save_map(out + "/world_test.mallet")
 	var nl: int = ed.lights_root.get_child_count()
 	var nb: int = ed.blocks_root.get_child_count()
 	ed._new_map()
-	ed.load_map(out + "/world_test.sfmap")
+	ed.load_map(out + "/world_test.mallet")
 	await settle()
 	check("lights and water come back with the map", ed.lights_root.get_child_count() == nl and ed.blocks_root.get_child_count() == nb
 		and ed.blocks_root.get_children().any(func(b): return b.data.get("water", false)))

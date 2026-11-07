@@ -60,7 +60,7 @@
       "yaw": 0.0
     }
   ],
-  "format": "surfforge-map",
+  "format": "mallet-map",
   "ramps": [
     {
       "color": "edebe3",

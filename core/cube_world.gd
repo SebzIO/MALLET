@@ -2635,7 +2635,7 @@ func chunk_cubes(ck: Vector3i) -> Array:
 
 
 # ------------------------------------------------------------------------------------------------ saving
-## For the .sfmap: a palette of texture slots and the cubes packed into base64, plus material cells.
+## For the .mallet: a palette of texture slots and the cubes packed into base64, plus material cells.
 func to_dict() -> Dictionary:
 	if _saved_rev == revision:
 		return _saved

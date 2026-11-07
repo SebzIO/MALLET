@@ -352,9 +352,9 @@ func _run() -> void:
 
 	var total := cubes()
 	var cm_pos: Vector3 = cm.position
-	ed.save_map(out + "/build_test.sfmap")
+	ed.save_map(out + "/build_test.mallet")
 	ed._new_map()
-	ed.load_map(out + "/build_test.sfmap")
+	ed.load_map(out + "/build_test.mallet")
 	await frames(3)
 	check("cube objects come back with the map (every cube, where they were)", cubes() == total and models().size() == 2
 		and models()[0].position.distance_to(cm_pos) < 0.01)

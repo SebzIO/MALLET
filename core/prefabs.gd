@@ -5,7 +5,8 @@ extends RefCounted
 
 const BUILTIN_DIR := "res://prefabs/"
 const USER_DIR := "user://prefabs/"
-const EXT := "sfprefab"
+const EXT := "malletprefab"
+const OLD_EXTS := ["sfprefab"]          ## prefabs saved before the rename (SurfForge) still show up
 
 
 ## Every prefab: [{"name", "description", "path", "builtin"}], the starter ones first.
@@ -17,7 +18,7 @@ static func list() -> Array:
 		var files := DirAccess.get_files_at(dir)
 		files.sort()
 		for f in files:
-			if f.get_extension() != EXT:
+			if f.get_extension() != EXT and not f.get_extension() in OLD_EXTS:
 				continue
 			var data = JSON.parse_string(FileAccess.get_file_as_string(dir + f))
 			if data is Dictionary:

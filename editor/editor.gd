@@ -1,5 +1,5 @@
 extends Node3D
-## SurfForge main editor: four views (perspective / top / front / side), ramp + platform tools,
+## MALLET main editor: four views (perspective / top / front / side), ramp + platform tools,
 ## properties panel, undo/redo, save/load and play mode.
 ##
 ## Mouse (any view):  left-click selects. Drag a yellow handle to reshape a ramp; drag the object itself to move it.
@@ -11,7 +11,10 @@ extends Node3D
 ##                    arrows / PgUp PgDn nudge · [ ] rotate 15° · V one/four views · G snap · P play
 ##                    Ctrl+Z / Ctrl+Y undo/redo · Ctrl+S save · Ctrl+O open
 
-const MAP_FORMAT := "surfforge-map"
+const MAP_FORMAT := "mallet-map"
+const OLD_MAP_FORMATS := ["surfforge-map"]     ## maps saved before the rename (SurfForge) still open
+const MAP_EXT := "mallet"
+const OLD_MAP_EXTS := ["sfmap"]
 const MAP_VERSION := 2
 const HANDLE_RADIUS := 6.0          ## px
 const PICK_PIXELS := 12.0
@@ -147,6 +150,8 @@ const SETTINGS_PATH := "user://settings.cfg"
 
 
 func _ready() -> void:
+	if get_tree().current_scene == self:
+		Migrate.from_surfforge()                         # first start after the rename: bring SurfForge's settings along
 	# The editor draws handles, outlines and arcs from objects' true positions, so the 3D view must not be
 	# smoothed between physics ticks (that made outlines trail moving objects and the camera).
 	# Only the play-mode player uses physics interpolation, as in SurfsUp.
@@ -214,7 +219,7 @@ func _ask_save_before_quit() -> void:
 	d.popup_centered()
 
 
-## The welcome screen greets you when SurfForge starts (not when a test builds the editor).
+## The welcome screen greets you when MALLET starts (not when a test builds the editor).
 func _show_welcome_if_main() -> void:
 	if get_tree().current_scene == self:
 		welcome.popup("Skip, use the simple starter map")
@@ -280,14 +285,14 @@ func _build_ui_main() -> void:
 	bar.add_theme_constant_override("v_separation", 2)
 	bar_panel.add_child(bar)
 	var title := Label.new()
-	title.text = "  SurfForge"
+	title.text = "  MALLET"
 	title.add_theme_font_size_override("font_size", 18)
 	bar.add_child(title)
 	var ver := Label.new()
-	ver.text = "%s  " % SurfForgeVersion.VERSION
+	ver.text = "%s  " % MalletVersion.VERSION
 	ver.add_theme_font_size_override("font_size", 12)
 	ver.add_theme_color_override("font_color", Color(0.6, 0.64, 0.7))
-	ver.tooltip_text = SurfForgeVersion.full()
+	ver.tooltip_text = MalletVersion.full()
 	bar.add_child(ver)
 	for spec in [["New", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
 			["Undo", undo], ["Redo", redo], ["|", null]]:
@@ -400,7 +405,7 @@ func _build_ui_main() -> void:
 	_file_dialog = FileDialog.new()
 	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	_file_dialog.use_native_dialog = true
-	_file_dialog.filters = PackedStringArray(["*.sfmap ; SurfForge map"])
+	_file_dialog.filters = PackedStringArray(["*.mallet, *.sfmap ; MALLET map"])   # (.sfmap: from before the rename)
 	_file_dialog.current_dir = ProjectSettings.globalize_path("res://maps") if OS.has_feature("editor") else OS.get_executable_path().get_base_dir()
 	_file_dialog.file_selected.connect(_on_file_chosen)
 	_file_dialog.canceled.connect(func(): _quit_after_save = false)   # (backed out of Save-then-close)
@@ -1619,7 +1624,7 @@ func set_presentation(on: bool) -> void:
 
 
 func _set_title(map_name: String) -> void:
-	get_window().title = SurfForgeVersion.full() + ("  -  " + map_name if map_name != "" else "")
+	get_window().title = MalletVersion.full() + ("  -  " + map_name if map_name != "" else "")
 
 
 ## F11: fullscreen (no title bar - handy for recording) and back.
@@ -2656,13 +2661,13 @@ func _kind_of(o: Node3D) -> String:
 
 
 func _clip_of(objs: Array) -> Dictionary:
-	var clip := {"surfforge_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": [], "texts": [], "lights": [], "cube_models": []}
+	var clip := {"mallet_clipboard": 1, "ramps": [], "entities": [], "props": [], "blocks": [], "texts": [], "lights": [], "cube_models": []}
 	for o in objs:
 		clip[_kind_of(o)].append(_with_group(o))
 	return clip
 
 
-## Ctrl+C: the selection goes on the system clipboard (so it pastes into another map, or another SurfForge).
+## Ctrl+C: the selection goes on the system clipboard (so it pastes into another map, or another MALLET).
 func _copy() -> void:
 	if selection().is_empty():
 		return
@@ -2673,8 +2678,8 @@ func _copy() -> void:
 ## Ctrl+V: paste in the middle of the 3D view.
 func _paste_clicked() -> void:
 	var data = JSON.parse_string(DisplayServer.clipboard_get())
-	if typeof(data) != TYPE_DICTIONARY or not data.has("surfforge_clipboard"):
-		_set_status("Nothing to paste: copy something in SurfForge first (Ctrl+C).")
+	if typeof(data) != TYPE_DICTIONARY or not (data.has("mallet_clipboard") or data.has("surfforge_clipboard")):
+		_set_status("Nothing to paste: copy something in MALLET first (Ctrl+C).")
 		return
 	# centre of what was copied
 	var objs := _paste(data, Vector3.ZERO, true)
@@ -3992,7 +3997,7 @@ func _new_map_clicked() -> void:
 
 func _on_template_chosen(path: String) -> void:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if typeof(data) != TYPE_DICTIONARY or data.get("format", "") != MAP_FORMAT:
+	if typeof(data) != TYPE_DICTIONARY or not (data.get("format", "") == MAP_FORMAT or data.get("format", "") in OLD_MAP_FORMATS):
 		_set_status("Template %s could not be read" % path.get_file())
 		return
 	welcome.hide()
@@ -4025,8 +4030,10 @@ func _save_clicked() -> void:
 
 func _on_file_chosen(path: String) -> void:
 	if _file_dialog.file_mode == FileDialog.FILE_MODE_SAVE_FILE:
-		if not path.ends_with(".sfmap"):
-			path += ".sfmap"
+		if path.get_extension() in OLD_MAP_EXTS:
+			path = path.get_basename()                   # (saving an old SurfForge map: it becomes a .mallet)
+		if not path.ends_with("." + MAP_EXT):
+			path += "." + MAP_EXT
 		save_map(path)
 	else:
 		load_map(path)
@@ -4038,7 +4045,7 @@ func save_map(path: String) -> void:
 		_set_status("Could not save %s" % path)
 		return
 	var d := _map_dict()
-	d["made_with"] = SurfForgeVersion.full()
+	d["made_with"] = MalletVersion.full()
 	if not best_ghost.is_empty():
 		d["ghost"] = best_ghost                          # the best run travels with the map (editor only)
 	f.store_string(JSON.stringify(d, "  "))
@@ -4053,8 +4060,8 @@ func save_map(path: String) -> void:
 
 func load_map(path: String) -> void:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if typeof(data) != TYPE_DICTIONARY or data.get("format", "") != MAP_FORMAT:
-		_set_status("%s is not a SurfForge map" % path.get_file())
+	if typeof(data) != TYPE_DICTIONARY or not (data.get("format", "") == MAP_FORMAT or data.get("format", "") in OLD_MAP_FORMATS):
+		_set_status("%s is not a MALLET map" % path.get_file())
 		return
 	_checkpoint()
 	_load_dict(data)
@@ -4279,7 +4286,7 @@ func _css_clicked() -> void:
 	var base := current_path.get_file().get_basename() if current_path != "" else "mymap"
 	var default_name := base if base.begins_with("surf_") else "surf_" + base
 	_css_name.text = cfg.get_value("css", "name_" + current_path.md5_text(), default_name)
-	_css_dir.text = cfg.get_value("css", "dir", "D:/SurfForge_exports/css")
+	_css_dir.text = cfg.get_value("css", "dir", OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS).path_join("MALLET exports/css"))
 	var sky: String = VmfExporter.SKIES.get(environment.get("preset", "day"), "sky_day01_01")
 	_css_sky.select(maxi(VmfExporter.SKY_CHOICES.find(sky), 0))
 	var css := VmfExporter.find_css()
@@ -4310,7 +4317,7 @@ func _do_css_export() -> void:
 	if not _css_compile.button_pressed or _css_compile.disabled:
 		var files := VmfExporter.write_materials(res.get("materials", []), vmf.get_base_dir())
 		if not files.is_empty():
-			notes += "\n\nThe map's textures are in %s/materials/surfforge - copy that materials folder into cstrike (or compile here, which packs them into the map)." % vmf.get_base_dir()
+			notes += "\n\nThe map's textures are in %s/materials/mallet - copy that materials folder into cstrike (or compile here, which packs them into the map)." % vmf.get_base_dir()
 		_show_message("Exported for CS:S", "Wrote %s (%d brushes).\n\n%s" % [vmf, res["brushes"], notes])
 		_set_status("Wrote %s - open it in Hammer or compile it with vbsp / vvis / vrad." % vmf.get_file())
 		return

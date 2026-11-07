@@ -93,7 +93,7 @@ func template_first_surf() -> Dictionary:
 	var c := course(start, 0.0, [[150, 40, 35, 40, 1], [140, 34, 40, 42, -1], [150, 34, 40, 44, 1], [140, 30, 40, 46, -1],
 		[160, 34, 30, 0, 0]], ["2b4ea3", "a33b2b", "2b8a4e", "7a3ba3", "c48a1c"], ["ceramic"])
 	var fin := landing(c[1], c[2], 28.0)
-	return {"format": "surfforge-map", "version": 2,
+	return {"format": "mallet-map", "version": 2,
 		"template": {"title": "First Surf", "description": "A classic surf: five glazed-ceramic ramps curving round in a big U on a clear day. Every jump is makeable at 85% speed."},
 		"environment": Look.preset_environment("day"), "ramps": c[0],
 		"entities": [{"kind": "start", "position": v3(start), "size": [20, 2, 26], "yaw": 0.0},
@@ -118,7 +118,7 @@ func template_three_stages() -> Dictionary:
 			ents.append({"kind": "teleport", "position": v3(drop_to), "size": [40, 30, 40], "yaw": 0.0, "number": k + 2, "keep_speed": false})
 		else:
 			ents.append({"kind": "finish", "position": v3(drop_to - Vector3(0, 5, 0)), "size": [44, 2, 44], "yaw": 0.0})
-	return {"format": "surfforge-map", "version": 2,
+	return {"format": "mallet-map", "version": 2,
 		"template": {"title": "Three Stages", "description": "Three short stages joined by teleports, at sunset: falling off sends you back to your stage's plate, and the finish needs every stage."},
 		"environment": Look.preset_environment("sunset"), "ramps": ramps, "entities": ents}
 
@@ -149,7 +149,7 @@ func template_aurora() -> Dictionary:
 	var e_boost: float = v.length_squared() / (2.0 * JumpCheck.G) + ex[0].y
 	var speed2 := sqrt(maxf(2.0 * JumpCheck.G * (e_boost - ex2[0].y), 0.0))
 	var fin := landing(ex2, speed2, 30.0)
-	return {"format": "surfforge-map", "version": 2,
+	return {"format": "mallet-map", "version": 2,
 		"template": {"title": "Aurora Night", "description": "Under the northern lights: aurora, neon and nebula ramps, with a booster that throws you across the big gap."},
 		"environment": Look.preset_environment("aurora"), "ramps": ramps,
 		"entities": [{"kind": "start", "position": v3(start), "size": [20, 2, 26], "yaw": 0.0},
@@ -159,7 +159,7 @@ func template_aurora() -> Dictionary:
 
 
 func template_blank() -> Dictionary:
-	return {"format": "surfforge-map", "version": 2,
+	return {"format": "mallet-map", "version": 2,
 		"template": {"title": "Blank", "description": "Just a start and a finish. Press N to add your first ramp."},
 		"environment": Look.preset_environment("day"), "ramps": [],
 		"entities": [{"kind": "start", "position": [0, 200, 0], "size": [20, 2, 26], "yaw": 0.0},
@@ -218,7 +218,7 @@ func verify(name: String, map: Dictionary) -> void:
 	img.save_png(ProjectSettings.globalize_path("res://templates/%s.png" % name))
 	cam.cull_mask = 0xFFFFF
 	cam.fov = 70.0
-	var f := FileAccess.open("res://templates/%s.sfmap" % name, FileAccess.WRITE)
+	var f := FileAccess.open("res://templates/%s.mallet" % name, FileAccess.WRITE)
 	f.store_string(JSON.stringify(map, "  "))
 	f.close()
 	print("%s: %s" % [name, "OK" if bad == 0 else "%d FAILED JUMPS" % bad])

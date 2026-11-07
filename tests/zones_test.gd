@@ -58,8 +58,8 @@ func _run() -> void:
 	check("without a plate, the first start zone is where you spawn", ed._find_entity("start") == s1)
 
 	# save / load
-	ed.save_map(out + "/zones.sfmap")
-	ed.load_map(out + "/zones.sfmap")
+	ed.save_map(out + "/zones.mallet")
+	ed.load_map(out + "/zones.mallet")
 	var zs: Array = ed.entities_root.get_children().filter(func(e): return e.is_zone_box())
 	check("zone boxes survive saving and opening", zs.size() == 3)
 	var map: Dictionary = ed._map_dict()

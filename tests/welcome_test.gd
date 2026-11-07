@@ -32,7 +32,7 @@ func _run() -> void:
 	ok = ok and thumbs == 4
 	await shot(out + "/welcome.png")
 	var before: int = ed.ramps_root.get_child_count()
-	ed.welcome.template_chosen.emit("res://templates/4_aurora_night.sfmap")
+	ed.welcome.template_chosen.emit("res://templates/4_aurora_night.mallet")
 	await process_frame
 	var n: int = ed.ramps_root.get_child_count()
 	var problems: PackedStringArray = SurfsUpExporter.check(ed._map_dict())

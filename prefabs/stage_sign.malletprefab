@@ -52,7 +52,7 @@
   "name": "Stage sign",
   "props": [],
   "ramps": [],
-  "surfforge_clipboard": 1,
+  "mallet_clipboard": 1,
   "texts": [
     {
       "align": "center",

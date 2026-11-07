@@ -1,8 +1,8 @@
 extends SceneTree
-## Exports the in-game test map sf_stages to SurfsUp's Maps (and saves maps/sf_stages.sfmap).
+## Exports the in-game test map sf_stages to SurfsUp's Maps (and saves maps/sf_stages.mallet).
 func _init() -> void:
 	var map := {
-		"format": "surfforge-map", "version": 2,
+		"format": "mallet-map", "version": 2,
 		"ramps": [
 			{"points": [[-60, 120, 0], [0, 105, 0], [60, 90, 0]], "width": 13.0, "height": 8.125, "detail": 1.0, "roll": 0.0, "color": "edebe3"},
 			{"points": [[-60, 120, 200], [0, 105, 200], [60, 90, 200]], "width": 13.0, "height": 8.125, "detail": 1.0, "roll": 0.0, "color": "9fd3ff"},
@@ -16,6 +16,6 @@ func _init() -> void:
 	}
 	print("check: ", SurfsUpExporter.check(map))
 	print("export: '", SurfsUpExporter.export_pack(map, "sf_stages", SurfsUpExporter.guess_maps_dir()), "'")
-	var f := FileAccess.open("res://maps/sf_stages.sfmap", FileAccess.WRITE)
+	var f := FileAccess.open("res://maps/sf_stages.mallet", FileAccess.WRITE)
 	f.store_string(JSON.stringify(map, "  "))
 	quit()

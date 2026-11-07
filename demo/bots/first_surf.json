@@ -1,5 +1,5 @@
 {
-  "map": "res://templates/2_first_surf.sfmap",
+  "map": "res://templates/2_first_surf.mallet",
   "params": {
     "air_lead": 1.61881145834923,
     "damp": 0.431306274980307,

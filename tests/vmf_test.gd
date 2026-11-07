@@ -33,11 +33,11 @@ func _run() -> void:
 	check("CS:S found", css != "", css)
 	var maps := {}
 	for t in ["2_first_surf", "3_three_stages", "4_aurora_night"]:
-		var d = JSON.parse_string(FileAccess.get_file_as_string("res://templates/%s.sfmap" % t))
+		var d = JSON.parse_string(FileAccess.get_file_as_string("res://templates/%s.mallet" % t))
 		d.erase("template")
 		maps["sf_" + t.substr(2)] = d
 	# every kind of object, a locked ramp and a half ramp
-	var every := {"format": "surfforge-map", "version": 2, "environment": Look.preset_environment("sunset"), "props": [],
+	var every := {"format": "mallet-map", "version": 2, "environment": Look.preset_environment("sunset"), "props": [],
 		"ramps": [
 			{"points": [[-60, 120, 0], [0, 105, -10], [60, 90, 0], [120, 75, 20]], "frozen": [{"end": 1, "angle": 56.0, "face_length": 10.5,
 				"end_ghost": [60, 90, 0], "tangent_lock": true}], "angle": 60.0, "face_length": 12.0},
@@ -66,7 +66,7 @@ func _run() -> void:
 		if not CubeWorld._cut_of(cw.leaves[k]).is_empty():
 			cuts += 1
 	check("split slopes map has exact cut pieces", cuts > 0, "(%d of %d cubes)" % [cuts, cw.leaves.size()])
-	maps["sf_split_slopes"] = {"format": "surfforge-map", "version": 2, "environment": Look.preset_environment("sunset"),
+	maps["sf_split_slopes"] = {"format": "mallet-map", "version": 2, "environment": Look.preset_environment("sunset"),
 		"props": [], "ramps": [], "cube_models": [{"cubes": cw.to_dict(), "position": [-200, 20, -40], "yaw": 0.0}],
 		"entities": [{"kind": "start", "position": [-220, 40, 0], "size": [20, 2, 20], "yaw": 0.0},
 			{"kind": "finish", "position": [300, 10, 0], "size": [20, 2, 20], "yaw": 0.0}]}

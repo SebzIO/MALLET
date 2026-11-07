@@ -97,7 +97,7 @@ func _run() -> void:
 	ed._select(back)
 	ed._duplicate_clicked()
 	check("duplicate", ed.props_root.get_child_count() == 2)
-	var map_path := out + "/prop_test.sfmap"
+	var map_path := out + "/prop_test.mallet"
 	ed.save_map(map_path)
 	ed._new_map()
 	check("a new map has no props", ed.props_root.get_child_count() == 0)

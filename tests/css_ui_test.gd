@@ -14,7 +14,7 @@ func _run() -> void:
 	var ed = load("res://editor/main.tscn").instantiate()
 	root.add_child(ed)
 	await process_frame
-	ed.welcome.template_chosen.emit("res://templates/3_three_stages.sfmap")
+	ed.welcome.template_chosen.emit("res://templates/3_three_stages.mallet")
 	await process_frame
 	ed._css_clicked()
 	ed._css_name.text = "sf_dialog_test"

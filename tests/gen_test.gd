@@ -127,7 +127,7 @@ func _run() -> void:
 	await shot("gen_course")
 	ed._toggle_views()
 	if args.size() > 1:
-		var f := FileAccess.open(out + "/sf_generators.sfmap", FileAccess.WRITE)
+		var f := FileAccess.open(out + "/sf_generators.mallet", FileAccess.WRITE)
 		f.store_string(JSON.stringify(d, "  "))
 		f.close()
 		print("export: '", SurfsUpExporter.export_pack(d, "sf_generators", args[1]), "'")

@@ -24,7 +24,7 @@ func _save(name: String, description: String, clip: Dictionary) -> void:
 	for kind in ["blocks", "texts", "lights"]:
 		for d in clip.get(kind, []):
 			d["group"] = group
-	var full := {"surfforge_clipboard": 1, "ramps": [], "entities": [], "props": [],
+	var full := {"mallet_clipboard": 1, "ramps": [], "entities": [], "props": [],
 		"blocks": clip.get("blocks", []), "texts": clip.get("texts", []), "lights": clip.get("lights", [])}
 	Prefabs.save(name, full, description, DIR)
 

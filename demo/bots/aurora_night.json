@@ -1,5 +1,5 @@
 {
-  "map": "res://templates/4_aurora_night.sfmap",
+  "map": "res://templates/4_aurora_night.mallet",
   "params": {
     "air_lead": 2.94078060984612,
     "damp": 0.310047283675522,

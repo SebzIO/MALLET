@@ -1,6 +1,6 @@
 class_name SurfsUpExporter
 extends RefCounted
-## Turns a SurfForge map (the plain .sfmap dictionary) into a SurfsUp map pack: <Maps>/<name>.pck containing
+## Turns a MALLET map (the plain .mallet dictionary) into a SurfsUp map pack: <Maps>/<name>.pck containing
 ## one self-contained scene at res://Levels/<name>.tscn, loaded in game with `map <name>`.
 ##
 ## Rules learned from SurfsUp 2.1:
@@ -62,7 +62,7 @@ static func check(map: Dictionary) -> PackedStringArray:
 static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	var root := Node3D.new()
 	root.name = map_name
-	root.set_meta("made_with", SurfForgeVersion.full())
+	root.set_meta("made_with", MalletVersion.full())
 	var lowest := INF
 
 	var look_env: Dictionary = Look.default_environment()

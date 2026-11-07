@@ -1,6 +1,6 @@
 class_name WelcomeScreen
 extends Control
-## The "start a new map" screen: a card per ready-made template (res://templates/*.sfmap with a matching .png
+## The "start a new map" screen: a card per ready-made template (res://templates/*.mallet with a matching .png
 ## thumbnail), plus "Open existing map…". Shown on launch and when New is pressed.
 
 signal template_chosen(path: String)
@@ -64,7 +64,7 @@ func _ready() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
 	var ver := Label.new()
-	ver.text = SurfForgeVersion.full() + "   "
+	ver.text = MalletVersion.full() + "   "
 	ver.add_theme_color_override("font_color", Color(0.55, 0.58, 0.64))
 	row.add_child(ver)
 	_close = Button.new()
@@ -76,7 +76,7 @@ func _ready() -> void:
 static func template_paths() -> PackedStringArray:
 	var out := PackedStringArray()
 	for f in DirAccess.get_files_at(TEMPLATE_DIR):
-		if f.ends_with(".sfmap"):
+		if f.ends_with(".mallet"):
 			out.append(TEMPLATE_DIR + f)
 	out.sort()
 	return out

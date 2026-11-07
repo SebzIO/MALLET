@@ -15,7 +15,7 @@ func _run() -> void:
 	ed = load("res://editor/main.tscn").instantiate()
 	root.add_child(ed)
 	await process_frame
-	ed.welcome.template_chosen.emit("res://templates/%s.sfmap" % which)
+	ed.welcome.template_chosen.emit("res://templates/%s.mallet" % which)
 	for i in 3:
 		await physics_frame
 	ed._play_clicked()

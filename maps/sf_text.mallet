@@ -87,7 +87,7 @@
     "sun_pitch": 55.0,
     "sun_yaw": -35.0
   },
-  "format": "surfforge-map",
+  "format": "mallet-map",
   "ghost": {
     "hz": 20.0,
     "samples": [
@@ -523,7 +523,7 @@
     "time": 5.26666666666665
   },
   "lights": [],
-  "made_with": "SurfForge 0.5.4 preview",
+  "made_with": "MALLET 0.5.4 preview",
   "props": [],
   "ramps": [
     {

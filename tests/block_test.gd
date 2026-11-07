@@ -113,7 +113,7 @@ func _run() -> void:
 		and absf(drawn.global_position.x - 64.0) < 0.01, "(%s at x %.1f)" % [drawn.size(), drawn.global_position.x])
 
 	# save / load
-	var path := out + "/block_test.sfmap"
+	var path := out + "/block_test.mallet"
 	ed.save_map(path)
 	var count: int = ed.blocks_root.get_child_count()
 	ed._new_map()

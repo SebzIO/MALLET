@@ -110,14 +110,14 @@ func _run() -> void:
 		var c := VmfExporter.compile(vmf, css, "fast", mats)
 		var log: String = c["log"]
 		var missing := log.count("not found")
-		check("compiles; the tools find every material", c["error"] == "" and not log.to_lower().contains('material "surfforge'),
+		check("compiles; the tools find every material", c["error"] == "" and not log.to_lower().contains('material "mallet'),
 			"%s (%d 'not found' lines)" % [c["error"], missing])
 		var listing := []
 		var bin := css + "/bin/x64/bspzip.exe"
 		OS.execute(bin, PackedStringArray(["-game", css + "/cstrike", "-dir", c["bsp"] if c["bsp"] != "" else vmf.get_basename() + ".bsp"]), listing, true)
 		var inside: String = "".join(listing).to_lower()
-		check("the textures are packed inside the .bsp", inside.contains("materials/surfforge/bricks104.vtf") and inside.contains("materials/surfforge/metal009.vmt"))
-		var vtf := FileAccess.get_file_as_bytes(css + "/cstrike/materials/surfforge/bricks104.vtf")
+		check("the textures are packed inside the .bsp", inside.contains("materials/mallet/bricks104.vtf") and inside.contains("materials/mallet/metal009.vmt"))
+		var vtf := FileAccess.get_file_as_bytes(css + "/cstrike/materials/mallet/bricks104.vtf")
 		check("VTF header: 'VTF', v7.2, 512x512, DXT1", vtf.size() > 80 and vtf.slice(0, 3).get_string_from_ascii() == "VTF"
 			and vtf.decode_u32(4) == 7 and vtf.decode_u32(8) == 2 and vtf.decode_u16(16) == 512 and vtf.decode_u32(52) == 13)
 	# your own image becomes a material

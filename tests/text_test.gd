@@ -116,10 +116,10 @@ CD", "height": 2.0, "position": [0, 120, 0]})
 		check("a font file from disk works", ff._mesh.mesh.get_surface_count() > 0 and TextShape.convex_polygons(TextShape.spec(ff.data)).size() > 2)
 
 	# save / load
-	ed.save_map(out + "/text_test.sfmap")
+	ed.save_map(out + "/text_test.mallet")
 	var n: int = ed.texts_root.get_child_count()
 	ed._new_map()
-	ed.load_map(out + "/text_test.sfmap")
+	ed.load_map(out + "/text_test.mallet")
 	await settle()
 	check("texts come back with the map", ed.texts_root.get_child_count() == n)
 

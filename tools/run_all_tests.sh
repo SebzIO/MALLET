@@ -1,5 +1,5 @@
 #!/bin/bash
-# Full SurfForge regression: every tests/*.gd except generators / screenshot helpers, each with a time limit.
+# Full MALLET regression: every tests/*.gd except generators / screenshot helpers, each with a time limit.
 G="/c/Users/<user>/Downloads/Godot_v4.5.1-stable_win64.exe/Godot_v4.5.1-stable_win64_console.exe"
 cd /d/SurfForge || exit 1
 OUT="$TEMP/sf_regress"
