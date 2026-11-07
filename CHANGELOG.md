@@ -5,11 +5,11 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 
 ## Unreleased (0.11.0: materials)
 
-- **Getridou's materials**: 161 materials made by Getridou, shipped with his permission (thank you!). They have their
-  own "Getridou" section in the material picker with his credit, and "by Getridou" on each one. Converted from
-  Sauerbraten's format with its own texture scale (most repeat every 16 m, as Getridou made them); colour, surface
-  detail (125), shininess (139) and glow (25). The rest of that folder (other artists, or no artist named) isn't
-  included: see materials/GETRIDOU.txt.
+- **Getridou's materials**: 170 materials made by Getridou (a few from photos his friends sent him), shipped with his
+  permission (thank you!). They have their own "Getridou" section in the material picker with his credit, and "by
+  Getridou" on each one. Converted from Sauerbraten's format with its own texture scale (most repeat every 16 m, as
+  Getridou made them); colour, surface detail, shininess and glow.
+- **LURKing's materials**: 18 more from Getridou's friend LURKing, in their own "LURKing" section, with credit.
 - Materials can **glow**: lit windows, lamps, signs and flames shine by themselves, in the editor, in SurfsUp, and in
   CS:S (self-illuminated). A grey glow mask glows in the texture's own colours.
 - The material picker has a **search** box (name, surface, category, "glow").

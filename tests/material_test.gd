@@ -38,7 +38,7 @@ func _run() -> void:
 	var out: String = OS.get_cmdline_user_args()[0]
 	var built_in := MaterialLibrary.entries().filter(func(e): return String(e["dir"]).begins_with("res://"))
 	var cc0 := built_in.filter(func(e): return not e.has("credit"))
-	check("library: 19 ambientCG materials + 161 by Getridou", cc0.size() == 19 and built_in.size() == 180, "(%d, %d)" % [cc0.size(), built_in.size()])
+	check("library: 19 ambientCG materials + 170 by Getridou + 18 by LURKing", cc0.size() == 19 and built_in.size() == 207, "(%d, %d)" % [cc0.size(), built_in.size()])
 	var m := MaterialLibrary.material("Bricks104")
 	check("a material has colour, normal and roughness maps", m.albedo_texture != null and m.normal_texture != null and m.roughness_texture != null)
 	check("metals get a metalness map", MaterialLibrary.material("Metal009").metallic_texture != null)

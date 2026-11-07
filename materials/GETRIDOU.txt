@@ -1,8 +1,9 @@
 Textures by Getridou
 ====================
 
-The materials in the "Getridou" category (folders getridou_*) are by Getridou, who made them himself and gave
-MALLET's author permission to ship them in MALLET, with credit. Thank you, Getridou!
+The 170 materials in the "Getridou" category (folders getridou_*) are by Getridou, who made them himself and gave
+MALLET's author permission to ship them in MALLET, with credit. Thank you, Getridou! A few (Dplate, Knitted, Gumrock)
+he made from photos his friends arcabal, azzie and cynthia sent him.
 
   Instagram: https://www.instagram.com/getridou/
   Discord:   Getridou
@@ -15,6 +16,13 @@ What MALLET did to them: converted from Cube 2: Sauerbraten's format (diffuse / 
 MALLET's library (colour, normal, roughness and glow JPGs, at most 1024 px), with Sauerbraten's own texture scale.
 Height (parallax), ambient-occlusion and environment-map settings aren't used.
 
-Not included: the textures in the same folder by other artists (LURKing, cynthia, azzie, arcabal) and the ones with
-no artist named (whitebrick01, officefacade01-03, sydstone02, redrock01, labtile01, labhex, greycarpet01,
-bristone01). That collection's licence limits them to the game "Valhalla" unless their own creators give permission.
+Textures by LURKing
+===================
+
+The 18 materials in the "LURKing" category (folders lurking_*) are by LURKing, a friend of Getridou's who is happy for
+them to be used with credit. Thank you, LURKing!
+
+  Discord: TheBlackBigFoot
+  Steam:   https://steamcommunity.com/profiles/76561198841582934
+
+Not included: older copies of the same pictures under other names.

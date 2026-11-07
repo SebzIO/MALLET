@@ -26,8 +26,8 @@ Do this first, so every later feature, file and screenshot already carries the n
       (The local folders `D:\SurfForge` and `D:\SurfForge_builds` keep their names: development only.)
 
 ## 0.11.0: Materials
-- [x] **Getridou's materials pack** (161 materials, glow maps, credit in the picker / THIRD_PARTY / README /
-      materials/GETRIDOU.txt; other artists' textures in that folder left out).
+- [x] **Getridou's materials pack** (170 materials incl. his friends' photo textures + 18 by LURKing, glow maps, credit in the picker / THIRD_PARTY / README /
+      materials/GETRIDOU.txt).
 - [ ] **Sauerbraten's materials**: its texture packs come from many artists under **different licences** (some free
       to share, some not for redistribution). Go through them pack by pack: ship the ones whose licence allows it,
       with each artist credited; list the rest as "can't ship" (or import them from a Sauerbraten install the user

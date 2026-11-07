@@ -2520,7 +2520,7 @@ func _open_picker(cb: Callable) -> void:
 				b.custom_minimum_size = Vector2(128, 132)
 				b.focus_mode = Control.FOCUS_NONE
 				b.tooltip_text = "%s - one repeat covers %.1f m%s%s" % [e["name"], float(e["size"]),
-					" - glows" if (e.get("maps", {}) as Dictionary).has("glow") else "", (" - by " + e["credit"]) if e.has("credit") else ""]
+					" - glows" if (e.get("maps", {}) as Dictionary).has("glow") else "", ((" - by " + e["credit"]) + ((" from a photo by " + e["photo"]) if e.has("photo") else "")) if e.has("credit") else ""]
 				var id: String = e["id"]
 				b.pressed.connect(func(): _picker.hide(); _picker_cb.call(id))
 				grid.add_child(b)

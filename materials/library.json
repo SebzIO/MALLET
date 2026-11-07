@@ -234,6 +234,20 @@
       }
     },
     {
+      "id": "getridou_arcabal_dplate",
+      "name": "Dplate",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "metal",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      },
+      "photo": "arcabal"
+    },
+    {
       "id": "getridou_artbark",
       "name": "Artbark",
       "category": "Getridou",
@@ -308,6 +322,20 @@
         "normal": "normal.jpg",
         "roughness": "roughness.jpg"
       }
+    },
+    {
+      "id": "getridou_azzie_knitted1",
+      "name": "Knitted 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "carpet",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      },
+      "photo": "azzie"
     },
     {
       "id": "getridou_bathtile1",
@@ -607,6 +635,48 @@
       }
     },
     {
+      "id": "getridou_cynthia_gumrock01",
+      "name": "Gumrock 1 (cynthia-gumrock01)",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      },
+      "photo": "cynthia"
+    },
+    {
+      "id": "getridou_cynthia_gumrock1",
+      "name": "Gumrock 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      },
+      "photo": "cynthia"
+    },
+    {
+      "id": "getridou_cynthia_gumrock2",
+      "name": "Gumrock 2",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      },
+      "photo": "cynthia"
+    },
+    {
       "id": "getridou_debris1",
       "name": "Debris 1",
       "category": "Getridou",
@@ -900,8 +970,21 @@
       }
     },
     {
-      "id": "getridou_labtile1",
+      "id": "getridou_labtile01",
       "name": "Labtile 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 8.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_labtile1",
+      "name": "Labtile 1 (getridou_labtile1)",
       "category": "Getridou",
       "credit": "Getridou",
       "size": 16.0,
@@ -1097,6 +1180,19 @@
       "category": "Getridou",
       "credit": "Getridou",
       "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_officefacade01",
+      "name": "Officefacade 1",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 48.0,
       "surface": "concrete",
       "maps": {
         "color": "color.jpg",
@@ -1331,6 +1427,32 @@
       }
     },
     {
+      "id": "getridou_sandstone02",
+      "name": "Sandstone 2 (sandstone02)",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "dirt",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_sandstone03",
+      "name": "Sandstone 3",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "dirt",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
       "id": "getridou_sandstone1",
       "name": "Sandstone 1",
       "category": "Getridou",
@@ -1362,6 +1484,19 @@
       "credit": "Getridou",
       "size": 16.0,
       "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "getridou_shalerock01",
+      "name": "Shalerock 1 (shalerock01)",
+      "category": "Getridou",
+      "credit": "Getridou",
+      "size": 16.0,
+      "surface": "rock",
       "maps": {
         "color": "color.jpg",
         "normal": "normal.jpg",
@@ -1790,19 +1925,6 @@
       "surface": "tile",
       "maps": {
         "color": "color.jpg",
-        "roughness": "roughness.jpg"
-      }
-    },
-    {
-      "id": "getridou_sydtile11",
-      "name": "Sydtile 11",
-      "category": "Getridou",
-      "credit": "Getridou",
-      "size": 16.0,
-      "surface": "tile",
-      "maps": {
-        "color": "color.jpg",
-        "normal": "normal.jpg",
         "roughness": "roughness.jpg"
       }
     },
@@ -2296,6 +2418,239 @@
       "credit": "Getridou",
       "size": 16.0,
       "surface": "wood",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_grass1",
+      "name": "Grass 1",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg"
+      }
+    },
+    {
+      "id": "lurking_lattice1",
+      "name": "Lattice 1",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg",
+        "glow": "glow.jpg",
+        "glow_pulse": true
+      }
+    },
+    {
+      "id": "lurking_rizzlions",
+      "name": "Rizzlions",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_saintfacade1",
+      "name": "Saintfacade 1",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbfauna1",
+      "name": "Srbfauna 1",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 8.0,
+      "surface": "grass",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbice",
+      "name": "Srbice",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbice_2",
+      "name": "Srbice (lurking-srbice)",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbmortar1",
+      "name": "Srbmortar 1",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbportal1",
+      "name": "Srbportal 1",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbportal2",
+      "name": "Srbportal 2",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "concrete",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbtile1",
+      "name": "Srbtile 1",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbtile2",
+      "name": "Srbtile 2",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbtile3",
+      "name": "Srbtile 3",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbtile4",
+      "name": "Srbtile 4",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbtile5",
+      "name": "Srbtile 5",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbtile6",
+      "name": "Srbtile 6",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbtile7",
+      "name": "Srbtile 7",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "tile",
+      "maps": {
+        "color": "color.jpg",
+        "normal": "normal.jpg",
+        "roughness": "roughness.jpg"
+      }
+    },
+    {
+      "id": "lurking_srbtile8",
+      "name": "Srbtile 8",
+      "category": "LURKing",
+      "credit": "LURKing",
+      "size": 16.0,
+      "surface": "tile",
       "maps": {
         "color": "color.jpg",
         "normal": "normal.jpg",

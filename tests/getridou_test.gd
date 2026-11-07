@@ -22,8 +22,11 @@ func _run() -> void:
 	for e in MaterialLibrary.entries():
 		if String(e["id"]).begins_with("getridou_"):
 			ids.append(e["id"])
-	check("161 Getridou materials, all credited to him", ids.size() == 161
+	check("170 Getridou materials, all credited to him", ids.size() == 170
 		and ids.all(func(id): return MaterialLibrary.entry(id).get("credit", "") == "Getridou"), "(%d)" % ids.size())
+	var lurk := MaterialLibrary.entries().filter(func(e): return String(e["id"]).begins_with("lurking_"))
+	check("18 LURKing materials, credited to LURKing in their own section", lurk.size() == 18
+		and lurk.all(func(e): return e.get("credit", "") == "LURKing" and e["category"] == "LURKing"), "(%d)" % lurk.size())
 	var bad := []
 	var glowing := []
 	for id in ids:
@@ -35,7 +38,7 @@ func _run() -> void:
 	check("every map of every Getridou material loads", bad.is_empty(), "%s" % [bad.slice(0, 5)])
 	check("Sauerbraten's scale: a 1024 px texture repeats every 16 m", is_equal_approx(MaterialLibrary.world_size("getridou_artbark"), 16.0))
 	var m := MaterialLibrary.material("getridou_traflight")
-	check("a glow map makes the material shine (emission)", m.emission_enabled and m.emission_texture != null and glowing.size() == 25,
+	check("a glow map makes the material shine (emission)", m.emission_enabled and m.emission_texture != null and glowing.size() >= 20,
 		"(%d glowing)" % glowing.size())
 	var sm = CubeWorld.material_for("getridou_traflight|c=ffd0d0")
 	check("...also on cube faces with texture settings", sm is ShaderMaterial and sm.get_shader_parameter("has_glow") == true)

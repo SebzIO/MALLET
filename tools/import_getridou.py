@@ -1,7 +1,9 @@
 """Import Getridou's texture pack (Cube 2: Sauerbraten .tex materials) into MALLET's material library.
 
-Only Getridou's own materials (getridou_*) are taken: the pack also holds textures by other artists (LURKing, cynthia,
-azzie, arcabal, and some without a name) whose permission we don't have. See materials/GETRIDOU.txt.
+Getridou confirmed (2026-11-06): every texture in the folder is original work. The arcabal_ / azzie_ / cynthia_ ones
+are his, made from photos those friends sent him, and the unprefixed ones are his too. The lurking_ ones are by his
+friend LURKing, who is fine with them being used with credit: they get their own "LURKing" category and credit.
+See materials/GETRIDOU.txt.
 
     python tools/import_getridou.py D:/getridou [materials folder]
 
@@ -24,6 +26,9 @@ import sys
 from PIL import Image
 
 MAX = 1024
+EXCLUDE = ()                    # nothing left out (LURKing cleared 2026-11-06)
+ARTISTS = {"lurking": "LURKing"}   # name prefix -> its own artist (category + credit); everything else is Getridou's
+FRIENDS = {"arcabal": "arcabal", "azzie": "azzie", "cynthia": "cynthia"}   # friends whose photos Getridou made into textures
 SURFACES = [  # (words in the name, CS:S $surfaceprop) - first match wins
     (("glass", "window"), "glass"),
     (("steel", "metal", "iron", "chrome", "plate", "grate", "pipe", "rust", "shutter", "transmission", "copper"), "metal"),
@@ -77,9 +82,23 @@ def grey(img):
     return max(max(r, g, b) - min(r, g, b) for r, g, b in small.getdata()) < 24
 
 
-def nice_name(mid):
-    s = mid[len("getridou_"):].replace("_", " ")
-    s = re.sub(r"(\D)(\d+)$", r"\1 \2", s)
+def artist_of(name):
+    return next((a for p, a in ARTISTS.items() if name.lower().startswith(p)), "Getridou")
+
+
+def mat_id(name):
+    """MALLET's id: getridou_<name> or lurking_<name> (Getridou's friends' photo textures and unnamed ones get getridou_)."""
+    n = name.lower().replace("-", "_")
+    return n if n.startswith(("getridou_", "lurking_")) else "getridou_" + n
+
+
+def nice_name(source):
+    s = source.lower().replace("-", "_")
+    for p in ["getridou_", "lurking_"] + [f + "_" for f in FRIENDS]:
+        if s.startswith(p):
+            s = s[len(p):]
+    s = s.replace("_", " ")
+    s = re.sub(r"(\D)0*(\d+)$", r"\1 \2", s)
     return s[:1].upper() + s[1:]
 
 
@@ -96,20 +115,54 @@ def main():
     out_root = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "materials")
     files = set(os.listdir(src))
     found = {}
-    for f in sorted(files):
-        if f.startswith("getridou_") and f.endswith(".tex"):
+    for f in sorted(files):                              # every .tex (Getridou's, and his friends' photos)
+        if f.endswith(".tex") and not (EXCLUDE and f.lower().startswith(EXCLUDE)):
             found[f[:-4]] = parse_tex(os.path.join(src, f))
-    for f in sorted(files):                              # images with no .tex (e.g. sydtile11): default settings
-        m = re.match(r"(getridou_.+)-diffuse\.png$", f)
-        if m and m.group(1) not in found:
-            base = m.group(1)
-            maps = {"0": f}
-            for key, kind in (("n", "normal"), ("s", "specular"), ("g", "glow")):
-                if f"{base}-{kind}.png" in files:
-                    maps[key] = f"{base}-{kind}.png"
-            found[base] = {"maps": maps, "shader": "bumpspecmapworld", "texscale": 1.0, "glowcolor": None, "specscale": 1.0}
+    used = {v for t in found.values() for v in t["maps"].values()}
+    for f in sorted(files):                              # image sets with no .tex: default settings
+        m = re.match(r"(.+?)([-_])diffuse\.png$", f)
+        if not m or f in used or (EXCLUDE and m.group(1).lower().startswith(EXCLUDE)) or m.group(1) in found:
+            continue
+        base, sep = m.group(1), m.group(2)
+        maps = {"0": f}
+        for key, kind in (("n", "normal"), ("s", "specular"), ("g", "glow")):
+            if f"{base}{sep}{kind}.png" in files:
+                maps[key] = f"{base}{sep}{kind}.png"
+        found[base] = {"maps": maps, "shader": "bumpspecmapworld", "texscale": 1.0, "glowcolor": None, "specscale": 1.0,
+                       "orphan": True}
+    # older copies of the same picture (no .tex, or no getridou_ name): dropped when they match one of his named ones.
+    # His named materials (getridou_*.tex) are always kept, even when two look alike.
+    def sig(name):
+        return Image.open(os.path.join(src, found[name]["maps"]["0"])).convert("RGB").resize((64, 64), Image.BILINEAR).tobytes()
+
+    def same(a, b):
+        return sum(abs(x - y) for x, y in zip(a, b)) / len(a) < 2.0
+
+    keepers = {n: sig(n) for n in found if n.lower().startswith(("getridou_", "lurking_")) and not found[n].get("orphan")}
+    dupes = []
+    for name in sorted(n for n in found if n not in keepers):
+        if found[name]["maps"].get("0") not in files:
+            continue
+        s = sig(name)
+        twin = next((k for k, ks in keepers.items() if same(s, ks)), None)
+        if twin:
+            dupes.append(f"{name} (= {twin})")
+            del found[name]
+        else:
+            keepers[name] = s
+    print("duplicates skipped:", dupes)
+    ided = {}
+    for n in sorted(found, key=lambda n: (found[n].get("orphan", False), n)):   # .tex ones keep the plain id
+        mid = mat_id(n)
+        k = 2
+        while mid in ided:                               # (two different pictures with one name: lurking_srbice)
+            mid = "%s_%d" % (mat_id(n), k)
+            k += 1
+        ided[mid] = found[n] | {"source_name": n}
+    found = ided
     entries, skipped = [], []
-    for mid, t in sorted(found.items()):
+    names = set()
+    for mid, t in sorted(found.items(), key=lambda kv: (kv[1].get("orphan", False), kv[0])):   # (.tex ones name first)
         maps = t["maps"]
         if "0" not in maps or maps["0"] not in files:
             skipped.append(mid)
@@ -145,15 +198,25 @@ def main():
             if "pulse" in t["shader"]:
                 e_maps["glow_pulse"] = True
         width = Image.open(os.path.join(src, maps["0"])).size[0]
-        name = nice_name(mid)
-        entries.append({"id": mid, "name": name, "category": "Getridou", "credit": "Getridou",
-                        "size": round(width * t["texscale"] / 64.0, 3), "surface": surface_of(name), "maps": e_maps})
+        name = nice_name(t["source_name"])
+        if name in names:                                # (two different pictures with the same name)
+            name += " (" + t["source_name"] + ")"
+        names.add(name)
+        artist = artist_of(t["source_name"])
+        e = {"id": mid, "name": name, "category": artist, "credit": artist,
+             "size": round(width * t["texscale"] / 64.0, 3), "surface": surface_of(name), "maps": e_maps}
+        friend = t["source_name"].lower().split("_")[0].split("-")[0]
+        if friend in FRIENDS:                            # made by Getridou from a friend's photo
+            e["photo"] = FRIENDS[friend]
+        entries.append(e)
     lib_path = os.path.join(out_root, "library.json")
     lib = json.load(open(lib_path, encoding="utf-8"))
-    keep = [e for e in lib["materials"] if not e["id"].startswith("getridou_")]
+    keep = [e for e in lib["materials"] if not e["id"].startswith(("getridou_", "lurking_"))]
+    entries.sort(key=lambda e: (e["category"] != "Getridou", e["id"]))
     lib["materials"] = keep + entries
     json.dump(lib, open(lib_path, "w", encoding="utf-8"), indent=2)
-    print(f"imported {len(entries)} Getridou materials, skipped {len(skipped)}: {skipped}")
+    print(f"imported {len(entries)} materials ({sum(1 for e in entries if e['credit'] == 'Getridou')} Getridou,"
+          f" {sum(1 for e in entries if e['credit'] == 'LURKing')} LURKing), skipped {len(skipped)}: {skipped}")
     print("with glow:", sum(1 for e in entries if "glow" in e["maps"]), " with normal:",
           sum(1 for e in entries if "normal" in e["maps"]), " with roughness:", sum(1 for e in entries if "roughness" in e["maps"]))
 

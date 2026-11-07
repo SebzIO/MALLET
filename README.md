@@ -76,8 +76,9 @@ Templates live in `templates/` and are rebuilt (with every jump re-proven and fr
 `godot --path . --resolution 1600x900 -s res://tools/make_templates.gd`.
 
 ## Credits
-- **Getridou**: the 161 materials in the Getridou category, made by him and shipped with his permission. Thank you!
+- **Getridou**: the 170 materials in the Getridou category, made by him and shipped with his permission. Thank you!
   (https://www.instagram.com/getridou/ · Discord: Getridou)
+- **LURKing**: the 18 materials in the LURKing category, shared with credit. Thank you! (Discord: TheBlackBigFoot)
 - **ambientCG** (CC0): the starter materials.
 - **Mark Arneman**: SUCC, SurfsUp's movement code (MIT), used for play mode.
 - **Cube 2: Sauerbraten**: the inspiration for build mode.
