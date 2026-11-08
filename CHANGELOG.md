@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.15.0 preview (in progress) — Playtest builds (offline)
+
+- **Export > Test build for testers…**: makes a zip with MALLET (renamed "Play <map>.exe"), the map, only the
+  materials it uses, a tester.cfg and a READ ME. Each build is stamped with the map's test version (1, 2, 3…).
+- Started from that folder it is a **tester program**: no editor, it asks once for a name and consent (nothing is sent
+  anywhere), then goes straight into play mode. Esc pauses: keep playing or quit.
+- **Every attempt is recorded** into a "tester runs" file next to it: finish / restart / fall / quit, time, stage
+  splits, where they fell, finish and top speed, and the route (10 points a second).
+- **Export > Import tester runs…**: brings those files back (checked, duplicates skipped), keeps them with the map
+  and sums them up (testers, attempts, finishes, falls, quits, the fastest time).
+
 ## 0.14.1 preview — 2026-11-07: Looks stay straight on shaped ends
 
 - Every ramp look (ceramic rims, dev grid, neon edges, images, library materials, your own shaders) stays straight

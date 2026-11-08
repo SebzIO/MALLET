@@ -149,6 +149,9 @@ var _gen_about: Label
 var _gen_warning: Label
 var _gen_shape_buttons := {}
 const SETTINGS_PATH := "user://settings.cfg"
+var tester := {}                       ## a test build: {"dir", "cfg", "name", "file", "attempts"} ({} = normal MALLET)
+var test_version := 0                  ## how many test builds of this map were made (stamped into each)
+var tester_runs: Array = []            ## imported tester sessions (Tester.read_runs), saved with the map
 var ramp_creator: RampCreator
 const BAKED_SKY_LABEL := "This map's sky (made into a skybox)"
 const BLOCK_LOOKS := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "neon", "material", "shader"]   ## (no "texture")
@@ -198,6 +201,9 @@ func has_unsaved_changes() -> bool:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN and is_inside_tree() and world_env != null:
 		_rescan_shaders()
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and not tester.is_empty():
+		get_tree().quit()                               # (a test build: runs are already saved, nothing else to keep)
+		return
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and get_tree().current_scene == self:
 		if has_unsaved_changes():
 			_ask_save_before_quit()
@@ -228,6 +234,10 @@ func _ask_save_before_quit() -> void:
 
 ## The welcome screen greets you when MALLET starts (not when a test builds the editor).
 func _show_welcome_if_main() -> void:
+	var td := Tester.folder()
+	if td != "" and (get_tree().current_scene == self or OS.get_cmdline_user_args().has("--tester")):
+		_start_tester(td)
+		return
 	if get_tree().current_scene == self:
 		welcome.popup("Skip, use the simple starter map")
 
@@ -347,7 +357,8 @@ func _build_ui_main() -> void:
 	bar.add_child(VSeparator.new())
 	_bar_item(bar, ["▶ Play (P)", _play_clicked])
 	_bar_item(bar, ["Build (E)", _build_clicked])
-	_menu(bar, "Export ▾", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked]])
+	_menu(bar, "Export ▾", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked], [],
+		["Test build for testers…", KEY_NONE, _test_build_clicked], ["Import tester runs…", KEY_NONE, _import_runs_clicked]])
 	bar.add_child(VSeparator.new())
 	var snap := CheckButton.new()
 	snap.text = "Snap to grid"
@@ -1585,6 +1596,10 @@ func _map_dict() -> Dictionary:
 			cms.append(_with_group(cm))
 	var d := {"format": MAP_FORMAT, "version": MAP_VERSION, "environment": environment.duplicate(true), "ramps": rs, "entities": es,
 		"props": ps, "blocks": bs, "texts": ts, "lights": ls, "particles": pfx, "cube_models": cms, "folders": outliner.folders.duplicate(true)}
+	if test_version > 0:
+		d["test_version"] = test_version
+	if not tester_runs.is_empty():
+		d["tester_runs"] = tester_runs.duplicate(true)
 	var used := _used_shaders(environment, rs, bs)
 	if not used.is_empty():
 		d["shaders"] = used                              # (your own shaders' code: the map looks the same anywhere)
@@ -1597,6 +1612,8 @@ func _load_dict(data: Dictionary) -> void:
 	_gen_source = null
 	play.finish_speed = 0.0                  # another map's finish speed would mislead
 	UserShaders.add_embedded(data.get("shaders", {}))
+	test_version = int(data.get("test_version", 0))
+	tester_runs = (data.get("tester_runs", []) as Array).duplicate(true) if data.get("tester_runs") is Array else []
 	environment = Look.default_environment()
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
@@ -3721,6 +3738,8 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not tester.is_empty() and not play.active:
+		return                                           # (a test build's menu is up: no editor keys)
 	if ramp_creator.visible:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			ramp_creator.hide()
@@ -4975,6 +4994,9 @@ func _play_from_build(at: Transform3D) -> void:
 func _on_play_stopped() -> void:
 	for cm in cube_models_root.get_children():
 		cm.set_show_mats(true)
+	if not tester.is_empty():
+		_tester_menu()
+		return
 	if build.resume_after_play:
 		build.resume()
 		return
@@ -4985,6 +5007,127 @@ func _on_play_stopped() -> void:
 	var t := " Best time: %s (its path is drawn in the views; G in play mode races it)." % PlayMode.format_time(play.best_time) if play.best_time > 0.0 else ""
 	var f := " Finish speed on your last run: %d u/s." % roundi(play.finish_speed) if play.finish_speed > 0.0 else ""
 	_set_status("Back in the editor. Top speed %d u/s.%s%s" % [roundi(play.top_speed), f, t])
+
+
+# ================================================================================================= test builds
+## A test build starts here: the map, the tester's name and consent (asked once), then straight into play mode.
+func _start_tester(dir: String) -> void:
+	welcome.hide()
+	var cfg := Tester.config(dir)
+	var data = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(Tester.MAP_FILE)))
+	_load_dict(data if data is Dictionary else {})
+	tester = {"dir": dir, "cfg": cfg, "name": Tester.tester_name(dir), "file": "", "attempts": []}
+	_ui.visible = false
+	get_window().title = "%s - test build v%d" % [cfg.get("map_name", "map"), int(cfg.get("version", 1))]
+	play.attempt_ended.connect(_tester_attempt)
+	if tester["name"] != "":
+		_tester_go()
+		return
+	var d := ConfirmationDialog.new()
+	d.title = "Before you play"
+	d.ok_button_text = "OK, let's play"
+	d.cancel_button_text = "No thanks (quit)"
+	var box := VBoxContainer.new()
+	d.add_child(box)
+	var l := Label.new()
+	l.text = ("This is a test build of %s. While you play, every attempt is saved in the \"%s\" folder next to it:\n"
+		+ "your name below, your times and speeds, where you fell and the path you took. Nothing is sent anywhere;\n"
+		+ "you send that folder to the map maker yourself when you're done.\n\nName to show on your runs:") % [cfg.get("map_name", "this map"), Tester.RUNS_DIR]
+	box.add_child(l)
+	var name_edit := LineEdit.new()
+	name_edit.placeholder_text = "Your name or nickname"
+	box.add_child(name_edit)
+	_fields["tester_name"] = name_edit
+	add_child(d)
+	d.confirmed.connect(func():
+		var n := name_edit.text.strip_edges().left(40)
+		Tester.save_tester(dir, n if n != "" else "Tester")
+		tester["name"] = Tester.tester_name(dir)
+		d.queue_free()
+		_tester_go())
+	d.canceled.connect(func(): get_tree().quit())
+	d.popup_centered()
+
+
+func _tester_go() -> void:
+	tester["file"] = Tester.session_file(tester["dir"], tester["cfg"], tester["name"])
+	_play_clicked()
+
+
+func _tester_attempt(a: Dictionary) -> void:
+	if tester.is_empty():
+		return
+	tester["attempts"].append(a)
+	Tester.write_session(tester["file"], tester["cfg"], tester["name"], tester["attempts"])
+
+
+## Esc in a test build: keep playing or quit (there's no editor to go back to).
+func _tester_menu() -> void:
+	var d := ConfirmationDialog.new()
+	d.title = "Paused"
+	d.dialog_text = "%d attempt(s) saved so far." % (tester["attempts"] as Array).size()
+	d.ok_button_text = "Keep playing"
+	d.cancel_button_text = "Quit"
+	add_child(d)
+	d.confirmed.connect(func(): d.queue_free(); _play_clicked())
+	d.canceled.connect(func(): get_tree().quit())
+	d.popup_centered()
+
+
+## Export > Test build: MALLET itself + this map, zipped for testers (Tester.make_build).
+func _test_build_clicked() -> void:
+	var name := current_path.get_file().get_basename() if current_path != "" else "mymap"
+	var out_dir := OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS).path_join("MALLET exports/test builds")
+	test_version += 1
+	_set_status("Making the test build... (a few seconds)")
+	await get_tree().process_frame
+	var res := Tester.make_build(_map_dict(), name, test_version, OS.get_executable_path(), out_dir)
+	if res["error"] != "":
+		test_version -= 1
+		_show_message("Can't make a test build", res["error"])
+		return
+	_map_changed()
+	_show_message("Test build ready", ("Made %s (version %d of this map).\n\nSend the zip to your testers. They unzip it and start \"Play %s.exe\"; "
+		+ "their runs are saved in a \"%s\" folder next to it. Ask them to send that folder back, then use Export > Import tester runs.") % [
+		res["zip"], test_version, name, Tester.RUNS_DIR])
+	OS.shell_open(out_dir)
+
+
+var _runs_dialog: FileDialog
+
+
+func _import_runs_clicked() -> void:
+	if _runs_dialog == null:
+		_runs_dialog = FileDialog.new()
+		_runs_dialog.access = FileDialog.ACCESS_FILESYSTEM
+		_runs_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILES
+		_runs_dialog.use_native_dialog = true
+		_runs_dialog.filters = PackedStringArray(["*.json ; Tester runs"])
+		_runs_dialog.files_selected.connect(import_runs)
+		_ui.add_child(_runs_dialog)
+	_runs_dialog.popup_centered_ratio(0.6)
+
+
+## Bring testers' runs files into the map (kept with it). Returns how many sessions were added.
+func import_runs(paths: PackedStringArray) -> int:
+	var added := 0
+	var skipped := []
+	for p in paths:
+		var r := Tester.read_runs(p)
+		if r.is_empty():
+			skipped.append(p.get_file())
+			continue
+		if tester_runs.any(func(x): return x["tester"] == r["tester"] and x["attempts"] == r["attempts"]):
+			continue                                     # (already imported)
+		tester_runs.append(r)
+		added += 1
+	if added > 0:
+		_checkpoint()
+	var text := "Imported %d runs file(s).%s\n\nAll runs with this map so far: %s" % [added,
+		("\nNot tester runs (skipped): " + ", ".join(skipped)) if not skipped.is_empty() else "", Tester.summary(tester_runs)]
+	_show_message("Tester runs", text)
+	_set_status(Tester.summary(tester_runs).get_slice("\n", 0))
+	return added
 
 
 # ================================================================================================= export

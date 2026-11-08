@@ -4,6 +4,7 @@ extends Node
 ## Same movement code and SurfsUp preset as the game, so what you feel here is what players feel.
 
 signal stopped
+signal attempt_ended(attempt: Dictionary)   ## every run, for test builds (see Tester): outcome, time, deaths, route...
 signal ghost_recorded(ghost: Dictionary)   ## a new best run: {"time", "hz", "samples": [x, y, z, speed m/s, ...]}
 
 const SUCC_SCENE := "res://addons/SUCC/scenes/succ_character.tscn"
@@ -46,6 +47,9 @@ var _prev_feet = null                    ## where the feet were last tick (for t
 var _ghost_node: Node3D = null
 var _ghost_label: Label3D = null
 var _last_delta := ""                  ## "+1.234 vs best" after a finish
+var _deaths: Array = []                 ## this attempt: where the player fell / died ([x, y, z] each)
+var _attempt_top := 0.0                 ## this attempt's top speed (u/s)
+var _attempt_start := 0.0               ## when it began (unix seconds)
 
 var _hud := CanvasLayer.new()
 var _hud_box: VBoxContainer
@@ -136,6 +140,7 @@ func apply_mouse_settings() -> void:
 func stop() -> void:
 	if not active:
 		return
+	_end_attempt("quit")
 	active = false
 	_hud.visible = false
 	player.queue_free()
@@ -149,7 +154,22 @@ func stop() -> void:
 
 func respawn() -> void:
 	if active:
+		_end_attempt("restart")
 		_place()
+
+
+## The attempt so far, as tester data: outcome "finish" / "restart" / "quit", time, splits, deaths, finish and top
+## speed (u/s) and the route at 10 per second ([x, y, z, speed u/s] each). Only attempts that left the start count.
+func _end_attempt(outcome: String) -> void:
+	if run_state == Run.WAITING or (run_state == Run.FINISHED and outcome != "finish"):
+		return                                           # (not started yet, or already recorded as a finish)
+	var route := []
+	for i in range(0, _rec.size(), 24):                 # every 6th tick of 60 = 10 a second
+		route.append([snappedf(_rec[i], 0.01), snappedf(_rec[i + 1], 0.01), snappedf(_rec[i + 2], 0.01), roundf(_rec[i + 3] * UNITS_PER_METRE)])
+	attempt_ended.emit({"outcome": outcome, "time": snappedf(run_time, 0.001), "started": _attempt_start,
+		"splits": _splits.duplicate(true), "deaths": _deaths.duplicate(true),
+		"finish_speed": roundf(finish_speed) if outcome == "finish" else 0.0, "top_speed": roundf(_attempt_top), "route": route})
+	run_state = Run.WAITING
 
 
 ## Back to the start: a fresh run.
@@ -162,13 +182,20 @@ func _place() -> void:
 		_build_ghost()                                  # a best set this session races you from the next run
 	_reached.clear()
 	_splits.clear()
+	_deaths.clear()
+	_attempt_top = 0.0
+	_attempt_start = Time.get_unix_time_from_system()
 	_checkpoint = spawn
 	_put(spawn, Vector3.ZERO)
 
 
 ## Back to the current checkpoint (start or the last stage reached); the run keeps going.
 func _to_checkpoint() -> void:
+	if run_state == Run.RUNNING and player:
+		var p := player.global_position
+		_deaths.append([snappedf(p.x, 0.01), snappedf(p.y, 0.01), snappedf(p.z, 0.01)])
 	if _reached.is_empty():
+		_end_attempt("restart")                          # (no stage reached: the fall ends this attempt)
 		_place()
 	else:
 		_put(_checkpoint, Vector3.ZERO)
@@ -233,6 +260,7 @@ func _physics_process(delta: float) -> void:
 		Run.RUNNING:
 			run_time += delta
 			_rec_dt = delta
+			_attempt_top = maxf(_attempt_top, Vector2(player.velocity.x, player.velocity.z).length() * UNITS_PER_METRE)
 			_record()
 			var fin = _box_at(_finish_boxes, feet)
 			if fin != null:
@@ -250,6 +278,8 @@ func _physics_process(delta: float) -> void:
 				if best_time <= 0.0 or run_time < best_time:
 					best_time = run_time
 					_save_ghost()
+				_end_attempt("finish")
+				run_state = Run.FINISHED
 
 
 ## How far through the last tick (0..1) the feet crossed a zone's edge, going in (`entering`) or out. Physics runs

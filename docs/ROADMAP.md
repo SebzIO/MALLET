@@ -69,10 +69,10 @@ Do this first, so every later feature, file and screenshot already carries the n
 
 ## 0.15.0: Playtest builds (offline)
 Plan in detail: [PLAYTEST.md](PLAYTEST.md), parts 1–2.
-- [ ] **Export > Test build**: a small tester program (play mode only) with the map inside, zipped for sharing.
-- [ ] Username + clear consent on first launch; map version stamped into every build.
-- [ ] Every attempt recorded (route, speed, deaths, splits, finish time / speed, restarts) to a file next to it.
-- [ ] **File > Import tester runs** in MALLET.
+- [x] **Export > Test build**: a small tester program (play mode only) with the map inside, zipped for sharing.
+- [x] Username + clear consent on first launch; map version stamped into every build.
+- [x] Every attempt recorded (route, speed, deaths, splits, finish time / speed, restarts) to a file next to it.
+- [x] **Import tester runs** in MALLET (in the Export menu).
 
 ## 0.16.0: Live playtesting
 [PLAYTEST.md](PLAYTEST.md), parts 3–4.
