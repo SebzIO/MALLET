@@ -77,12 +77,26 @@ while they play.
 
 ## Updating the relay later
 
+Copy the folder, rebuild, replace the container, and put the new one back on NPM's network (a fresh container is
+not on it, and without that step the proxy answers 502):
+
 ```
 scp -r D:/SurfForge/relay <you>@sebz.xyz:~/mallet-relay
-ssh <you>@sebz.xyz 'cd ~/mallet-relay && docker build -t mallet-relay . && docker rm -f mallet-relay && \
-  docker run -d --name mallet-relay --restart unless-stopped -p 127.0.0.1:8787:8787 \
-  -v mallet-relay-data:/data mallet-relay'
 ```
+
+```
+ssh <you>@sebz.xyz 'set -e; cd ~/mallet-relay && docker build -t mallet-relay . && docker rm -f mallet-relay && \
+  docker run -d --name mallet-relay --restart unless-stopped -p 127.0.0.1:8787:8787 \
+  -v mallet-relay-data:/data mallet-relay && docker network connect proxy_manager_default mallet-relay && \
+  sleep 1 && curl -s http://127.0.0.1:8787/health'
+curl -s https://relay.sebz.xyz/health        # {"ok": true, "sessions": n}
+```
+
+(`set -e` stops at the first failure, so a 502 is not reported as if it worked. `docker network connect` only once
+per container; if a later step fails before it, the health check at the end is what catches it.)
+
+Replacing the container ends every open connection. MALLET retries and rejoins the same session on its own, so a
+restart during co-editing costs a few seconds and nothing else.
 
 Sessions and runs live in the `mallet-relay-data` volume, so removing the container does not lose testers' runs.
 The relay keeps no map (the maker's MALLET is the one true copy) and forgets a session after 12 idle hours.
