@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.5 preview — 2026-11-09: One look for the menus, lights where they belong
+
+- **Lights moved to the entity menu**: the Tab menu now places world pieces only (platforms, zones, teleport,
+  booster, text, particles); point, spot and strip lights are on the **T** menu's Lights tab.
+- **The T menu is a panel with tabs** (Lights, Platforms & zones, Text & particles, Session): hover a tab to look at
+  it, click to keep it. Materials, the texture tools and the selection commands live in Session.
+- **One theme for every menu, panel and button** (editor/ui_theme.gd, installed on the window): a visible 1 px
+  outline, clear hover and pressed states, section headers and roomier menu rows. The playtest panel, the ramp
+  creator, the welcome screen, the outliner and build mode's panels inherit it instead of each hand-rolling colors.
+- **The playtest panel has its own toolbar button** (it is gone from the Export menu) and a **−** that collapses it
+  to its title row; it remembers being collapsed.
+
 ## 0.17.4 preview — 2026-11-09: Seeing each other in build mode
 
 - **Co-editors now show up in build mode (E) too**: their camera, the way they are looking, their mouse and what

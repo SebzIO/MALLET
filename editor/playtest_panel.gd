@@ -1,8 +1,9 @@
 class_name PlaytestPanel
 extends PanelContainer
-## The playtest panel (Export > Playtest panel): who is on the relay session right now, where they are in the run,
-## and what their runs look like. It sits in the top right corner of the window and never takes a click meant for
-## the views unless you are clicking its buttons.
+## The playtest panel (its own toolbar button; Export > Playtest session starts one): who is on the relay session
+## right now, where they are in the run, and what their runs look like. It sits in the top right corner of the window
+## and never takes a click meant for the views unless you are clicking its buttons. The - in its title row collapses
+## it to that row, and it stays collapsed next time.
 
 signal leave_requested
 signal copy_requested
@@ -16,37 +17,46 @@ var _tree: Tree
 var _summary: Label
 var _remove: OptionButton
 var _invite: LineEdit
+var _body: VBoxContainer
+var _min: Button
+var minimized := false
 
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(WIDTH, 0)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.1, 0.13, 0.96)
-	sb.set_corner_radius_all(8)
-	sb.set_content_margin_all(10)
-	sb.border_color = Color(0.25, 0.28, 0.35)
-	sb.set_border_width_all(1)
-	add_theme_stylebox_override("panel", sb)
+	add_theme_stylebox_override("panel", UiTheme.panel_box())
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	add_child(box)
+	var head := HBoxContainer.new()                        # the title row: it stays when the panel is collapsed
+	box.add_child(head)
 	_title = Label.new()
 	_title.text = "Playtest"
 	_title.add_theme_font_size_override("font_size", 16)
-	box.add_child(_title)
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_title)
+	_min = Button.new()
+	_min.text = "-"
+	_min.focus_mode = Control.FOCUS_NONE
+	_min.custom_minimum_size = Vector2(34, 0)
+	_min.pressed.connect(func(): set_minimized(not minimized))
+	head.add_child(_min)
+	_body = VBoxContainer.new()
+	_body.add_theme_constant_override("separation", 6)
+	box.add_child(_body)
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(WIDTH - 20, 0)
 	_status.add_theme_color_override("font_color", Color(0.7, 0.74, 0.8))
-	box.add_child(_status)
+	_body.add_child(_status)
 	_invite = LineEdit.new()                               # what the owner sends: address, code and secret
 	_invite.editable = false
 	_invite.tooltip_text = "Send this to the other person: they tick \"Join as a co-editor\" and type the code and secret."
 	_invite.custom_minimum_size = Vector2(WIDTH - 20, 0)
 	_invite.visible = false
-	box.add_child(_invite)
+	_body.add_child(_invite)
 	var row := HBoxContainer.new()
-	box.add_child(row)
+	_body.add_child(row)
 	var copy := Button.new()
 	copy.text = "Copy invite"
 	copy.focus_mode = Control.FOCUS_NONE
@@ -67,7 +77,7 @@ func _ready() -> void:
 	_remove.tooltip_text = "Remove someone from this session. The code still works: they can rejoin with it."
 	_remove.item_selected.connect(_on_remove_chosen)
 	_remove.visible = false
-	box.add_child(_remove)
+	_body.add_child(_remove)
 	_tree = Tree.new()
 	_tree.columns = 5
 	_tree.hide_root = true
@@ -76,12 +86,26 @@ func _ready() -> void:
 	for i in 5:
 		_tree.set_column_title(i, ["Who", "Where", "Runs", "Best", "Finish"][i])
 		_tree.set_column_expand(i, true)
-	box.add_child(_tree)
+	_body.add_child(_tree)
 	_summary = Label.new()
 	_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_summary.custom_minimum_size = Vector2(WIDTH - 20, 0)
 	_summary.add_theme_color_override("font_color", Color(0.62, 0.66, 0.72))
-	box.add_child(_summary)
+	_body.add_child(_summary)
+	set_minimized(bool(Settings.value("playtest_minimized")))
+
+
+## Collapse the panel to its title row (the session stays open). Remembered for next time.
+func set_minimized(on: bool) -> void:
+	minimized = on
+	if _body != null:
+		_body.visible = not on
+	if _min != null:
+		_min.text = "▸" if on else "-"
+		_min.tooltip_text = "Show who is on the session and their runs." if on else "Collapse the panel to its title."
+	if bool(Settings.value("playtest_minimized")) != on:
+		Settings.set_value("playtest_minimized", on)
+	reset_size()
 
 
 ## Keep it in the top right corner of the window (controls under a CanvasLayer don't follow anchors).

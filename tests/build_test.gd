@@ -259,9 +259,23 @@ func _run() -> void:
 	# ---- Tab: place a light on the floor, 1 + wheel changes its reach; Delete; undo
 	look(Vector3(-6, 6, 3), Vector3(-6, 0, -2))
 	await frames(3)
+	# lights moved off Tab: they are the T menu's own tab (world pieces stay on Tab)
+	var place_ids := []
+	for it in bm.PLACE_ITEMS:
+		place_ids.append(int(it[1]))
+	check("Tab places world pieces, not lights", not (100 in place_ids) and not (101 in place_ids) and (102 in place_ids), str(place_ids))
+	var light_tab: Array = bm.ENT_TABS["lights"][1]
+	check("T's Lights tab has point, spot and strip", light_tab.size() == 3 and int(light_tab[1][1]) == 101, str(light_tab))
+	bm._open_commands()
+	check("T opens a panel with tabs, on Lights", bm._ent_menu.visible and bm._ent_pages["lights"].visible and bm._ent_tab_buttons.size() == 4,
+		"menu %s lights %s tabs %s hud %s" % [bm._ent_menu.visible, bm._ent_pages["lights"].visible, bm._ent_tab_buttons.size(), bm._hud.visible])
+	bm._ent_show("world")
+	check("hovering another tab switches the page", bm._ent_pages["world"].visible and not bm._ent_pages["lights"].visible)
+	bm._close_ent_menu()
+	check("closing it hands the mouse back", not bm._ent_menu.visible and not bm._ui_open)
 	bm._place(100)
 	var light: LightNode = bm.ent_sel[0] if not bm.ent_sel.is_empty() else null
-	check("Tab: a light placed where you aim", light != null and ed.lights_root.get_child_count() == 1)
+	check("T menu: a light placed where you aim", light != null and ed.lights_root.get_child_count() == 1)
 	var reach := float(light.data["range"])
 	await held_wheel(KEY_1, 1, 2)
 	check("1 + wheel: its reach grows", float(light.data["range"]) == reach + 2.0)

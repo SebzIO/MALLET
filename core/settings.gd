@@ -14,6 +14,7 @@ const DEFAULTS := {
 	"fly_speed": 60.0,                   ## editor 3D view: right mouse + WASD speed (m/s), set with right mouse + wheel
 	"relay_url": "wss://relay.sebz.xyz/ws",  ## the playtest relay (Export > Playtest session; local: ws://127.0.0.1:8787/ws)
 	"player_name": "Maker",              ## the name testers see on their runs and in the playtest panel
+	"playtest_minimized": false,         ## the playtest panel is collapsed to its title row
 }
 
 static var _cfg: ConfigFile = null

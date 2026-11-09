@@ -201,6 +201,7 @@ func _ready() -> void:
 	# Only the play-mode player uses physics interpolation, as in SurfsUp.
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	play.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
+	get_window().theme = UiTheme.shared()             # (dialogs and popups: one look for every menu and button)
 	_build_world()
 	_build_ui()
 	add_child(play)
@@ -255,7 +256,7 @@ func _ask_save_before_quit() -> void:
 	d.ok_button_text = "Save"
 	d.cancel_button_text = "Cancel"
 	d.add_button("Don't save", true, "discard")
-	_ui.add_child(d)
+	_ui_root.add_child(d)
 	d.confirmed.connect(func():
 		d.queue_free()
 		_quit_after_save = true
@@ -315,24 +316,33 @@ func _build_world() -> void:
 
 
 # ================================================================================================= ui
+var _ui_root: Control                    ## the Control root of the UI: its theme reaches every popup and dialog
+
+
 func _build_ui() -> void:
 	add_child(_ui)
+	_ui_root = Control.new()                        # (a Control: its theme reaches every control and popup under it)
+	_ui_root.name = "UIRoot"
+	_ui_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ui_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ui_root.theme = UiTheme.shared()
+	_ui.add_child(_ui_root)
 	_build_ui_main()
 	welcome = WelcomeScreen.new()
 	welcome.hide()
-	_ui.add_child(welcome)
+	_ui_root.add_child(welcome)
 	welcome.template_chosen.connect(_on_template_chosen)
 	welcome.open_requested.connect(func():
 		welcome.hide()
 		_open_clicked())
 	ramp_creator = RampCreator.new()
 	ramp_creator.hide()
-	_ui.add_child(ramp_creator)
+	_ui_root.add_child(ramp_creator)
 	ramp_creator.apply_requested.connect(apply_design)
 	ramp_creator.new_ramp_requested.connect(new_ramp_from_design)
 	_playtest_panel = PlaytestPanel.new()
 	_playtest_panel.hide()
-	_ui.add_child(_playtest_panel)
+	_ui_root.add_child(_playtest_panel)
 	_playtest_panel.leave_requested.connect(_leave_playtest)
 	_playtest_panel.copy_requested.connect(_copy_playtest_code)
 	_playtest_panel.remove_requested.connect(_remove_from_session)
@@ -343,7 +353,7 @@ func _build_ui_main() -> void:
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_theme_constant_override("separation", 0)
-	_ui.add_child(root)
+	_ui_root.add_child(root)
 
 	var bar_panel := PanelContainer.new()
 	_fields["toolbar"] = bar_panel
@@ -403,8 +413,15 @@ func _build_ui_main() -> void:
 	bar.add_child(VSeparator.new())
 	_bar_item(bar, ["▶ Play (P)", _play_clicked])
 	_bar_item(bar, ["Build (E)", _build_clicked])
+	var pt := CheckButton.new()                        # (the playtest panel's own button: it is not an export)
+	pt.text = "Playtest panel"
+	pt.focus_mode = Control.FOCUS_NONE
+	pt.tooltip_text = "Who is on the session, their runs, and the invite. Start one in Export > Playtest session."
+	pt.toggled.connect(_set_playtest_panel)
+	bar.add_child(pt)
+	_fields["playtest_button"] = pt
 	_menu(bar, "Export ▾", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked], [],
-		["Playtest session…", KEY_NONE, _playtest_clicked], ["Playtest panel", KEY_NONE, _toggle_playtest_panel, "playtest"], [],
+		["Playtest session…", KEY_NONE, _playtest_clicked], [],
 		["Test build for testers…", KEY_NONE, _test_build_clicked], ["Import tester runs…", KEY_NONE, _import_runs_clicked]])
 	bar.add_child(VSeparator.new())
 	var snap := CheckButton.new()
@@ -484,7 +501,7 @@ func _build_ui_main() -> void:
 	_file_dialog.current_dir = ProjectSettings.globalize_path("res://maps") if OS.has_feature("editor") else OS.get_executable_path().get_base_dir()
 	_file_dialog.file_selected.connect(_on_file_chosen)
 	_file_dialog.canceled.connect(func(): _quit_after_save = false)   # (backed out of Save-then-close)
-	_ui.add_child(_file_dialog)
+	_ui_root.add_child(_file_dialog)
 	_build_export_dialog()
 	_build_css_dialog()
 
@@ -781,7 +798,7 @@ func _build_map_props(props: VBoxContainer) -> void:
 	_image_dialog.use_native_dialog = true
 	_image_dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Images"])
 	_image_dialog.file_selected.connect(func(path): _edit_prop("texture", path); _refresh_props())
-	_ui.add_child(_image_dialog)
+	_ui_root.add_child(_image_dialog)
 
 
 func _env_color(parent: Container, key: String, label: String) -> void:
@@ -1031,7 +1048,7 @@ func _choose_shader_image(done: Callable) -> void:
 		_shader_image_dialog.use_native_dialog = true
 		_shader_image_dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Images"])
 		_shader_image_dialog.file_selected.connect(func(path): _shader_image_done.call(path); _refresh_props())
-		_ui.add_child(_shader_image_dialog)
+		_ui_root.add_child(_shader_image_dialog)
 	_shader_image_done = done
 	_shader_image_dialog.popup_centered_ratio(0.6)
 
@@ -2179,7 +2196,7 @@ func _build_lock_props() -> void:
 	_unlock_confirm.title = "Unlock"
 	_unlock_confirm.ok_button_text = "Unlock them"
 	_unlock_confirm.confirmed.connect(func(): _do_unlock(_pending_unlock))
-	_ui.add_child(_unlock_confirm)
+	_ui_root.add_child(_unlock_confirm)
 
 
 func _refresh_lock_props(r: RampNode) -> void:
@@ -2312,6 +2329,8 @@ func _sync_view_menu() -> void:
 		if _fields.has("menu_" + pair[0]):
 			var m: Array = _fields["menu_" + pair[0]]
 			(m[0] as PopupMenu).set_item_checked(m[1], pair[1])
+	if _fields.has("playtest_button"):
+		(_fields["playtest_button"] as CheckButton).set_pressed_no_signal(_playtest_panel != null and _playtest_panel.visible)
 	_redraw_overlays()
 
 
@@ -2329,7 +2348,7 @@ func _clear_best_clicked() -> void:
 	d.title = "Clear best run"
 	d.dialog_text = "Forget the best run (%s) and its path? This can't be undone." % PlayMode.format_time(float(best_ghost["time"]))
 	d.ok_button_text = "Clear it"
-	_ui.add_child(d)
+	_ui_root.add_child(d)
 	d.confirmed.connect(func():
 		clear_best_run()
 		d.queue_free())
@@ -2419,7 +2438,7 @@ func _open_mouse_settings() -> void:
 				(pair[0] as HSlider).value = Settings.DEFAULTS[k]
 			(_fields["mouse_invert_y"] as CheckButton).button_pressed = false)
 		box.add_child(reset)
-		_ui.add_child(_mouse_dialog)
+		_ui_root.add_child(_mouse_dialog)
 	_mouse_dialog.popup_centered()
 
 
@@ -2479,7 +2498,7 @@ func _build_prop_props(props: VBoxContainer) -> void:
 	_prop_dialog.use_native_dialog = true
 	_prop_dialog.filters = PackedStringArray(["*.glb, *.gltf ; glTF model"])
 	_prop_dialog.file_selected.connect(_on_prop_file)
-	_ui.add_child(_prop_dialog)
+	_ui_root.add_child(_prop_dialog)
 
 
 func _add_prop_clicked() -> void:
@@ -2962,7 +2981,7 @@ func _open_prefabs() -> void:
 		tip.text = "Make your own: select some objects, then Edit > Save selection as prefab."
 		tip.add_theme_color_override("font_color", Color(0.6, 0.64, 0.7))
 		box.add_child(tip)
-	_ui.add_child(_prefab_popup)
+	_ui_root.add_child(_prefab_popup)
 	_prefab_popup.popup_centered()
 
 
@@ -3013,7 +3032,7 @@ func _save_prefab_clicked() -> void:
 		box.add_child(desc)
 		_fields["prefab_desc"] = desc
 		_prefab_name_dialog.confirmed.connect(func(): save_prefab(_fields["prefab_name"].text, _fields["prefab_desc"].text))
-		_ui.add_child(_prefab_name_dialog)
+		_ui_root.add_child(_prefab_name_dialog)
 	_fields["prefab_name"].text = ""
 	_fields["prefab_desc"].text = ""
 	_prefab_name_dialog.popup_centered(Vector2i(420, 0))
@@ -3109,7 +3128,7 @@ func _font_file_dialog() -> FileDialog:
 		_font_dialog.use_native_dialog = true
 		_font_dialog.filters = PackedStringArray(["*.ttf, *.otf, *.woff, *.woff2 ; Fonts"])
 		_font_dialog.file_selected.connect(func(path): _edit_prop("text_font", path))
-		_ui.add_child(_font_dialog)
+		_ui_root.add_child(_font_dialog)
 	return _font_dialog
 
 
@@ -3347,7 +3366,7 @@ func _open_picker(cb: Callable) -> void:
 				sec[1].visible = shown > 0 and (sec[1] as Label).text != ""
 			for fo in css_folders:                       # CS:S folders: open (and fill) only the ones with matches
 				fo.search(q))
-		_ui.add_child(_picker)
+		_ui_root.add_child(_picker)
 	_picker.popup_centered()
 	var search: LineEdit = _fields["picker_search"]   # type straight away to search (F2 in build mode too)
 	search.grab_focus()
@@ -3400,7 +3419,7 @@ func _own_image_dialog() -> FileDialog:
 		d.use_native_dialog = true
 		d.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Images"])
 		d.file_selected.connect(func(path): add_own_material(path))
-		_ui.add_child(d)
+		_ui_root.add_child(d)
 		_fields["own_image_dialog"] = d
 	return _fields["own_image_dialog"]
 
@@ -5352,7 +5371,7 @@ func _import_runs_clicked() -> void:
 		_runs_dialog.use_native_dialog = true
 		_runs_dialog.filters = PackedStringArray(["*.json ; Tester runs"])
 		_runs_dialog.files_selected.connect(import_runs)
-		_ui.add_child(_runs_dialog)
+		_ui_root.add_child(_runs_dialog)
 	_runs_dialog.popup_centered_ratio(0.6)
 
 
@@ -5436,7 +5455,7 @@ func _build_playtest_dialog() -> void:
 		start_playtest(_playtest_inputs["address"].text.strip_edges(), _playtest_inputs["code"].text.strip_edges().to_upper(),
 			_playtest_inputs["secret"].text.strip_edges(), _playtest_inputs["name"].text.strip_edges(),
 			_playtest_inputs["co"].button_pressed))
-	_ui.add_child(_playtest_dialog)
+	_ui_root.add_child(_playtest_dialog)
 
 
 ## Connect to the relay as the map maker. `code` empty starts a new session. `as_editor` joins someone else's
@@ -5672,10 +5691,15 @@ func _refresh_playtest() -> void:
 
 
 func _toggle_playtest_panel() -> void:
+	_set_playtest_panel(_playtest_panel != null and not _playtest_panel.visible)
+
+
+## Show or hide the playtest panel. Its toolbar button follows, so the two never disagree.
+func _set_playtest_panel(on: bool) -> void:
 	if _playtest_panel == null:
 		return
-	_playtest_panel.visible = not _playtest_panel.visible
-	if _playtest_panel.visible:
+	_playtest_panel.visible = on
+	if on:
 		_refresh_playtest()
 	_sync_view_menu()
 
@@ -6095,7 +6119,7 @@ func _co_ask_for_their_map() -> void:
 		_co_state_dialog.min_size = Vector2i(520, 0)
 		_co_state_dialog.confirmed.connect(_co_request_state)
 		_co_state_dialog.canceled.connect(_co_stay_local)
-		_ui.add_child(_co_state_dialog)
+		_ui_root.add_child(_co_state_dialog)
 	_co_state_dialog.dialog_text = ("Session %s is live. Joining it loads the map its owner has now over the one you have open, so both copies match.\n\n"
 		+ "You have changes here that aren't saved: save them first (File > Save) if you want to keep them.\n\n"
 		+ "\"Stay with mine\" leaves the session and changes nothing.") % relay.session
@@ -6531,13 +6555,13 @@ They're Valve's textures: leave this off and those surfaces get a similar MALLET
 	note.add_theme_color_override("font_color", Color(0.8, 0.8, 0.6))
 	box.add_child(note)
 	_export_dialog.confirmed.connect(_do_export)
-	_ui.add_child(_export_dialog)
+	_ui_root.add_child(_export_dialog)
 	_dir_dialog = FileDialog.new()
 	_dir_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	_dir_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
 	_dir_dialog.use_native_dialog = true
 	_dir_dialog.dir_selected.connect(func(d): _export_dir.text = d)
-	_ui.add_child(_dir_dialog)
+	_ui_root.add_child(_dir_dialog)
 
 
 # ------------------------------------------------------------------------------------------------ CS:S
@@ -6595,7 +6619,7 @@ func _build_css_dialog() -> void:
 	note.add_theme_color_override("font_color", Color(0.8, 0.8, 0.6))
 	box.add_child(note)
 	_css_dialog.confirmed.connect(_do_css_export)
-	_ui.add_child(_css_dialog)
+	_ui_root.add_child(_css_dialog)
 
 
 func _css_clicked() -> void:
@@ -6684,7 +6708,7 @@ func _show_message(title: String, text: String) -> void:
 		a.name = "MessageBox"
 		a.confirmed.connect(a.queue_free)
 		a.canceled.connect(a.queue_free)
-		_ui.add_child(a)
+		_ui_root.add_child(a)
 	a.title = title
 	a.dialog_text = text
 	a.popup_centered()
@@ -6714,7 +6738,7 @@ func _do_export() -> void:
 		var a := AcceptDialog.new()
 		a.title = "Can't export yet"
 		a.dialog_text = err
-		_ui.add_child(a)
+		_ui_root.add_child(a)
 		a.popup_centered()
 		_set_status("Export failed: " + err.get_slice("
 ", 0))

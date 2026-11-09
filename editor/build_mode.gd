@@ -11,6 +11,16 @@ extends Node
 signal stopped
 
 const PICK_LAYER := 1 << 19
+## Tab places world pieces only: lights live in the T menu, on their own tab, so there is one place per kind of thing.
+const PLACE_ITEMS := [["Start platform", 102], ["Finish platform", 103], ["Stage plate", 104], ["Teleport", 105],
+	["Kill zone", 106], ["Booster", 107], ["Text", 108], ["Particles (fire, smoke, snow…)", 110]]
+## The T menu's tabs: id -> [title, [[label, what it places], …]]. Order is the order of the tabs.
+const ENT_TABS := {
+	"lights": ["Lights", [["Point light", 100], ["Spot light", 101], ["Light strip (neon)", 109]]],
+	"world": ["Platforms & zones", [["Start platform", 102], ["Finish platform", 103], ["Stage plate", 104],
+		["Teleport", 105], ["Kill zone", 106], ["Booster", 107]]],
+	"text": ["Text & particles", [["Text", 108], ["Particles (fire, smoke, snow…)", 110]]],
+}
 const HELP := [
 	["Look / fly", "mouse  /  W A S D  (Shift: fast)"], ["P", "play from here (Esc comes back)"], ["Ctrl+P", "play from the start (Esc comes back)"], ["", ""],
 	["Mouse wheel", "pull cubes out / push them in"],
@@ -83,6 +93,11 @@ var _menu: PopupMenu
 var _tex_panel: PanelContainer
 var _tex_fields := {}
 var _tex_updating := false
+var _ent_menu: PanelContainer                ## T: the entity menu (a tab per kind of thing, lights first)
+var _ent_body := VBoxContainer.new()
+var _ent_tabs: HBoxContainer
+var _ent_pages := {}
+var _ent_tab_buttons := {}
 
 
 func setup(ed: Node, root: Node3D) -> void:
@@ -140,6 +155,9 @@ func _ready() -> void:
 	_menu.id_pressed.connect(_menu_pressed)
 	_menu.popup_hide.connect(_ui_closed)
 	_hud.add_child(_menu)
+	_build_entity_menu()
+	for c in [_help, _tex_panel, _ent_menu, _menu]:          # (under a CanvasLayer: give them the theme directly)
+		c.theme = UiTheme.shared()
 
 
 ## How many steps of its own undo history build mode has: the editor watches this, since cube edits change a
@@ -266,9 +284,24 @@ static func _frame(m) -> Transform3D:
 # ------------------------------------------------------------------------------------------------ input
 func _input(event: InputEvent) -> void:
 	if not active or _ui_open:
-		if _ui_open and event is InputEventKey and event.pressed and event.keycode in [KEY_ESCAPE, KEY_F3] and _tex_panel.visible:
-			_close_tex_panel()
-			get_viewport().set_input_as_handled()
+		if _ui_open and event is InputEventKey and event.pressed:
+			var k: int = event.keycode
+			var closed := false
+			if k == KEY_ESCAPE:
+				if _tex_panel.visible:
+					_close_tex_panel()
+					closed = true
+				elif _ent_menu != null and _ent_menu.visible:
+					_close_ent_menu()
+					closed = true
+			elif k == KEY_F3 and _tex_panel.visible:
+				_close_tex_panel()
+				closed = true
+			elif k == KEY_T and _ent_menu != null and _ent_menu.visible:
+				_close_ent_menu()
+				closed = true
+			if closed:
+				get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.keycode == KEY_F11:
 		return
@@ -1140,9 +1173,8 @@ func _ent_prop(idx: int, dir: int) -> void:
 func _open_place_menu() -> void:
 	_menu.clear()
 	_menu.set_meta("kind", "place")
-	var items := [["Light", 100], ["Spot light", 101], ["Start platform", 102], ["Finish platform", 103], ["Stage plate", 104],
-		["Teleport", 105], ["Kill zone", 106], ["Booster", 107], ["Text", 108], ["Light strip (neon)", 109], ["Particles (fire, smoke, snow\u2026)", 110]]
-	for it in items:
+	_menu.add_separator("Place where you aim (lights: T menu)")
+	for it in PLACE_ITEMS:
 		_menu.add_item(it[0], it[1])
 	_show_menu()
 
@@ -1212,27 +1244,161 @@ func _show_menu() -> void:
 func _ui_closed() -> void:
 	if not active:
 		return
-	_ui_open = _tex_panel.visible
+	_ui_open = _tex_panel.visible or (_ent_menu != null and _ent_menu.visible)
 	if not _ui_open:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
+## T: the entity menu - a panel with a tab per kind of thing, lights first. Hover a tab to look at it, click to keep
+## it; the Session tab keeps what the old T menu had (materials, texture tools, selection commands).
 func _open_commands() -> void:
-	_menu.clear()
-	_menu.set_meta("kind", "commands")
-	_menu.add_separator("Fill the selection with")
+	_ui_open = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_ent_show("lights")
+	_ent_menu.visible = true
+	_ent_menu.reset_size()
+	_layout_hud()
+
+
+func _build_entity_menu() -> void:
+	_ent_menu = PanelContainer.new()
+	_ent_menu.add_theme_stylebox_override("panel", UiTheme.panel_box())
+	_ent_menu.custom_minimum_size = Vector2(440, 0)
+	_ent_menu.visible = false
+	_hud.add_child(_ent_menu)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	_ent_menu.add_child(box)
+	var head := HBoxContainer.new()
+	box.add_child(head)
+	var title := Label.new()
+	title.text = "Place and edit"
+	title.add_theme_font_size_override("font_size", 18)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	var close := Button.new()
+	close.text = "✕"
+	close.focus_mode = Control.FOCUS_NONE
+	close.tooltip_text = "Close (T opens it again)"
+	close.pressed.connect(_close_ent_menu)
+	head.add_child(close)
+	_ent_tabs = HBoxContainer.new()
+	_ent_tabs.add_theme_constant_override("separation", 4)
+	box.add_child(_ent_tabs)
+	box.add_child(HSeparator.new())
+	box.add_child(_ent_body)
+	for id in ENT_TABS:
+		_ent_page(id)
+	_session_page()
+	_ent_show("lights")
+
+
+## One tab and its page. Hovering a tab shows its page, clicking it keeps that page up.
+func _ent_page(id: String) -> void:
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 4)
+	page.visible = false
+	_ent_body.add_child(page)
+	_ent_pages[id] = page
+	var spec: Array = ENT_TABS[id]
+	for it in (spec[1] as Array):
+		var b := Button.new()
+		b.text = String(it[0])
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.focus_mode = Control.FOCUS_NONE
+		b.pressed.connect(func(): _place_and_close(int(it[1])))
+		page.add_child(b)
+	var tb := Button.new()
+	tb.text = String(spec[0])
+	tb.toggle_mode = true
+	tb.focus_mode = Control.FOCUS_NONE
+	tb.mouse_entered.connect(func(): _ent_show(id))
+	tb.pressed.connect(func(): _ent_show(id))
+	_ent_tabs.add_child(tb)
+	_ent_tab_buttons[id] = tb
+
+
+## The Session tab: the old T menu (fill with a material, texture tools, selection commands), as buttons.
+func _session_page() -> void:
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 4)
+	page.visible = false
+	_ent_body.add_child(page)
+	_ent_pages["session"] = page
+	var tb := Button.new()
+	tb.text = "Session"
+	tb.toggle_mode = true
+	tb.focus_mode = Control.FOCUS_NONE
+	tb.mouse_entered.connect(func(): _ent_show("session"))
+	tb.pressed.connect(func(): _ent_show("session"))
+	_ent_tabs.add_child(tb)
+	_ent_tab_buttons["session"] = tb
+	page.add_child(UiTheme.header("Fill the selection with"))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 4)
+	page.add_child(grid)
 	for i in CubeWorld.MATERIALS.size():
 		var m: String = CubeWorld.MATERIALS[i]
-		_menu.add_item(("air (clear the material)" if m == "air" else CubeWorld.MATERIAL_INFO[m]), i)
-	_menu.add_separator("Textures")
-	_menu.add_item("Replace the texture you aim at, everywhere, with the current one", 50)
-	_menu.add_item("...the same, just in the selection", 51)
-	_menu.add_item("Reset texture settings of the selected faces (vreset)", 52)
-	_menu.add_separator("Selection")
-	_menu.add_item("Select the entities inside the selection (Keypad Enter)", 60)
-	_menu.add_item("Go to the selection (J)", 61)
-	_menu.add_item("Start a new cube object (N)", 62)
-	_show_menu()
+		var b := Button.new()
+		b.text = "Air (clear)" if m == "air" else m.capitalize()
+		b.tooltip_text = String(CubeWorld.MATERIAL_INFO.get(m, ""))
+		b.focus_mode = Control.FOCUS_NONE
+		b.pressed.connect(func(): _run_and_close(i))
+		grid.add_child(b)
+	page.add_child(HSeparator.new())
+	for spec in [["Replace the texture you aim at, everywhere", 50], ["…only in the selection", 51],
+			["Reset the selected faces' texture settings", 52], ["Select the entities in the selection", 60],
+			["Go to the selection (J)", 61], ["Start a new cube object (N)", 62]]:
+		var b := Button.new()
+		b.text = String(spec[0])
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.focus_mode = Control.FOCUS_NONE
+		b.pressed.connect(func(): _run_and_close(int(spec[1])))
+		page.add_child(b)
+	var tex := HBoxContainer.new()
+	page.add_child(tex)
+	for spec in [["Texture picker… (F2)", "pick"], ["Texture settings… (F3)", "tex"]]:
+		var b := Button.new()
+		b.text = String(spec[0])
+		b.focus_mode = Control.FOCUS_NONE
+		b.pressed.connect(_open_tex_tool.bind(String(spec[1])))
+		tex.add_child(b)
+
+
+func _ent_show(id: String) -> void:
+	for k in _ent_pages:
+		(_ent_pages[k] as Control).visible = String(k) == id
+	for k in _ent_tab_buttons:
+		(_ent_tab_buttons[k] as Button).set_pressed_no_signal(String(k) == id)
+	if _ent_menu != null:
+		_ent_menu.reset_size()
+
+
+func _place_and_close(id: int) -> void:
+	_close_ent_menu()
+	_place(id)
+
+
+func _run_and_close(id: int) -> void:
+	_close_ent_menu()
+	run_command(id)
+
+
+func _open_tex_tool(which: String) -> void:
+	_close_ent_menu()
+	if which == "pick":
+		_open_picker(_apply_texture)
+	else:
+		_open_tex_panel()
+
+
+func _close_ent_menu() -> void:
+	if _ent_menu != null:
+		_ent_menu.visible = false
+	_ui_open = _tex_panel.visible
+	if active and not _ui_open:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _menu_pressed(id: int) -> void:
@@ -1656,6 +1822,9 @@ func _layout_hud() -> void:
 	_co.position = Vector2.ZERO
 	_co.size = vp
 	_co.queue_redraw()
+	if _ent_menu != null and _ent_menu.visible:
+		_ent_menu.position = Vector2(maxf(20.0, vp.x * 0.5 - _ent_menu.size.x * 0.5),
+			maxf(60.0, vp.y * 0.5 - _ent_menu.size.y * 0.5))
 	_cross.position = vp * 0.5 - _cross.size * 0.5
 	_info.position = Vector2(16, vp.y - _info.size.y - 14)
 	_help.position = Vector2(vp.x - _help.size.x - 16, 16)
