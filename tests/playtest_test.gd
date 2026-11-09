@@ -147,6 +147,25 @@ func _run() -> void:
 	await process_frame
 	check("the views draw live testers and their paths", ed.live_trails.size() == 1 and ed.show_tester_paths)
 
+	# --- names come from the maker, so both copies agree on which object is which
+	var n3 := RampNode.new()
+	ed.ramps_root.add_child(n3)
+	n3.points = PackedVector3Array([Vector3(0, 0, 400), Vector3(0, 0, 420)])
+	n3.rebuild()
+	ed._select(null)
+	ed._map_changed()
+	await wait_ms(300)
+	var names: Array = ed._co_all_names()
+	for o in ed._all_objects():                            # (as a newcomer has them: no names yet)
+		if o.has_meta("co_uid"):
+			o.remove_meta("co_uid")
+	ed._co_take_names({"t": "names", "names": names})
+	var named_all := true
+	for o in ed._all_objects():
+		if not o.has_meta("co_uid"):
+			named_all = false
+	check("the maker's names land on the objects", named_all and ed._co_uids.size() == ed._all_objects().size(),
+		"%d named, %d objects" % [ed._co_uids.size(), ed._all_objects().size()])
 	# --- the invite: what the owner sends so someone else can join
 	var invite: String = ed._playtest_invite()
 	check("the invite carries the address, the code and the secret", invite.contains(ed.relay.session)
@@ -230,6 +249,42 @@ func _run() -> void:
 	co.send({"t": "edit", "seq": 3, "op": {"act": "del", "kind": "ramp", "uid": "zz1"}})
 	check("a deletion on their side removes it here", await wait_for(func(): return ed.ramps_root.get_child_count() == count_before, 4000))
 	check("it cannot be found any more", ed._co_find_uid("ramp", "zz1") == null)
+	# a change aimed at a ramp this copy has never heard of must not land on the ramp next to it
+	var alien: Dictionary = ed._with_group(ramp)
+	alien["points"] = [[0, 0, 0], [0, 0, 70]]
+	var ramp_mid: Vector3 = ramp.center()
+	co.send({"t": "edit", "seq": 88, "op": {"kind": "ramp", "uid": "zzzznope",
+		"at": [ramp_mid.x, ramp_mid.y, ramp_mid.z], "obj": alien}})
+	await wait_ms(600)
+	check("an edit for an unknown object is dropped, not applied to a neighbor",
+		ramp.points[1].is_equal_approx(Vector3(0, 0, 28)), str(ramp.points))
+	# --- moving several objects at once sends every one of them
+	co_edits.clear()
+	var mm1 := RampNode.new()
+	ed.ramps_root.add_child(mm1)
+	mm1.points = PackedVector3Array([Vector3(0, 0, 600), Vector3(0, 0, 620)])
+	mm1.rebuild()
+	var mm2 := RampNode.new()
+	ed.ramps_root.add_child(mm2)
+	mm2.points = PackedVector3Array([Vector3(40, 0, 600), Vector3(40, 0, 620)])
+	mm2.rebuild()
+	ed._co_seed()                                         # (objects the session already knows, like a map's ramps)
+	await wait_ms(150)
+	ed._select(mm1)
+	ed._extra = [mm2]
+	mm1.position = Vector3(0, 0, 640)
+	mm2.position = Vector3(40, 0, 640)
+	ed._map_changed()
+	var mu1: String = ed._co_uid(mm1)
+	var mu2: String = ed._co_uid(mm2)
+	var both_out := await wait_for(func(): return _has_uid(co_edits, mu1, "edit") and _has_uid(co_edits, mu2, "edit"), 5000)
+	var seen_now := []
+	for msg in co_edits:
+		var so: Dictionary = msg.get("op", {})
+		seen_now.append("%s:%s" % [String(so.get("act", "?")), String(so.get("uid", "?"))])
+	check("both moved objects go out", both_out, ", ".join(seen_now).substr(0, 220))
+	ed._extra = []
+	ed._select(null)
 	var extra := RampNode.new()
 	ed.ramps_root.add_child(extra)
 	extra.points = PackedVector3Array([Vector3(0, 0, 120), Vector3(0, 0, 150)])

@@ -124,6 +124,11 @@ The joiner puts the pieces back together in order and loads the result when the 
 that joins after work started starts from the same map from its first tick. An editor with unsaved changes is
 asked first: taking the session's map replaces the map it has open, though the file on disk is left alone.
 
+The maker sends `names` just before the map: `{"t": "names", "to": "<id>", "names": [[kind, uid, x, y, z], …]}`.
+The joiner gives each name to the nearest object of its kind that has no name yet, so both copies call every
+object the same thing from the first tick. Without it each side invented its own names and an edit could land on
+whichever object happened to be nearest.
+
 ### Undo, redo and the outliner
 
 An undo or redo rebuilds the whole map on the side that ran it, so it is sent as the difference it made: objects

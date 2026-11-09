@@ -160,6 +160,8 @@ var co_cursors := {}                   ## co-editor id -> their last cursor mess
 var _co_build_steps := -1              ## build mode's undo steps when last watched (its cube edits go out)
 var _co_build_model: CubeModelNode = null
 var _co_env := ""                      ## the environment (sky and the rest of the Map panel) as last sent
+var _co_names: Array = []              ## names for the objects, from the maker, applied with the map it sent
+var _co_named := false                 ## those names are in use here (a relay older than 0.17.3 doesn't forward them)
 var show_co_editors := true            ## draw co-editors' cameras and selections in the views (View menu)
 var session_role := ""                 ## what we joined the relay as: maker, editor or tester
 var _cursor_clock := 0.0
@@ -5604,6 +5606,8 @@ func _playtest_message(m: Dictionary) -> void:
 			live_trails.erase(gone)
 			co_cursors.erase(gone)
 			_refresh_playtest()
+		"names":
+			_co_take_names(m)
 		"kicked":
 			_playtest_kicked(String(m.get("by", "the map's owner")))
 		"cursor":
@@ -5698,6 +5702,8 @@ func _leave_playtest() -> void:
 	_rejoining = false
 	_co_state_next = -1
 	_co_state_text = ""
+	_co_names.clear()
+	_co_named = false
 	_co_env = ""
 	session_role = ""
 	_refresh_playtest()
@@ -5809,14 +5815,27 @@ func _tick_co_cursors(delta: float) -> void:
 	var at := p.camera.global_position
 	var aim := -p.camera.global_basis.z
 	var mouse: Array = []
-	if p.mouse_here:
-		var w := p.mouse_world
+	var w = _co_mouse_point(p)
+	if w != null:
 		mouse = [snappedf(w.x, 0.01), snappedf(w.y, 0.01), snappedf(w.z, 0.01)]
 	relay.send({"t": "cursor", "pos": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)],
 		"aim": [snappedf(aim.x, 0.001), snappedf(aim.y, 0.001), snappedf(aim.z, 0.001)], "sel": _co_sel(),
 		"view": p.kind, "mouse": mouse, "doing": _co_doing()})
 	_co_watch_build()
 	_co_send_edits()
+
+
+## Where the other editors should draw our mouse: the surface under it (what a click there would hit), or, when
+## there's nothing under it, the plane this view drags on. Null when the pointer isn't over the view.
+func _co_mouse_point(p: ViewPane) -> Variant:
+	if p == null or p.camera == null or not p.mouse_here:
+		return null
+	var r := p.ray(p.mouse_pos)
+	var q := PhysicsRayQueryParameters3D.create(r[0], r[0] + r[1] * 20000.0)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if not hit.is_empty():
+		return hit.position
+	return p.drag_plane(_view_center(), false).intersects_ray(r[0], r[1])
 
 
 ## What we are doing right now, shown next to our mouse in the other editors' views.
@@ -5909,12 +5928,20 @@ func _co_find(kind: String, uid: String, at: Vector3) -> Node3D:
 	var best: Node3D = null
 	var best_d := 1.0
 	for o in root.get_children():
+		if (o.has_meta("co_uid") and _co_named) or o.is_queued_for_deletion():
+			continue                                 # (with shared names, a named object is another object: never take it over)
 		var d: float = (o as Node3D).center().distance_to(at)
 		if d < best_d:
 			best_d = d
 			best = o
 	if best != null and uid != "":
 		best.set_meta("co_uid", uid)
+		for other in _co_uids.keys():                # (it may have been filed under a name of its own)
+			var rec = _co_uids[other]
+			if rec is Dictionary and rec.get("o") == best:
+				_co_uids.erase(other)
+		_co_uids[uid] = {"o": best, "kind": kind}
+		_co_last[uid] = best.center()
 	return best
 
 
@@ -5926,7 +5953,9 @@ func _co_seed() -> void:
 	_co_queue.clear()
 	for o in _all_objects():
 		if is_instance_valid(o):
-			_co_uids[_co_uid(o)] = {"o": o, "kind": _co_kind(o)}
+			var uid := _co_uid(o)
+			_co_uids[uid] = {"o": o, "kind": _co_kind(o)}
+			_co_last[uid] = (o as Node3D).center()   # (so the first edit says where this copy still has it)
 	_co_env = JSON.stringify(environment)          # (both copies start from the same map's look)
 
 
@@ -6010,6 +6039,7 @@ const CO_STATE_CHUNK := 400000        ## bytes of map text per message (the rela
 func _co_send_state(to: String) -> void:
 	if relay == null or not relay.is_open() or to == "":
 		return
+	relay.send({"t": "names", "to": to, "names": _co_all_names()})   # (before the map: the newcomer takes our names)
 	var text := JSON.stringify(_map_dict())
 	var parts := []
 	var i := 0
@@ -6088,14 +6118,68 @@ func _co_state_chunk(m: Dictionary) -> void:
 	_co_state_text = ""
 	if text == JSON.stringify(_map_dict()):              # (nothing moved: no need to rebuild anything)
 		_co_waiting_state = false
+		_co_apply_names()                            # (but the names still have to come from the maker)
+		_co_names.clear()
 		_co_seed()
 		_set_status("Session %s: this copy already matches." % relay.session)
 		return
 	_co_apply_state(text, String(m.get("name", "")))
 
 
-## Their map, loaded here: both copies match from here on. Not an undo step (there is nothing sane to step back
-## to in the middle of a session) and muted, so it doesn't go out again as thousands of new objects.
+## Every object's session name and where it is, so a newcomer uses the same names instead of inventing its own
+## (two copies inventing names independently is what made edits land on the wrong object).
+func _co_all_names() -> Array:
+	var out := []
+	for o in _all_objects():
+		if not is_instance_valid(o) or o.is_queued_for_deletion():
+			continue
+		var c: Vector3 = (o as Node3D).center()
+		out.append([_co_kind(o), _co_uid(o), snappedf(c.x, 0.01), snappedf(c.y, 0.01), snappedf(c.z, 0.01)])
+	return out
+
+
+## Give this copy the names that came with a map: each name goes to the nearest object of its kind that has no
+## name yet, so the two copies agree exactly instead of matching by distance later.
+func _co_apply_names() -> void:
+	var used := {}
+	for entry in _co_names:
+		if not entry is Array or (entry as Array).size() < 5:
+			continue
+		var kind := String(entry[0])
+		var uid := String(entry[1])
+		var at := Vector3(entry[2], entry[3], entry[4])
+		var root := _co_root(kind)
+		if root == null or uid == "":
+			continue
+		var best: Node3D = null
+		var best_d := 1.0
+		for o in root.get_children():
+			if used.has(o) or o.has_meta("co_uid") or o.is_queued_for_deletion():
+				continue
+			var d: float = (o as Node3D).center().distance_to(at)
+			if d < best_d:
+				best_d = d
+				best = o
+		if best != null:
+			best.set_meta("co_uid", uid)
+			used[best] = true
+
+
+func _co_take_names(m: Dictionary) -> void:
+	var list = m.get("names")
+	if not list is Array:
+		return
+	_co_names = (list as Array).duplicate(true)
+	_co_named = _co_names.size() > 0              # (from here on, an object's name is its identity)
+	if _co_state_next < 0:                        # (no map on its way: our copy already matches, name it now)
+		_co_apply_names()
+		_co_seed()
+		_set_status("This session's names: %d objects." % _co_names.size())
+
+
+## Their map, loaded here: both copies match from here on, and it takes their name for every object. Not an undo
+## step (there is nothing sane to step back to mid-session) and muted, so it doesn't go out again as thousands of
+## adds.
 func _co_apply_state(text: String, who: String) -> void:
 	var d = JSON.parse_string(text)
 	if not d is Dictionary:
@@ -6113,6 +6197,8 @@ func _co_apply_state(text: String, who: String) -> void:
 	_co_queue.clear()
 	_co_last.clear()
 	_select(null)
+	_co_apply_names()                              # (their names for the objects that just loaded)
+	_co_names.clear()
 	_co_seed()                                     # (it all came from them: none of it is new)
 	outliner.sync_selection()
 	_set_title("untitled")

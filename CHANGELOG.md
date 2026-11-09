@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.3 preview — 2026-11-09: Objects keep their own names
+
+- **Moving several objects now syncs all of them.** Each MALLET used to invent its own name for every object it
+  already had, and a change was matched to the nearest object of the same kind: with ramps close together the same
+  ramp could take every change, and the rest never moved. The maker now sends each object's name with the map, so
+  both copies agree from the first tick.
+- **A change for an object this copy doesn't know is dropped** (with a status line) instead of landing on a
+  neighbor, which could also make one object appear to move twice and others not at all.
+- **The other person's mouse lands where it really is**: the point under their pointer on the surface they are
+  aiming at, instead of the ground plane, so it no longer sits low when they point at a ramp above the floor.
+
 ## 0.17.2 preview — 2026-11-09: Joining with a pasted invite
 
 - **"Paste invite" in Export > Playtest session…**: fills in the relay address, the session code and the secret from

@@ -19,7 +19,7 @@ var overlay := Control.new()
 var _pan := false
 var _ortho_center := Vector3(0, 100, 0)
 var mouse_here := false                     ## the pointer is over this view (co-editors see where it is)
-var mouse_world := Vector3.ZERO             ## and what it points at in the world
+var mouse_pos := Vector2.ZERO               ## and where, in this view's own pixels
 
 
 func _init(k: int, ed: Node) -> void:
@@ -102,16 +102,7 @@ func ray(mouse: Vector2) -> Array:
 	return [camera.project_ray_origin(mouse), camera.project_ray_normal(mouse)]
 
 
-## Where the pointer reads in the world: the ground in the perspective view, the flat plane this ortho view is
-## looked at through. Null when the ray misses (a perspective view aimed at the sky).
-func mouse_point(at: Vector2) -> Variant:
-	var o := camera.project_ray_origin(at)
-	var n := camera.project_ray_normal(at)
-	var plane := Plane(Vector3.UP, 0.0)
-	if is_ortho():
-		var back := -camera.global_basis.z
-		plane = Plane(back, back.dot(_ortho_center))
-	return plane.intersects_ray(o, n)
+
 
 
 func frame(center: Vector3, radius: float) -> void:
@@ -201,10 +192,8 @@ func _notification(what: int) -> void:
 func _gui_input(event: InputEvent) -> void:
 	editor.set_active_pane(self)
 	if event is InputEventMouse:
-		var hit = mouse_point(event.position)
-		mouse_here = hit != null
-		if hit != null:
-			mouse_world = hit
+		mouse_pos = event.position
+		mouse_here = true
 	if _grab_button < 0 and event is InputEventMouseButton and event.pressed 			and event.button_index in [MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
 		_begin_grab(event.button_index)
 	if kind == Kind.PERSPECTIVE:

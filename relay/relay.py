@@ -335,10 +335,11 @@ async def on_message(p, msg):
         out["name"] = p.name
         await broadcast(p.session, out, skip=p, roles=FORWARD_TO)
 
-    elif t == "state":
-        # 0.17: the map a newcomer gets, so an editor joining a session that already has work in it matches from
-        # its first tick. It goes to the one who asked and nobody else: a whole map to everyone would be far too
-        # much. Only the maker sends it, and the relay never keeps it.
+    elif t in ("state", "names"):
+        # 0.17: the map a newcomer gets (and the names of its objects, so both copies agree on them), so an editor
+        # joining a session that already has work in it matches from its first tick. It goes to the one who asked
+        # and nobody else: a whole map to everyone would be far too much. Only the maker sends it, and the relay
+        # never keeps it.
         if p.role != "maker":
             return
         to = s["peers"].get(str(msg.get("to", ""))[:16])
