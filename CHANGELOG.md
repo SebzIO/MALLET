@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.7 preview — 2026-11-09: The session keeps up
+
+- **A new map resets the session.** File > New, a template or an opened map is handed to every co-editor, who loads
+  it whole (their undo history starts fresh), instead of each person quietly building on the map that just went away.
+- **Map properties sync as you change them.** Sky, sun, fog, water, lava and glass used to reach the others only on
+  the next unrelated change; the Map panel's setters send them now, so the sky changes under everyone at once.
+- **Undo takes back only your own last action.** Objects another editor changed after your step keep their work when
+  you undo (and redo); your own step still goes back and still goes out to them.
+
 ## 0.17.6 preview — 2026-11-09: Faces you can see, a light panel, a wider texture picker
 
 - **Build mode's selection reads like Sauerbraten's**: the selected cube is outlined in blue, the face you selected is

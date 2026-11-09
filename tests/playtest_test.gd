@@ -359,10 +359,38 @@ func _run() -> void:
 			name_sent = String((nop.get("obj", {}) as Dictionary).get("name", ""))
 	check("a rename in the outliner goes out", named and name_sent == "Their new name", name_sent)
 
-	# --- the map's look (the Map panel) travels too
-	co_edits.clear()
-	ed.environment["aurora"] = 0.42
+	# --- undo takes back only our own step: what they changed after it stays
+	var undo_mine := RampNode.new()
+	ed.ramps_root.add_child(undo_mine)
+	undo_mine.points = PackedVector3Array([Vector3(0, 0, 400), Vector3(0, 0, 420)])
+	undo_mine.rebuild()
+	ed._select(undo_mine)
 	ed._map_changed()
+	await wait_ms(300)
+	ed._checkpoint()
+	undo_mine.points = PackedVector3Array([Vector3(0, 0, 400), Vector3(0, 0, 460)])
+	undo_mine.rebuild()
+	ed._map_changed()
+	var undo_theirs := {"act": "edit", "kind": "ramp", "uid": ed._co_uid(r2), "at": [0, 0, 310], "obj": ed._with_group(r2)}
+	undo_theirs["obj"]["points"] = [[0, 0, 300], [0, 0, 390]]
+	ed._co_apply({"t": "edit", "name": "Alex", "op": undo_theirs})
+	await process_frame
+	ed.undo()
+	await process_frame
+	var undo_kept := false
+	var undo_back := false
+	for undo_o in ed.ramps_root.get_children():
+		var undo_pts: PackedVector3Array = (undo_o as RampNode).points
+		if undo_pts.size() == 2 and undo_pts[1].is_equal_approx(Vector3(0, 0, 390)):
+			undo_kept = true
+		if undo_pts.size() == 2 and undo_pts[1].is_equal_approx(Vector3(0, 0, 420)):
+			undo_back = true
+	check("undo leaves the change they made after it alone", undo_kept)
+	check("...and still takes back our own", undo_back)
+
+	# --- the map's look (the Map panel) travels too, through the panel's own setter
+	co_edits.clear()
+	ed._edit_env("aurora", 0.42)
 	var env_sent := await wait_for(func(): return _has_act(co_edits, "env"), 4000)
 	var env_value := -1.0
 	for m in co_edits:
@@ -372,6 +400,20 @@ func _run() -> void:
 	check("a change to the map's look goes out", env_sent and absf(env_value - 0.42) < 0.001, str(env_value))
 	co.send({"t": "edit", "seq": 90, "op": {"act": "env", "environment": {"aurora": 0.11}}})
 	check("theirs is taken without an undo step", await wait_for(func(): return absf(float(ed.environment.get("aurora", -1.0)) - 0.11) < 0.001, 4000))
+
+	# --- a new map here is a new map for the session
+	co_edits.clear()
+	ed.session_role = "maker"
+	ed._co_map_replaced()
+	check("a new map goes out to the session as a reset", await wait_for(func(): return _has_act(co_edits, "reset"), 4000))
+	co_edits.clear()
+	ed.session_role = "editor"
+	ed._co_map_replaced()
+	check("...and an editor never sends one", not await wait_for(func(): return _has_act(co_edits, "reset"), 700))
+	ed._co_reset("Alex")
+	check("a reset from the owner makes us ask for their map", ed._co_waiting_state)
+	ed._co_waiting_state = false
+	ed.session_role = "maker"
 
 	# --- the map's owner can put someone out of the session
 	var kickee := Relay.new()

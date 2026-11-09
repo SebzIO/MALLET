@@ -1060,6 +1060,7 @@ func _pick_sky_shader(id: String) -> void:
 	environment["sky_shader"] = id
 	environment["sky_params"] = {}
 	_apply_environment()
+	_map_changed()                               # (a sky is a map change like any other: the others follow it)
 	_refresh_props()
 	if id != "" and not UserShaders.ok(id):
 		_set_status("That sky shader has an error, so the built-in sky stays for now: " + UserShaders.problem(id))
@@ -1075,6 +1076,7 @@ func _set_sky_param(name: String, value) -> void:
 	else:
 		p[name] = value
 	environment["sky_params"] = p
+	_map_changed()
 	# a slider drag only changes one setting of the sky that's already showing: no need to build it all again
 	var id := String(environment.get("sky_shader", ""))
 	var m = world_env.environment.sky.sky_material if world_env.environment and world_env.environment.sky else null
@@ -1113,6 +1115,7 @@ func _edit_mat_look(key: String, value: String) -> void:
 	_checkpoint("env:" + key)
 	environment[key] = value
 	_apply_mat_looks()
+	_map_changed()
 
 
 func _apply_mat_looks() -> void:
@@ -1128,6 +1131,7 @@ func _edit_env(key: String, value) -> void:
 	environment[key] = value
 	environment["preset"] = "custom"
 	_apply_environment()
+	_map_changed()
 	_fields["env_preset"].select(Look.ENV_PRESETS.size())
 
 
@@ -1749,6 +1753,7 @@ func _new_map() -> void:
 	_select(r)
 	for p in panes:
 		p.frame(Vector3(20, 100, 0), 110)
+	_co_map_replaced()
 	_set_status("New map: a start platform, one ramp and a finish. Shape the ramp, then press P to play.")
 
 
@@ -1757,6 +1762,16 @@ func _make_ramp(a: Vector3, b: Vector3) -> RampNode:
 	r.points = PackedVector3Array([a, a.lerp(b, 0.5), b])
 	ramps_root.add_child(r)
 	return r
+
+
+## A whole different map is in this MALLET now (File > New, a template, an opened file): the session takes it too, so
+## nobody keeps building on the map that just went away.
+func _co_map_replaced() -> void:
+	if relay == null or not relay.is_open() or session_role != "maker":
+		return
+	_co_seed()
+	_co_seq += 1
+	relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "reset"}})
 
 
 func _all_objects() -> Array:
@@ -1781,12 +1796,13 @@ func _checkpoint(key := "") -> void:
 
 func _snapshot() -> Dictionary:
 	var sel := _all_objects().find(selected) if selected else -1
-	return {"map": _map_dict(), "sel": sel, "pt": selected_point}
+	return {"map": _map_dict(), "sel": sel, "pt": selected_point, "t": Time.get_ticks_msec()}
 
 
 func _restore(s: Dictionary) -> void:
 	_map_changed()
 	var before := _co_step_before()                 # (what every object was, so the others can follow the step)
+	var keep := _co_foreign_since(int(s.get("t", 0)))   # (what they changed since: not ours to undo)
 	_co_mute = true
 	_load_dict(s["map"])
 	var objs := _all_objects()
@@ -1799,6 +1815,52 @@ func _restore(s: Dictionary) -> void:
 		_co_seed()
 		return
 	_co_step_after(before)
+	_co_put_back(keep)
+
+
+## The objects another editor changed after an undo step's checkpoint: their changes came after ours, so a step back
+## here must not take them back too. Each is [kind, state, where it was].
+func _co_foreign_since(since: int) -> Array:
+	var out := []
+	if relay == null or not relay.is_open() or since <= 0:
+		return out
+	for o in _all_objects():
+		if not is_instance_valid(o) or not o.has_meta("co_remote_at"):
+			continue
+		if int(o.get_meta("co_remote_at")) <= since:
+			continue
+		out.append([_co_kind(o), _with_group(o), (o as Node3D).center()])
+	return out
+
+
+## Put their changes back on top of the step we just took, without telling them (they made them).
+func _co_put_back(list: Array) -> void:
+	if list.is_empty():
+		return
+	_co_mute = true
+	for entry in list:
+		var kind := String(entry[0])
+		var at: Vector3 = entry[2]
+		var best: Node3D = null
+		var best_d := 60.0
+		for o in _all_objects():
+			if _co_kind(o) != kind or not is_instance_valid(o):
+				continue
+			var d: float = (o as Node3D).center().distance_to(at)
+			if d < best_d:
+				best_d = d
+				best = o
+		if best == null:
+			continue
+		best.from_dict(entry[1])
+		_take_group(best, entry[1])
+		if best.has_method("rebuild"):
+			best.rebuild()
+		best.set_meta("co_remote_at", Time.get_ticks_msec())
+		_co_queue.erase(best)                       # (they already have this version: nothing to send)
+		_co_new_now.erase(best)
+	_co_mute = false
+	_co_seed()
 
 
 ## Every object as it is right now, for an undo or redo to compare its result against. Empty when nobody else is
@@ -5075,6 +5137,7 @@ func _on_template_chosen(path: String) -> void:
 	var pv: Vector2 = Vector2(panes[0].viewport.size)
 	frame_course(panes[0].camera, pv.x / maxf(pv.y, 1.0))
 	_map_changed()
+	_co_map_replaced()
 	_set_status("%s: %s  Press P to play it, then make it your own." % [info.get("title", "New map"), info.get("description", "")])
 
 
@@ -5128,6 +5191,7 @@ func load_map(path: String) -> void:
 		return
 	_checkpoint()
 	_load_dict(data)
+	_co_map_replaced()                                  # (the session builds on this map now, not the last one)
 	best_ghost = data.get("ghost", {})
 	current_path = path
 	_set_title(path.get_file())
@@ -6264,6 +6328,7 @@ func _co_apply(m: Dictionary) -> void:
 		"del": _co_del(op, who)
 		"folders": _co_folders(op)
 		"env": _co_env_props(op)
+		"reset": _co_reset(who)
 		_: _co_edit(op, who)
 
 
@@ -6321,6 +6386,14 @@ func _co_folders(op: Dictionary) -> void:
 	_co_mute = false
 
 
+## The session's owner started a new map (or opened another one): take theirs, so everyone builds the same map.
+func _co_reset(who: String) -> void:
+	if session_role != "editor":
+		return
+	_co_request_state(true)
+	_set_status("%s started another map: loading it here." % who)
+
+
 ## They made an object: build our own copy of it here.
 func _co_add(op: Dictionary, who: String) -> void:
 	var d = op.get("obj")
@@ -6340,6 +6413,7 @@ func _co_add(op: Dictionary, who: String) -> void:
 	_take_group(o, d)
 	if o.has_method("rebuild"):
 		o.rebuild()
+	o.set_meta("co_remote_at", Time.get_ticks_msec())
 	_map_changed()
 	_co_mute = false
 	_co_uids[uid] = {"o": o, "kind": kind}
@@ -6415,6 +6489,7 @@ func _co_edit(op: Dictionary, who: String) -> void:
 		o.remove_meta("group")
 	if o.has_method("rebuild"):
 		o.rebuild()
+	o.set_meta("co_remote_at", Time.get_ticks_msec())     # (undo leaves this one alone: it's theirs)
 	if o == selected:
 		_refresh_props()
 	_map_changed()

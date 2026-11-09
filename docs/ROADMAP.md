@@ -100,9 +100,11 @@ Work on one map together, live. Uses the same relay on the user's VPS as live pl
 
 ## 0.18.0 → 1.0.0: Release candidate
 - [ ] 0.18.x fixes from testing 0.17.4: [ISSUES.md](ISSUES.md) holds the 17 items in seven batches. A (menus,
-      buttons, the playtest panel) shipped in 0.17.5; B shipped in 0.17.6 except U7 (picking a block seen through a
-      hole - the collision mesh blocks the ray, so it needs a shaped-face ray test). Next: C co-op correctness, D
-      sensitivity / z-fighting / the 2D grid, E folding geometry, F co-editor avatars, G one kind of solid.
+      buttons, the playtest panel) shipped in 0.17.5;      B shipped in 0.17.6 except U7 (picking a block seen through a
+      hole: the cell walk treats a pushed cell as solid, so it needs a shaped-face test before it can select the
+      block behind). C shipped in 0.17.7 (a new map resets the session, map properties sync as they change, undo
+      keeps other people's later work). Next: U7, then D sensitivity / z-fighting / the 2D grid, E folding geometry,
+      F co-editor avatars, G one kind of solid.
 - [ ] Welcome screen, templates and tutorial updated for everything above; docs written for map makers.
 - [ ] Full regression clean (fix or explain the three tests that crash on exit), every export checked in SurfsUp
       and CS:S by the user.
