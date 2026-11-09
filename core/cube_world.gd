@@ -2348,6 +2348,8 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 						nv = leaves.get(Vector4i((np.x >> sh) << sh, (np.y >> sh) << sh, (np.z >> sh) << sh, q))
 						if nv != null:
 							break
+					if nv != null and (nv as Array).size() <= 3 and nv[0] == FULL:
+						continue                             # (the bigger cube's wall covers this square: one wall, no flicker)
 					if nv == null:
 						var sc := Vector3i(k.x + st.x * sz, k.y + st.y * sz, k.z + st.z * sz)
 						if _occ.get(Vector4i(sc.x, sc.y, sc.z, k.w), 0) > 0 and _covered(sc, k.w, o, false):
@@ -2362,6 +2364,18 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 					continue
 			elif _face_hidden(k, c, o):
 				continue
+			if not quick and face_is_full(c, o):
+				var bg = leaves.get(Vector4i(k.x + _STEPS[o].x * sz, k.y + _STEPS[o].y * sz, k.z + _STEPS[o].z * sz, k.w))
+				if bg == null:                               # a bigger cube right next door: its wall covers this square
+					var np2 := Vector3i(k.x, k.y, k.z)
+					np2[o >> 1] += sz if o & 1 else -1
+					for q in range(k.w + 1, MAX_P + 1):
+						var sh2 := q + 3
+						bg = leaves.get(Vector4i((np2.x >> sh2) << sh2, (np2.y >> sh2) << sh2, (np2.z >> sh2) << sh2, q))
+						if bg != null:
+							break
+				if bg != null and (bg as Array).size() <= 3 and bg[0] == FULL:
+					continue                             # (two coplanar walls would flicker: only the bigger one is drawn)
 			if flat:                                         # whole faces: merged with their neighbors below
 				var d := o >> 1
 				var sk: String = v[1][o]

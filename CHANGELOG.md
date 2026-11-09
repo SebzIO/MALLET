@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.9 preview — 2026-11-09: Steady walls, a draw tool that starts where you click
+
+- **Walls between cubes of different sizes stop flickering** (batch D, U10, the cube half). A cube's face against a
+  bigger cube's face was drawn twice, in the same place; now the bigger cube's wall is the only one drawn, so a 2 m
+  cube next to 1 m cubes has one wall, not two fighting over the same pixels. (Text and prop surfaces sitting exactly
+  on a wall still get their own pass: that needs a 1 mm lift and an eye on it.)
+- **The draw tool starts on the grid point you aim at** (batch D, U11). A block's position is its center while a drag
+  works in corners; that conversion now happens in one place (`editor._draw_box`), including the axis the view looks
+  along, so a block drawn from one grid point to another is the size you dragged and sits where you started instead
+  of a couple of steps off.
+
 ## 0.17.8 preview — 2026-11-09: Picking through air, one mouse sensitivity
 
 - **A pick looks through the air a folded face leaves** (the last item of batch B). Build mode now clips the aiming ray

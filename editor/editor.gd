@@ -2769,21 +2769,30 @@ func _draw_update(mouse: Vector2) -> void:
 		return
 	var a := _draw_start
 	var b: Vector3 = _snap_axes(hit, pane.drag_axes(false))
-	var axes := pane.drag_axes(false)
-	var last: Array = _last_block["size"]
+	var box := _draw_box(a, b, pane.drag_axes(false), _last_block["size"], _view_center().y)
+	var size: Vector3 = box["size"]
+	var base: Vector3 = box["base"]
+	_draw_block.from_dict({"position": [base.x, base.y, base.z], "size": [size.x, size.y, size.z]})
+	_set_status("Block %.2f x %.2f x %.2f m" % [size.x, size.y, size.z])
+
+
+## The block a drag from corner `a` to corner `b` makes: its center and size, in meters. A block's position is its
+## center while a drag works in corners, so the corners turn into a center here and nowhere else (U11) - the axis
+## the view looks along keeps the last size used (Hammer does the same) and is centered on the view plane.
+func _draw_box(a: Vector3, b: Vector3, axes: Vector3, last: Array, mid_y: float) -> Dictionary:
 	var lo := a.min(b)
 	var hi := a.max(b)
 	var size := Vector3(maxf(hi.x - lo.x, 0.25), maxf(hi.y - lo.y, 0.25), maxf(hi.z - lo.z, 0.25))
-	var base := Vector3((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5)
-	# the axis the view looks along keeps the last size used (Hammer does the same)
+	var base := Vector3((lo.x + hi.x) * 0.5, (lo.y + hi.y) * 0.5, (lo.z + hi.z) * 0.5)
 	for i in 3:
-		if axes[i] < 0.5:
-			size[i] = float(last[i])
-			if i == 1:
-				base.y = snappedf(_view_center().y - size.y * 0.5, snap_step if snap_enabled else 0.25)
-			else:
-				base[i] = a[i]
-	_draw_block.from_dict({"position": [base.x, base.y, base.z], "size": [size.x, size.y, size.z]})
+		if axes[i] >= 0.5:
+			continue
+		size[i] = float(last[i])
+		if i == 1:
+			base.y = snappedf(mid_y, snap_step if snap_enabled else 0.25)
+		else:
+			base[i] = a[i] + (size[i] * 0.5 if b[i] >= a[i] else -size[i] * 0.5)
+	return {"size": size, "base": base, "lo": lo}
 	_draw_block.rebuild([])
 	_set_status("Block %.2f x %.2f x %.2f m" % [size.x, size.y, size.z])
 

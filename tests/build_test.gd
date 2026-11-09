@@ -198,6 +198,27 @@ func _run() -> void:
 	check("...and still stops on the cube where it is solid", not solid.is_empty()
 		and (solid["cell"] as Vector3i).x == 0, str(solid.get("cell", "none")))
 	probe.free()
+	# ---- D: the draw tool turns corners into a center in one place
+	var db: Dictionary = ed._draw_box(Vector3(8, 0, 8), Vector3(16, 0, 16), Vector3(1, 0, 1), [4, 4, 4], 0.0)
+	check("a block drawn grid point to grid point is the size you dragged", (db["size"] as Vector3).is_equal_approx(Vector3(8, 4, 8)), str(db["size"]))
+	check("...and sits where you started, not two steps off", (db["base"] as Vector3).is_equal_approx(Vector3(12, 0, 12)), str(db["base"]))
+	# ---- D: a small cube's face against a bigger cube's face is not drawn twice (no flicker)
+	var wq := CubeWorld.new()
+	wq.begin()
+	wq.set_cell(Vector3i(8, 0, 0), 0, CubeWorld.FULL, CubeWorld.blank_tex())
+	wq.set_cell(Vector3i(16, 0, 0), 1, CubeWorld.FULL, CubeWorld.blank_tex())
+	wq.commit()
+	var colq: PackedVector3Array = wq.chunk_mesh(Vector3i.ZERO)[1]
+	var shared := 0
+	for i in range(0, colq.size(), 3):
+		var flatq := true
+		for j in 3:
+			var pt: Vector3 = colq[i + j]
+			if absf(pt.x - 2.0) > 0.001 or pt.y < 0.999 or pt.y > 2.001 or pt.z < 0.999 or pt.z > 2.001:
+				flatq = false
+		if flatq:
+			shared += 1
+	check("a small cube's face against a bigger cube's face is not drawn", shared == 0, str(shared))
 	var water_sel := CubeWorld.moved(bm.target["sel"], 1)
 	bm.sel = water_sel
 	bm.run_command(CubeWorld.MATERIALS.find("water"))
