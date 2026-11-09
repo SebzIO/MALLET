@@ -37,7 +37,7 @@ malformed messages are refused (never parsed into anything but plain data).
 - `role`: `maker` (the editor that owns the map), `tester` (a test build), `editor` (a co-editing peer, 0.17).
 - A `maker` with an empty `session` **opens** a new session and gets a code and a secret back.
 - Everyone else must give the session code and its secret. A wrong secret is refused (`bad_secret`) and closed.
-- `map_version` is the test build number from 0.15 (`test_version`), so runs from an older build are labelled and
+- `map_version` is the test build number from 0.15 (`test_version`), so runs from an older build are labeled and
   never laid over a newer layout.
 
 ### welcome (server → client)

@@ -28,7 +28,9 @@ static func config(dir: String) -> Dictionary:
 	if cf.load(dir.path_join(CONFIG)) != OK:
 		return {}
 	return {"map_name": String(cf.get_value("test", "map_name", "map")), "version": int(cf.get_value("test", "version", 1)),
-		"made": String(cf.get_value("test", "made", "")), "maker": String(cf.get_value("test", "made_with", ""))}
+		"made": String(cf.get_value("test", "made", "")), "maker": String(cf.get_value("test", "made_with", "")),
+		"relay": String(cf.get_value("relay", "url", "")), "session": String(cf.get_value("relay", "session", "")),
+		"secret": String(cf.get_value("relay", "secret", ""))}
 
 
 ## The tester's name and consent, kept next to the build ("" = not asked yet).
@@ -113,7 +115,8 @@ static func summary(sessions: Array) -> String:
 
 ## Make a test build: the MALLET program (`exe`, with its .pck), renamed, plus the map, tester.cfg, the materials
 ## the map uses and a READ ME, zipped. Returns {"error", "zip"}.
-static func make_build(map: Dictionary, map_name: String, version: int, exe: String, out_dir: String) -> Dictionary:
+static func make_build(map: Dictionary, map_name: String, version: int, exe: String, out_dir: String,
+		relay: Dictionary = {}) -> Dictionary:
 	var pck := exe.get_basename() + ".pck"
 	if not FileAccess.file_exists(exe) or not FileAccess.file_exists(pck):
 		return {"error": "Test builds are made from the MALLET program itself (MALLET.exe with MALLET.pck), not the development version.", "zip": ""}
@@ -133,13 +136,19 @@ static func make_build(map: Dictionary, map_name: String, version: int, exe: Str
 	cf.set_value("test", "version", version)
 	cf.set_value("test", "made", Time.get_datetime_string_from_system())
 	cf.set_value("test", "made_with", MalletVersion.full())
+	if not relay.is_empty():
+		cf.set_value("relay", "url", String(relay.get("url", "")))       # live runs go to this session while it can reach it
+		cf.set_value("relay", "session", String(relay.get("session", "")))
+		cf.set_value("relay", "secret", String(relay.get("secret", "")))
 	_zip_file(z, top + CONFIG, cf.encode_to_text().to_utf8_buffer())
+	var privacy := "Nothing is sent anywhere." if relay.is_empty() else ("While it can reach the map maker's playtest session, it also sends your runs there as you play;\n"
+		+ "the folder is still saved, so a lost connection loses nothing.")
 	_zip_file(z, top + "READ ME FIRST.txt", (("Test build of %s (version %d), made with %s.\n\n" % [map_name, version, MalletVersion.full()])
 		+ "Start \"%s.exe\". The first time it asks for a name to show on your runs and whether that's OK.\n" % prog
 		+ "Windows may warn that it doesn't know the program: click More info > Run anyway (it isn't signed).\n\n"
 		+ "Play: WASD + mouse, Space jumps, R restarts, Backspace back to the last stage, Esc for the menu.\n"
 		+ "Every attempt is saved in the \"%s\" folder next to the program: your name, times, speeds, where you fell\n" % RUNS_DIR
-		+ "and the path you took. Nothing is sent anywhere. Send that folder back to the map maker when you're done.\n").to_utf8_buffer())
+		+ "and the path you took. " + privacy + " Send that folder back to the map maker when you're done.\n").to_utf8_buffer())
 	# only the materials this map uses (a full library is a few hundred MB)
 	var text := JSON.stringify(map)
 	var used := []

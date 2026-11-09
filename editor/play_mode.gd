@@ -6,6 +6,7 @@ extends Node
 signal stopped
 signal attempt_ended(attempt: Dictionary)   ## every run, for test builds (see Tester): outcome, time, deaths, route...
 signal ghost_recorded(ghost: Dictionary)   ## a new best run: {"time", "hz", "samples": [x, y, z, speed m/s, ...]}
+signal live(at: Vector3, speed: float, stage: int, state: String, attempt: int)   ## ~10 a second (a test build sends these)
 
 const SUCC_SCENE := "res://addons/SUCC/scenes/succ_character.tscn"
 const UNITS_PER_METRE := 39.37            # SurfsUp's HUD shows Source units/s
@@ -50,6 +51,8 @@ var _last_delta := ""                  ## "+1.234 vs best" after a finish
 var _deaths: Array = []                 ## this attempt: where the player fell / died ([x, y, z] each)
 var _attempt_top := 0.0                 ## this attempt's top speed (u/s)
 var _attempt_start := 0.0               ## when it began (unix seconds)
+var attempt_no := 0                     ## which attempt this is (live messages are labeled with it)
+var _live_t := 0.0                      ## (live position timer)
 
 var _hud := CanvasLayer.new()
 var _hud_box: VBoxContainer
@@ -185,6 +188,7 @@ func _place() -> void:
 	_deaths.clear()
 	_attempt_top = 0.0
 	_attempt_start = Time.get_unix_time_from_system()
+	attempt_no += 1
 	_checkpoint = spawn
 	_put(spawn, Vector3.ZERO)
 
@@ -431,6 +435,11 @@ func _process(_delta: float) -> void:
 		return
 	var h := Vector2(player.velocity.x, player.velocity.z).length() * UNITS_PER_METRE
 	top_speed = max(top_speed, h)
+	_live_t += _delta
+	if _live_t >= 0.1:                                  # (10 a second, the same rate as a recorded route)
+		_live_t = 0.0
+		live.emit(player.global_position, h, int(_reached.max()) if not _reached.is_empty() else 0,
+			"wait" if run_state == Run.WAITING else ("finish" if run_state == Run.FINISHED else "run"), attempt_no)
 	_update_ghost()
 	_speed_label.text = "%d" % roundi(h)
 	match run_state:

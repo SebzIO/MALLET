@@ -152,6 +152,11 @@ const SETTINGS_PATH := "user://settings.cfg"
 var tester := {}                       ## a test build: {"dir", "cfg", "name", "file", "attempts"} ({} = normal MALLET)
 var test_version := 0                  ## how many test builds of this map were made (stamped into each)
 var tester_runs: Array = []            ## imported tester sessions (Tester.read_runs), saved with the map
+var relay: Relay = null                ## the relay connection (a playtest session, or a test build's)
+var live_peers := {}                   ## tester id -> their last live message (where they are right now)
+var _playtest_panel: PlaytestPanel
+var _playtest_dialog: ConfirmationDialog
+var _playtest_inputs := {}
 var ramp_creator: RampCreator
 const BAKED_SKY_LABEL := "This map's sky (made into a skybox)"
 const BLOCK_LOOKS := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "neon", "material", "shader"]   ## (no "texture")
@@ -170,6 +175,7 @@ func _ready() -> void:
 	add_child(play)
 	play.stopped.connect(_on_play_stopped)
 	play.ghost_recorded.connect(func(g): best_ghost = g)
+	play.live.connect(_playtest_live)
 	_new_map()
 	_set_title("")
 	_mark_saved()
@@ -293,6 +299,12 @@ func _build_ui() -> void:
 	_ui.add_child(ramp_creator)
 	ramp_creator.apply_requested.connect(apply_design)
 	ramp_creator.new_ramp_requested.connect(new_ramp_from_design)
+	_playtest_panel = PlaytestPanel.new()
+	_playtest_panel.hide()
+	_ui.add_child(_playtest_panel)
+	_playtest_panel.leave_requested.connect(_leave_playtest)
+	_playtest_panel.copy_requested.connect(_copy_playtest_code)
+	_playtest_panel.refresh("", "No playtest session", {}, {}, [])
 
 
 func _build_ui_main() -> void:
@@ -358,6 +370,7 @@ func _build_ui_main() -> void:
 	_bar_item(bar, ["▶ Play (P)", _play_clicked])
 	_bar_item(bar, ["Build (E)", _build_clicked])
 	_menu(bar, "Export ▾", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked], [],
+		["Playtest session…", KEY_NONE, _playtest_clicked], ["Playtest panel", KEY_NONE, _toggle_playtest_panel, "playtest"], [],
 		["Test build for testers…", KEY_NONE, _test_build_clicked], ["Import tester runs…", KEY_NONE, _import_runs_clicked]])
 	bar.add_child(VSeparator.new())
 	var snap := CheckButton.new()
@@ -2088,6 +2101,7 @@ func _menu(bar: Container, title: String, items: Array) -> MenuButton:
 func _sync_view_menu() -> void:
 	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["draw", _draw_mode],
 			["groundgrid", _ground_grid != null and _ground_grid.visible],
+			["playtest", _playtest_panel != null and _playtest_panel.visible],
 			["outliner", _outliner_panel != null and _outliner_panel.visible]]:
 		if _fields.has("menu_" + pair[0]):
 			var m: Array = _fields["menu_" + pair[0]]
@@ -5017,6 +5031,7 @@ func _start_tester(dir: String) -> void:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(Tester.MAP_FILE)))
 	_load_dict(data if data is Dictionary else {})
 	tester = {"dir": dir, "cfg": cfg, "name": Tester.tester_name(dir), "file": "", "attempts": []}
+	_join_relay_as_tester(cfg)
 	_ui.visible = false
 	get_window().title = "%s - test build v%d" % [cfg.get("map_name", "map"), int(cfg.get("version", 1))]
 	play.attempt_ended.connect(_tester_attempt)
@@ -5059,6 +5074,8 @@ func _tester_attempt(a: Dictionary) -> void:
 		return
 	tester["attempts"].append(a)
 	Tester.write_session(tester["file"], tester["cfg"], tester["name"], tester["attempts"])
+	if relay != null and relay.is_open():
+		relay.send({"t": "attempt", "attempt": a})            # (the file stays the fallback if the relay is away)
 
 
 ## Esc in a test build: keep playing or quit (there's no editor to go back to).
@@ -5081,14 +5098,18 @@ func _test_build_clicked() -> void:
 	test_version += 1
 	_set_status("Making the test build... (a few seconds)")
 	await get_tree().process_frame
-	var res := Tester.make_build(_map_dict(), name, test_version, OS.get_executable_path(), out_dir)
+	var live := {}
+	if relay != null and relay.is_open():
+		live = {"url": relay.url, "session": relay.session, "secret": relay.secret}
+	var res := Tester.make_build(_map_dict(), name, test_version, OS.get_executable_path(), out_dir, live)
 	if res["error"] != "":
 		test_version -= 1
 		_show_message("Can't make a test build", res["error"])
 		return
 	_map_changed()
 	_show_message("Test build ready", ("Made %s (version %d of this map).\n\nSend the zip to your testers. They unzip it and start \"Play %s.exe\"; "
-		+ "their runs are saved in a \"%s\" folder next to it. Ask them to send that folder back, then use Export > Import tester runs.") % [
+		+ "their runs are saved in a \"%s\" folder next to it. Ask them to send that folder back, then use Export > Import tester runs."
+		+ ("\n\nWhile the playtest session %s is open, this build also sends their runs here as they play." % live.get("session", "") if not live.is_empty() else "")) % [
 		res["zip"], test_version, name, Tester.RUNS_DIR])
 	OS.shell_open(out_dir)
 
@@ -5128,6 +5149,196 @@ func import_runs(paths: PackedStringArray) -> int:
 	_show_message("Tester runs", text)
 	_set_status(Tester.summary(tester_runs).get_slice("\n", 0))
 	return added
+
+
+# ================================================================================================= playtest session
+## Export > Playtest session: start one (no code) or join one you made. Testers' live positions and runs arrive
+## here while they play; test builds made from now on carry the session.
+func _playtest_clicked() -> void:
+	if _playtest_dialog == null:
+		_build_playtest_dialog()
+	_playtest_inputs["address"].text = String(Settings.value("relay_url"))
+	_playtest_inputs["name"].text = String(Settings.value("player_name"))
+	_playtest_dialog.popup_centered()
+
+
+func _build_playtest_dialog() -> void:
+	_playtest_dialog = ConfirmationDialog.new()
+	_playtest_dialog.title = "Playtest session"
+	_playtest_dialog.ok_button_text = "Start / join"
+	var box := VBoxContainer.new()
+	_playtest_dialog.add_child(box)
+	var l := Label.new()
+	l.text = ("Test builds made while a session is open send their runs to you as they play, and the panel shows\n"
+		+ "who is on and how they are doing. Leave the code empty to start a new session; to join one you made\n"
+		+ "before, type its code and secret.\n\nThe address is your relay server (your own computer while trying it out).")
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size = Vector2(560, 0)
+	box.add_child(l)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 6)
+	box.add_child(grid)
+	for spec in [["address", "Relay address", "relay_url"], ["name", "Your name", "player_name"],
+			["code", "Session code (empty = new)", ""], ["secret", "Secret (to join a session)", ""]]:
+		var lab := Label.new()
+		lab.text = spec[1]
+		grid.add_child(lab)
+		var le := LineEdit.new()
+		le.text = String(Settings.value(spec[2])) if spec[2] != "" else ""
+		le.custom_minimum_size = Vector2(360, 0)
+		if spec[0] == "secret":
+			le.secret = true
+		grid.add_child(le)
+		_playtest_inputs[spec[0]] = le
+	_playtest_dialog.confirmed.connect(func():
+		start_playtest(_playtest_inputs["address"].text.strip_edges(), _playtest_inputs["code"].text.strip_edges().to_upper(),
+			_playtest_inputs["secret"].text.strip_edges(), _playtest_inputs["name"].text.strip_edges()))
+	_ui.add_child(_playtest_dialog)
+
+
+## Connect to the relay as the map maker. `code` empty starts a new session. False if the address isn't a relay.
+func start_playtest(url: String, code: String, secret: String, who: String) -> bool:
+	if not (url.begins_with("ws://") or url.begins_with("wss://")):
+		_show_message("Playtest session", "The relay address must start with ws:// or wss:// (for example ws://127.0.0.1:8787/ws).")
+		return false
+	Settings.set_value("relay_url", url)
+	Settings.set_value("player_name", who)
+	_leave_playtest()
+	relay = Relay.new()
+	add_child(relay)
+	relay.opened.connect(_playtest_opened)
+	relay.failed.connect(_playtest_problem)
+	relay.closed.connect(func(_c, _r): _playtest_problem("closed", "The relay connection ended. Testers' runs are still saved on their side."))
+	relay.message.connect(_playtest_message)
+	relay.connect_to(url, {"t": "hello", "v": 1, "role": "maker", "session": code,
+		"secret": secret if code != "" else "", "name": who if who != "" else "Maker",
+		"map": _map_name(), "map_version": test_version, "client": MalletVersion.full()})
+	_set_status("Connecting to the relay at %s..." % url)
+	return true
+
+
+func _map_name() -> String:
+	return current_path.get_file().get_basename() if current_path != "" else "untitled"
+
+
+func _playtest_opened(_welcome: Dictionary) -> void:
+	_playtest_panel.visible = true
+	relay.send({"t": "collect"})                       # (runs made while the editor was closed)
+	_set_status("Playtest session %s is open: testers' runs arrive here." % relay.session)
+	_refresh_playtest()
+	_sync_view_menu()
+	_show_message("Playtest session", ("Session code: %s\n\nTest builds made now (Export > Test build for testers…) send their runs here while they play.\n"
+		+ "The panel (Export > Playtest panel) shows who is on and how they are doing.") % relay.session)
+
+
+func _playtest_problem(code: String, msg: String) -> void:
+	var t := msg
+	if code == "bad_secret":
+		t = "That session's secret doesn't match."
+	elif code == "unknown_session":
+		t = "No playtest session with that code. Start a new one (leave the code empty)."
+	elif code == "session_full":
+		t = "That session already has as many people as the relay allows."
+	_playtest_panel.visible = true
+	_refresh_playtest()
+	_set_status("Playtest session: " + t)
+
+
+func _playtest_message(m: Dictionary) -> void:
+	match String(m.get("t", "")):
+		"live":
+			live_peers[String(m.get("id", ""))] = m
+			_refresh_playtest()
+		"peer_join", "peer_leave":
+			_refresh_playtest()
+		"attempt":
+			_add_live_attempt(String(m.get("name", "?")), m.get("attempt", {}), int(m.get("map_version", 0)))
+		"runs":
+			for r in (m.get("runs", []) as Array):
+				if r is Dictionary:
+					_add_live_attempt(String(r.get("tester", "?")), r.get("attempt", {}), int(r.get("map_version", 0)))
+			_refresh_playtest()
+
+
+## One attempt from the relay, filed with the map like an imported one. The same attempt arriving twice (live and
+## again from collect) is kept once.
+func _add_live_attempt(who: String, attempt, version: int) -> void:
+	if not attempt is Dictionary:
+		return
+	var s: Dictionary = {}
+	for x in tester_runs:
+		if x is Dictionary and String(x.get("tester", "")) == who and int(x.get("map_version", 0)) == version:
+			s = x
+			break
+	if s.is_empty():
+		s = {"tester": who, "map": _map_name(), "map_version": version, "attempts": []}
+		tester_runs.append(s)
+	for seen in (s["attempts"] as Array):
+		if seen is Dictionary and _attempt_key(seen) == _attempt_key(attempt):
+			return
+	s["attempts"].append(attempt.duplicate(true))
+	_map_changed()
+	var t := float(attempt.get("time", 0.0))
+	_set_status("%s: %s%s" % [who, String(attempt.get("outcome", "run")), ("  " + PlayMode.format_time(t)) if t > 0.0 else ""])
+	_refresh_playtest()
+
+
+static func _attempt_key(a: Dictionary) -> String:
+	return "%s|%.3f|%.1f" % [String(a.get("outcome", "")), float(a.get("time", 0.0)), float(a.get("started", 0.0))]
+
+
+func _refresh_playtest() -> void:
+	if _playtest_panel == null:
+		return
+	_playtest_panel.refresh(relay.session if relay != null else "", relay.status_text() if relay != null else "No playtest session",
+		relay.peers if relay != null else {}, live_peers, tester_runs)
+
+
+func _toggle_playtest_panel() -> void:
+	if _playtest_panel == null:
+		return
+	_playtest_panel.visible = not _playtest_panel.visible
+	if _playtest_panel.visible:
+		_refresh_playtest()
+	_sync_view_menu()
+
+
+## Leave the session. The panel stays up with what came in, and the map keeps the runs.
+func _leave_playtest() -> void:
+	if relay != null:
+		relay.close()
+		relay.queue_free()
+		relay = null
+	live_peers.clear()
+	_refresh_playtest()
+
+
+func _copy_playtest_code() -> void:
+	if relay != null and relay.session != "":
+		DisplayServer.clipboard_set(relay.session)
+		_set_status("Session code %s copied." % relay.session)
+
+
+## A live position from our own play mode (a test build sends these to the map maker).
+func _playtest_live(at: Vector3, speed: float, stage: int, state: String, attempt: int) -> void:
+	if relay == null or not relay.is_open():
+		return
+	relay.send({"t": "live", "attempt": attempt, "p": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)],
+		"speed": roundi(speed), "stage": stage, "state": state})
+
+
+## A test build: report to the map maker's session when tester.cfg has one (the runs file is still written).
+func _join_relay_as_tester(cfg: Dictionary) -> void:
+	var url := String(cfg.get("relay", ""))
+	if url == "":
+		return
+	relay = Relay.new()
+	add_child(relay)
+	relay.connect_to(url, {"t": "hello", "v": 1, "role": "tester", "session": String(cfg.get("session", "")),
+		"secret": String(cfg.get("secret", "")), "name": tester["name"], "map": String(cfg.get("map_name", "map")),
+		"map_version": int(cfg.get("version", 1)), "client": MalletVersion.full()})
 
 
 # ================================================================================================= export

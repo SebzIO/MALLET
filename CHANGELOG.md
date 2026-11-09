@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.16.0 preview (in progress) — Live playtesting
+
+- **Export > Playtest session…**: start a session through a small relay server (docs/RELAY.md) and you get a
+  6-letter code, or join one you made with its code and secret. Test builds made while it is open carry the
+  session, so their **live positions and every attempt** arrive in MALLET while they play. Their runs file is
+  still written, so a lost connection loses nothing.
+- **Export > Playtest panel**: who is on right now, where they are (stage, speed), each tester's attempts, best
+  time and finish speed, and the running summary. Their runs are kept with the map, like imported ones.
+
 ## 0.15.0 preview — 2026-11-08: Playtest builds (offline)
 
 - **Export > Test build for testers…**: makes a zip with MALLET (renamed "Play <map>.exe"), the map, only the

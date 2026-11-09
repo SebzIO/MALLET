@@ -12,6 +12,8 @@ const DEFAULTS := {
 	"invert_y": false,                   ## mouse forward looks down (everywhere)
 	"ground_grid": true,                 ## the editor's 3D view shows the ground grid plane
 	"fly_speed": 60.0,                   ## editor 3D view: right mouse + WASD speed (m/s), set with right mouse + wheel
+	"relay_url": "ws://127.0.0.1:8787/ws",  ## the playtest relay (Export > Playtest session)
+	"player_name": "Maker",              ## the name testers see on their runs and in the playtest panel
 }
 
 static var _cfg: ConfigFile = null
