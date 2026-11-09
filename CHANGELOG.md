@@ -15,8 +15,10 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   stage; their finished routes are drawn as paths in that color with an × where they fell. View > Testers' paths
   turns the runs off.
 - **The relay on the VPS**: `wss://relay.sebz.xyz/ws` is the default address in Settings, so a maker only types a
-  name. Deployment steps (Docker container behind Nginx Proxy Manager, websockets, `/data` volume) are in
-  relay/README.md.
+  name. It runs in Docker behind Nginx Proxy Manager (relay/README.md has the steps) and was tried end to end
+  through it: a session opened, a tester joined, live positions and a run arrived, and a run filed while the
+  editor was away was collected on rejoining.
+- Fixed: a second message box (rejoining a session while the previous one was still up) no longer errors.
 
 ## 0.15.0 preview — 2026-11-08: Playtest builds (offline)
 

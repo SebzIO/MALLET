@@ -5636,14 +5636,19 @@ func _poll_css() -> void:
 	_set_status("CS:S map ready: in CS:S press ~ and type  map %s" % name)
 
 
+## One message box at a time: a second message replaces the first (two exclusive dialogs at once is an error, and
+## the user only reads the newest one anyway).
 func _show_message(title: String, text: String) -> void:
-	var a := AcceptDialog.new()
+	var a: AcceptDialog = _ui.get_node_or_null("MessageBox")
+	if a == null:
+		a = AcceptDialog.new()
+		a.name = "MessageBox"
+		a.confirmed.connect(a.queue_free)
+		a.canceled.connect(a.queue_free)
+		_ui.add_child(a)
 	a.title = title
 	a.dialog_text = text
-	_ui.add_child(a)
 	a.popup_centered()
-	a.confirmed.connect(a.queue_free)
-	a.canceled.connect(a.queue_free)
 
 
 func _export_clicked() -> void:
