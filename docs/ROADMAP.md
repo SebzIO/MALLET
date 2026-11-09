@@ -104,8 +104,8 @@ Work on one map together, live. Uses the same relay on the user's VPS as live pl
       the session, map properties sync as they change, undo keeps other people's later work).      D: U9 (one Source
       sensitivity) in 0.17.8, U10's cube half (a small cube's face against a bigger cube's wall) and U11 (the draw
       tool's grid offset) in 0.17.9, U10's decal half (text 1 mm off the surface, brushes too) in 0.17.10 - batch D
-      done; E folding (U6, fold back and fold across axes) in 0.17.11 - batch E done. Next: F co-editor avatars, then G
-      one kind of solid.
+      done; E folding (U6, fold back and fold across axes) in 0.17.11 - batch E done. F co-editor avatars in 0.17.12 - batch F done. Next: G, one kind of
+      solid (needs the user's decision).
 - [ ] Welcome screen, templates and tutorial updated for everything above; docs written for map makers.
 - [ ] Full regression clean (fix or explain the three tests that crash on exit), every export checked in SurfsUp
       and CS:S by the user.

@@ -27,6 +27,7 @@ var texts_root := Node3D.new()
 var lights_root := Node3D.new()
 var particles_root := Node3D.new()           ## particle effects (fire, smoke, snow...)
 var cube_models_root := Node3D.new()     ## cube objects built in build mode (E)
+var co_avatars_root := Node3D.new()      ## co-editors' bodies (U17), in the shared world so every view sees them
 var outliner := Outliner.new()           ## every object by name, in folders
 var _outliner_panel: PanelContainer
 var _cube_panel: VBoxContainer
@@ -310,6 +311,7 @@ func _build_world() -> void:
 	add_child(lights_root)
 	add_child(particles_root)
 	add_child(cube_models_root)
+	add_child(co_avatars_root)
 	build.setup(self, cube_models_root)
 	add_child(build)
 	build.stopped.connect(_on_build_stopped)
@@ -3874,6 +3876,7 @@ func _process(delta: float) -> void:
 	if play.active:
 		return
 	_tick_co_cursors(delta)
+	_update_co_avatars()
 	_arcs_timer -= delta
 	if _arcs_dirty > 0 or _arcs_timer <= 0.0:
 		_arcs_dirty = max(_arcs_dirty - 1, 0)
@@ -5699,6 +5702,7 @@ func _playtest_message(m: Dictionary) -> void:
 			live_peers.erase(gone)
 			live_trails.erase(gone)
 			co_cursors.erase(gone)
+			_co_avatar_free(gone)
 			_refresh_playtest()
 		"names":
 			_co_take_names(m)
@@ -5788,6 +5792,7 @@ func _leave_playtest() -> void:
 	live_peers.clear()
 	live_trails.clear()
 	co_cursors.clear()
+	_co_avatar_free_all()
 	_co_queue.clear()
 	_co_last.clear()
 	_co_uids.clear()
@@ -6516,6 +6521,49 @@ static func _co_vec3(a) -> Vector3:
 
 ## Co-editors in a view: their camera, where they look, where their mouse is, and what they have selected. Drawn
 ## with `cam`, the camera that view really uses - build mode (E) has its own, so it calls this for its own view.
+## Co-editors' bodies (U17): one per peer, placed where their cursor is and turned where they look. Only while they
+## are in build mode (in the 2D views their body would be in the way of the drawing) and while View > Co-editors is
+## on. They live under `co_avatars_root` in the shared world, so every pane, the 2D views and build mode see the same
+## body - build mode's camera is its own but its world is this one.
+var _co_avatars := {}                    ## co-editor id -> CoAvatar
+
+
+func _update_co_avatars() -> void:
+	var live: bool = show_co_editors and not play.active and relay != null and not co_cursors.is_empty()
+	for id in co_cursors:
+		var m: Dictionary = co_cursors[id]
+		var a: CoAvatar = _co_avatars.get(id)
+		if not live or String(m.get("view", "")) != "build":
+			if a != null:
+				a.visible = false
+			continue
+		if a == null:
+			a = CoAvatar.new()
+			co_avatars_root.add_child(a)
+			_co_avatars[id] = a
+		var who := String(m.get("name", "Co-editor"))
+		if a.who != who:
+			a.setup(_tester_color(who), who)
+		a.visible = true
+		a.place(_co_vec3(m.get("pos", [])), _co_vec3(m.get("aim", [])))
+	for id in _co_avatars.keys():
+		if not co_cursors.has(id):
+			_co_avatar_free(id)
+
+
+func _co_avatar_free(id: String) -> void:
+	if _co_avatars.has(id):
+		var a = _co_avatars[id]
+		if is_instance_valid(a):
+			a.queue_free()
+		_co_avatars.erase(id)
+
+
+func _co_avatar_free_all() -> void:
+	for id in _co_avatars.keys():
+		_co_avatar_free(id)
+
+
 func draw_co_overlay(cam: Camera3D, ov: Control) -> void:
 	if cam == null or co_cursors.is_empty():
 		return

@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.12 preview — 2026-11-09: You can see the other editors (U17, batch F)
+
+- **Co-editors have a body in build mode.** `editor/_co_avatar.gd` (`CoAvatar`) is a capsule about 1.8 m tall with a
+  head and a bright visor across the face. The editor keeps one per peer under `co_avatars_root` in the shared world,
+  so the perspective view, the 2D views and build mode see the same body. It stands where their cursor is, turns to
+  face where they look (yaw from the aim's X/Z), and its head follows the aim up and down but stops at 40 degrees, so
+  the body always shows the compass direction.
+- Hidden while the peer works in a 2D view rather than build mode, while `View > Co-editors` is off, and outside a
+  session; freed when they leave and when the session ends.
+- playtest_test grew six checks (a body where they are, facing the way they look, the 40 degree head clamp, none in
+  a 2D view, none with the View item off, and freed when they leave) and passes.
+
 ## 0.17.11 preview — 2026-11-09: Folding always comes back (U6, batch E)
 
 - **A folded face can always be pulled back, and a shaped cube still shapes.** `CubeWorld._shape_leaf` moves one

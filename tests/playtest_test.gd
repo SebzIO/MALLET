@@ -235,6 +235,29 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	check("co-editors draw in the views", ed.show_co_editors and ed.co_cursors.size() == 1)
+
+	# --- U17: a co-editor in build mode has a body, and it turns the way they look
+	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [1, 0, 0], "sel": [], "view": "build"})
+	var got_body := await wait_for(func(): return ed._co_avatars.has(co.you), 3000)
+	var av: CoAvatar = ed._co_avatars.get(co.you)
+	check("a co-editor in build mode gets a body where they are",
+		got_body and av != null and av.is_visible_in_tree() and av.global_position.is_equal_approx(Vector3(5, 6, 7)),
+		str(av.global_position) if av != null else "no body")
+	check("...and it faces the way they look", av != null and absf(angle_difference(av.yaw, atan2(-1.0, 0.0))) < 0.01,
+		"yaw %.3f" % av.yaw if av != null else "")
+	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [0.05, 1, 0], "sel": [], "view": "build"})
+	var clamped := await wait_for(func(): return ed._co_avatars.has(co.you) and absf((ed._co_avatars[co.you] as CoAvatar).head_pitch) > 0.5, 3000)
+	var hp: float = (ed._co_avatars[co.you] as CoAvatar).head_pitch if ed._co_avatars.has(co.you) else 0.0
+	check("...and its head stops at 40 degrees instead of looking straight up",
+		clamped and absf(hp) <= CoAvatar.PITCH_LIMIT + 0.001, "pitch %.2f deg" % rad_to_deg(hp))
+	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [0, 0, -1], "sel": [], "view": "top"})
+	check("a co-editor working in a 2D view has no body, so the drawing stays clear",
+		await wait_for(func(): return ed._co_avatars.has(co.you) and not (ed._co_avatars[co.you] as CoAvatar).visible, 3000))
+	ed.show_co_editors = false
+	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [0, 0, -1], "sel": [], "view": "build"})
+	check("View > Co-editors off hides the body too",
+		await wait_for(func(): return ed._co_avatars.has(co.you) and not (ed._co_avatars[co.you] as CoAvatar).visible, 3000))
+	ed.show_co_editors = true
 	# --- build mode (E) has a camera of its own, and hides the editor's views: that is what must go out
 	co_got.clear()
 	ed.build.start(Transform3D(Basis.from_euler(Vector3(0, 0.6, 0)), Vector3(12, 30, -8)))
@@ -450,6 +473,8 @@ func _run() -> void:
 
 	co.close()
 	check("leaving takes their cursor away", await wait_for(func(): return not ed.co_cursors.has(co.you), 3000))
+	check("leaving takes their body away", await wait_for(func(): return not ed._co_avatars.has(co.you), 3000),
+		"%d bodies left" % ed._co_avatars.size())
 
 	# --- a dropped connection gets back into the same session
 	var code_now: String = ed.relay.session
