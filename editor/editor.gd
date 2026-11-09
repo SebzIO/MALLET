@@ -156,6 +156,10 @@ var relay: Relay = null                ## the relay connection (a playtest sessi
 var live_peers := {}                   ## tester id -> their last live message (where they are right now)
 var live_trails := {}                  ## tester id -> their last few live positions (the trail drawn in the views)
 var show_tester_paths := true          ## draw testers' finished routes and where they fell (View menu)
+var co_cursors := {}                   ## co-editor id -> their last cursor message (camera, aim, selection)
+var show_co_editors := true            ## draw co-editors' cameras and selections in the views (View menu)
+var session_role := ""                 ## what we joined the relay as: maker, editor or tester
+var _cursor_clock := 0.0
 var _playtest_panel: PlaytestPanel
 var _playtest_dialog: ConfirmationDialog
 var _playtest_inputs := {}
@@ -367,6 +371,7 @@ func _build_ui_main() -> void:
 		["Direction arrows", KEY_NONE, func(): show_direction = not show_direction; _sync_view_menu(), "arrows"],
 		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"],
 		["Testers' paths", KEY_NONE, func(): show_tester_paths = not show_tester_paths; _sync_view_menu(), "paths"],
+		["Co-editors", KEY_NONE, func(): show_co_editors = not show_co_editors; _sync_view_menu(), "cores"],
 		["Ground grid (3D view)", KEY_NONE, _toggle_ground_grid, "groundgrid"],
 		["Outliner (names, folders)", KEY_NONE, func(): _outliner_panel.visible = not _outliner_panel.visible; _sync_view_menu(), "outliner"]])
 	bar.add_child(VSeparator.new())
@@ -2188,7 +2193,7 @@ func _menu(bar: Container, title: String, items: Array) -> MenuButton:
 
 ## Tick the View and Add menus' check items to match the current settings.
 func _sync_view_menu() -> void:
-	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["paths", show_tester_paths], ["draw", _draw_mode],
+	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["paths", show_tester_paths], ["cores", show_co_editors], ["draw", _draw_mode],
 			["groundgrid", _ground_grid != null and _ground_grid.visible],
 			["playtest", _playtest_panel != null and _playtest_panel.visible],
 			["outliner", _outliner_panel != null and _outliner_panel.visible]]:
@@ -3586,6 +3591,8 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 		_draw_tester_paths(cam, ov)
 	if not live_peers.is_empty():
 		_draw_live_peers(cam, ov)
+	if show_co_editors and not co_cursors.is_empty():
+		_draw_co_editors(cam, ov)
 	if show_direction:
 		for r in ramps_root.get_children():
 			_draw_direction(cam, ov, r, r == selected)
@@ -3660,6 +3667,7 @@ func _process(delta: float) -> void:
 	_refresh_position()
 	if play.active:
 		return
+	_tick_co_cursors(delta)
 	_arcs_timer -= delta
 	if _arcs_dirty > 0 or _arcs_timer <= 0.0:
 		_arcs_dirty = max(_arcs_dirty - 1, 0)
@@ -5285,28 +5293,41 @@ func _build_playtest_dialog() -> void:
 			le.secret = true
 		grid.add_child(le)
 		_playtest_inputs[spec[0]] = le
+	var co := CheckBox.new()
+	co.text = "Join as a co-editor: see their camera and selection (needs the code and secret)"
+	co.tooltip_text = "Another MALLET sends you the session code and secret; tick this to join theirs as an editor instead of as the map's owner."
+	box.add_child(co)
+	_playtest_inputs["co"] = co
 	_playtest_dialog.confirmed.connect(func():
 		start_playtest(_playtest_inputs["address"].text.strip_edges(), _playtest_inputs["code"].text.strip_edges().to_upper(),
-			_playtest_inputs["secret"].text.strip_edges(), _playtest_inputs["name"].text.strip_edges()))
+			_playtest_inputs["secret"].text.strip_edges(), _playtest_inputs["name"].text.strip_edges(),
+			_playtest_inputs["co"].button_pressed))
 	_ui.add_child(_playtest_dialog)
 
 
-## Connect to the relay as the map maker. `code` empty starts a new session. False if the address isn't a relay.
-func start_playtest(url: String, code: String, secret: String, who: String) -> bool:
+## Connect to the relay as the map maker. `code` empty starts a new session. `as_editor` joins someone else's
+## session as a co-editor (code and secret are the invite). False if the address isn't a relay, or the invite is
+## incomplete.
+func start_playtest(url: String, code: String, secret: String, who: String, as_editor := false) -> bool:
 	if not (url.begins_with("ws://") or url.begins_with("wss://")):
 		_show_message("Playtest session", "The relay address must start with ws:// or wss:// (for example ws://127.0.0.1:8787/ws).")
 		return false
+	if as_editor and (code == "" or secret == ""):
+		_show_message("Co-editing session", "To join as a co-editor, type the session's code and secret. The maker sends both.")
+		return false
+	var role := "editor" if as_editor else "maker"
 	Settings.set_value("relay_url", url)
 	Settings.set_value("player_name", who)
 	_leave_playtest()
+	session_role = role
 	relay = Relay.new()
 	add_child(relay)
 	relay.opened.connect(_playtest_opened)
 	relay.failed.connect(_playtest_problem)
 	relay.closed.connect(func(_c, _r): _playtest_problem("closed", "The relay connection ended. Testers' runs are still saved on their side."))
 	relay.message.connect(_playtest_message)
-	relay.connect_to(url, {"t": "hello", "v": 1, "role": "maker", "session": code,
-		"secret": secret if code != "" else "", "name": who if who != "" else "Maker",
+	relay.connect_to(url, {"t": "hello", "v": 1, "role": role, "session": code,
+		"secret": secret if code != "" else "", "name": who if who != "" else ("Co-editor" if as_editor else "Maker"),
 		"map": _map_name(), "map_version": test_version, "client": MalletVersion.full()})
 	_set_status("Connecting to the relay at %s..." % url)
 	return true
@@ -5318,12 +5339,18 @@ func _map_name() -> String:
 
 func _playtest_opened(_welcome: Dictionary) -> void:
 	_playtest_panel.visible = true
-	relay.send({"t": "collect"})                       # (runs made while the editor was closed)
-	_set_status("Playtest session %s is open: testers' runs arrive here." % relay.session)
 	_refresh_playtest()
 	_sync_view_menu()
+	if session_role == "editor":
+		_set_status("Co-editing session %s: you see the others' cameras and selections." % relay.session)
+		_show_message("Co-editing session", ("You're in session %s as a co-editor.\n\nYou see where the others are looking and what they have selected, in their own color.\n"
+			+ "View > Co-editors hides it. Your camera and selection go out to them the same way.") % relay.session)
+		return
+	relay.send({"t": "collect"})                       # (runs made while the editor was closed)
+	_set_status("Playtest session %s is open: testers' runs arrive here." % relay.session)
 	_show_message("Playtest session", ("Session code: %s\n\nTest builds made now (Export > Test build for testers…) send their runs here while they play.\n"
-		+ "The panel (Export > Playtest panel) shows who is on and how they are doing.") % relay.session)
+		+ "The panel (Export > Playtest panel) shows who is on and how they are doing.\n"
+		+ "To co-edit, another MALLET joins with this code and secret and \"Join as a co-editor\" ticked.") % relay.session)
 
 
 func _playtest_problem(code: String, msg: String) -> void:
@@ -5356,14 +5383,21 @@ func _playtest_message(m: Dictionary) -> void:
 			var gone := String(m.get("id", ""))
 			live_peers.erase(gone)
 			live_trails.erase(gone)
+			co_cursors.erase(gone)
 			_refresh_playtest()
+		"cursor":
+			var who := String(m.get("id", ""))
+			if m.get("pos") is Array and (m.get("pos", []) as Array).size() >= 3:
+				co_cursors[who] = m
 		"attempt":
-			_add_live_attempt(String(m.get("name", "?")), m.get("attempt", {}), int(m.get("map_version", 0)))
+			if session_role != "editor":
+				_add_live_attempt(String(m.get("name", "?")), m.get("attempt", {}), int(m.get("map_version", 0)))
 		"runs":
-			for r in (m.get("runs", []) as Array):
-				if r is Dictionary:
-					_add_live_attempt(String(r.get("tester", "?")), r.get("attempt", {}), int(r.get("map_version", 0)))
-			_refresh_playtest()
+			if session_role != "editor":
+				for r in (m.get("runs", []) as Array):
+					if r is Dictionary:
+						_add_live_attempt(String(r.get("tester", "?")), r.get("attempt", {}), int(r.get("map_version", 0)))
+				_refresh_playtest()
 
 
 ## One attempt from the relay, filed with the map like an imported one. The same attempt arriving twice (live and
@@ -5417,6 +5451,8 @@ func _leave_playtest() -> void:
 		relay = null
 	live_peers.clear()
 	live_trails.clear()
+	co_cursors.clear()
+	session_role = ""
 	_refresh_playtest()
 
 
@@ -5439,11 +5475,112 @@ func _join_relay_as_tester(cfg: Dictionary) -> void:
 	var url := String(cfg.get("relay", ""))
 	if url == "":
 		return
+	session_role = "tester"
 	relay = Relay.new()
 	add_child(relay)
 	relay.connect_to(url, {"t": "hello", "v": 1, "role": "tester", "session": String(cfg.get("session", "")),
 		"secret": String(cfg.get("secret", "")), "name": tester["name"], "map": String(cfg.get("map_name", "map")),
 		"map_version": int(cfg.get("version", 1)), "client": MalletVersion.full()})
+
+
+# ================================================================================================= co-editing
+## Send where we are looking and what we have selected, ten times a second, while we're in a session as the maker
+## or a co-editor. The relay passes it to the others, never back to us.
+func _tick_co_cursors(delta: float) -> void:
+	if relay == null or not relay.is_open() or not (session_role in ["maker", "editor"]):
+		return
+	_cursor_clock -= delta
+	if _cursor_clock > 0.0:
+		return
+	_cursor_clock = 0.1
+	var p: ViewPane = active_pane if active_pane != null else (panes[0] if not panes.is_empty() else null)
+	if p == null or p.camera == null:
+		return
+	var at := p.camera.global_position
+	var aim := -p.camera.global_basis.z
+	relay.send({"t": "cursor", "pos": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)],
+		"aim": [snappedf(aim.x, 0.001), snappedf(aim.y, 0.001), snappedf(aim.z, 0.001)], "sel": _co_sel()})
+
+
+## Our selection as [kind, x, y, z]: the other MALLET finds the object at that place in its own copy of the map.
+## Objects have no ids of their own and both editors hold the same map, so the middle of the object is the key.
+func _co_sel() -> Array:
+	if selected == null or not is_instance_valid(selected):
+		return []
+	var c: Vector3 = selected.center()
+	return [[_co_kind(selected), snappedf(c.x, 0.01), snappedf(c.y, 0.01), snappedf(c.z, 0.01)]]
+
+
+static func _co_kind(o: Node3D) -> String:
+	if o is RampNode: return "ramp"
+	if o is EntityNode: return "entity"
+	if o is PropNode: return "prop"
+	if o is TextNode: return "text"
+	if o is LightNode: return "light"
+	if o is ParticleNode: return "particle"
+	if o is CubeModelNode: return "cube"
+	if o is BlockNode: return "block"
+	return ""
+
+
+## The object of that kind whose middle is closest to `at` (under a meter), or null: the other editor's selection.
+func _co_object_at(kind: String, at: Vector3) -> Node3D:
+	var root = {"ramp": ramps_root, "entity": entities_root, "prop": props_root, "block": blocks_root,
+		"text": texts_root, "light": lights_root, "particle": particles_root, "cube": cube_models_root}.get(kind, null)
+	if root == null:
+		return null
+	var best: Node3D = null
+	var best_d := 1.0
+	for o in root.get_children():
+		var d: float = (o as Node3D).center().distance_to(at)
+		if d < best_d:
+			best_d = d
+			best = o
+	return best
+
+
+static func _co_vec3(a) -> Vector3:
+	if a is Array and (a as Array).size() >= 3:
+		return Vector3(a[0], a[1], a[2])
+	return Vector3.ZERO
+
+
+## Co-editors in the views: their camera (a dot with a line along where they look, named) and, outlined in their
+## color, the object they have selected.
+func _draw_co_editors(cam: Camera3D, ov: Control) -> void:
+	var font := ov.get_theme_default_font()
+	for id in co_cursors:
+		var m: Dictionary = co_cursors[id]
+		var col := _tester_color(String(m.get("name", "?")))
+		var sel := m.get("sel", []) as Array
+		for s in sel:                                   # their selection, outlined in our copy of the same object
+			if not s is Array or (s as Array).size() < 4:
+				continue
+			var o := _co_object_at(String(s[0]), Vector3(s[1], s[2], s[3]))
+			if o != null:
+				_draw_lines(cam, ov, o.outline if o is RampNode else o.outline_lines(), Color(col, 0.85), 2.0)
+		var at := _co_vec3(m.get("pos", []))
+		if cam.is_position_behind(at):
+			continue
+		var s_at := cam.unproject_position(at)
+		var aim := _co_vec3(m.get("aim", []))
+		var dir := Vector2(0, -1)
+		if aim.length() > 0.001 and not cam.is_position_behind(at + aim * 3.0):
+			var d := cam.unproject_position(at + aim * 3.0) - s_at
+			if d.length() > 1.0:
+				dir = d.normalized()
+		var perp := Vector2(-dir.y, dir.x)
+		ov.draw_circle(s_at, 6.5, Color(0, 0, 0, 0.55))
+		ov.draw_circle(s_at, 4.0, col)
+		var tip := s_at + dir * 17.0
+		ov.draw_line(s_at, tip, Color(col, 0.9), 2.0)
+		ov.draw_line(tip, tip - dir * 6.0 + perp * 5.0, Color(col, 0.9), 2.0)
+		ov.draw_line(tip, tip - dir * 6.0 - perp * 5.0, Color(col, 0.9), 2.0)
+		var label := String(m.get("name", "?"))
+		if not sel.is_empty() and sel[0] is Array and (sel[0] as Array).size() >= 1:
+			label += "  ·  " + String((sel[0] as Array)[0])
+		ov.draw_string_outline(font, s_at + Vector2(13, -11), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.85))
+		ov.draw_string(font, s_at + Vector2(13, -11), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
 
 
 # ================================================================================================= export

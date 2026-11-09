@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.0 preview (in progress) — Co-editing
+
+- **Join as a co-editor**: Export > Playtest session… has a "Join as a co-editor" tick. Given a session's code and
+  secret (the maker shares both), the second MALLET joins it as an editor rather than as the map's owner, and it
+  doesn't file testers' runs into its own copy.
+- **See where the others are looking**: a co-editor is a dot in their own color with a line along where they look,
+  their name and what they have selected; the object they have selected is outlined in that color in your copy of
+  the map. View > Co-editors hides it.
+- **Your camera and selection go out the same way**, ten times a second, so it works both ways at once.
+- Not yet: the edits themselves. Moving a ramp in one MALLET still has to be done in the other by hand.
+
 ## 0.16.0 preview — 2026-11-09: Live playtesting
 
 - **Export > Playtest session…**: start a session through a small relay server (docs/RELAY.md) and you get a

@@ -10,6 +10,16 @@ const URL := "ws://127.0.0.1:8798/ws"
 var ok := true
 var relay_pid := -1
 var ed
+var co_got := []                      ## cursor messages a second editor received from the maker
+
+
+func _note_co(m: Dictionary) -> void:
+	if String(m.get("t", "")) == "cursor":
+		co_got.append(m)
+
+
+func _vec(a) -> Vector3:
+	return Vector3(a[0], a[1], a[2]) if a is Array and (a as Array).size() >= 3 else Vector3.ZERO
 
 
 func _init() -> void:
@@ -108,6 +118,41 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	check("the views draw live testers and their paths", ed.live_trails.size() == 1 and ed.show_tester_paths)
+
+	# --- a second MALLET joins as a co-editor
+	var co := Relay.new()
+	root.add_child(co)
+	co_got.clear()
+	co.message.connect(_note_co)
+	co.connect_to(URL, {"t": "hello", "v": 1, "role": "editor", "session": ed.relay.session, "secret": secret,
+		"name": "Alex", "map": "playtest test", "map_version": 7, "client": MalletVersion.full()})
+	check("a co-editor joins the session", await wait_for(func(): return co.is_open()))
+	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [0, 0, -1], "sel": []})
+	check("the maker sees where they are", await wait_for(func(): return ed.co_cursors.has(co.you)))
+	var got: Dictionary = ed.co_cursors.get(co.you, {})
+	check("their camera arrives as a place and an aim", _vec(got.get("pos", [])) == Vector3(5, 6, 7)
+		and got.get("aim") is Array, str(got.get("pos", [])))
+	check("our own camera goes out to them", await wait_for(func(): return not co_got.is_empty()))
+	var ramp := RampNode.new()
+	ed.ramps_root.add_child(ramp)
+	ramp.points = PackedVector3Array([Vector3(0, 0, 0), Vector3(0, 0, 24)])
+	ramp.rebuild()
+	ed._select(ramp)
+	var wire: Array = ed._co_sel()
+	check("our selection is sent as kind and place", wire.size() == 1 and String(wire[0][0]) == "ramp", str(wire))
+	var mid: Vector3 = ramp.center()
+	check("their selection finds the same object here", ed._co_object_at("ramp", mid) == ramp)
+	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [0, 0, -1], "sel": [["ramp", mid.x, mid.y, mid.z]]})
+	check("their selection arrives", await wait_for(func(): return not (ed.co_cursors.get(co.you, {}).get("sel", []) as Array).is_empty(), 3000))
+	ed._redraw_overlays()
+	await process_frame
+	await process_frame
+	check("co-editors draw in the views", ed.show_co_editors and ed.co_cursors.size() == 1)
+	co.close()
+	check("leaving takes their cursor away", await wait_for(func(): return not ed.co_cursors.has(co.you), 3000))
+	ed._select(null)
+	ed.ramps_root.remove_child(ramp)
+	ramp.free()
 
 	# --- a test build made now carries the session
 	var dir: String = String(out) + "/build"
