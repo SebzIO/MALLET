@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.13 preview — 2026-11-09: The co-editor body reads clearly
+
+- U17's body was looked at on screen and tuned: the head is a 0.46 m sphere on a short neck (it used to float above
+  the capsule), the visor is a glowing band in the peer's own color inside a dark frame at eye level instead of a
+  small white rectangle buried in the skull, and the name above the head is bigger with a black outline, so it reads
+  against sky or concrete. `tools/shoot_avatar.gd` renders the body from the front, side, back and close up for the
+  next look; the pictures are `tests/out/avatar*.png`.
+
 ## 0.17.12 preview — 2026-11-09: You can see the other editors (U17, batch F)
 
 - **Co-editors have a body in build mode.** `editor/_co_avatar.gd` (`CoAvatar`) is a capsule about 1.8 m tall with a
