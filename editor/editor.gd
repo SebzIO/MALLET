@@ -5648,7 +5648,7 @@ func _refresh_playtest() -> void:
 	if _playtest_panel == null:
 		return
 	_playtest_panel.refresh(relay.session if relay != null else "", relay.status_text() if relay != null else "No playtest session",
-		relay.peers if relay != null else {}, live_peers, tester_runs, session_role == "maker")
+		relay.peers if relay != null else {}, live_peers, tester_runs, session_role == "maker", _playtest_invite())
 
 
 func _toggle_playtest_panel() -> void:
@@ -5687,10 +5687,22 @@ func _leave_playtest() -> void:
 	_refresh_playtest()
 
 
+## What to send someone so they can join: the relay, the code and the secret (only the owner has the secret).
+func _playtest_invite() -> String:
+	if relay == null or relay.session == "":
+		return ""
+	if session_role == "maker" and relay.secret != "":
+		return "MALLET co-editing - relay %s - session %s - secret %s" % [relay.url, relay.session, relay.secret]
+	return "MALLET co-editing - relay %s - session %s" % [relay.url, relay.session]
+
+
 func _copy_playtest_code() -> void:
-	if relay != null and relay.session != "":
-		DisplayServer.clipboard_set(relay.session)
-		_set_status("Session code %s copied." % relay.session)
+	var invite := _playtest_invite()
+	if invite == "":
+		_set_status("No session to copy.")
+		return
+	DisplayServer.clipboard_set(invite)
+	_set_status("Invite copied. The other person ticks \"Join as a co-editor\" and types the code and secret.")
 
 
 ## Put someone out of the session (the map's owner only). The relay closes their connection; the code they have

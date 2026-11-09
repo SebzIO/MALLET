@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.1 preview — 2026-11-09: The invite, in one line
+
+- **Co-editing's invite is shown and copies as one line.** The playtest panel now displays the relay address, the
+  session code and its secret in a read-only field, and "Copy invite" puts all of it on the clipboard. Before, only
+  the code could be copied and the secret was never shown anywhere, so nobody could be invited.
+- A co-editor (who was given the code and secret) sees the same line without the secret, to confirm which session
+  they are in.
+
 ## 0.17.0 preview — 2026-11-09: Co-editing
 
 - **Join as a co-editor**: Export > Playtest session… has a "Join as a co-editor" tick. Given a session's code and

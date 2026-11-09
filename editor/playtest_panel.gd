@@ -15,6 +15,7 @@ var _status: Label
 var _tree: Tree
 var _summary: Label
 var _remove: OptionButton
+var _invite: LineEdit
 
 
 func _ready() -> void:
@@ -38,12 +39,18 @@ func _ready() -> void:
 	_status.custom_minimum_size = Vector2(WIDTH - 20, 0)
 	_status.add_theme_color_override("font_color", Color(0.7, 0.74, 0.8))
 	box.add_child(_status)
+	_invite = LineEdit.new()                               # what the owner sends: address, code and secret
+	_invite.editable = false
+	_invite.tooltip_text = "Send this to the other person: they tick \"Join as a co-editor\" and type the code and secret."
+	_invite.custom_minimum_size = Vector2(WIDTH - 20, 0)
+	_invite.visible = false
+	box.add_child(_invite)
 	var row := HBoxContainer.new()
 	box.add_child(row)
 	var copy := Button.new()
-	copy.text = "Copy code"
+	copy.text = "Copy invite"
 	copy.focus_mode = Control.FOCUS_NONE
-	copy.tooltip_text = "Put the session code on the clipboard, to paste into a chat."
+	copy.tooltip_text = "Put the relay address, session code and secret on the clipboard, as one line to paste into a chat."
 	copy.pressed.connect(func(): copy_requested.emit())
 	row.add_child(copy)
 	var spacer := Control.new()
@@ -87,9 +94,11 @@ func _process(_delta: float) -> void:
 
 ## `peers` is Relay.peers (id -> {id, name, role, map_version}), `live` is tester id -> their last live message,
 ## `runs` is the map's tester sessions (the same shape Tester.read_runs / import_runs make).
-func refresh(session: String, status: String, peers: Dictionary, live: Dictionary, runs: Array, owner := false) -> void:
+func refresh(session: String, status: String, peers: Dictionary, live: Dictionary, runs: Array, owner := false, invite := "") -> void:
 	_title.text = "Playtest — session %s" % session if session != "" else "Playtest"
 	_status.text = status
+	_invite.text = invite
+	_invite.visible = invite != ""
 	_fill_remove(peers, owner)
 	_tree.clear()
 	var root := _tree.create_item()

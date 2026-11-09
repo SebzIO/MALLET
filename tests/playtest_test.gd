@@ -147,6 +147,14 @@ func _run() -> void:
 	await process_frame
 	check("the views draw live testers and their paths", ed.live_trails.size() == 1 and ed.show_tester_paths)
 
+	# --- the invite: what the owner sends so someone else can join
+	var invite: String = ed._playtest_invite()
+	check("the invite carries the address, the code and the secret", invite.contains(ed.relay.session)
+		and secret != "" and invite.contains(secret) and (invite.contains("ws://") or invite.contains("wss://")),
+		"session %s, secret %d chars" % [ed.relay.session, secret.length()])
+	ed._refresh_playtest()
+	check("the panel shows the invite", ed._playtest_panel._invite.visible and ed._playtest_panel._invite.text == invite)
+
 	# --- a second MALLET joins as a co-editor
 	var co := Relay.new()
 	root.add_child(co)
