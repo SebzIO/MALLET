@@ -179,6 +179,25 @@ func _run() -> void:
 	await frames(3)
 	bm.sel = bm.target["sel"]
 	check("the push counter reads a selected block's face", bm._face_pushes() >= 0 and bm._face_pushes() <= 4, str(bm._face_pushes()))
+	# ---- U7: a pick looks through the air a folded face leaves, at the block behind it
+	var probe := CubeModelNode.new()
+	probe.world.begin()
+	probe.world.set_cell(Vector3i(0, 0, 0), 0, CubeWorld.FULL, CubeWorld.blank_tex())
+	probe.world.set_cell(Vector3i(-8, 0, 0), 0, CubeWorld.FULL, CubeWorld.blank_tex())
+	probe.world.commit()
+	probe.world.begin()
+	for face in [1, 5]:                                        # the +X and +Z faces, folded in four notches
+		var ps := CubeWorld.make_sel(Vector3i(0, 0, 0), 0, face)
+		for i in 4:
+			probe.world.push_face(ps, 1)
+	probe.world.commit()
+	var through := bm._first_occupied(probe, Vector3(2.0, 0.5, 0.875), Vector3.LEFT, 6.0, 0)
+	check("a pick looks through the air a folded face leaves", not through.is_empty()
+		and (through["cell"] as Vector3i).x == -8, str(through.get("cell", "none")))
+	var solid := bm._first_occupied(probe, Vector3(2.0, 0.5, 0.25), Vector3.LEFT, 6.0, 0)
+	check("...and still stops on the cube where it is solid", not solid.is_empty()
+		and (solid["cell"] as Vector3i).x == 0, str(solid.get("cell", "none")))
+	probe.free()
 	var water_sel := CubeWorld.moved(bm.target["sel"], 1)
 	bm.sel = water_sel
 	bm.run_command(CubeWorld.MATERIALS.find("water"))

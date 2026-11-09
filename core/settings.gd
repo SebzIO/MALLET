@@ -7,7 +7,7 @@ extends RefCounted
 const PATH := "user://preferences.cfg"
 const DEFAULTS := {
 	"editor_mouse": 1.0,                 ## editor 3D view (orbit / fly): x the normal speed
-	"build_mouse": 1.0,                  ## build mode's first-person look: x the normal speed
+	"build_mouse": 1.0,                  ## (unused since 0.17.8: build mode uses play_mouse, the Source number)
 	"play_mouse": 3.0,                   ## play mode: Source-style sensitivity (0.022 deg per count, like SurfsUp / CS:S)
 	"invert_y": false,                   ## mouse forward looks down (everywhere)
 	"ground_grid": true,                 ## the editor's 3D view shows the ground grid plane
@@ -47,8 +47,9 @@ static func editor_mouse() -> float:
 	return float(value("editor_mouse"))
 
 
+## Build mode and play mode turn at the same rate: one number in Source's own scale, used by both.
 static func build_mouse() -> float:
-	return float(value("build_mouse"))
+	return play_mouse()
 
 
 static func play_mouse() -> float:

@@ -315,7 +315,7 @@ func _input(event: InputEvent) -> void:
 		return
 	get_viewport().set_input_as_handled()
 	if event is InputEventMouseMotion:
-		var k := 0.0025 * Settings.build_mouse()            # (View > Mouse sensitivity)
+		var k := deg_to_rad(0.022) * Settings.build_mouse()  # (the same Source number as play mode)
 		yaw -= event.relative.x * k
 		pitch = clampf(pitch - event.relative.y * k * Settings.y_sign(), deg_to_rad(-89), deg_to_rad(89))
 		_apply_cam()
@@ -1897,10 +1897,27 @@ func update_target() -> void:
 	# line of sight, on the face you look into it through - even where its own faces have been pushed in
 	var on_cube := hm != null
 	var hit_any := not hit.is_empty()
-	if fm != null and not (hm != null and Input.is_key_pressed(KEY_CTRL)):
+	if not (hm != null and Input.is_key_pressed(KEY_CTRL)):
+		# every cube object along the line of sight, nearest first: a hole in one of them isn't a wall in front of
+		# the next one (out in the open, only the object being edited is a candidate, so building in air still works)
+		var found := {}
+		var nearest := INF
+		var models: Array = editor.cube_models_root.get_children() if not hit.is_empty() else ([fm] if fm != null else [])
 		var max_d := from.distance_to(hit["position"]) + CubeWorld.metres(p) * 2.0 if not hit.is_empty() else 600.0
-		var found := _first_occupied(fm, from, dir, max_d, p)
+		for cm in models:
+			if not cm is CubeModelNode or not is_instance_valid(cm) or not cm.is_inside_tree():
+				continue
+			var f := _first_occupied(cm, from, dir, max_d, p)
+			if f.is_empty():
+				continue
+			var fd := from.distance_to(_frame(cm) * (f["point"] as Vector3))
+			if fd < nearest:
+				nearest = fd
+				found = f
+				found["model"] = cm
 		if not found.is_empty():
+			fm = found["model"]
+			xf = _frame(fm)
 			cell = found["cell"]
 			orient = found["orient"]
 			lp = found["point"]
@@ -1975,12 +1992,50 @@ func _first_occupied(m: CubeModelNode, from_w: Vector3, dir_w: Vector3, max_d: f
 			last = ct
 		elif occ:
 			var orient := axis * 2 + (1 if step[axis] < 0 else 0) if axis >= 0 else CubeWorld.orient_of(-d)
-			return {"cell": ct, "orient": orient, "point": (o + d * t) * CubeWorld.TICK}
+			if axis < 0:
+				return {"cell": ct, "orient": orient, "point": (o + d * t) * CubeWorld.TICK}
+			var clip := _cell_clip(w, ct, o, d, g)
+			if clip.is_empty():
+				return {"cell": ct, "orient": orient, "point": (o + d * t) * CubeWorld.TICK}
+			if float(clip[0]) <= float(clip[1]) and float(clip[0]) <= tmax[axis] + 1e-4:
+				return {"cell": ct, "orient": orient, "point": (o + d * t) * CubeWorld.TICK}
+			# (the ray runs through the air a folded face left: keep walking, the block behind is the one we see)
 		axis = 0 if tmax.x <= tmax.y and tmax.x <= tmax.z else (1 if tmax.y <= tmax.z else 2)
 		t = tmax[axis]
 		cell[axis] += step[axis]
 		tmax[axis] += tdelta[axis]
 	return {}
+
+
+## The stretch of the ray that is inside a cell's real solid, as [in, out] along `dir` (ticks), or [] when this
+## cannot be told (no leaf there, or a split piece) so the caller keeps its whole-cell answer. A folded face leaves
+## part of the cell as air, and a pick must look through that at the block behind instead of stopping at the box.
+func _cell_clip(w: CubeWorld, ct: Vector3i, from: Vector3, dir: Vector3, g: float) -> Array:
+	var k = w.leaf_at(Vector3(ct))
+	if k == null:
+		return []
+	var v: Array = w.leaves[k]
+	if v.size() > 3 and not (v[3] as Array).is_empty():
+		return []
+	var scale := g / 8.0
+	var p0 := (from - Vector3(ct)) / scale
+	var p1 := dir / scale
+	var tin := -INF
+	var tout := INF
+	for pair in CubeWorld.solid_planes(v[0] as PackedByteArray):
+		var n: Vector3 = pair[0]
+		var d: float = n.dot(p0) - float(pair[1])
+		var s := n.dot(p1)
+		if absf(s) < 1e-9:
+			if d > 1e-4:
+				return [INF, -INF]                 # (this part of the box is outside the shape: air)
+			continue
+		var t := -d / s
+		if s < 0.0:
+			tin = maxf(tin, t)
+		else:
+			tout = minf(tout, t)
+	return [tin, tout]
 
 
 func _layout_hud() -> void:

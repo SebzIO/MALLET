@@ -3,6 +3,16 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.8 preview — 2026-11-09: Picking through air, one mouse sensitivity
+
+- **A pick looks through the air a folded face leaves** (the last item of batch B). Build mode now clips the aiming ray
+  against each cube's real shape, not its cell box, and walks every cube object along the line of sight, so the block
+  you can see behind a folded cell is the one you select - and a pushed-in cube still counts as a whole block when you
+  aim at it. Ctrl keeps the old "this object, at its own size" picking.
+- **One mouse sensitivity for build and play** (batch D, U9). Build mode now uses the same Source number as play mode
+  (`0.022°` per count) instead of its own scale, and View > Mouse sensitivity has one slider for both; the editor's
+  orbit camera keeps its own multiplier.
+
 ## 0.17.7 preview — 2026-11-09: The session keeps up
 
 - **A new map resets the session.** File > New, a template or an opened map is handed to every co-editor, who loads

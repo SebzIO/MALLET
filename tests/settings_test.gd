@@ -53,14 +53,15 @@ func _run() -> void:
 	ed._build_clicked()
 	await process_frame
 	var bm: BuildMode = ed.build
+	Settings.set_value("play_mouse", 2.0)
 	y0 = bm.yaw
 	bm._input(motion(100, 0))
 	var b1 := y0 - bm.yaw
-	Settings.set_value("build_mouse", 0.5)
+	Settings.set_value("play_mouse", 1.0)
 	y0 = bm.yaw
 	bm._input(motion(100, 0))
 	var b2 := y0 - bm.yaw
-	check("build mode: 0.5x sensitivity turns half as far", absf(b2 - 0.5 * b1) < 1e-4, "(%.4f vs %.4f rad)" % [b2, b1])
+	check("build mode: the Source number drives it too (half the number, half the turn)", absf(b2 - 0.5 * b1) < 1e-4, "(%.4f vs %.4f rad)" % [b2, b1])
 	var p0 := bm.pitch
 	bm._input(motion(0, -50))
 	var up := bm.pitch - p0
@@ -87,15 +88,16 @@ func _run() -> void:
 
 	# saved for next time
 	Settings._cfg = null
-	check("settings are saved for next time", is_equal_approx(Settings.play_mouse(), 2.25) and is_equal_approx(Settings.build_mouse(), 0.5)
+	check("settings are saved for next time", is_equal_approx(Settings.play_mouse(), 2.25) and is_equal_approx(Settings.build_mouse(), 2.25)
 		and is_equal_approx(Settings.editor_mouse(), 2.0))
 
 	# the dialog
 	ed._open_mouse_settings()
 	await process_frame
-	var pair: Array = ed._fields["mouse_build_mouse"]
+	var pair: Array = ed._fields["mouse_play_mouse"]
 	(pair[0] as HSlider).value = 1.75
-	check("View > Mouse sensitivity: the sliders change it", is_equal_approx(Settings.build_mouse(), 1.75) and is_equal_approx((pair[1] as SpinBox).value, 1.75))
+	check("View > Mouse sensitivity: one number for build and play", is_equal_approx(Settings.play_mouse(), 1.75)
+		and is_equal_approx(Settings.build_mouse(), 1.75) and is_equal_approx((pair[1] as SpinBox).value, 1.75))
 	ed._mouse_dialog.hide()
 
 	# put your own settings back
