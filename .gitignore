@@ -3,3 +3,5 @@ tests/out/
 maps/smoke_test.mallet
 maps/smoke_test.sfmap
 *.tmp
+__pycache__/
+relay-data/
