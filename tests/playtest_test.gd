@@ -240,8 +240,9 @@ func _run() -> void:
 	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [1, 0, 0], "sel": [], "view": "build"})
 	var got_body := await wait_for(func(): return ed._co_avatars.has(co.you), 3000)
 	var av: CoAvatar = ed._co_avatars.get(co.you)
-	check("a co-editor in build mode gets a body where they are",
-		got_body and av != null and av.is_visible_in_tree() and av.global_position.is_equal_approx(Vector3(5, 6, 7)),
+	check("a co-editor in build mode gets a body whose eyes are where their camera is",
+		got_body and av != null and av.is_visible_in_tree()
+		and av.global_position.is_equal_approx(Vector3(5, 6, 7) - Vector3(0, CoAvatar.EYE_AT, 0)),
 		str(av.global_position) if av != null else "no body")
 	check("...and it faces the way they look", av != null and absf(angle_difference(av.yaw, atan2(-1.0, 0.0))) < 0.01,
 		"yaw %.3f" % av.yaw if av != null else "")

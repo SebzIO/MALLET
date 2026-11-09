@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.15 preview — 2026-11-09: A co-editor's view cone comes out of their eyes
+
+- Another editor's dot, facing arrow and field-of-view cone used to start at their feet, because their cursor
+  message carries their **camera** position while the body stood its feet there - so the body floated an eye
+  height up and the cone left its shoes. The body now stands one eye height lower (`CoAvatar.EYE_AT`, 1.65 m), so
+  the visor band is exactly at their camera and the cone comes out of their face.
+- playtest_test checks the new rule: the body stands an eye height below the reported camera, so the visor is at
+  the eye point the overlay draws from.
+
 ## 0.17.14 preview — 2026-11-09: A block becomes a cube the first time you edit it (U12, batch G)
 
 - **A block drawn in the 2D views is no longer a solid build mode can pick but not change.** The first push, pull

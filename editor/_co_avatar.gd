@@ -8,6 +8,7 @@ extends Node3D
 const WIDTH := 0.58                       ## body width, meters
 const BODY_HEIGHT := 1.45                 ## capsule length (its caps add the rest of the 1.8 m)
 const HEAD_AT := 1.63                     ## head center above the feet
+const EYE_AT := 1.65                      ## the visor band above the feet: where their camera really is
 const PITCH_LIMIT := 0.6981317            ## 40 degrees, radians
 
 var yaw := 0.0                            ## compass direction, radians (0 = looking down -Z)

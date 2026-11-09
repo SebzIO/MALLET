@@ -6598,7 +6598,8 @@ func _update_co_avatars() -> void:
 		if a.who != who:
 			a.setup(_tester_color(who), who)
 		a.visible = true
-		a.place(_co_vec3(m.get("pos", [])), _co_vec3(m.get("aim", [])))
+		# (their cursor says where their camera is, at eye height: stand the body so the visor is there, not its feet)
+		a.place(_co_vec3(m.get("pos", [])) - Vector3(0.0, CoAvatar.EYE_AT, 0.0), _co_vec3(m.get("aim", [])))
 	for id in _co_avatars.keys():
 		if not co_cursors.has(id):
 			_co_avatar_free(id)
