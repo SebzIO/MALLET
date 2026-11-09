@@ -3705,7 +3705,7 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 		_draw_live_peers(cam, ov)
 	if show_co_editors and not co_cursors.is_empty():
 		_draw_co_editors(cam, ov)
-		_draw_co_mice(pane, ov)
+		_draw_co_mice(cam, ov, pane.size)
 	if show_direction:
 		for r in ramps_root.get_children():
 			_draw_direction(cam, ov, r, r == selected)
@@ -5809,18 +5809,31 @@ func _tick_co_cursors(delta: float) -> void:
 	if _cursor_clock > 0.0:
 		return
 	_cursor_clock = 0.1
-	var p: ViewPane = active_pane if active_pane != null else (panes[0] if not panes.is_empty() else null)
-	if p == null or p.camera == null:
-		return
-	var at := p.camera.global_position
-	var aim := -p.camera.global_basis.z
+	var at: Vector3
+	var aim: Vector3
 	var mouse: Array = []
-	var w = _co_mouse_point(p)
-	if w != null:
-		mouse = [snappedf(w.x, 0.01), snappedf(w.y, 0.01), snappedf(w.z, 0.01)]
+	var view := "editor"
+	if build != null and build.active:
+		at = build.cam.global_position                # (build mode looks through its own camera; the panes are hidden)
+		aim = -build.cam.global_basis.z
+		var t: Dictionary = build.target if build.target is Dictionary else {}
+		var w0 = t.get("point")
+		if w0 is Vector3:
+			mouse = [snappedf(w0.x, 0.01), snappedf(w0.y, 0.01), snappedf(w0.z, 0.01)]
+		view = "build"
+	else:
+		var p: ViewPane = active_pane if active_pane != null else (panes[0] if not panes.is_empty() else null)
+		if p == null or p.camera == null:
+			return
+		at = p.camera.global_position
+		aim = -p.camera.global_basis.z
+		var w = _co_mouse_point(p)
+		if w != null:
+			mouse = [snappedf(w.x, 0.01), snappedf(w.y, 0.01), snappedf(w.z, 0.01)]
+		view = ViewPane.NAMES[p.kind].get_slice(" ", 0).to_lower()
 	relay.send({"t": "cursor", "pos": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)],
 		"aim": [snappedf(aim.x, 0.001), snappedf(aim.y, 0.001), snappedf(aim.z, 0.001)], "sel": _co_sel(),
-		"view": p.kind, "mouse": mouse, "doing": _co_doing()})
+		"view": view, "mouse": mouse, "doing": _co_doing()})
 	_co_watch_build()
 	_co_send_edits()
 
@@ -6391,12 +6404,20 @@ static func _co_vec3(a) -> Vector3:
 	return Vector3.ZERO
 
 
+## Co-editors in a view: their camera, where they look, where their mouse is, and what they have selected. Drawn
+## with `cam`, the camera that view really uses - build mode (E) has its own, so it calls this for its own view.
+func draw_co_overlay(cam: Camera3D, ov: Control) -> void:
+	if cam == null or co_cursors.is_empty():
+		return
+	_draw_co_editors(cam, ov)
+	_draw_co_mice(cam, ov, ov.size)
+
+
 ## Co-editors in the views: their camera (a dot with a line along where they look, named) and, outlined in their
 ## color, the object they have selected.
 ## Where each co-editor's mouse is, with their name and what they're doing, drawn in the view we're drawing.
-func _draw_co_mice(pane: ViewPane, ov: Control) -> void:
+func _draw_co_mice(cam: Camera3D, ov: Control, size: Vector2) -> void:
 	var font := ov.get_theme_default_font()
-	var cam := pane.camera
 	for id in co_cursors:
 		var m: Dictionary = co_cursors[id]
 		var mp = m.get("mouse", [])
@@ -6406,7 +6427,7 @@ func _draw_co_mice(pane: ViewPane, ov: Control) -> void:
 		if cam.is_position_behind(at):
 			continue
 		var s := cam.unproject_position(at)
-		if not Rect2(Vector2.ZERO, pane.size).has_point(s):
+		if not Rect2(Vector2.ZERO, size).has_point(s):
 			continue
 		var col := _tester_color(String(m.get("name", "?")))
 		var arrow := PackedVector2Array([s, s + Vector2(0, 15), s + Vector2(4.2, 10.5), s + Vector2(10.5, 10.5)])

@@ -70,6 +70,7 @@ var _paint_time := 0.0
 var _y_used := false
 var _ui_open := false
 var _hud := CanvasLayer.new()
+var _co := Control.new()                  ## co-editors, drawn over the view with build mode's own camera
 var _info := Label.new()
 var _help := PanelContainer.new()
 var _msg := Label.new()
@@ -110,6 +111,9 @@ func _ready() -> void:
 	_hud.layer = 6
 	_hud.visible = false
 	add_child(_hud)
+	_co.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_co.draw.connect(_draw_co)
+	_hud.add_child(_co)                              # (behind the crosshair and the text)
 	_cross = Label.new()
 	_cross.text = "+"
 	_cross.add_theme_font_size_override("font_size", 26)
@@ -242,6 +246,13 @@ func _leave() -> void:
 func say(t: String) -> void:
 	_msg.text = t
 	_msg_time = 3.5
+
+
+## The other editors, where they are and what they look at, in this view (it has a camera of its own, so the
+## editor's views can't draw them here).
+func _draw_co() -> void:
+	if editor != null and editor.show_co_editors:
+		editor.draw_co_overlay(cam, _co)
 
 
 func _apply_cam() -> void:
@@ -1642,6 +1653,9 @@ func _first_occupied(m: CubeModelNode, from_w: Vector3, dir_w: Vector3, max_d: f
 
 func _layout_hud() -> void:
 	var vp := get_viewport().get_visible_rect().size
+	_co.position = Vector2.ZERO
+	_co.size = vp
+	_co.queue_redraw()
 	_cross.position = vp * 0.5 - _cross.size * 0.5
 	_info.position = Vector2(16, vp.y - _info.size.y - 14)
 	_help.position = Vector2(vp.x - _help.size.x - 16, 16)

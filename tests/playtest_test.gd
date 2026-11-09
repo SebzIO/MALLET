@@ -235,6 +235,22 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	check("co-editors draw in the views", ed.show_co_editors and ed.co_cursors.size() == 1)
+	# --- build mode (E) has a camera of its own, and hides the editor's views: that is what must go out
+	co_got.clear()
+	ed.build.start(Transform3D(Basis.from_euler(Vector3(0, 0.6, 0)), Vector3(12, 30, -8)))
+	check("build mode is on", ed.build.active)
+	await wait_ms(450)
+	var last_cursor := {}
+	for m in co_got:
+		if String((m as Dictionary).get("t", "")) == "cursor":
+			last_cursor = m
+	var bpos: Vector3 = ed.build.cam.global_position
+	ed.build.stop()
+	await wait_ms(250)
+	check("in build mode the others get build mode's own camera", String(last_cursor.get("view", "")) == "build"
+		and _vec(last_cursor.get("pos", [])).distance_to(bpos) < 3.0
+		and String(last_cursor.get("doing", "")) == "building",
+		"%s / %s" % [String(last_cursor.get("view", "")), str(last_cursor.get("pos", []))])
 	# --- new objects and deletions
 	var count_before: int = ed.ramps_root.get_child_count()
 	var add_op := {"act": "add", "kind": "ramp", "uid": "zz1", "at": [0, 0, 60], "obj": ed._with_group(ramp).duplicate(true)}

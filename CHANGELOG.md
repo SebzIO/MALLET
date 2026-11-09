@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.4 preview — 2026-11-09: Seeing each other in build mode
+
+- **Co-editors now show up in build mode (E) too**: their camera, the way they are looking, their mouse and what
+  they have selected are drawn over the first-person view in their own color, with their name and what they are
+  doing. Build mode has a camera of its own and hides the editor's views, so nothing was drawn there; it also told
+  the session it was looking from the hidden editor view, not from where the builder really was.
+- A session now also says which view each person is in (perspective, top, front, side, build).
+
 ## 0.17.3 preview — 2026-11-09: Objects keep their own names
 
 - **Moving several objects now syncs all of them.** Each MALLET used to invent its own name for every object it
