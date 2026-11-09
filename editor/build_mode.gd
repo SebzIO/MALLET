@@ -588,6 +588,9 @@ func wheel(dir: int) -> void:
 				_push_history({"t": "ent", "obj": o, "before": before, "after": o.to_dict()})
 			return
 	var s := op_sel()
+	if s.is_empty() or s.get("model") == null:
+		if _convert_target_block():                       # (U12: a block becomes a cube object on its first edit)
+			s = op_sel()
 	if s.is_empty():
 		return
 	if Input.is_key_pressed(KEY_Y):
@@ -1833,6 +1836,22 @@ func _process(delta: float) -> void:
 		_metres_text(CubeWorld.metres(grid_p)), _tex_name(texture), " (all faces)" if all_faces else "", mode, size_txt]
 
 
+## U12: the block the crosshair is on becomes a cube object, so a push or a paint does something to it. False when
+## there is no block there, or it has no one-cell equivalent (then a plain-language reason has been said).
+func _convert_target_block() -> bool:
+	var blk = target.get("block")
+	if blk == null:
+		return false
+	var conv: Dictionary = editor.block_to_cube(blk)
+	target["block"] = null
+	if conv.has("error"):
+		say(String(conv["error"]))
+		return false
+	model = conv["model"]
+	update_target()
+	return true
+
+
 ## Work out what the crosshair is on: a cube face (snapped to the grid, in the cube object's own space), an entity,
 ## or a spot in the air in front of you.
 func update_target() -> void:
@@ -1858,7 +1877,10 @@ func update_target() -> void:
 	var hm: CubeModelNode = null
 	if not hit.is_empty() and hit["collider"].has_meta("cube_model"):
 		hm = hit["collider"].get_meta("cube_model")
-	var fm = hm if hm != null else (model if model != null and is_instance_valid(model) and model.is_inside_tree() else null)
+	var blk: BlockNode = null
+	if not hit.is_empty() and hit["collider"].has_meta("block"):
+		blk = hit["collider"].get_meta("block")
+	var fm = null if blk != null else (hm if hm != null else (model if model != null and is_instance_valid(model) and model.is_inside_tree() else null))
 	var xf := _frame(fm)
 	var inv := xf.affine_inverse()
 	var p := grid_p
@@ -1939,7 +1961,7 @@ func update_target() -> void:
 	ts["model"] = fm
 	var ent_first := ent != null and (hit.is_empty() or (ehit["position"] as Vector3).distance_to(from) <= from.distance_to(hit["position"]) + 0.05)
 	target = {"model": fm, "sel": ts, "corner": corner, "hit": hit_any, "point": point, "on_cube": on_cube,
-		"local": lp / CubeWorld.TICK, "entity": ent if ent_first else null}
+		"local": lp / CubeWorld.TICK, "entity": ent if ent_first else null, "block": blk}
 
 
 ## Walk the line of sight through a cube object's grid (cells of grid power p) and return the first cell with

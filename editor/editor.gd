@@ -2746,6 +2746,59 @@ func _add_block_clicked() -> void:
 	_set_status("New block. Drag the squares on its sides to resize it, or use Draw block (D) to draw blocks in the 2D views.")
 
 
+## U12: a block that build mode edits becomes a cube object - one cell for a plain, cube-shaped box (1, 2, 4 or 8 m
+## on every side). It keeps its material, its name, its folder and its group, and the swap is one undo step. Returns
+## {"model", "sel"} or {"error": why not}, because a cutter, water or a shaped block has no one-cell equivalent.
+func block_to_cube(b: BlockNode) -> Dictionary:
+	if b == null or not is_instance_valid(b):
+		return {"error": "That block is gone."}
+	if b.is_cutter():
+		return {"error": "A cutter block stays a block: cubes have no cutters."}
+	if bool(b.data.get("water", false)):
+		return {"error": "Water stays a block: use build mode's water material for a water volume."}
+	if String(b.data.get("shape", "box")) != "box":
+		return {"error": "Only a plain box can become a cube; this block is a %s." % String(b.data.get("shape", "box"))}
+	if bool(b.data.get("hollow", false)):
+		return {"error": "Only a solid box can become a cube; untick Hollow first."}
+	var sz := b.size()
+	var p := -1
+	for i in 4:
+		if absf(sz.x - float(1 << i)) < 0.001 and absf(sz.y - float(1 << i)) < 0.001 and absf(sz.z - float(1 << i)) < 0.001:
+			p = i
+	if p < 0:
+		return {"error": "A cube cell is 1, 2, 4 or 8 m on every side; this block is %s." % str(sz).replace(", 0", ".0")}
+	var yaw_deg := fposmod(float(b.data.get("yaw", 0.0)), 360.0)
+	var quarter := roundf(yaw_deg / 90.0) * 90.0
+	if absf(angle_difference(deg_to_rad(yaw_deg), deg_to_rad(quarter))) > deg_to_rad(0.5):
+		return {"error": "A cube can turn in 90 degree steps only; this block is turned %.1f degrees." % yaw_deg}
+	_checkpoint()
+	var pos: Array = b.data["position"]                   # (base center: x/z middle, y bottom)
+	var meters := Vector3(float(pos[0]) - sz.x * 0.5, float(pos[1]), float(pos[2]) - sz.z * 0.5)
+	var m := CubeModelNode.new()
+	cube_models_root.add_child(m)
+	m.position = meters
+	m.yaw = quarter
+	m.basis = Basis(Vector3.UP, deg_to_rad(quarter))
+	var sel := CubeWorld.make_sel(Vector3i.ZERO, p, 3)
+	var tex := CubeWorld.blank_tex(String(b.data.get("material", "")))
+	m.world.begin()
+	m.world.set_cell(Vector3i.ZERO, p, CubeWorld.FULL.duplicate(), tex)
+	m.world.commit()
+	for key in ["group", "name", "folder", "hidden"]:   # (keeps its place in the Outliner)
+		if b.has_meta(key):
+			m.set_meta(key, b.get_meta(key))
+	if bool(b.get_meta("hidden", false)):
+		m.visible = false
+	blocks_root.remove_child(b)
+	b.queue_free()
+	_rebuild_blocks()
+	m.rebuild_all()
+	_select(m)
+	_set_status("That block is a cube object now (one %s m cell): push its faces here, and it still edits as one object in the views." % str(1 << p))
+	sel["model"] = m
+	return {"model": m, "sel": sel}
+
+
 func _toggle_draw_mode() -> void:
 	_draw_mode = not _draw_mode
 	_sync_view_menu()

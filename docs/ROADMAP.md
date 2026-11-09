@@ -6,7 +6,7 @@ next to Source's Hammer: that is the whole idea of this editor.
 1.0.0 is reached only when **every** milestone below is done **and the user says so**. Each milestone ships as its
 own preview (0.10.0, 0.11.0, …) with a tester zip; fixes in between are 0.x.y. Never 1.0.0 by default.
 
-Where we are: **0.14.0** (2026-11-07): the ramp creator and ramp prefabs; before it your own shaders, lights, particles. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
+Where we are: **0.17.14** (2026-11-09): every batch of the 0.17.4 testing list (A-G) is done, on top of co-editing, build mode's cubes and folding, the ramp creator, lights and particles. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
 have been tested by the user and a friend.
 
 ---

@@ -3,6 +3,23 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.14 preview — 2026-11-09: A block becomes a cube the first time you edit it (U12, batch G)
+
+- **A block drawn in the 2D views is no longer a solid build mode can pick but not change.** The first push, pull
+  or paint on it turns it into a cube object (`editor.block_to_cube()`): a plain, solid box that is 1, 2, 4 or 8 m
+  on every side and turned in 90 degree steps becomes one full cell of a new `CubeModelNode`, standing on the
+  block's own base, with the block's material, name, folder, group and hidden flag, so it keeps its place in the
+  Outliner. It is one undo step, and the status bar says it happened.
+- Build mode converts the block under the crosshair before its first wheel edit (`build_mode._convert_target_block`,
+  fed by `update_target`'s new `target["block"]`), so a push on a block does something instead of nothing.
+- Anything without a one-cell cube is refused in plain words rather than quietly rounded: a cutter, a water volume,
+  a hollow or shaped block, a box that isn't 1, 2, 4 or 8 m a side, or one turned off the 90 degree steps.
+  Retiring `BlockNode` for solids outright (batch G's option 2) is a 0.18 decision.
+- editor_test grew seven checks: a 4 m block becomes one 4 m cell that keeps its name and leaves the Outliner's
+  block list, build mode converts the block it aims at, a +X face push moves that face in one notch with the cell
+  still one solid, water and odd sizes are refused with a reason, and undo brings the block back. Batch G's pass
+  (editor_test, build_test, export_test, vmf_test) is clean.
+
 ## 0.17.13 preview — 2026-11-09: The co-editor body reads clearly
 
 - U17's body was looked at on screen and tuned: the head is a 0.46 m sphere on a short neck (it used to float above
