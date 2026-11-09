@@ -322,7 +322,7 @@ async def on_message(p, msg):
         if p.role == "maker":
             await p.send({"t": "runs", "runs": s["runs"]})
 
-    elif t in ("edit", "cursor", "state"):
+    elif t in ("edit", "cursor"):
         # 0.17 co-editing: passed to the maker and the other editors, after the same checks
         if p.role not in ("maker", "editor"):
             return
@@ -332,6 +332,30 @@ async def on_message(p, msg):
         out["id"] = p.id
         out["name"] = p.name
         await broadcast(p.session, out, skip=p, roles=FORWARD_TO)
+
+    elif t == "state":
+        # 0.17: the map a newcomer gets, so an editor joining a session that already has work in it matches from
+        # its first tick. It goes to the one who asked and nobody else: a whole map to everyone would be far too
+        # much. Only the maker sends it, and the relay never keeps it.
+        if p.role != "maker":
+            return
+        to = s["peers"].get(str(msg.get("to", ""))[:16])
+        if to is None or to.closed:
+            return
+        if len(json.dumps(msg)) > MAX_MESSAGE // 2:
+            return await reject(p, "too_big", "That message is too big.")
+        out = dict(msg)
+        out["id"] = p.id
+        out["name"] = p.name
+        await to.send(out)
+
+    elif t == "state_please":
+        # 0.17: an editor joining a session that already has work in it asks the session's maker for its map.
+        if p.role != "editor":
+            return
+        for q in list(s["peers"].values()):
+            if q.role == "maker" and not q.closed:
+                await q.send({"t": "state_please", "id": p.id, "name": p.name})
 
     elif t == "ping":
         await p.send({"t": "pong", "at": msg.get("at", 0)})

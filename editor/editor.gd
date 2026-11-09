@@ -167,6 +167,12 @@ var _co_new_now := {}                  ## objects that appeared since the last t
 var _co_dels := []                     ## [kind, uid] waiting to be sent as deletions
 var _co_seq := 0
 var _co_mute := false                  ## a remote edit or an undo is being applied: nothing goes back out
+var _co_waiting_state := false         ## waiting for the session's map: nothing goes out until it lands
+var _co_state_since := 0
+var _co_state_of := 0
+var _co_state_next := -1               ## -1 while no map is arriving
+var _co_state_text := ""
+var _co_state_dialog: ConfirmationDialog = null
 var _playtest_panel: PlaytestPanel
 var _playtest_dialog: ConfirmationDialog
 var _playtest_inputs := {}
@@ -5359,9 +5365,10 @@ func _playtest_opened(_welcome: Dictionary) -> void:
 	_sync_view_menu()
 	_co_seed()                                      # (everything already in the map is on both sides)
 	if session_role == "editor":
-		_set_status("Co-editing session %s: you see the others' cameras and selections." % relay.session)
-		_show_message("Co-editing session", ("You're in session %s as a co-editor.\n\nYou see where the others are looking and what they have selected, in their own color.\n"
-			+ "View > Co-editors hides it. Your camera and selection go out to them the same way.") % relay.session)
+		if has_unsaved_changes():
+			_co_ask_for_their_map()                 # (their map replaces ours: ask before unsaved work is lost)
+			return
+		_co_request_state()
 		return
 	relay.send({"t": "collect"})                       # (runs made while the editor was closed)
 	_set_status("Playtest session %s is open: testers' runs arrive here." % relay.session)
@@ -5408,6 +5415,11 @@ func _playtest_message(m: Dictionary) -> void:
 				co_cursors[who] = m
 		"edit":
 			_co_apply(m)
+		"state":
+			_co_state_chunk(m)
+		"state_please":
+			if session_role == "maker":
+				_co_send_state(String(m.get("id", "")))
 		"attempt":
 			if session_role != "editor":
 				_add_live_attempt(String(m.get("name", "?")), m.get("attempt", {}), int(m.get("map_version", 0)))
@@ -5476,6 +5488,9 @@ func _leave_playtest() -> void:
 	_co_uids.clear()
 	_co_new_now.clear()
 	_co_dels.clear()
+	_co_waiting_state = false
+	_co_state_next = -1
+	_co_state_text = ""
 	session_role = ""
 	_refresh_playtest()
 
@@ -5638,6 +5653,11 @@ func _co_scan_objects() -> void:
 ## Each object goes as its whole plain-data state, so one path covers a dragged ramp point, a moved block and a
 ## changed property. A handful a tick, so a big paste or a long drag can't flood the relay.
 func _co_send_edits() -> void:
+	if _co_waiting_state:
+		if Time.get_ticks_msec() - _co_state_since < 10000:
+			return                                 # (our own map isn't theirs: nothing of it goes out yet)
+		_co_waiting_state = false
+		_set_status("The session's map hasn't arrived: make sure its owner is in the session.")
 	_co_scan_objects()
 	var sent := 0
 	for pair in _co_dels:
@@ -5676,6 +5696,120 @@ func _co_send_one(o: Node3D, act: String) -> bool:
 		"at": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)], "obj": d}})
 	_co_last[uid] = o.center()
 	return true
+
+
+const CO_STATE_CHUNK := 400000        ## bytes of map text per message (the relay refuses one message over 2 MB)
+
+
+## The whole map as text, for an editor who joined after the session started: it asks, and gets the map its owner
+## has now, so both copies match from the first tick. In pieces, because a map with cube builds is far past the
+## relay's limit for one message.
+func _co_send_state(to: String) -> void:
+	if relay == null or not relay.is_open() or to == "":
+		return
+	var text := JSON.stringify(_map_dict())
+	var parts := []
+	var i := 0
+	while i < text.length():
+		var n: int = mini(CO_STATE_CHUNK, text.length() - i)     # (characters: one can be up to three bytes)
+		while n > 1 and text.substr(i, n).to_utf8_buffer().size() > CO_STATE_CHUNK:
+			n = int(n * 0.9)
+		parts.append(text.substr(i, n))
+		i += n
+	for k in parts.size():
+		relay.send({"t": "state", "to": to, "part": k, "of": parts.size(), "map": parts[k]})
+	_set_status("Sent the map to a co-editor (%d part(s))." % parts.size())
+
+
+## Ask the session's owner for the map it has now, and say what that does to the map we have open.
+func _co_request_state() -> void:
+	if relay == null or not relay.is_open():
+		return
+	_co_waiting_state = true
+	_co_state_since = Time.get_ticks_msec()
+	_co_state_of = 0
+	_co_state_next = -1
+	_co_state_text = ""
+	_set_status("Co-editing session %s: waiting for its map." % relay.session)
+	relay.send({"t": "state_please"})
+	_show_message("Co-editing session", ("You're in session %s as a co-editor. Its map is loading here so both copies match: the map you had open is replaced, and the file on disk is left alone.\n\n"
+		+ "You see where the others are looking and what they have selected, in their own color. View > Co-editors hides it.\n"
+		+ "Your camera and selection go out to them the same way.") % relay.session)
+
+
+## Unsaved work here would be lost when their map lands: ask first.
+func _co_ask_for_their_map() -> void:
+	if _co_state_dialog == null:
+		_co_state_dialog = ConfirmationDialog.new()
+		_co_state_dialog.title = "Co-editing session"
+		_co_state_dialog.ok_button_text = "Load their map"
+		_co_state_dialog.cancel_button_text = "Stay with mine"
+		_co_state_dialog.min_size = Vector2i(520, 0)
+		_co_state_dialog.confirmed.connect(_co_request_state)
+		_co_state_dialog.canceled.connect(_co_stay_local)
+		_ui.add_child(_co_state_dialog)
+	_co_state_dialog.dialog_text = ("Session %s is live. Joining it loads the map its owner has now over the one you have open, so both copies match.\n\n"
+		+ "You have changes here that aren't saved: save them first (File > Save) if you want to keep them.\n\n"
+		+ "\"Stay with mine\" leaves the session and changes nothing.") % relay.session
+	_co_state_dialog.popup_centered()
+
+
+## They chose to keep their own map, so the session is not for them.
+func _co_stay_local() -> void:
+	_leave_playtest()
+	_set_status("Left the session: your map is as it was.")
+
+
+## One piece of the session's map. The pieces arrive in order; the last one loads the whole thing.
+func _co_state_chunk(m: Dictionary) -> void:
+	if session_role != "editor":
+		return                                     # (the map's owner keeps its own copy)
+	var part := int(m.get("part", 0))
+	var of := int(m.get("of", 1))
+	if part == 0:
+		_co_state_of = of
+		_co_state_next = 0
+		_co_state_text = ""
+	elif part != _co_state_next or of != _co_state_of:
+		_co_state_next = -1                        # (a piece is missing: wait for a fresh map)
+		_co_state_text = ""
+		return
+	_co_state_text += String(m.get("map", ""))
+	_co_state_next += 1
+	if _co_state_next < _co_state_of:
+		return
+	var text := _co_state_text
+	_co_state_next = -1
+	_co_state_text = ""
+	_co_apply_state(text, String(m.get("name", "")))
+
+
+## Their map, loaded here: both copies match from here on. Not an undo step (there is nothing sane to step back
+## to in the middle of a session) and muted, so it doesn't go out again as thousands of new objects.
+func _co_apply_state(text: String, who: String) -> void:
+	var d = JSON.parse_string(text)
+	if not d is Dictionary:
+		_co_waiting_state = false
+		_set_status("Their map didn't arrive in one piece: both copies may differ.")
+		return
+	_co_mute = true
+	_load_dict(d)
+	_map_changed()
+	_co_mute = false
+	current_path = ""
+	best_ghost = {}
+	_undo.clear()
+	_redo.clear()
+	_co_queue.clear()
+	_co_last.clear()
+	_select(null)
+	_co_seed()                                     # (it all came from them: none of it is new)
+	outliner.sync_selection()
+	_set_title("untitled")
+	_mark_saved()
+	_frame_clicked()
+	_co_waiting_state = false
+	_set_status("Loaded %s's map: both copies match from here on (File > Save keeps a copy of your own)." % (who if who != "" else "the session's"))
 
 
 ## Someone else's change. No checkpoint anywhere below, so it never lands in our undo history, and everything runs

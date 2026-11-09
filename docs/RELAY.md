@@ -102,12 +102,27 @@ object is enough to find it in the other copy. `edit` is in use from 0.17.0:
 holds for it — so one shape covers a dragged ramp point, a moved block and a changed property. `uid` is a session-only name the two sides agree on
 (stored in the node, never in the map); `at` is where the object was when the change was made, so a side that has
 never seen that id can still find the object, since both copies of the map start out identical. The sender never
-needs an acknowledgement. `state` (the whole map, for joining mid-session) is still to come.
+needs an acknowledgement.
 
 `cursor` is throttled to about 10 a second. `edit` messages are relayed to the maker and the other editors (never
 back to the sender); the sender's own file stays authoritative and the editor applies remote edits without adding
-them to its own undo history. `state` is the whole map for someone joining mid-session, chunked if it is large
-(the relay refuses anything over 4 MB in one message).
+them to its own undo history.
+
+### Joining a session that already has work in it
+
+An editor that joins later has whatever map it happened to have open, so it asks for the one the session has now:
+
+```json
+{"t": "state_please"}                                             editor → server → the session's maker
+{"t": "state", "to": "3f9a1c2e", "part": 0, "of": 3, "map": "{\"format\": \"mallet\",…"}
+```
+
+Only the maker answers `state_please`, and `state` goes to the peer named in `to` and nobody else — a whole map
+is far too much to broadcast — and the relay keeps no copy of it. `map` is the map file's own JSON cut into pieces
+of at most 400 KB (a map with cube builds is well past 4 MB), `part` counting from 0 out of `of` pieces in all.
+The joiner puts the pieces back together in order and loads the result when the last one arrives, so an editor
+that joins after work started starts from the same map from its first tick. An editor with unsaved changes is
+asked first: taking the session's map replaces the map it has open, though the file on disk is left alone.
 
 ## Limits and trust
 

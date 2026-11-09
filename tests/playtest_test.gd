@@ -12,18 +12,28 @@ var relay_pid := -1
 var ed
 var co_got := []                      ## cursor messages a second editor received from the maker
 var co_edits := []                    ## edit messages a second editor received from the maker
+var co_states := []                   ## pieces of the map a newcomer asked for
 
 
 func _note_co(m: Dictionary) -> void:
 	match String(m.get("t", "")):
 		"cursor": co_got.append(m)
 		"edit": co_edits.append(m)
+		"state": co_states.append(m)
 
 
 func _has_uid(msgs: Array, uid: String, act: String) -> bool:
 	for m in msgs:
 		var op = m.get("op", {})
 		if op is Dictionary and String(op.get("act", "edit")) == act and String(op.get("uid", "")) == uid:
+			return true
+	return false
+
+
+func _has_act(msgs: Array, act: String) -> bool:
+	for m in msgs:
+		var op = m.get("op", {})
+		if op is Dictionary and String(op.get("act", "edit")) == act:
 			return true
 	return false
 
@@ -198,11 +208,54 @@ func _run() -> void:
 	extra.free()
 	check("our own deletion goes out", await wait_for(func(): return _has_uid(co_edits, extra_uid, "del"), 4000))
 
+	# --- an editor joining after work started asks for the session's map
+	co_states.clear()
+	co.send({"t": "state_please"})
+	var pieces := await wait_for(func(): return not co_states.is_empty() and co_states.size() == int(co_states[0].get("of", 0)), 5000)
+	check("a newcomer can ask for the session's map", pieces, "%d part(s)" % co_states.size())
+	var whole := ""
+	var only_them := true
+	for part in co_states:
+		whole += String(part.get("map", ""))
+		only_them = only_them and String(part.get("to", "")) == co.you
+	check("it goes to the newcomer alone", pieces and only_them)
+	var parsed = JSON.parse_string(whole) if pieces else null
+	check("their map arrives whole", parsed is Dictionary and (parsed.get("ramps", []) as Array).size() == ed.ramps_root.get_child_count()
+		and String(parsed.get("format", "")) == String(ed._map_dict().get("format", "")))
+
 	co.close()
 	check("leaving takes their cursor away", await wait_for(func(): return not ed.co_cursors.has(co.you), 3000))
 	ed._select(null)
 	ed.ramps_root.remove_child(ramp)
 	ramp.free()
+
+	# --- and what a newcomer does with that map: load it whole, and send none of it back
+	var probe := RampNode.new()
+	ed.ramps_root.add_child(probe)
+	probe.points = PackedVector3Array([Vector3(0, 0, 44), Vector3(0, 0, 48)])
+	probe.rebuild()
+	var theirs: Dictionary = ed._map_dict()
+	theirs["ramps"] = [ed._with_group(probe)]
+	theirs["entities"] = []
+	theirs["blocks"] = []
+	theirs["texts"] = []
+	theirs["cube_models"] = []
+	ed.ramps_root.remove_child(probe)
+	probe.free()
+	var map_text := JSON.stringify(theirs)
+	var half := int(map_text.length() / 2.0)
+	co_edits.clear()
+	ed.session_role = "editor"                     # (what a newcomer is: only editors take the session's map)
+	ed._co_state_chunk({"t": "state", "name": "Alex", "part": 0, "of": 2, "map": map_text.substr(0, half)})
+	var early: bool = ed.ramps_root.get_child_count() == 1 and (ed.ramps_root.get_child(0) as RampNode).points[1].is_equal_approx(Vector3(0, 0, 48))
+	check("half a map changes nothing", not early)
+	ed._co_state_chunk({"t": "state", "name": "Alex", "part": 1, "of": 2, "map": map_text.substr(half)})
+	var landed: bool = ed.ramps_root.get_child_count() == 1 and (ed.ramps_root.get_child(0) as RampNode).points[1].is_equal_approx(Vector3(0, 0, 48))
+	check("their map replaces ours, whole", landed, "%d ramp(s)" % ed.ramps_root.get_child_count())
+	check("loading their map is not an undo step", ed._undo.is_empty())
+	ed.session_role = "maker"
+	await wait_ms(700)
+	check("none of it goes back out as new", not _has_act(co_edits, "add"))
 
 	# --- a test build made now carries the session
 	var dir: String = String(out) + "/build"

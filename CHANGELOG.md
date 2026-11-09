@@ -18,8 +18,12 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - **New objects and deletions travel too**: anything that appears in the map (a ramp, a block, an entity, a prop,
   a pasted group, a build) shows up on the other side, and deleting something removes it there as well. Neither
   lands in the other side's undo history.
-- Not yet: undo (it undoes only in your copy), names/outliner edits, and a whole cube object over 200 KB is left for
-  you to copy over by hand.
+- **Join a session that already has work in it**: the newcomer asks the session's owner for the map it has now
+  and gets it in pieces, so both copies match from the first tick instead of the joiner keeping whatever it had
+  open. An editor with unsaved changes is asked first ("Load their map" / "Stay with mine"), and taking their map
+  is not an undo step.
+- Not yet: undo (it undoes only in your copy), names/outliner edits, reconnecting after a lost connection, and a
+  whole cube object over 200 KB is left for you to copy over by hand.
 
 ## 0.16.0 preview — 2026-11-09: Live playtesting
 
