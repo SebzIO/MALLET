@@ -130,6 +130,81 @@ func _run() -> void:
 	bad[7 * 3 + 2] = 4
 	check("a dented (concave) cube is rejected", not CubeWorld.is_valid_shape(bad))
 
+	# ---- U6: folding is reversible and cumulative
+	w.clear()
+	w.begin()
+	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3))
+	w.commit()
+	var fs := CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3)
+	for i in 4:
+		w.begin()
+		w.push_face(fs, 1)
+		w.commit()
+	for i in 4:
+		w.begin()
+		w.push_face(fs, -1)
+		w.commit()
+	check("fold a face 4/8 in, then pull 4 times: exactly the cube it was",
+		w.count() == 1 and w.leaves[Vector4i(0, 0, 0, 0)][0] == CubeWorld.FULL)
+
+	# a folded/dented corner comes back when pulled: the reverse of a fold always works
+	w.clear()
+	var dent := CubeWorld.FULL.duplicate()
+	dent[7 * 3] = 4
+	w.set_cell(Vector3i(0, 0, 0), p, dent, CubeWorld.blank_tex())
+	for i in 4:
+		w.begin()
+		w.push_face(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 1), -1, CubeWorld.face_corners(1).find(7))
+		w.commit()
+	check("a dented corner pulled 4 times: exactly the cube it was",
+		w.leaves[Vector4i(0, 0, 0, 0)][0] == CubeWorld.FULL)
+
+	# a push the shape refuses keeps the cube and says why, instead of half-applying
+	var bad3 := CubeWorld.FULL.duplicate()
+	for i in 3:
+		bad3[7 * 3 + i] = 4
+	w.clear()
+	w.set_cell(Vector3i(0, 0, 0), p, bad3, CubeWorld.blank_tex())
+	w.begin()
+	w.push_face(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3), 1)
+	w.commit()
+	check("a push the shape refuses keeps the cube as it was and says why",
+		w.leaves[Vector4i(0, 0, 0, 0)][0] == bad3 and w.push_note != "", "(%s)" % w.push_note)
+
+	# cumulative: a cube already folded on top still folds from the side - one cube, shaped on both axes
+	w.clear()
+	w.begin()
+	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3))
+	w.commit()
+	for i in 4:
+		w.begin()
+		w.push_face(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3), 1)   # top down to 4/8
+		w.commit()
+	for i in 4:
+		w.begin()
+		w.push_face(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 1), 1)   # +X face in to 4/8
+		w.commit()
+	var ptc: PackedByteArray = w.leaves[Vector4i(0, 0, 0, 0)][0]
+	check("a cube folded on top still folds from the side: one cube, shaped on both axes",
+		w.count() == 1 and CubeWorld.corner(ptc, 7).y == 4 and CubeWorld.corner(ptc, 7).x == 4
+		and CubeWorld.is_valid_shape(ptc), "(corner 7 at %s)" % [CubeWorld.corner(ptc, 7)])
+
+	# a cell holding smaller cubes is shaped too, not skipped
+	w.clear()
+	w.set_cell(Vector3i(0, 0, 0), 1, CubeWorld.FULL.duplicate(), CubeWorld.blank_tex())
+	w._split(Vector4i(0, 0, 0, 1))
+	w.begin()
+	w.push_face(CubeWorld.make_sel(Vector3i(0, 0, 0), 1, 3), 1)
+	w.commit()
+	var shaped_tops := 0
+	for x in [0, 8]:
+		for z in [0, 8]:
+			var tk := Vector4i(x, 8, z, 0)
+			if w.leaves.has(tk) and CubeWorld.corner(w.leaves[tk][0], 7).y == 7:
+				shaped_tops += 1
+	check("pushing the face of a cell made of smaller cubes shapes them, not skipped",
+		shaped_tops == 4 and w.count() == 8, "(%d of 4 tops, %d cubes)" % [shaped_tops, w.count()])
+
 	# splitting a sloped 2 m cube keeps its shape (sample points agree)
 	w.clear()
 	var wc := CubeWorld.FULL.duplicate()

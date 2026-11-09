@@ -644,6 +644,9 @@ func _edit(s: Dictionary, fn: Callable):
 	w.begin()
 	var out = fn.call(w)
 	var changed := w.commit()
+	if w.push_note != "":                             # a push the cube refused: say why, once
+		say(w.push_note)
+		w.push_note = ""
 	if created:
 		if changed:
 			_push_history({"t": "new", "m": m})

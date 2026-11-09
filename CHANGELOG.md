@@ -3,6 +3,19 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.11 preview — 2026-11-09: Folding always comes back (U6, batch E)
+
+- **A folded face can always be pulled back, and a shaped cube still shapes.** `CubeWorld._shape_leaf` moves one
+  face a notch at a time; when a step back can't move (the corners would cross, or the shape refuses it) it unfolds
+  the picked corners to the cube's own side, so the 8/8 limit is a limit and not a dead end. A cube already folded
+  on one axis still folds from another (a 4/8 top pushed in from the side gives one cube at 4/8 on both axes), and a
+  cell holding smaller cubes is shaped cube by cube instead of being skipped, so fold → turn → fold no longer loses
+  the cube. A push the shape refuses no longer half-applies anything: the cube stays exactly as it was and build
+  mode says why ("can't go further here - the cube would fold into itself").
+- cube_test grew five checks for those rules (fold 4/8 and pull back to the cube it was, a dented corner pulled
+  back, a refused push kept and explained, two-axis folding, a cell of smaller cubes shaped); batch E's pass
+  (cube_test, split_accuracy_test, build_test, export_test, vmf_test) is clean.
+
 ## 0.17.10 preview — 2026-11-09: Signs sit 1 mm off the wall (U10 done)
 
 - **Text no longer fights the surface it's on** (batch D, U10's decal half). A sign's letters and the brushes they

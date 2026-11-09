@@ -1489,6 +1489,7 @@ func push_face(sel: Dictionary, dir: int, only_corner := -1) -> Dictionary:
 ## two axes. In each column of the box the outermost cube there (on the face's side) is the one shaped, so cubes at
 ## different heights are both reached.
 func push_corner_quads(sel: Dictionary, quads: Array, dir: int) -> Dictionary:
+	push_note = ""
 	var o: int = sel["orient"]
 	var d := o >> 1
 	var a := (d + 1) % 3
@@ -1507,26 +1508,20 @@ func push_corner_quads(sel: Dictionary, quads: Array, dir: int) -> Dictionary:
 				var st := cell_state(cell, p)
 				if st.is_empty():
 					continue
-				if not st[0] is Vector4i:
-					break                                    # made of smaller cubes: pick a smaller grid
-				var k: Vector4i = st[0]
-				var v: Array = leaves[k]
-				var nc: PackedByteArray = (v[0] as PackedByteArray).duplicate()
-				for n in face_corners(o):
+				_shape_cell(cell, p, o, dir, func(_c: Vector3i, n: int) -> bool:
 					var qa: int = cell[a] * 2 / g + ((n >> a) & 1)
 					var qb: int = cell[b] * 2 / g + ((n >> b) & 1)
-					if qa >= quads[0] and qa <= quads[1] and qb >= quads[2] and qb <= quads[3]:
-						_nudge(nc, o, n, dir)                # (pulling stops at the cube's own side)
-				if nc != v[0]:
-					if is_empty_shape(nc):
-						_put(k, null)
-					elif is_valid_shape(nc):
-						_put(k, _v(nc, v[1], _blend_of(v)))
+					return qa >= quads[0] and qa <= quads[1] and qb >= quads[2] and qb <= quads[3])
 				break                                        # only the outermost cube of the column
 	return sel
 
 
+## Set when the last push or pull changed nothing: a plain-language reason (build mode shows it). Empty otherwise.
+var push_note := ""
+
+
 func _push_corners(sel: Dictionary, dir: int, pick: Callable) -> Dictionary:
+	push_note = ""
 	var o: int = sel["orient"]
 	var p: int = sel["p"]
 	var d := o >> 1
@@ -1566,23 +1561,71 @@ func _push_corners(sel: Dictionary, dir: int, pick: Callable) -> Dictionary:
 				if any and not is_empty_shape(nc) and is_valid_shape(nc):
 					set_cell(f, p, nc, _tex_from(c, p, ""))
 			return front
+	var moved := 0
 	for c in cells:
-		var st := cell_state(c, p)
-		if st.size() != 1 or not st[0] is Vector4i:
-			continue                                     # empty, or made of smaller cubes: pick a smaller grid
-		var k: Vector4i = st[0]
-		var v: Array = leaves[k]
-		var nc: PackedByteArray = (v[0] as PackedByteArray).duplicate()
-		for n in face_corners(o):
-			if pick.call(c, n):
-				_nudge(nc, o, n, dir)
-		if nc == v[0]:
-			continue
-		if is_empty_shape(nc):
-			_put(k, null)
-		elif is_valid_shape(nc):
-			_put(k, _v(nc, v[1], _blend_of(v)))
+		moved += _shape_cell(c, p, o, dir, pick)
+	if moved > 0:
+		push_note = ""
 	return sel
+
+
+## Shape one cell's cubes on face `o` by one step (dir 1 in, -1 out). A cell holding one cube shapes that cube; a cell
+## made of smaller cubes shapes the cubes that are actually out on this face, so a shape at one power doesn't stop the
+## push at another. Returns how many cubes changed.
+func _shape_cell(cell: Vector3i, p: int, o: int, dir: int, pick: Callable) -> int:
+	var st := cell_state(cell, p)
+	if st.is_empty():
+		return 0
+	if st[0] is Vector4i:
+		return 1 if _shape_leaf(st[0], o, dir, pick, cell) else 0
+	var d := o >> 1
+	var side := 8 if o & 1 else 0
+	var s := size_of(p)
+	var did := 0
+	for k in leaves_in(cell, Vector3i(s, s, s)):
+		var c: PackedByteArray = leaves[k][0]
+		var outer := false
+		for n in face_corners(o):
+			if c[n * 3 + d] == side and pick.call(cell, n):
+				outer = true
+				break
+		if outer and _shape_leaf(k, o, dir, pick, cell):
+			did += 1
+	return did
+
+
+## One cube, one step. Never loses a shape: a push that would fold the cube into itself keeps the cube as it was and
+## sets `push_note` instead of leaving a half-applied cell. And a folded face always has a way back: a pull that can't
+## step back (the corners would cross, or the shape refuses the step) unfolds the picked corners to the cube's own
+## side, so the 45 degree limit is a limit and not a dead end.
+func _shape_leaf(k: Vector4i, o: int, dir: int, pick: Callable, cell: Vector3i) -> bool:
+	var d := o >> 1
+	var side := 8 if o & 1 else 0
+	var v: Array = leaves[k]
+	var nc: PackedByteArray = (v[0] as PackedByteArray).duplicate()
+	var picked := []
+	for n in face_corners(o):
+		if pick.call(cell, n):
+			picked.append(n)
+			_nudge(nc, o, n, dir)
+	if picked.is_empty():
+		return false
+	if dir < 0 and (nc == v[0] or not is_valid_shape(nc)):
+		for n in picked:
+			nc[n * 3 + d] = side                      # (unfold: back to the cube's own side)
+	if nc == v[0]:
+		if dir > 0:
+			push_note = "can't go further here - this face is already folded as far as it goes"
+		return false
+	if is_empty_shape(nc):
+		_put(k, null)
+		return true
+	if is_valid_shape(nc):
+		_put(k, _v(nc, v[1], _blend_of(v)))
+		return true
+	push_note = ("can't go further here - the cube would fold into itself" if dir > 0
+		else "can't pull back from here - this part is already as full as it gets")
+	return false
 
 
 func delete(sel: Dictionary) -> void:
