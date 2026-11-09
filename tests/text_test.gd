@@ -49,8 +49,12 @@ func _run() -> void:
 	# solid 3D letters lying flat, as a platform: an "I" is one solid bar
 	var bar := text({"text": "I", "font": "Arial Black", "height": 8.0, "depth": 2.0, "mode": "3d", "position": [60, 40, -100],
 		"pitch": -90.0})
-	var sign := text({"text": "STAGE 2", "font": "Impact", "height": 3.0, "mode": "flat", "position": [0, 52, -97.9]})
+	var sign := text({"text": "STAGE 2", "font": "Impact", "height": 3.0, "mode": "flat", "position": [0, 52, -98]})
+	sign.rebuild()
 	var old := text({"text": "O", "font": "Arial Black", "height": 8.0, "depth": 1.0, "mode": "engrave", "position": [0, 44, -98]})
+	await process_frame
+	check("a sign's back sits 1 mm off the wall it's placed on", absf(sign.local_box.position.z - TextShape.DECAL_LIFT) < 0.0003,
+		"(%.4f m)" % sign.local_box.position.z)
 	ed._rebuild_blocks()
 	await settle()
 	var top := ray(Vector3(60, 60, -100), Vector3(60, 20, -100))
@@ -152,5 +156,14 @@ CD", "height": 2.0, "position": [0, 120, 0]})
 	for i in 8:
 		await process_frame
 	root.get_viewport().get_texture().get_image().save_png(out + "/text.png")
+	# close up on the sign that sits right on the wall: the flicker check
+	cam.focus = Vector3(0, 51.5, -98)
+	cam.distance = 8.0
+	cam.yaw = deg_to_rad(-8)
+	cam.pitch = deg_to_rad(-3)
+	cam._apply()
+	for i in 8:
+		await process_frame
+	root.get_viewport().get_texture().get_image().save_png(out + "/text_decal.png")
 	print("TEXT: ", "PASS" if ok else "FAIL")
 	quit()

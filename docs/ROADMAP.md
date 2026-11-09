@@ -103,8 +103,8 @@ Work on one map together, live. Uses the same relay on the user's VPS as live pl
       buttons, the playtest panel) shipped in 0.17.5;      B shipped in 0.17.6-0.17.8 (U7, picking through a folded face, in 0.17.8). C shipped in 0.17.7 (a new map resets
       the session, map properties sync as they change, undo keeps other people's later work).      D: U9 (one Source
       sensitivity) in 0.17.8, U10's cube half (a small cube's face against a bigger cube's wall) and U11 (the draw
-      tool's grid offset) in 0.17.9; U10's decal half (text / prop surfaces on a wall) next. Then E folding geometry,
-      F co-editor avatars, G one kind of solid.
+      tool's grid offset) in 0.17.9, U10's decal half (text 1 mm off the surface, brushes too) in 0.17.10 - batch D
+      done. Next: E folding geometry (U6), then F co-editor avatars, G one kind of solid.
 - [ ] Welcome screen, templates and tutorial updated for everything above; docs written for map makers.
 - [ ] Full regression clean (fix or explain the three tests that crash on exit), every export checked in SurfsUp
       and CS:S by the user.

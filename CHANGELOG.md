@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.10 preview — 2026-11-09: Signs sit 1 mm off the wall (U10 done)
+
+- **Text no longer fights the surface it's on** (batch D, U10's decal half). A sign's letters and the brushes they
+  export as now sit 1 mm (`TextShape.DECAL_LIFT`) proud of the surface, so a flat sign placed exactly on a wall face
+  neither flickers nor exports a degenerate brush - that used to come back from VBSP as "duplicate plane": the same
+  test map compiled with 365 brushes and one duplicate-plane brush before, 321 brushes and no brush problem after.
+  A prop is left alone: a prop has no surface placement to anchor to (it stands on its position), so a prop pushed
+  into a wall stays the mapper's own choice.
+
 ## 0.17.9 preview — 2026-11-09: Steady walls, a draw tool that starts where you click
 
 - **Walls between cubes of different sizes stop flickering** (batch D, U10, the cube half). A cube's face against a

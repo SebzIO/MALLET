@@ -14,6 +14,7 @@ const MODE_LABELS := {"flat": "Flat sign (2D)", "3d": "3D letters"}
 const FONTS := ["Arial", "Arial Black", "Impact", "Segoe UI", "Verdana", "Tahoma", "Georgia", "Times New Roman",
 	"Courier New", "Trebuchet MS", "Comic Sans MS"]
 const FLAT_DEPTH := 0.02
+const DECAL_LIFT := 0.001        ## letters sit 1 mm proud of the surface they're placed on: no z-fighting with it
 const DEFAULTS := {
 	"text": "SURF", "font": "Arial Black", "height": 4.0, "depth": 0.6, "mode": "3d", "align": "center",
 	"position": [0.0, 0.0, 0.0], "yaw": 0.0, "pitch": 0.0, "roll": 0.0, "material": "", "color": "f2f2f2",
@@ -211,9 +212,11 @@ static func pieces(s: Dictionary, z0: float, z1: float) -> Array:
 	return out
 
 
-## The pieces that collide / become brushes for this text.
+## The pieces that collide / become brushes for this text. They get the same 1 mm lift as the letters: a flat sign
+## placed exactly on a wall face would otherwise export a brush side in the wall's own plane (a VBSP duplicate
+## plane), and a brush that doesn't line up with the letters it stands for.
 static func solid_pieces(s: Dictionary) -> Array:
-	return pieces(s, 0.0, depth_of(s))
+	return pieces(s, DECAL_LIFT, DECAL_LIFT + depth_of(s))
 
 
 ## The visible mesh (in the text's own space) - smooth curved letters straight from the font.
@@ -223,7 +226,7 @@ static func mesh(s: Dictionary) -> Mesh:
 	var arr := tm.get_mesh_arrays()
 	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
 	for i in verts.size():
-		verts[i] += Vector3(0, 0, d * 0.5)               # back face on z = 0
+		verts[i] += Vector3(0, 0, d * 0.5 + DECAL_LIFT)  # back face 1 mm off z = 0 (the surface it sits on)
 	arr[Mesh.ARRAY_VERTEX] = verts
 	var m := ArrayMesh.new()
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
