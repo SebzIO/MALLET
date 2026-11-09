@@ -37,11 +37,21 @@ curl -s http://127.0.0.1:8787/health        # {"ok": true, "sessions": 0}
 `127.0.0.1:8787:8787` keeps the container off the public internet: only the proxy reaches it. If 8787 is already
 taken on the server, publish `-p 127.0.0.1:8788:8787` instead and give the proxy port 8788.
 
+**2b. If Nginx Proxy Manager runs in Docker** — this server does (`proxy_manager-app-1`) — NPM cannot reach the
+server's own `127.0.0.1`, because inside that container `127.0.0.1` is NPM itself. Put the relay on NPM's network
+and use the container's name in the proxy:
+
+```
+docker inspect --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' proxy_manager-app-1
+docker network connect <that network> mallet-relay      # once; repeat after a fresh docker run
+```
+
 **3. Nginx Proxy Manager** (`https://npm.sebz.xyz`) > Hosts > Proxy Hosts > Add Proxy Host:
 
-- Details: Domain Names `relay.sebz.xyz`, Scheme `http`, Forward Hostname `127.0.0.1`, Forward Port `8787`,
-  **Websockets Support on**, Block Common Exploits on. (NPM then sets a one-hour read timeout, which is what an
-  idle tester in the pause menu needs — no Advanced entries required.)
+- Details: Domain Names `relay.sebz.xyz`, Scheme `http`, Forward Hostname (NPM in Docker: `mallet-relay`; NPM on
+the host itself: `127.0.0.1`), Forward Port `8787`, **Websockets Support on**, Block Common Exploits on. (NPM then
+  sets a one-hour read timeout, which is what an idle tester in the pause menu needs — no Advanced entries
+  required.)
 - SSL: Request a new SSL certificate, Force SSL on, HTTP/2 on, agree to the terms. Save.
 
 **4. Test from outside** (any machine, including this one):
@@ -50,7 +60,8 @@ taken on the server, publish `-p 127.0.0.1:8788:8787` instead and give the proxy
 curl -s https://relay.sebz.xyz/health      # {"ok": true, "sessions": 0}
 ```
 
-- 502 → the container isn't running or the port is wrong: `docker logs --tail 20 mallet-relay`.
+- 502 → the container isn't running, or NPM can't reach it: `docker logs --tail 20 mallet-relay`, and if NPM is
+  in Docker make sure the relay was connected to its network (2b) and is forwarded to as `mallet-relay:8787`.
 - TLS error → the DNS record for `relay.sebz.xyz` isn't pointing at this server (it should be an A record to the
   same IP as `npm.sebz.xyz`), or the certificate wasn't issued.
 - A WebSocket that connects and closes at once → Websockets Support is off for that host.
