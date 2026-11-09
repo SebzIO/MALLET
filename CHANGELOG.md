@@ -3,7 +3,7 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
-## 0.17.0 preview (in progress) — Co-editing
+## 0.17.0 preview — 2026-11-09: Co-editing
 
 - **Join as a co-editor**: Export > Playtest session… has a "Join as a co-editor" tick. Given a session's code and
   secret (the maker shares both), the second MALLET joins it as an editor rather than as the map's owner, and it
