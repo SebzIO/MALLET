@@ -99,6 +99,9 @@ Work on one map together, live. Uses the same relay on the user's VPS as live pl
 - [ ] The goal: working together feels seamless, as if both people were at the same computer.
 
 ## 0.18.0 → 1.0.0: Release candidate
+- [ ] 0.18.x fixes from testing 0.17.4: [ISSUES.md](ISSUES.md) holds the 17 items in seven batches (menus and
+      buttons, build mode's look and picking, co-op correctness, input and picture parity, folding geometry,
+      co-editor avatars, one kind of solid).
 - [ ] Welcome screen, templates and tutorial updated for everything above; docs written for map makers.
 - [ ] Full regression clean (fix or explain the three tests that crash on exit), every export checked in SurfsUp
       and CS:S by the user.
