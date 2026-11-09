@@ -43,8 +43,13 @@ and use the container's name in the proxy:
 
 ```
 docker inspect --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' proxy_manager-app-1
-docker network connect <that network> mallet-relay      # once; repeat after a fresh docker run
+docker network connect proxy_manager_default mallet-relay      # once; repeat after a fresh docker run
+curl -s http://127.0.0.1:8787/health                          # still the host's own check
 ```
+
+On the current server the command prints `nginx-proxy proxy_manager_default`; `proxy_manager_default` is the one NPM
+shares with the containers it proxies, so use that name in the command above (substitute another name only if
+your stack differs).
 
 **3. Nginx Proxy Manager** (`https://npm.sebz.xyz`) > Hosts > Proxy Hosts > Add Proxy Host:
 
