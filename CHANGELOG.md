@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.6 preview — 2026-11-09: Faces you can see, a light panel, a wider texture picker
+
+- **Build mode's selection reads like Sauerbraten's**: the selected cube is outlined in blue, the face you selected is
+  outlined in white - that face only, following its real pushed / sloped shape - and a face you look at while
+  something else is selected gets a thin white outline. The old amber face selector is gone, and the folding (F/Q)
+  outline is the same white one, so what you see is what a push will move.
+- **Light settings in build mode (F4)**: kind, color, brightness, reach, spot width, strip length, effect and shadows
+  as real controls (also from the T menu's Lights tab), one undo step per change and synced like any other edit.
+- **A push counter**: a single selected block shows `face push 3/4`, how far that face has been folded in.
+- **The F2 texture picker is 780 px wide, five thumbnails a row, and never scrolls sideways.**
+
 ## 0.17.5 preview — 2026-11-09: One look for the menus, lights where they belong
 
 - **Lights moved to the entity menu**: the Tab menu now places world pieces only (platforms, zones, teleport,

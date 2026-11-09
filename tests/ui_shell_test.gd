@@ -73,5 +73,17 @@ func _run() -> void:
 	pb.button_pressed = false
 	await process_frame
 	check("the button hides it again", not panel.visible and not pb.button_pressed and not bool(Settings.value("playtest_minimized")))
+
+	# ---- the F2 texture picker: wide enough that nothing scrolls sideways
+	ed._open_picker(func(_id): pass)
+	await process_frame
+	await process_frame
+	var scroll := ed._picker.get_child(0) as ScrollContainer
+	check("the texture picker is at least 700 px wide", ed._picker.size.x >= 700, str(ed._picker.size))
+	check("...and never scrolls sideways", scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED)
+	var library := scroll.get_child(0) as Control
+	check("the thumbnails fit the width", library.get_combined_minimum_size().x <= scroll.size.x,
+		"%s vs %s" % [library.get_combined_minimum_size().x, scroll.size.x])
+	ed._picker.hide()
 	print("UI SHELL: " + ("PASS" if fails == 0 else "FAIL"))
 	quit(0 if fails == 0 else 1)

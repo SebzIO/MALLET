@@ -93,6 +93,10 @@ var _menu: PopupMenu
 var _tex_panel: PanelContainer
 var _tex_fields := {}
 var _tex_updating := false
+var _light_panel: PanelContainer             ## F4: the selected light's color, brightness, reach...
+var _light_fields := {}
+var _light_updating := false
+var _light_before := {}
 var _ent_menu: PanelContainer                ## T: the entity menu (a tab per kind of thing, lights first)
 var _ent_body := VBoxContainer.new()
 var _ent_tabs: HBoxContainer
@@ -151,12 +155,13 @@ func _ready() -> void:
 	_hud.add_child(_banner)
 	_build_help()
 	_build_tex_panel()
+	_build_light_panel()
 	_menu = PopupMenu.new()
 	_menu.id_pressed.connect(_menu_pressed)
 	_menu.popup_hide.connect(_ui_closed)
 	_hud.add_child(_menu)
 	_build_entity_menu()
-	for c in [_help, _tex_panel, _ent_menu, _menu]:          # (under a CanvasLayer: give them the theme directly)
+	for c in [_help, _tex_panel, _ent_menu, _light_panel, _menu]:   # (under a CanvasLayer: give them the theme directly)
 		c.theme = UiTheme.shared()
 
 
@@ -299,6 +304,9 @@ func _input(event: InputEvent) -> void:
 				closed = true
 			elif k == KEY_T and _ent_menu != null and _ent_menu.visible:
 				_close_ent_menu()
+				closed = true
+			elif k == KEY_F4 and _light_panel.visible:
+				_close_light_panel()
 				closed = true
 			if closed:
 				get_viewport().set_input_as_handled()
@@ -450,6 +458,7 @@ func _key(e: InputEventKey) -> void:
 		KEY_F1: _help.visible = not _help.visible
 		KEY_F2: _open_picker(func(id): _apply_texture(id))
 		KEY_F3: _open_tex_panel()
+		KEY_F4: _open_light_panel()
 		KEY_F5:
 			if editor.current_path != "":
 				editor.save_map(editor.current_path)
@@ -1244,7 +1253,7 @@ func _show_menu() -> void:
 func _ui_closed() -> void:
 	if not active:
 		return
-	_ui_open = _tex_panel.visible or (_ent_menu != null and _ent_menu.visible)
+	_ui_open = _tex_panel.visible or _light_panel.visible or (_ent_menu != null and _ent_menu.visible)
 	if not _ui_open:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -1308,6 +1317,13 @@ func _ent_page(id: String) -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(func(): _place_and_close(int(it[1])))
 		page.add_child(b)
+	if id == "lights":
+		var lb := Button.new()
+		lb.text = "Light settings (color, brightness…) — F4"
+		lb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		lb.focus_mode = Control.FOCUS_NONE
+		lb.pressed.connect(func(): _close_ent_menu(); _open_light_panel())
+		page.add_child(lb)
 	var tb := Button.new()
 	tb.text = String(spec[0])
 	tb.toggle_mode = true
@@ -1447,6 +1463,152 @@ func run_command(id: int) -> void:
 		62:
 			model = null
 			sel = {}
+
+
+# ------------------------------------------------------------------------------------------------ the light panel
+## F4: the selected light's settings as controls (color, brightness, reach, spot width, strip length, effect, shadows).
+func _build_light_panel() -> void:
+	_light_panel = PanelContainer.new()
+	_light_panel.add_theme_stylebox_override("panel", UiTheme.panel_box())
+	_light_panel.custom_minimum_size = Vector2(380, 0)
+	_light_panel.visible = false
+	_hud.add_child(_light_panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	_light_panel.add_child(box)
+	var head := HBoxContainer.new()
+	box.add_child(head)
+	var title := Label.new()
+	title.text = "Light"
+	title.add_theme_font_size_override("font_size", 16)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	_light_fields["head"] = title
+	var close := Button.new()
+	close.text = "✕"
+	close.focus_mode = Control.FOCUS_NONE
+	close.pressed.connect(_close_light_panel)
+	head.add_child(close)
+	var kind := OptionButton.new()
+	for k in LightNode.KINDS:
+		kind.add_item(String(k).capitalize())
+	kind.item_selected.connect(func(i): _light_set("kind", LightNode.KINDS[i]))
+	box.add_child(_light_row("Kind", kind))
+	_light_fields["kind"] = kind
+	var col := ColorPickerButton.new()
+	col.custom_minimum_size = Vector2(0, 30)
+	col.color_changed.connect(func(c): _light_set("color", c.to_html(false)))
+	box.add_child(_light_row("Color", col))
+	_light_fields["color"] = col
+	for spec in [["energy", "Brightness", 0.0, 20.0, 0.1], ["range", "Reach (m)", 0.5, 200.0, 0.5],
+			["angle", "Spot width (°)", 5.0, 170.0, 1.0], ["length", "Strip length (m)", 0.5, 40.0, 0.5]]:
+		var sl := HSlider.new()
+		sl.min_value = spec[2]
+		sl.max_value = spec[3]
+		sl.step = spec[4]
+		sl.custom_minimum_size = Vector2(190, 0)
+		sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		sl.value_changed.connect(func(v): _light_set(String(spec[0]), v, false))
+		sl.drag_started.connect(_light_drag_start)
+		sl.drag_ended.connect(func(_c): _light_commit())
+		box.add_child(_light_row(String(spec[1]), sl))
+		_light_fields[spec[0]] = sl
+	var eff := OptionButton.new()
+	for i in LightNode.EFFECT_LABELS.size():
+		eff.add_item(LightNode.EFFECT_LABELS[i])
+	eff.item_selected.connect(func(i): _light_set("effect", LightNode.EFFECTS[i]))
+	box.add_child(_light_row("Effect", eff))
+	_light_fields["effect"] = eff
+	var sh := CheckButton.new()
+	sh.text = "Cast shadows"
+	sh.focus_mode = Control.FOCUS_NONE
+	sh.toggled.connect(func(on): _light_set("shadows", on))
+	box.add_child(sh)
+	_light_fields["shadows"] = sh
+
+
+func _light_row(text: String, control: Control) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	var l := Label.new()
+	l.text = text
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
+	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(control)
+	return row
+
+
+func _light_now() -> LightNode:
+	for o in ent_sel:
+		if o is LightNode and is_instance_valid(o):
+			return o
+	return null
+
+
+func _open_light_panel() -> void:
+	if _light_now() == null:
+		say("Click a light first (or place one from the T menu), then F4")
+		return
+	_ui_open = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_light_panel.visible = true
+	_refresh_light_panel()
+
+
+func _close_light_panel() -> void:
+	_light_panel.visible = false
+	_light_before = {}
+	_ui_closed()
+
+
+func _refresh_light_panel() -> void:
+	var o := _light_now()
+	if o == null:
+		return
+	_light_updating = true
+	var d: Dictionary = LightNode.spec(o.data)
+	(_light_fields["head"] as Label).text = "Light: %s" % o.label()
+	(_light_fields["kind"] as OptionButton).select(LightNode.KINDS.find(String(d["kind"])))
+	(_light_fields["color"] as ColorPickerButton).color = Color.html(String(d["color"]))
+	for k in ["energy", "range", "angle", "length"]:
+		(_light_fields[k] as HSlider).value = float(d[k])
+	(_light_fields["effect"] as OptionButton).select(LightNode.EFFECTS.find(String(d["effect"])))
+	(_light_fields["shadows"] as CheckButton).set_pressed_no_signal(bool(d["shadows"]))
+	(_light_fields["angle"] as Control).get_parent().visible = String(d["kind"]) == "spot"
+	(_light_fields["length"] as Control).get_parent().visible = String(d["kind"]) == "strip"
+	_light_updating = false
+
+
+func _light_drag_start() -> void:
+	var o := _light_now()
+	_light_before = o.to_dict() if o != null else {}
+
+
+func _light_commit() -> void:
+	var o := _light_now()
+	if o == null or _light_before.is_empty():
+		return
+	if o.to_dict() != _light_before:
+		_push_history({"t": "ent", "obj": o, "before": _light_before, "after": o.to_dict()})
+	_light_before = {}
+
+
+## One setting changed. A slider drag sets it live (push = false) and commits one undo step when the drag ends.
+func _light_set(key: String, value, push := true) -> void:
+	if _light_updating:
+		return
+	var o := _light_now()
+	if o == null:
+		return
+	var before: Dictionary = _light_before if not _light_before.is_empty() else o.to_dict()
+	var d: Dictionary = o.to_dict()
+	d[key] = value
+	o.from_dict(d)
+	if push:
+		_push_history({"t": "ent", "obj": o, "before": before, "after": o.to_dict()})
+		_light_before = {}
+		if key == "kind":
+			_refresh_light_panel()
 
 
 func _open_picker(cb: Callable) -> void:
@@ -1658,6 +1820,10 @@ func _process(delta: float) -> void:
 		size_txt = "  ·  selection %d x %d x %d%s" % [s.x, s.y, s.z, " (corners)" if not corners.is_empty() else ""]
 	if not ent_sel.is_empty():
 		size_txt += "  ·  %s selected" % (ent_sel[0].label() if ent_sel.size() == 1 else "%d entities" % ent_sel.size())
+	if not sel.is_empty() and (sel["s"] as Vector3i) == Vector3i.ONE and ent_sel.is_empty():
+		var pushes := _face_pushes()
+		if pushes >= 0:
+			size_txt += "  ·  face push %d/4" % pushes
 	var obj := "new object" if model == null or not is_instance_valid(model) or not model.is_inside_tree() else \
 		String(model.get_meta("name", "cube object %d" % (model.get_index() + 1)))
 	_info.text = "BUILD  ·  %s  ·  grid %s  ·  texture: %s%s%s%s  ·  F1 keys  ·  E editor" % [obj,
@@ -1840,6 +2006,7 @@ func _layout_hud() -> void:
 	_banner.reset_size()
 	_banner.position = Vector2(vp.x * 0.5 - _banner.size.x * 0.5, 18)
 	_tex_panel.position = Vector2(24, 24)
+	_light_panel.position = Vector2(24, 24)
 
 
 func _draw() -> void:
@@ -1852,8 +2019,11 @@ func _draw() -> void:
 			for seg in (target["entity"] as Node3D).outline_lines():
 				for i in range(0, seg.size() - 1):
 					_line(seg[i], seg[i + 1], Color(1.0, 0.6, 0.2, 0.6))
-		elif not (target["hit"] and _true_face(xf, ts, Color(1.0, 0.85, 0.2))):
-			_face_rect(xf, ts, Color(1.0, 0.85, 0.2) if target["hit"] else Color(1.0, 0.85, 0.2, 0.5))
+		elif target["hit"]:
+			if not _face_selected(ts):                      # looked at, not selected: a thin white line
+				_face_outline(xf, ts, Color(1, 1, 1, 0.55))
+		else:
+			_face_rect(xf, ts, Color(1, 1, 1, 0.35))
 		if Input.is_key_pressed(KEY_Q) or _drag == "corners":
 			var g := CubeWorld.metres(ts["p"])
 			var o := Vector3(ts["o"]) * CubeWorld.TICK
@@ -1890,7 +2060,7 @@ func _draw() -> void:
 		var g := CubeWorld.metres(sel["p"])
 		var lo := Vector3(sel["o"]) * CubeWorld.TICK
 		var hi := lo + Vector3(sel["s"]) * g
-		_box(xf, lo, hi, Color(1, 1, 1, 0.55))
+		_box(xf, lo, hi, Color(0.25, 0.62, 1.0, 0.95))     # the selected cube(s): blue
 		var layer := sel.duplicate()
 		var s: Vector3i = sel["s"]
 		var d: int = sel["orient"] >> 1
@@ -1898,7 +2068,7 @@ func _draw() -> void:
 			layer["o"] = (sel["o"] as Vector3i) + CubeWorld.orient_step(sel["orient"]) * CubeWorld.size_of(sel["p"]) * (s[d] - 1)
 		s[d] = 1
 		layer["s"] = s
-		_face_rect(xf, layer, Color(0.25, 0.75, 1.0), Color(0.2, 0.6, 1.0, 0.25))   # the selected face: filled blue
+		_face_outline(xf, layer, Color(1, 1, 1, 1.0), true)   # the selected face: white, and only that face
 		if not corners.is_empty():
 			_corner_grid(xf)
 	for e in ent_sel:
@@ -1969,6 +2139,39 @@ func _corner_grid(xf: Transform3D) -> void:
 				break
 
 
+## A face, drawn as the cubes really are (pushed in, sloped, cut): white by default, thicker for the selected one.
+func _face_outline(xf: Transform3D, s: Dictionary, c: Color, thick := false) -> void:
+	var inset := minf(CubeWorld.metres(s["p"]) * 0.04, 0.05) if thick else 0.0
+	if _true_face(xf, s, c, inset):
+		return
+	_face_rect(xf, s, c, Color(0, 0, 0, 0), thick)
+
+
+## Is the face the crosshair is on the one that is selected?
+func _face_selected(ts: Dictionary) -> bool:
+	return not sel.is_empty() and (sel["s"] as Vector3i) == Vector3i.ONE and ts.get("model") == sel.get("model") \
+		and ts.get("o") == sel.get("o") and int(ts.get("orient", -1)) == int(sel.get("orient", -2))
+
+
+## How far the selected face has been pushed in, in 1/8 steps (0 = flat, 4 = folded to 45°): -1 when it can't tell.
+func _face_pushes() -> int:
+	var m = sel.get("model")
+	if m == null or not is_instance_valid(m):
+		return -1
+	var w: CubeWorld = (m as CubeModelNode).world
+	var k = w.leaf_at(Vector3(sel["o"]))                  # (sel's cell is already in ticks)
+	if k == null:
+		return -1
+	var v: Array = w.leaves[k]
+	var o: int = sel["orient"]
+	var d := o >> 1
+	var side := 8 if o & 1 else 0
+	var best := 0
+	for n in CubeWorld.face_corners(o):
+		best = maxi(best, absi(int((v[0] as PackedByteArray)[n * 3 + d]) - side))
+	return best
+
+
 func _line(a: Vector3, b: Vector3, c: Color) -> void:
 	_im.surface_set_color(c)
 	_im.surface_add_vertex(a)
@@ -1986,7 +2189,7 @@ func _box(xf: Transform3D, lo: Vector3, hi: Vector3, c: Color) -> void:
 
 ## The aimed face as the cubes really are there (pushed in, sloped, cut), not the cell's full square. False when it
 ## can't be drawn that way (empty cell, a bigger cube around it) - then the cell's square is drawn instead.
-func _true_face(xf: Transform3D, s: Dictionary, c: Color) -> bool:
+func _true_face(xf: Transform3D, s: Dictionary, c: Color, inset := 0.0) -> bool:
 	var m = s.get("model")
 	if m == null or not is_instance_valid(m) or s.get("s", Vector3i.ONE) != Vector3i.ONE:
 		return false
@@ -2026,11 +2229,20 @@ func _true_face(xf: Transform3D, s: Dictionary, c: Color) -> bool:
 				continue                                 # (squashed flat: nothing to show on this side)
 			for i in pts.size():
 				_line(pts[i], pts[(i + 1) % pts.size()], c)
+			if inset > 0.0:                              # a second edge just inside: reads as a thicker line
+				var mid := Vector3.ZERO
+				for q in pts:
+					mid += q
+				mid /= float(pts.size())
+				for i in pts.size():
+					var a: Vector3 = pts[i]
+					var b: Vector3 = pts[(i + 1) % pts.size()]
+					_line(a + (mid - a).normalized() * inset, b + (mid - b).normalized() * inset, c)
 			drew = true
 	return drew
 
 
-func _face_rect(xf: Transform3D, s: Dictionary, c: Color, fill := Color(0, 0, 0, 0)) -> void:
+func _face_rect(xf: Transform3D, s: Dictionary, c: Color, fill := Color(0, 0, 0, 0), thick := false) -> void:
 	var o: int = s["orient"]
 	var d := o >> 1
 	var g := CubeWorld.metres(s["p"])
@@ -2049,7 +2261,7 @@ func _face_rect(xf: Transform3D, s: Dictionary, c: Color, fill := Color(0, 0, 0,
 		pts.append(xf * v)
 	for i in 4:
 		_line(pts[i], pts[(i + 1) % 4], c)
-	if fill.a > 0.0:                                     # filled, with a second edge just inside: reads as a thick line
+	if fill.a > 0.0 or thick:                            # filled, with a second edge just inside: reads as a thick line
 		var mid: Vector3 = (pts[0] + pts[2]) * 0.5
 		var inset := minf(g * 0.04, 0.05)
 		var inner := []
@@ -2057,4 +2269,5 @@ func _face_rect(xf: Transform3D, s: Dictionary, c: Color, fill := Color(0, 0, 0,
 			inner.append(p + ((mid - p) as Vector3).normalized() * inset)
 		for i in 4:
 			_line(inner[i], inner[(i + 1) % 4], c)
-		_fills.append(pts + [fill])
+		if fill.a > 0.0:
+			_fills.append(pts + [fill])

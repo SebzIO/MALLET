@@ -3287,7 +3287,8 @@ func _open_picker(cb: Callable) -> void:
 	if _picker == null:
 		_picker = PopupPanel.new()
 		var scroll := ScrollContainer.new()
-		scroll.custom_minimum_size = Vector2(560, 520)
+		scroll.custom_minimum_size = Vector2(780, 620)      # (5 thumbnails a row + the bar: no sideways scrolling)
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		_picker.add_child(scroll)
 		var box := VBoxContainer.new()
 		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -3327,7 +3328,9 @@ func _open_picker(cb: Callable) -> void:
 			credit.visible = false
 			box.add_child(credit)
 			var grid := GridContainer.new()
-			grid.columns = 4
+			grid.columns = 5
+			grid.add_theme_constant_override("h_separation", 6)
+			grid.add_theme_constant_override("v_separation", 6)
 			box.add_child(grid)
 			var items := []
 			sections.append([head, credit, grid, items])

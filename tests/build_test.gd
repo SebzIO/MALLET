@@ -177,6 +177,8 @@ func _run() -> void:
 	# ---- T: materials (water in a pool), M shows / hides the invisible ones
 	look(Vector3(8.5, 20, -1.5), Vector3(8.5, 0, -1.5))
 	await frames(3)
+	bm.sel = bm.target["sel"]
+	check("the push counter reads a selected block's face", bm._face_pushes() >= 0 and bm._face_pushes() <= 4, str(bm._face_pushes()))
 	var water_sel := CubeWorld.moved(bm.target["sel"], 1)
 	bm.sel = water_sel
 	bm.run_command(CubeWorld.MATERIALS.find("water"))
@@ -279,6 +281,15 @@ func _run() -> void:
 	var reach := float(light.data["range"])
 	await held_wheel(KEY_1, 1, 2)
 	check("1 + wheel: its reach grows", float(light.data["range"]) == reach + 2.0)
+	# ---- F4: the light's own panel
+	bm._open_light_panel()
+	check("F4 opens the light panel for the selected light", bm._light_panel.visible and bm._light_fields.size() >= 7)
+	bm._light_set("energy", 6.5)
+	check("its brightness control changes the light", is_equal_approx(float(light.data["energy"]), 6.5), str(light.data["energy"]))
+	bm._light_set("color", "00ff00")
+	check("...and its color", String(light.data["color"]) == "00ff00")
+	bm._close_light_panel()
+	check("closing it hands the mouse back", not bm._light_panel.visible and not bm._ui_open)
 	await tap(KEY_DELETE)
 	await frames(2)
 	check("Delete removes it", ed.lights_root.get_child_count() == 0)
