@@ -20,6 +20,14 @@ func _note_co(m: Dictionary) -> void:
 		"edit": co_edits.append(m)
 
 
+func _has_uid(msgs: Array, uid: String, act: String) -> bool:
+	for m in msgs:
+		var op = m.get("op", {})
+		if op is Dictionary and String(op.get("act", "edit")) == act and String(op.get("uid", "")) == uid:
+			return true
+	return false
+
+
 func _vec(a) -> Vector3:
 	return Vector3(a[0], a[1], a[2]) if a is Array and (a as Array).size() >= 3 else Vector3.ZERO
 
@@ -165,6 +173,31 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	check("co-editors draw in the views", ed.show_co_editors and ed.co_cursors.size() == 1)
+	# --- new objects and deletions
+	var count_before: int = ed.ramps_root.get_child_count()
+	var add_op := {"act": "add", "kind": "ramp", "uid": "zz1", "at": [0, 0, 60], "obj": ed._with_group(ramp).duplicate(true)}
+	add_op["obj"]["points"] = [[0, 0, 60], [0, 0, 90]]
+	var undo_before_add: int = ed._undo.size()
+	co.send({"t": "edit", "seq": 2, "op": add_op})
+	check("a ramp added on their side appears here", await wait_for(func(): return ed.ramps_root.get_child_count() == count_before + 1, 4000))
+	var added: Node3D = ed._co_find_uid("ramp", "zz1")
+	check("it keeps their id and their shape", added != null and added.points.size() == 2
+		and added.points[1].is_equal_approx(Vector3(0, 0, 90)))
+	check("adding does not go into our undo history", ed._undo.size() == undo_before_add)
+	co.send({"t": "edit", "seq": 3, "op": {"act": "del", "kind": "ramp", "uid": "zz1"}})
+	check("a deletion on their side removes it here", await wait_for(func(): return ed.ramps_root.get_child_count() == count_before, 4000))
+	check("it cannot be found any more", ed._co_find_uid("ramp", "zz1") == null)
+	var extra := RampNode.new()
+	ed.ramps_root.add_child(extra)
+	extra.points = PackedVector3Array([Vector3(0, 0, 120), Vector3(0, 0, 150)])
+	extra.rebuild()
+	var extra_uid: String = ed._co_uid(extra)
+	ed._map_changed()
+	check("our own new ramp goes out", await wait_for(func(): return _has_uid(co_edits, extra_uid, "add"), 4000))
+	ed.ramps_root.remove_child(extra)
+	extra.free()
+	check("our own deletion goes out", await wait_for(func(): return _has_uid(co_edits, extra_uid, "del"), 4000))
+
 	co.close()
 	check("leaving takes their cursor away", await wait_for(func(): return not ed.co_cursors.has(co.you), 3000))
 	ed._select(null)

@@ -162,6 +162,9 @@ var session_role := ""                 ## what we joined the relay as: maker, ed
 var _cursor_clock := 0.0
 var _co_queue := {}                    ## objects changed here that the other editors haven't been sent yet
 var _co_last := {}                     ## session id -> where that object was when we last sent or applied it
+var _co_uids := {}                     ## session id -> {"o", "kind"}: every object both sides believe exists
+var _co_new_now := {}                  ## objects that appeared since the last tick (they go out as adds)
+var _co_dels := []                     ## [kind, uid] waiting to be sent as deletions
 var _co_seq := 0
 var _co_mute := false                  ## a remote edit or an undo is being applied: nothing goes back out
 var _playtest_panel: PlaytestPanel
@@ -1755,6 +1758,7 @@ func _restore(s: Dictionary) -> void:
 		_select(objs[sel], s["pt"])
 	_co_mute = false
 	_co_queue.clear()
+	_co_seed()                                      # (undo is local: the other side keeps its own objects)
 
 
 func undo() -> void:
@@ -5353,6 +5357,7 @@ func _playtest_opened(_welcome: Dictionary) -> void:
 	_playtest_panel.visible = true
 	_refresh_playtest()
 	_sync_view_menu()
+	_co_seed()                                      # (everything already in the map is on both sides)
 	if session_role == "editor":
 		_set_status("Co-editing session %s: you see the others' cameras and selections." % relay.session)
 		_show_message("Co-editing session", ("You're in session %s as a co-editor.\n\nYou see where the others are looking and what they have selected, in their own color.\n"
@@ -5466,6 +5471,11 @@ func _leave_playtest() -> void:
 	live_peers.clear()
 	live_trails.clear()
 	co_cursors.clear()
+	_co_queue.clear()
+	_co_last.clear()
+	_co_uids.clear()
+	_co_new_now.clear()
+	_co_dels.clear()
 	session_role = ""
 	_refresh_playtest()
 
@@ -5591,39 +5601,174 @@ func _co_find(kind: String, uid: String, at: Vector3) -> Node3D:
 	return best
 
 
-## Hand the other editors what changed here since the last tick. Each object goes as its whole plain-data state,
-## so one path covers a dragged ramp point, a moved block and a changed property. Four a tick at most, so a big
-## paste or a long drag can't flood the relay.
-func _co_send_edits() -> void:
-	var sent := 0
-	for o in _co_queue.keys():
-		if sent >= 4:
-			break
-		_co_queue.erase(o)
-		if not is_instance_valid(o):
-			continue
-		var d := _with_group(o)
-		if JSON.stringify(d).length() > 200000:          # (a whole cube object can be huge; its file is the way)
-			var what := String(o.call("label")) if o.has_method("label") else "That object"
-			_set_status("%s is too big to send live: copy it to the other MALLET by hand." % what)
+## Everything already in the map is on both sides when a session opens, so remember it without sending it.
+func _co_seed() -> void:
+	_co_uids.clear()
+	_co_new_now.clear()
+	_co_dels.clear()
+	_co_queue.clear()
+	for o in _all_objects():
+		if is_instance_valid(o):
+			_co_uids[_co_uid(o)] = {"o": o, "kind": _co_kind(o)}
+
+
+## Objects that appeared or vanished since the last tick. Watching the map's contents is one place instead of every
+## way an object can be made or removed (paste, every Add menu item, build mode, delete...).
+func _co_scan_objects() -> void:
+	_co_new_now.clear()
+	var here := {}
+	for o in _all_objects():
+		if not is_instance_valid(o) or o.is_queued_for_deletion():
 			continue
 		var uid := _co_uid(o)
-		var at: Vector3 = _co_last.get(uid, o.center())
+		here[uid] = o
+		if not _co_uids.has(uid):
+			_co_uids[uid] = {"o": o, "kind": _co_kind(o)}
+			_co_new_now[o] = true
+	for uid in _co_uids.keys():
+		if here.has(uid):
+			continue
+		var gone: Dictionary = _co_uids[uid]
+		_co_uids.erase(uid)
+		_co_last.erase(uid)
+		_co_dels.append([String(gone.get("kind", "")), uid])
+
+
+## Hand the other editors what changed here since the last tick: new objects, removed objects, and changed objects.
+## Each object goes as its whole plain-data state, so one path covers a dragged ramp point, a moved block and a
+## changed property. A handful a tick, so a big paste or a long drag can't flood the relay.
+func _co_send_edits() -> void:
+	_co_scan_objects()
+	var sent := 0
+	for pair in _co_dels:
+		if sent >= 8:
+			break
+		_co_dels.pop_front()
 		_co_seq += 1
-		relay.send({"t": "edit", "seq": _co_seq, "op": {"kind": _co_kind(o), "uid": uid,
-			"at": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)], "obj": d}})
-		_co_last[uid] = o.center()
+		relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "del", "kind": pair[0], "uid": pair[1]}})
 		sent += 1
+	for o in _co_new_now.keys():
+		if sent >= 8:
+			break
+		if is_instance_valid(o) and _co_send_one(o, "add"):
+			sent += 1
+	for o in _co_queue.keys():
+		if sent >= 8:
+			break
+		_co_queue.erase(o)
+		if not is_instance_valid(o) or _co_new_now.has(o):
+			continue                                     # (a new object goes out whole, as an add)
+		if _co_send_one(o, "edit"):
+			sent += 1
 
 
-## Someone else changed an object: put our copy in the same state. No checkpoint, so this never lands in our
-## undo history, and nothing is sent back out (they already have it).
+## One object's whole state, as `act` (add or edit). False if it's too big to send.
+func _co_send_one(o: Node3D, act: String) -> bool:
+	var d := _with_group(o)
+	if JSON.stringify(d).length() > 200000:              # (a whole cube object can be huge; its file is the way)
+		var what := String(o.call("label")) if o.has_method("label") else "That object"
+		_set_status("%s is too big to send live: copy it to the other MALLET by hand." % what)
+		return false
+	var uid := _co_uid(o)
+	var at: Vector3 = _co_last.get(uid, o.center())
+	_co_seq += 1
+	relay.send({"t": "edit", "seq": _co_seq, "op": {"act": act, "kind": _co_kind(o), "uid": uid,
+		"at": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)], "obj": d}})
+	_co_last[uid] = o.center()
+	return true
+
+
+## Someone else's change. No checkpoint anywhere below, so it never lands in our undo history, and everything runs
+## under _co_mute, so nothing is sent back out (they already have it).
 func _co_apply(m: Dictionary) -> void:
 	if not (session_role in ["maker", "editor"]):
 		return
 	var op = m.get("op")
 	if not op is Dictionary:
 		return
+	var who := String(m.get("name", "A co-editor"))
+	match String(op.get("act", "edit")):
+		"add": _co_add(op, who)
+		"del": _co_del(op, who)
+		_: _co_edit(op, who)
+
+
+## They made an object: build our own copy of it here.
+func _co_add(op: Dictionary, who: String) -> void:
+	var d = op.get("obj")
+	var kind := String(op.get("kind", ""))
+	var uid := String(op.get("uid", ""))
+	if not d is Dictionary or uid == "" or _co_root(kind) == null:
+		return
+	if _co_find_uid(kind, uid) != null:
+		return                                       # (the same add arriving twice)
+	var o := _co_new_node(kind)
+	if o == null:
+		return
+	_co_root(kind).add_child(o)
+	_co_mute = true
+	o.set_meta("co_uid", uid)
+	o.from_dict(d)
+	_take_group(o, d)
+	if o.has_method("rebuild"):
+		o.rebuild()
+	_map_changed()
+	_co_mute = false
+	_co_uids[uid] = {"o": o, "kind": kind}
+	_co_last[uid] = o.center()
+	_set_status("%s added a %s." % [who, String(o.call("label")) if o.has_method("label") else kind])
+
+
+## They removed an object: take ours out, without a checkpoint and without leaving it selectable.
+func _co_del(op: Dictionary, who: String) -> void:
+	var kind := String(op.get("kind", ""))
+	var o := _co_find_uid(kind, String(op.get("uid", "")))
+	if o == null:
+		return
+	_co_mute = true
+	if o == selected:
+		_select(null)
+	_extra.erase(o)
+	var parent := o.get_parent()
+	if parent != null:
+		parent.remove_child(o)
+	o.queue_free()
+	_map_changed()
+	_co_mute = false
+	outliner.sync_selection()
+	_co_queue.erase(o)
+	var uid := String(op.get("uid", ""))
+	_co_uids.erase(uid)
+	_co_last.erase(uid)
+	_set_status("%s deleted a %s." % [who, kind])
+
+
+func _co_new_node(kind: String) -> Node3D:
+	match kind:
+		"ramp": return RampNode.new()
+		"entity": return EntityNode.new()
+		"prop": return PropNode.new()
+		"text": return TextNode.new()
+		"light": return LightNode.new()
+		"particle": return ParticleNode.new()
+		"cube": return CubeModelNode.new()
+		"block": return BlockNode.new()
+	return null
+
+
+## The object with exactly that session id, or null.
+func _co_find_uid(kind: String, uid: String) -> Node3D:
+	var root := _co_root(kind)
+	if root == null or uid == "":
+		return null
+	for o in root.get_children():
+		if o.has_meta("co_uid") and String(o.get_meta("co_uid")) == uid:
+			return o
+	return null
+
+
+## They changed an object: put our copy in the same state.
+func _co_edit(op: Dictionary, who: String) -> void:
 	var d = op.get("obj")
 	if not d is Dictionary:
 		return
@@ -5631,7 +5776,7 @@ func _co_apply(m: Dictionary) -> void:
 	var uid := String(op.get("uid", ""))
 	var o := _co_find(kind, uid, _co_vec3(op.get("at", [])))
 	if o == null:
-		_set_status("%s changed something this copy doesn't have yet (new objects don't sync)." % String(m.get("name", "A co-editor")))
+		_set_status("%s changed an object this copy doesn't have." % who)
 		return
 	_co_mute = true
 	if uid != "" and not o.has_meta("co_uid"):
@@ -5649,7 +5794,7 @@ func _co_apply(m: Dictionary) -> void:
 	_co_queue.erase(o)
 	var oid := _co_uid(o)
 	_co_last[oid] = o.center()
-	_set_status("%s: %s" % [String(m.get("name", "A co-editor")), String(o.call("label")) if o.has_method("label") else kind])
+	_set_status("%s: %s" % [who, String(o.call("label")) if o.has_method("label") else kind])
 
 
 static func _co_vec3(a) -> Vector3:

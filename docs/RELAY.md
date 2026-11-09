@@ -97,8 +97,9 @@ object is enough to find it in the other copy. `edit` is in use from 0.17.0:
 {"t": "edit", "seq": 7, "op": {"kind": "ramp", "uid": "a1b2c3", "at": [12.5, 4.0, 30.25], "obj": {…}}}
 ```
 
-`obj` is the object's whole plain-data state — the same dictionary a save file holds for it — so one shape covers
-a dragged ramp point, a moved block and a changed property. `uid` is a session-only name the two sides agree on
+`act` says what happened: `add` (the object is new, and the receiver should build its copy), `del` (`kind` and
+`uid` only) or, when absent, `edit`. `obj` is the object's whole plain-data state — the same dictionary a save file
+holds for it — so one shape covers a dragged ramp point, a moved block and a changed property. `uid` is a session-only name the two sides agree on
 (stored in the node, never in the map); `at` is where the object was when the change was made, so a side that has
 never seen that id can still find the object, since both copies of the map start out identical. The sender never
 needs an acknowledgement. `state` (the whole map, for joining mid-session) is still to come.
