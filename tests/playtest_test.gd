@@ -60,6 +60,14 @@ func wait_for(f: Callable, ms := 6000) -> bool:
 	return f.call()
 
 
+var kicked_by := ""
+
+
+func _note_kick(m: Dictionary) -> void:
+	if String(m.get("t", "")) == "kicked":
+		kicked_by = String(m.get("by", ""))
+
+
 func wait_ms(ms: int) -> void:
 	var t0 := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - t0 < ms:
@@ -179,6 +187,14 @@ func _run() -> void:
 	check("it does not go into our undo history", ed._undo.size() == undo_before, "%d -> %d" % [undo_before, ed._undo.size()])
 	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [0, 0, -1], "sel": [["ramp", mid.x, mid.y, mid.z]]})
 	check("their selection arrives", await wait_for(func(): return not (ed.co_cursors.get(co.you, {}).get("sel", []) as Array).is_empty(), 3000))
+	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [0, 0, -1], "sel": [], "mouse": [1, 2, 3], "doing": "dragging"})
+	check("their mouse and what they are doing arrive", await wait_for(func(): return (ed.co_cursors.get(co.you, {}).get("mouse", []) as Array).size() == 3)
+		and String(ed.co_cursors.get(co.you, {}).get("doing", "")) == "dragging")
+	var cursor_has_doing := false
+	for m in co_got:
+		if String(m.get("t", "")) == "cursor" and (m as Dictionary).has("mouse") and (m as Dictionary).has("doing"):
+			cursor_has_doing = true
+	check("our mouse goes out with what we are doing", cursor_has_doing)
 	ed._redraw_overlays()
 	await process_frame
 	await process_frame
@@ -254,6 +270,38 @@ func _run() -> void:
 		if nop is Dictionary and String(nop.get("uid", "")) == r2_uid:
 			name_sent = String((nop.get("obj", {}) as Dictionary).get("name", ""))
 	check("a rename in the outliner goes out", named and name_sent == "Their new name", name_sent)
+
+	# --- the map's look (the Map panel) travels too
+	co_edits.clear()
+	ed.environment["aurora"] = 0.42
+	ed._map_changed()
+	var env_sent := await wait_for(func(): return _has_act(co_edits, "env"), 4000)
+	var env_value := -1.0
+	for m in co_edits:
+		var eop = m.get("op", {})
+		if eop is Dictionary and String(eop.get("act", "")) == "env":
+			env_value = float((eop.get("environment", {}) as Dictionary).get("aurora", -1.0))
+	check("a change to the map's look goes out", env_sent and absf(env_value - 0.42) < 0.001, str(env_value))
+	co.send({"t": "edit", "seq": 90, "op": {"act": "env", "environment": {"aurora": 0.11}}})
+	check("theirs is taken without an undo step", await wait_for(func(): return absf(float(ed.environment.get("aurora", -1.0)) - 0.11) < 0.001, 4000))
+
+	# --- the map's owner can put someone out of the session
+	var kickee := Relay.new()
+	root.add_child(kickee)
+	kickee.message.connect(_note_kick)
+	kickee.connect_to(URL, {"t": "hello", "v": 1, "role": "editor", "session": ed.relay.session, "secret": secret,
+		"name": "Rob", "map": "playtest test", "map_version": 7, "client": MalletVersion.full()})
+	check("a third person joins", await wait_for(func(): return kickee.is_open()))
+	await wait_ms(300)
+	check("the owner is offered who to remove", ed._playtest_panel._remove.visible)
+	co.send({"t": "kick", "id": kickee.you})          # (only the map's owner may remove anyone)
+	await wait_ms(500)
+	check("a co-editor cannot remove anyone", kickee.state != "closed")
+	ed._remove_from_session(kickee.you)
+	check("removing someone closes their connection", await wait_for(func(): return kickee.state == "closed", 5000))
+	check("and tells them who did it", kicked_by == "Maker", kicked_by)
+	check("the session carries on for us", await wait_for(func(): return ed.relay != null and ed.relay.is_open() and not ed.relay.peers.has(kickee.you), 3000))
+	kickee.queue_free()
 
 	# --- an editor joining after work started asks for the session's map
 	co_states.clear()

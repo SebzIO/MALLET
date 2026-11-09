@@ -138,6 +138,17 @@ func _ready() -> void:
 	_hud.add_child(_menu)
 
 
+## How many steps of its own undo history build mode has: the editor watches this, since cube edits change a
+## single object in place and nothing else would tell the co-editors.
+func step_count() -> int:
+	return _history.size()
+
+
+## What build mode is doing, for the other editors' views.
+func doing() -> String:
+	return "painting" if _drag == "paint" else "building"
+
+
 func _build_help() -> void:
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0, 0, 0, 0.6)

@@ -6,6 +6,7 @@ extends PanelContainer
 
 signal leave_requested
 signal copy_requested
+signal remove_requested(id: String)
 
 const WIDTH := 430
 
@@ -13,6 +14,7 @@ var _title: Label
 var _status: Label
 var _tree: Tree
 var _summary: Label
+var _remove: OptionButton
 
 
 func _ready() -> void:
@@ -53,6 +55,12 @@ func _ready() -> void:
 	leave.tooltip_text = "Close the connection. Runs already received stay in the map."
 	leave.pressed.connect(func(): leave_requested.emit())
 	row.add_child(leave)
+	_remove = OptionButton.new()                            # the map's owner's list of who to put out
+	_remove.focus_mode = Control.FOCUS_NONE
+	_remove.tooltip_text = "Remove someone from this session. The code still works: they can rejoin with it."
+	_remove.item_selected.connect(_on_remove_chosen)
+	_remove.visible = false
+	box.add_child(_remove)
 	_tree = Tree.new()
 	_tree.columns = 5
 	_tree.hide_root = true
@@ -79,9 +87,10 @@ func _process(_delta: float) -> void:
 
 ## `peers` is Relay.peers (id -> {id, name, role, map_version}), `live` is tester id -> their last live message,
 ## `runs` is the map's tester sessions (the same shape Tester.read_runs / import_runs make).
-func refresh(session: String, status: String, peers: Dictionary, live: Dictionary, runs: Array) -> void:
+func refresh(session: String, status: String, peers: Dictionary, live: Dictionary, runs: Array, owner := false) -> void:
 	_title.text = "Playtest — session %s" % session if session != "" else "Playtest"
 	_status.text = status
+	_fill_remove(peers, owner)
 	_tree.clear()
 	var root := _tree.create_item()
 	var people := {}
@@ -105,6 +114,31 @@ func refresh(session: String, status: String, peers: Dictionary, live: Dictionar
 		item.set_text(4, _finish(runs, n))
 		item.set_tooltip_text(0, "%s · %s" % [n, info["role"]] if info["role"] != "" else n)
 	_summary.text = Tester.summary(runs) if not runs.is_empty() else "No runs yet: testers show up here as they play."
+
+
+## The owner's "remove someone" list: the co-editors in the session, by name.
+func _fill_remove(peers: Dictionary, owner: bool) -> void:
+	_remove.clear()
+	_remove.add_item("Remove someone…")
+	var names: Array = []
+	for id in peers:
+		var p: Dictionary = peers[id]
+		if String(p.get("role", "")) != "editor":
+			continue
+		names.append([String(p.get("name", "?")), String(id)])
+	names.sort()
+	for pair in names:
+		var i := _remove.item_count
+		_remove.add_item(pair[0], i)
+		_remove.set_item_metadata(i, pair[1])
+	_remove.visible = owner and not names.is_empty()
+
+
+func _on_remove_chosen(i: int) -> void:
+	var id := String(_remove.get_item_metadata(i)) if i > 0 else ""
+	_remove.select(0)
+	if id != "":
+		remove_requested.emit(id)
 
 
 static func _where(live: Dictionary) -> String:

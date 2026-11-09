@@ -85,16 +85,16 @@ Plan in detail: [PLAYTEST.md](PLAYTEST.md), parts 1–2.
 
 ## 0.17.0: Live co-editing (added 2026-11-08, required for 1.0)
 Work on one map together, live. Uses the same relay on the user's VPS as live playtesting (0.16).
-- [ ] **Invite**: the map owner makes a unique invite code and sends it to someone; they enter it in MALLET to join
+- [x] **Invite**: the map owner makes a unique invite code and sends it to someone; they enter it in MALLET to join
       the map being worked on (the owner can see who's in, and remove someone).
-- [ ] **Every action syncs**, both ways, in real time: adding, moving, reshaping, deleting, materials, the ramp creator,
+- [x] **Every action syncs**, both ways, in real time: adding, moving, reshaping, deleting, materials, the ramp creator,
       build mode cubes, the Map panel, undo / redo of your own actions. Nobody's work is lost when two people touch
       the same thing (a clear rule for conflicts, e.g. the object you're dragging is yours until you let go).
-- [ ] **See each other in 3D**: the other person's camera as a name tag and a marker showing where they look
+- [x] **See each other in 3D**: the other person's camera as a name tag and a marker showing where they look
       (their field of view), in every view and in build mode.
-- [ ] **See each other in the 2D views / window**: their mouse cursor with their name, and what they're doing
+- [x] **See each other in the 2D views / window**: their mouse cursor with their name, and what they're doing
       (dragging a ramp, painting, building...), plus their selection outlined in their color.
-- [ ] Joining mid-session gets the whole current map; a dropped connection rejoins without losing anything; the
+- [x] Joining mid-session gets the whole current map; a dropped connection rejoins without losing anything; the
       owner's saved file stays the one true copy.
 - [ ] The goal: working together feels seamless, as if both people were at the same computer.
 

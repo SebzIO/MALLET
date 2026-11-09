@@ -156,7 +156,10 @@ var relay: Relay = null                ## the relay connection (a playtest sessi
 var live_peers := {}                   ## tester id -> their last live message (where they are right now)
 var live_trails := {}                  ## tester id -> their last few live positions (the trail drawn in the views)
 var show_tester_paths := true          ## draw testers' finished routes and where they fell (View menu)
-var co_cursors := {}                   ## co-editor id -> their last cursor message (camera, aim, selection)
+var co_cursors := {}                   ## co-editor id -> their last cursor message (camera, aim, selection, mouse)
+var _co_build_steps := -1              ## build mode's undo steps when last watched (its cube edits go out)
+var _co_build_model: CubeModelNode = null
+var _co_env := ""                      ## the environment (sky and the rest of the Map panel) as last sent
 var show_co_editors := true            ## draw co-editors' cameras and selections in the views (View menu)
 var session_role := ""                 ## what we joined the relay as: maker, editor or tester
 var _cursor_clock := 0.0
@@ -330,6 +333,7 @@ func _build_ui() -> void:
 	_ui.add_child(_playtest_panel)
 	_playtest_panel.leave_requested.connect(_leave_playtest)
 	_playtest_panel.copy_requested.connect(_copy_playtest_code)
+	_playtest_panel.remove_requested.connect(_remove_from_session)
 	_playtest_panel.refresh("", "No playtest session", {}, {}, [])
 
 
@@ -3699,6 +3703,7 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 		_draw_live_peers(cam, ov)
 	if show_co_editors and not co_cursors.is_empty():
 		_draw_co_editors(cam, ov)
+		_draw_co_mice(pane, ov)
 	if show_direction:
 		for r in ramps_root.get_children():
 			_draw_direction(cam, ov, r, r == selected)
@@ -3800,6 +3805,13 @@ func _map_changed() -> void:
 	for o in selection():
 		if is_instance_valid(o):
 			_co_queue[o] = true
+	if _gen_source != null and is_instance_valid(_gen_source):
+		_co_queue[_gen_source] = true              # (the ramp creator's own ramp)
+	var env := JSON.stringify(environment)          # the Map panel: the sky, water and the rest of the map's look
+	if env != _co_env:
+		_co_env = env
+		_co_seq += 1
+		relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "env", "environment": environment.duplicate(true)}})
 
 
 ## Where the speed for a ramp comes from: the start or stage plate the rider most likely set off from - the
@@ -5576,6 +5588,8 @@ func _playtest_message(m: Dictionary) -> void:
 			live_trails.erase(gone)
 			co_cursors.erase(gone)
 			_refresh_playtest()
+		"kicked":
+			_playtest_kicked(String(m.get("by", "the map's owner")))
 		"cursor":
 			var who := String(m.get("id", ""))
 			if m.get("pos") is Array and (m.get("pos", []) as Array).size() >= 3:
@@ -5634,7 +5648,7 @@ func _refresh_playtest() -> void:
 	if _playtest_panel == null:
 		return
 	_playtest_panel.refresh(relay.session if relay != null else "", relay.status_text() if relay != null else "No playtest session",
-		relay.peers if relay != null else {}, live_peers, tester_runs)
+		relay.peers if relay != null else {}, live_peers, tester_runs, session_role == "maker")
 
 
 func _toggle_playtest_panel() -> void:
@@ -5668,6 +5682,7 @@ func _leave_playtest() -> void:
 	_rejoining = false
 	_co_state_next = -1
 	_co_state_text = ""
+	_co_env = ""
 	session_role = ""
 	_refresh_playtest()
 
@@ -5676,6 +5691,23 @@ func _copy_playtest_code() -> void:
 	if relay != null and relay.session != "":
 		DisplayServer.clipboard_set(relay.session)
 		_set_status("Session code %s copied." % relay.session)
+
+
+## Put someone out of the session (the map's owner only). The relay closes their connection; the code they have
+## still works, so they can come back if you let them.
+func _remove_from_session(id: String) -> void:
+	if relay == null or not relay.is_open() or session_role != "maker" or id == "":
+		return
+	relay.send({"t": "kick", "id": id})
+	_set_status("Removing them from the session...")
+
+
+## The map's owner put us out: stop here, and don't retry (a reconnect would just walk back in).
+func _playtest_kicked(by: String) -> void:
+	_leave_playtest()
+	_playtest_panel.visible = true
+	_refresh_playtest()
+	_set_status("%s removed you from the session. Your map is still yours to save." % by)
 
 
 ## A live position from our own play mode (a test build sends these to the map maker).
@@ -5714,9 +5746,40 @@ func _tick_co_cursors(delta: float) -> void:
 		return
 	var at := p.camera.global_position
 	var aim := -p.camera.global_basis.z
+	var mouse: Array = []
+	if p.mouse_here:
+		var w := p.mouse_world
+		mouse = [snappedf(w.x, 0.01), snappedf(w.y, 0.01), snappedf(w.z, 0.01)]
 	relay.send({"t": "cursor", "pos": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)],
-		"aim": [snappedf(aim.x, 0.001), snappedf(aim.y, 0.001), snappedf(aim.z, 0.001)], "sel": _co_sel()})
+		"aim": [snappedf(aim.x, 0.001), snappedf(aim.y, 0.001), snappedf(aim.z, 0.001)], "sel": _co_sel(),
+		"view": p.kind, "mouse": mouse, "doing": _co_doing()})
+	_co_watch_build()
 	_co_send_edits()
+
+
+## What we are doing right now, shown next to our mouse in the other editors' views.
+func _co_doing() -> String:
+	if build != null and build.active:
+		return build.doing()
+	if _drag != Drag.NONE:
+		var n := selection().size()
+		return "dragging" if n <= 1 else "dragging %d objects" % n
+	return ""
+
+
+## Build mode edits one cube object in place and never calls _map_changed, so its own undo history is the sign that
+## something changed: a step more, or a different cube object, and that object goes out.
+func _co_watch_build() -> void:
+	if build == null or not build.active:
+		_co_build_steps = -1
+		_co_build_model = null
+		return
+	var steps: int = build.step_count()
+	if build.model != _co_build_model or steps != _co_build_steps:
+		_co_build_model = build.model
+		_co_build_steps = steps
+		if build.model != null and is_instance_valid(build.model):
+			_co_queue[build.model] = true
 
 
 ## Our selection as [kind, x, y, z]: the other MALLET finds the object at that place in its own copy of the map.
@@ -5802,6 +5865,7 @@ func _co_seed() -> void:
 	for o in _all_objects():
 		if is_instance_valid(o):
 			_co_uids[_co_uid(o)] = {"o": o, "kind": _co_kind(o)}
+	_co_env = JSON.stringify(environment)          # (both copies start from the same map's look)
 
 
 ## Objects that appeared or vanished since the last tick. Watching the map's contents is one place instead of every
@@ -6004,12 +6068,27 @@ func _co_apply(m: Dictionary) -> void:
 	var op = m.get("op")
 	if not op is Dictionary:
 		return
+	if _co_mine(op):
+		return                                   # (the object we're dragging is ours until we let go)
 	var who := String(m.get("name", "A co-editor"))
 	match String(op.get("act", "edit")):
 		"add": _co_add(op, who)
 		"del": _co_del(op, who)
 		"folders": _co_folders(op)
+		"env": _co_env_props(op)
 		_: _co_edit(op, who)
+
+
+## True while we have the object in hand: an edit to something being dragged here waits, so a drag can't be pulled
+## back and forth between two people. Ours goes out when we let go.
+func _co_mine(op: Dictionary) -> bool:
+	if _drag == Drag.NONE:
+		return false
+	var rec = _co_uids.get(String(op.get("uid", "")), {})
+	if not rec is Dictionary or not rec.has("o"):
+		return false
+	var o = rec["o"]
+	return o is Node3D and is_instance_valid(o) and o in selection()
 
 
 ## One object changed without the selection being involved: a rename in the outliner, hidden, filed in a folder.
@@ -6026,6 +6105,21 @@ func _co_send_folders() -> void:
 		return
 	_co_seq += 1
 	relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "folders", "folders": outliner.folders}})
+
+
+## The other editor changed the map's look (Map panel: sky, water, lava, glass): take theirs.
+func _co_env_props(op: Dictionary) -> void:
+	var d = op.get("environment")
+	if not d is Dictionary:
+		return
+	_co_mute = true
+	environment = Look.default_environment()
+	environment.merge(d, true)
+	_apply_environment()
+	_refresh_props()
+	_co_env = JSON.stringify(environment)
+	_map_changed()
+	_co_mute = false
 
 
 func _co_folders(op: Dictionary) -> void:
@@ -6151,6 +6245,33 @@ static func _co_vec3(a) -> Vector3:
 
 ## Co-editors in the views: their camera (a dot with a line along where they look, named) and, outlined in their
 ## color, the object they have selected.
+## Where each co-editor's mouse is, with their name and what they're doing, drawn in the view we're drawing.
+func _draw_co_mice(pane: ViewPane, ov: Control) -> void:
+	var font := ov.get_theme_default_font()
+	var cam := pane.camera
+	for id in co_cursors:
+		var m: Dictionary = co_cursors[id]
+		var mp = m.get("mouse", [])
+		if not mp is Array or (mp as Array).size() < 3:
+			continue
+		var at := _co_vec3(mp)
+		if cam.is_position_behind(at):
+			continue
+		var s := cam.unproject_position(at)
+		if not Rect2(Vector2.ZERO, pane.size).has_point(s):
+			continue
+		var col := _tester_color(String(m.get("name", "?")))
+		var arrow := PackedVector2Array([s, s + Vector2(0, 15), s + Vector2(4.2, 10.5), s + Vector2(10.5, 10.5)])
+		ov.draw_colored_polygon(arrow, Color(0, 0, 0, 0.8))
+		ov.draw_polyline(PackedVector2Array([arrow[0], arrow[1], arrow[2], arrow[3], arrow[0]]), col, 1.4)
+		var label := String(m.get("name", "?"))
+		var doing := String(m.get("doing", ""))
+		if doing != "":
+			label += "  ·  " + doing
+		ov.draw_string_outline(font, s + Vector2(13, 15), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 4, Color(0, 0, 0, 0.85))
+		ov.draw_string(font, s + Vector2(13, 15), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col)
+
+
 func _draw_co_editors(cam: Camera3D, ov: Control) -> void:
 	var font := ov.get_theme_default_font()
 	for id in co_cursors:
@@ -6180,6 +6301,14 @@ func _draw_co_editors(cam: Camera3D, ov: Control) -> void:
 		ov.draw_line(s_at, tip, Color(col, 0.9), 2.0)
 		ov.draw_line(tip, tip - dir * 6.0 + perp * 5.0, Color(col, 0.9), 2.0)
 		ov.draw_line(tip, tip - dir * 6.0 - perp * 5.0, Color(col, 0.9), 2.0)
+		if aim.length() > 0.001:                        # the field of view they're looking down
+			var side := aim.normalized().cross(Vector3.UP)
+			if side.length() > 0.001:
+				side = side.normalized() * 0.577 * 4.0   # (60 degrees across)
+				for sgn in [1.0, -1.0]:
+					var e: Vector3 = at + aim * 4.0 + side * sgn
+					if not cam.is_position_behind(e):
+						ov.draw_line(s_at, cam.unproject_position(e), Color(col, 0.45), 1.5)
 		var label := String(m.get("name", "?"))
 		if not sel.is_empty() and sel[0] is Array and (sel[0] as Array).size() >= 1:
 			label += "  ·  " + String((sel[0] as Array)[0])

@@ -30,8 +30,15 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - **A dropped connection gets back in**: MALLET retries the session by itself (a second, two, four… up to thirty),
   and rejoins the same one. The map's owner collects the testers' runs filed while it was away; an editor asks for
   the map again, so whatever changed in between arrives with it.
-- Not yet: seeing where each other's mouse is in the 2D views and what they are doing (dragging, painting),
-  removing someone from a session, and a whole cube object over 200 KB is left for you to copy over by hand.
+- **You can see each other**: their mouse in every view with their name, and what they are doing (dragging,
+  painting, building); in 3D a marker with their name, where they look and the cone they see.
+- **Build mode travels too**: cubes you put, paint or shape go to the other copy as you work, and so does the ramp
+  the ramp creator is making. While you have something in hand, their edits to it wait until you let go, so two
+  people can't drag the same thing back and forth.
+- **The map's owner can remove someone**: pick them in the playtest panel and they are put out of the session.
+  The code still works, so they can join again if you let them.
+- **The map's look travels**: a sky preset, colors, stars or water change reaches the other copy as it changes.
+- Not yet: a whole cube object over 200 KB is left for you to copy over by hand.
 
 ## 0.16.0 preview — 2026-11-09: Live playtesting
 

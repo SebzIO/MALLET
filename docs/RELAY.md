@@ -131,7 +131,9 @@ it changed go as `edit`, ones it brought back as `add`, ones it removed as `del`
 others already know. The other MALLET ends up with the same map and never runs an undo of its own, so it cannot
 take back something one of its own edits did. Renaming an object, hiding it or filing it in a folder travels with
 the object (name, folder and hidden are part of its state); a folder made, renamed, moved or deleted goes as
-`{"t": "edit", "op": {"act": "folders", "folders": [...]}}`.
+`{"t": "edit", "op": {"act": "folders", "folders": [...]}}`. The map's own look (the Map panel: sky, water,
+and the rest of the environment) is the one thing that isn't an object, so it goes as
+`{"t": "edit", "op": {"act": "env", "environment": {...}}}` whenever it changes.
 
 ### A dropped connection
 
@@ -140,6 +142,19 @@ second, two, four… up to thirty) and rejoins the same session. The map's owner
 while it was away (`collect`); an editor asks for the map again (`state_please`), and an editor also does that
 when the maker reappears in the session, so anything changed in between arrives. Only a wrong secret or a session
 the relay has forgotten stops the retries.
+
+### Seeing each other
+
+Ten times a second each editor sends `cursor`: where their camera is (`pos`), where it looks (`aim`), their
+selection (`sel`), where their mouse is in the world (`mouse`, absent when it isn't over a view) and what they are
+doing (`doing`: moving something, painting or building). Everyone draws the others' mouse, name and doing in
+every view, their camera and field of view in 3D, and their selection outlined in their color.
+
+### Removing someone
+
+The map's owner sends `{"t": "kick", "id": "a1b2c3d4"}`. The relay refuses it from anyone else, sends that peer
+`{"t": "kicked", "by": "<owner>"}`, closes their connection and tells the others they left. The code is not
+changed, so the same person can join again with it if the owner lets them.
 
 ## Limits and trust
 

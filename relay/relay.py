@@ -359,6 +359,20 @@ async def on_message(p, msg):
             if q.role == "maker" and not q.closed:
                 await q.send({"t": "state_please", "id": p.id, "name": p.name})
 
+    elif t == "kick":
+        # 0.17: the map's owner can put someone out of the session (the code still works, they can come back)
+        if p.role != "maker":
+            return
+        to = s["peers"].get(str(msg.get("id", ""))[:16])
+        if to is None or to is p or to.closed:
+            return
+        log("kicked:", to.name, p.session, "by", p.name)
+        await to.send({"t": "kicked", "by": p.name})
+        s["peers"].pop(to.id, None)
+        await asyncio.sleep(0.15)          # (let them read why before the socket goes)
+        await to.close(1008, "removed")
+        await broadcast(p.session, {"t": "peer_leave", "id": to.id})   # (the owner hears it too: their list drops them)
+
     elif t == "ping":
         await p.send({"t": "pong", "at": msg.get("at", 0)})
 
