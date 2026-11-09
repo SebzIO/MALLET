@@ -91,7 +91,17 @@ arrive.
 it to the others (never back to the sender). A co-editor joins with `role: "editor"` plus the session code and
 secret, exactly like a tester — the code and secret are the invitation. `sel` is `[kind, x, y, z]` per selected
 object: objects have no ids of their own and both sides hold the same map, so the kind plus the middle of the
-object is enough to find it in the other copy. `edit` and `state` are still to come.
+object is enough to find it in the other copy. `edit` is in use from 0.17.0:
+
+```json
+{"t": "edit", "seq": 7, "op": {"kind": "ramp", "uid": "a1b2c3", "at": [12.5, 4.0, 30.25], "obj": {…}}}
+```
+
+`obj` is the object's whole plain-data state — the same dictionary a save file holds for it — so one shape covers
+a dragged ramp point, a moved block and a changed property. `uid` is a session-only name the two sides agree on
+(stored in the node, never in the map); `at` is where the object was when the change was made, so a side that has
+never seen that id can still find the object, since both copies of the map start out identical. The sender never
+needs an acknowledgement. `state` (the whole map, for joining mid-session) is still to come.
 
 `cursor` is throttled to about 10 a second. `edit` messages are relayed to the maker and the other editors (never
 back to the sender); the sender's own file stays authoritative and the editor applies remote edits without adding

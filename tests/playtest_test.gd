@@ -11,11 +11,13 @@ var ok := true
 var relay_pid := -1
 var ed
 var co_got := []                      ## cursor messages a second editor received from the maker
+var co_edits := []                    ## edit messages a second editor received from the maker
 
 
 func _note_co(m: Dictionary) -> void:
-	if String(m.get("t", "")) == "cursor":
-		co_got.append(m)
+	match String(m.get("t", "")):
+		"cursor": co_got.append(m)
+		"edit": co_edits.append(m)
 
 
 func _vec(a) -> Vector3:
@@ -142,6 +144,21 @@ func _run() -> void:
 	check("our selection is sent as kind and place", wire.size() == 1 and String(wire[0][0]) == "ramp", str(wire))
 	var mid: Vector3 = ramp.center()
 	check("their selection finds the same object here", ed._co_object_at("ramp", mid) == ramp)
+	ramp.points = PackedVector3Array([Vector3(0, 0, 0), Vector3(0, 0, 30)])
+	ramp.rebuild()
+	ed._map_changed()
+	check("our own change goes out as an edit", await wait_for(func(): return not co_edits.is_empty(), 4000))
+	var sent_op: Dictionary = co_edits[0].get("op", {}) if not co_edits.is_empty() else {}
+	check("an edit carries the object's new state", String(sent_op.get("kind", "")) == "ramp"
+		and (sent_op.get("obj", {}) as Dictionary).has("points"), String(sent_op.get("kind", "")))
+	# and an edit from them lands here without touching our undo history
+	var op := {"kind": "ramp", "uid": ed._co_uid(ramp), "at": [mid.x, mid.y, mid.z], "obj": ed._with_group(ramp)}
+	op["obj"]["points"] = [[0, 0, 4], [0, 0, 28]]
+	var undo_before: int = ed._undo.size()
+	co.send({"t": "edit", "seq": 1, "op": op})
+	var moved_here := await wait_for(func(): return ramp.points.size() == 2 and ramp.points[0].is_equal_approx(Vector3(0, 0, 4)), 4000)
+	check("a remote edit moves the ramp here", moved_here, str(ramp.points))
+	check("it does not go into our undo history", ed._undo.size() == undo_before, "%d -> %d" % [undo_before, ed._undo.size()])
 	co.send({"t": "cursor", "pos": [5, 6, 7], "aim": [0, 0, -1], "sel": [["ramp", mid.x, mid.y, mid.z]]})
 	check("their selection arrives", await wait_for(func(): return not (ed.co_cursors.get(co.you, {}).get("sel", []) as Array).is_empty(), 3000))
 	ed._redraw_overlays()

@@ -12,7 +12,12 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   their name and what they have selected; the object they have selected is outlined in that color in your copy of
   the map. View > Co-editors hides it.
 - **Your camera and selection go out the same way**, ten times a second, so it works both ways at once.
-- Not yet: the edits themselves. Moving a ramp in one MALLET still has to be done in the other by hand.
+- **Edits travel**: drag a ramp point, move a block, change a property in a panel and the other MALLET's copy
+  changes too. Four objects a tick at most, so a long drag can't flood the relay. A change from the other side
+  never lands in your undo history, and is never sent back out again.
+- Not yet: new objects and deletions (adding a ramp doesn't appear on the other side yet; changing one they don't
+  have is reported in the status line), undo (it undoes only in your copy), names/outliner edits, and a whole cube
+  object over 200 KB is left for you to copy over by hand.
 
 ## 0.16.0 preview — 2026-11-09: Live playtesting
 

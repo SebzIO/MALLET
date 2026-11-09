@@ -160,6 +160,10 @@ var co_cursors := {}                   ## co-editor id -> their last cursor mess
 var show_co_editors := true            ## draw co-editors' cameras and selections in the views (View menu)
 var session_role := ""                 ## what we joined the relay as: maker, editor or tester
 var _cursor_clock := 0.0
+var _co_queue := {}                    ## objects changed here that the other editors haven't been sent yet
+var _co_last := {}                     ## session id -> where that object was when we last sent or applied it
+var _co_seq := 0
+var _co_mute := false                  ## a remote edit or an undo is being applied: nothing goes back out
 var _playtest_panel: PlaytestPanel
 var _playtest_dialog: ConfirmationDialog
 var _playtest_inputs := {}
@@ -1743,11 +1747,14 @@ func _snapshot() -> Dictionary:
 
 func _restore(s: Dictionary) -> void:
 	_map_changed()
+	_co_mute = true                                 # (undo is ours alone: it doesn't rewrite their copy)
 	_load_dict(s["map"])
 	var objs := _all_objects()
 	var sel: int = s["sel"]
 	if sel >= 0 and sel < objs.size():
 		_select(objs[sel], s["pt"])
+	_co_mute = false
+	_co_queue.clear()
 
 
 func undo() -> void:
@@ -3685,9 +3692,14 @@ func kill_floor_y() -> float:
 	return SurfsUpExporter.kill_floor_y(d, models)
 
 
-## Anything that changes the map calls this so the jump arcs follow instantly.
+## Anything that changes the map calls this so the jump arcs follow instantly (and so co-editors hear about it).
 func _map_changed() -> void:
 	_arcs_dirty = 2
+	if _co_mute or relay == null or not relay.is_open() or not (session_role in ["maker", "editor"]):
+		return
+	for o in selection():
+		if is_instance_valid(o):
+			_co_queue[o] = true
 
 
 ## Where the speed for a ramp comes from: the start or stage plate the rider most likely set off from - the
@@ -5389,6 +5401,8 @@ func _playtest_message(m: Dictionary) -> void:
 			var who := String(m.get("id", ""))
 			if m.get("pos") is Array and (m.get("pos", []) as Array).size() >= 3:
 				co_cursors[who] = m
+		"edit":
+			_co_apply(m)
 		"attempt":
 			if session_role != "editor":
 				_add_live_attempt(String(m.get("name", "?")), m.get("attempt", {}), int(m.get("map_version", 0)))
@@ -5500,6 +5514,7 @@ func _tick_co_cursors(delta: float) -> void:
 	var aim := -p.camera.global_basis.z
 	relay.send({"t": "cursor", "pos": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)],
 		"aim": [snappedf(aim.x, 0.001), snappedf(aim.y, 0.001), snappedf(aim.z, 0.001)], "sel": _co_sel()})
+	_co_send_edits()
 
 
 ## Our selection as [kind, x, y, z]: the other MALLET finds the object at that place in its own copy of the map.
@@ -5523,10 +5538,14 @@ static func _co_kind(o: Node3D) -> String:
 	return ""
 
 
+func _co_root(kind: String) -> Node3D:
+	return {"ramp": ramps_root, "entity": entities_root, "prop": props_root, "block": blocks_root,
+		"text": texts_root, "light": lights_root, "particle": particles_root, "cube": cube_models_root}.get(kind, null)
+
+
 ## The object of that kind whose middle is closest to `at` (under a meter), or null: the other editor's selection.
 func _co_object_at(kind: String, at: Vector3) -> Node3D:
-	var root = {"ramp": ramps_root, "entity": entities_root, "prop": props_root, "block": blocks_root,
-		"text": texts_root, "light": lights_root, "particle": particles_root, "cube": cube_models_root}.get(kind, null)
+	var root := _co_root(kind)
 	if root == null:
 		return null
 	var best: Node3D = null
@@ -5537,6 +5556,100 @@ func _co_object_at(kind: String, at: Vector3) -> Node3D:
 			best_d = d
 			best = o
 	return best
+
+
+## A name for this object that both MALLETs agree on for the length of the session. Objects have no ids of their
+## own and the map file is not ours to change here, so the id lives in the node's metadata: when the other editor
+## mentions one we haven't named yet, we adopt their id for the object we matched.
+func _co_uid(o: Node3D) -> String:
+	if o.has_meta("co_uid"):
+		return String(o.get_meta("co_uid"))
+	var uid := "%x%04x" % [Time.get_ticks_usec(), randi() % 65536]
+	o.set_meta("co_uid", uid)
+	return uid
+
+
+## The object the other editor means: by its session id when we've seen it before, else the object of that kind
+## nearest to where it was when they changed it (both copies of the map start out the same).
+func _co_find(kind: String, uid: String, at: Vector3) -> Node3D:
+	var root := _co_root(kind)
+	if root == null:
+		return null
+	if uid != "":
+		for o in root.get_children():
+			if o.has_meta("co_uid") and String(o.get_meta("co_uid")) == uid:
+				return o
+	var best: Node3D = null
+	var best_d := 1.0
+	for o in root.get_children():
+		var d: float = (o as Node3D).center().distance_to(at)
+		if d < best_d:
+			best_d = d
+			best = o
+	if best != null and uid != "":
+		best.set_meta("co_uid", uid)
+	return best
+
+
+## Hand the other editors what changed here since the last tick. Each object goes as its whole plain-data state,
+## so one path covers a dragged ramp point, a moved block and a changed property. Four a tick at most, so a big
+## paste or a long drag can't flood the relay.
+func _co_send_edits() -> void:
+	var sent := 0
+	for o in _co_queue.keys():
+		if sent >= 4:
+			break
+		_co_queue.erase(o)
+		if not is_instance_valid(o):
+			continue
+		var d := _with_group(o)
+		if JSON.stringify(d).length() > 200000:          # (a whole cube object can be huge; its file is the way)
+			var what := String(o.call("label")) if o.has_method("label") else "That object"
+			_set_status("%s is too big to send live: copy it to the other MALLET by hand." % what)
+			continue
+		var uid := _co_uid(o)
+		var at: Vector3 = _co_last.get(uid, o.center())
+		_co_seq += 1
+		relay.send({"t": "edit", "seq": _co_seq, "op": {"kind": _co_kind(o), "uid": uid,
+			"at": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)], "obj": d}})
+		_co_last[uid] = o.center()
+		sent += 1
+
+
+## Someone else changed an object: put our copy in the same state. No checkpoint, so this never lands in our
+## undo history, and nothing is sent back out (they already have it).
+func _co_apply(m: Dictionary) -> void:
+	if not (session_role in ["maker", "editor"]):
+		return
+	var op = m.get("op")
+	if not op is Dictionary:
+		return
+	var d = op.get("obj")
+	if not d is Dictionary:
+		return
+	var kind := String(op.get("kind", ""))
+	var uid := String(op.get("uid", ""))
+	var o := _co_find(kind, uid, _co_vec3(op.get("at", [])))
+	if o == null:
+		_set_status("%s changed something this copy doesn't have yet (new objects don't sync)." % String(m.get("name", "A co-editor")))
+		return
+	_co_mute = true
+	if uid != "" and not o.has_meta("co_uid"):
+		o.set_meta("co_uid", uid)
+	o.from_dict(d)
+	_take_group(o, d)
+	if String(d.get("group", "")) == "" and o.has_meta("group"):
+		o.remove_meta("group")
+	if o.has_method("rebuild"):
+		o.rebuild()
+	if o == selected:
+		_refresh_props()
+	_map_changed()
+	_co_mute = false
+	_co_queue.erase(o)
+	var oid := _co_uid(o)
+	_co_last[oid] = o.center()
+	_set_status("%s: %s" % [String(m.get("name", "A co-editor")), String(o.call("label")) if o.has_method("label") else kind])
 
 
 static func _co_vec3(a) -> Vector3:
