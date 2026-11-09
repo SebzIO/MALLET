@@ -173,6 +173,13 @@ var _co_state_of := 0
 var _co_state_next := -1               ## -1 while no map is arriving
 var _co_state_text := ""
 var _co_state_dialog: ConfirmationDialog = null
+var _relay_url := ""                   ## where we joined from, and how: kept so a dropped connection gets back in
+var _relay_code := ""
+var _relay_secret := ""
+var _relay_name := ""
+var _reconnect_at := 0                 ## msec of the next try (0 = not trying)
+var _reconnect_wait := 1000
+var _rejoining := false                ## this connection is a reconnect, not a first join
 var _playtest_panel: PlaytestPanel
 var _playtest_dialog: ConfirmationDialog
 var _playtest_inputs := {}
@@ -1756,7 +1763,8 @@ func _snapshot() -> Dictionary:
 
 func _restore(s: Dictionary) -> void:
 	_map_changed()
-	_co_mute = true                                 # (undo is ours alone: it doesn't rewrite their copy)
+	var before := _co_step_before()                 # (what every object was, so the others can follow the step)
+	_co_mute = true
 	_load_dict(s["map"])
 	var objs := _all_objects()
 	var sel: int = s["sel"]
@@ -1764,7 +1772,88 @@ func _restore(s: Dictionary) -> void:
 		_select(objs[sel], s["pt"])
 	_co_mute = false
 	_co_queue.clear()
-	_co_seed()                                      # (undo is local: the other side keeps its own objects)
+	if before.is_empty():
+		_co_seed()
+		return
+	_co_step_after(before)
+
+
+## Every object as it is right now, for an undo or redo to compare its result against. Empty when nobody else is
+## in the session.
+func _co_step_before() -> Array:
+	if relay == null or not relay.is_open() or not (session_role in ["maker", "editor"]):
+		return []
+	var out := []
+	for o in _all_objects():
+		if is_instance_valid(o):
+			out.append({"uid": _co_uid(o), "kind": _co_kind(o), "at": o.center(),
+				"state": JSON.stringify(_with_group(o))})
+	return out
+
+
+## Undo and redo rebuild the whole map, which leaves the others behind. This finds each object it re-made, gives
+## it back the name the others know it by, and queues what the step changed: the edits, additions and deletions
+## go out the usual way, so a step back here is a step back there.
+func _co_step_after(before: Array) -> void:
+	var used := []
+	used.resize(before.size())
+	used.fill(false)
+	var here := []
+	for o in _all_objects():
+		if is_instance_valid(o):
+			here.append(o)
+	var matched := []
+	matched.resize(here.size())
+	matched.fill(-1)
+	for i in here.size():                                   # (exactly as it was: nothing to say about it)
+		var kind := _co_kind(here[i])
+		var state := JSON.stringify(_with_group(here[i]))
+		for j in before.size():
+			if not used[j] and String(before[j]["kind"]) == kind and String(before[j]["state"]) == state:
+				used[j] = true
+				matched[i] = j
+				break
+	for kind in ["ramp", "entity", "prop", "block", "text", "light", "particle", "cube"]:
+		var mine := []                                       # (the step changed these rather than adding them)
+		for i in here.size():
+			if matched[i] < 0 and _co_kind(here[i]) == kind:
+				mine.append(i)
+		var theirs := []
+		for j in before.size():
+			if not used[j] and String(before[j]["kind"]) == kind:
+				theirs.append(j)
+		if mine.size() != theirs.size():                     # (a different count: some really were added or removed)
+			continue
+		for i in mine:
+			var pick := -1
+			var best := INF
+			for j in theirs:
+				var d: float = (before[j]["at"] as Vector3).distance_to(here[i].center())
+				if d < best:
+					best = d
+					pick = j
+			if pick < 0:
+				continue
+			theirs.erase(pick)
+			used[pick] = true
+			matched[i] = pick
+	var changed := []
+	var made := []
+	for i in here.size():
+		if matched[i] >= 0:
+			here[i].set_meta("co_uid", String(before[matched[i]]["uid"]))
+			if String(before[matched[i]]["state"]) != JSON.stringify(_with_group(here[i])):
+				changed.append(here[i])
+		else:
+			made.append(here[i])
+	_co_seed()                                               # (everything is known again, under those names)
+	for o in changed:
+		_co_queue[o] = true
+	for o in made:
+		_co_new_now[o] = true
+	for j in before.size():
+		if not used[j]:
+			_co_dels.append([String(before[j]["kind"]), String(before[j]["uid"])])
 
 
 func undo() -> void:
@@ -3679,6 +3768,7 @@ func _move_handle_point(e: Node3D) -> Vector3:
 
 func _process(delta: float) -> void:
 	_poll_css()
+	_tick_relay()
 	if _blocks_dirty:
 		_rebuild_blocks()
 	_refresh_position()
@@ -5342,11 +5432,15 @@ func start_playtest(url: String, code: String, secret: String, who: String, as_e
 	Settings.set_value("player_name", who)
 	_leave_playtest()
 	session_role = role
+	_relay_url = url                                  # (kept, so a dropped connection can get back in)
+	_relay_name = who
+	_relay_code = code
+	_relay_secret = secret
 	relay = Relay.new()
 	add_child(relay)
 	relay.opened.connect(_playtest_opened)
-	relay.failed.connect(_playtest_problem)
-	relay.closed.connect(func(_c, _r): _playtest_problem("closed", "The relay connection ended. Testers' runs are still saved on their side."))
+	relay.failed.connect(_playtest_failed)
+	relay.closed.connect(_playtest_lost)
 	relay.message.connect(_playtest_message)
 	relay.connect_to(url, {"t": "hello", "v": 1, "role": role, "session": code,
 		"secret": secret if code != "" else "", "name": who if who != "" else ("Co-editor" if as_editor else "Maker"),
@@ -5364,6 +5458,21 @@ func _playtest_opened(_welcome: Dictionary) -> void:
 	_refresh_playtest()
 	_sync_view_menu()
 	_co_seed()                                      # (everything already in the map is on both sides)
+	_relay_code = relay.session                      # (a maker only learns its own code here)
+	_relay_url = relay.url
+	if relay.secret != "":
+		_relay_secret = relay.secret
+	_reconnect_at = 0
+	_reconnect_wait = 1000
+	var rejoining := _rejoining
+	_rejoining = false
+	if rejoining:
+		if session_role == "editor":
+			_co_request_state(true)                 # (their copy may have moved on while we were away)
+		else:
+			relay.send({"t": "collect"})            # (runs filed while the editor was away)
+			_set_status("Back in session %s." % relay.session)
+		return
 	if session_role == "editor":
 		if has_unsaved_changes():
 			_co_ask_for_their_map()                 # (their map replaces ours: ask before unsaved work is lost)
@@ -5375,6 +5484,61 @@ func _playtest_opened(_welcome: Dictionary) -> void:
 	_show_message("Playtest session", ("Session code: %s\n\nTest builds made now (Export > Test build for testers…) send their runs here while they play.\n"
 		+ "The panel (Export > Playtest panel) shows who is on and how they are doing.\n"
 		+ "To co-edit, another MALLET joins with this code and secret and \"Join as a co-editor\" ticked.") % relay.session)
+
+
+## The relay turned us away. While reconnecting that is usually the relay restarting, so try again; a wrong secret
+## or a session that is gone means trying again is pointless.
+func _playtest_failed(code: String, msg: String) -> void:
+	if _rejoining and not (code in ["bad_secret", "unknown_session"]):
+		_co_waiting_state = false
+		_reconnect_at = Time.get_ticks_msec() + _reconnect_wait
+		_set_status("Still trying to get back into session %s..." % _relay_code)
+		return
+	_rejoining = false
+	_reconnect_at = 0
+	_playtest_problem(code, msg)
+
+
+## The connection ended. Keep trying to get back in, waiting a little longer after every try, so a blip in the
+## network or a relay restart doesn't end the session.
+func _playtest_lost(_code: int, _reason: String) -> void:
+	if relay != null and relay.is_open():
+		relay.close()                                # (nothing more is heard on a connection that ended)
+	if _relay_code == "" or not (session_role in ["maker", "editor"]):
+		_playtest_problem("closed", "The relay connection ended. Testers' runs are still saved on their side.")
+		return
+	_co_waiting_state = false
+	_reconnect_at = Time.get_ticks_msec() + _reconnect_wait
+	_reconnect_wait = mini(_reconnect_wait * 2, 30000)
+	_set_status("The relay connection ended: getting back into session %s..." % _relay_code)
+	_refresh_playtest()
+
+
+func _tick_relay() -> void:
+	if _reconnect_at > 0 and Time.get_ticks_msec() >= _reconnect_at:
+		_reconnect_at = 0
+		_reconnect()
+
+
+## Join the session we were in again, with the same code and secret: the relay hands us back to the same session.
+func _reconnect() -> void:
+	if _relay_code == "" or _relay_url == "" or not (session_role in ["maker", "editor"]):
+		return
+	_rejoining = true
+	if relay != null:
+		relay.close()
+		relay.queue_free()
+		relay = null
+	relay = Relay.new()
+	add_child(relay)
+	relay.opened.connect(_playtest_opened)
+	relay.failed.connect(_playtest_failed)
+	relay.closed.connect(_playtest_lost)
+	relay.message.connect(_playtest_message)
+	relay.connect_to(_relay_url, {"t": "hello", "v": 1, "role": session_role, "session": _relay_code,
+		"secret": _relay_secret, "name": _relay_name if _relay_name != "" else "MALLET",
+		"map": _map_name(), "map_version": test_version, "client": MalletVersion.full()})
+	_set_status("Reconnecting to session %s..." % _relay_code)
 
 
 func _playtest_problem(code: String, msg: String) -> void:
@@ -5403,6 +5567,9 @@ func _playtest_message(m: Dictionary) -> void:
 			_refresh_playtest()
 		"peer_join":
 			_refresh_playtest()
+			var who_joined = m.get("peer", {})
+			if session_role == "editor" and who_joined is Dictionary and String((who_joined as Dictionary).get("role", "")) == "maker":
+				_co_request_state(true)                 # (the map's owner is back: catch up on what changed)
 		"peer_leave":
 			var gone := String(m.get("id", ""))
 			live_peers.erase(gone)
@@ -5436,6 +5603,11 @@ func _playtest_message(m: Dictionary) -> void:
 func _add_live_attempt(who: String, attempt, version: int) -> void:
 	if not attempt is Dictionary:
 		return
+	for x in tester_runs:                           # (the same run arrives live and again from collect, and an older
+		if x is Dictionary and String(x.get("tester", "")) == who:   # relay may not say which build it is)
+			for seen in (x.get("attempts", []) as Array):
+				if seen is Dictionary and _attempt_key(seen) == _attempt_key(attempt):
+					return
 	var s: Dictionary = {}
 	for x in tester_runs:
 		if x is Dictionary and String(x.get("tester", "")) == who and int(x.get("map_version", 0)) == version:
@@ -5489,6 +5661,11 @@ func _leave_playtest() -> void:
 	_co_new_now.clear()
 	_co_dels.clear()
 	_co_waiting_state = false
+	_relay_code = ""
+	_relay_secret = ""
+	_reconnect_at = 0
+	_reconnect_wait = 1000
+	_rejoining = false
 	_co_state_next = -1
 	_co_state_text = ""
 	session_role = ""
@@ -5722,7 +5899,7 @@ func _co_send_state(to: String) -> void:
 
 
 ## Ask the session's owner for the map it has now, and say what that does to the map we have open.
-func _co_request_state() -> void:
+func _co_request_state(quiet := false) -> void:
 	if relay == null or not relay.is_open():
 		return
 	_co_waiting_state = true
@@ -5732,6 +5909,8 @@ func _co_request_state() -> void:
 	_co_state_text = ""
 	_set_status("Co-editing session %s: waiting for its map." % relay.session)
 	relay.send({"t": "state_please"})
+	if quiet:
+		return
 	_show_message("Co-editing session", ("You're in session %s as a co-editor. Its map is loading here so both copies match: the map you had open is replaced, and the file on disk is left alone.\n\n"
 		+ "You see where the others are looking and what they have selected, in their own color. View > Co-editors hides it.\n"
 		+ "Your camera and selection go out to them the same way.") % relay.session)
@@ -5781,6 +5960,11 @@ func _co_state_chunk(m: Dictionary) -> void:
 	var text := _co_state_text
 	_co_state_next = -1
 	_co_state_text = ""
+	if text == JSON.stringify(_map_dict()):              # (nothing moved: no need to rebuild anything)
+		_co_waiting_state = false
+		_co_seed()
+		_set_status("Session %s: this copy already matches." % relay.session)
+		return
 	_co_apply_state(text, String(m.get("name", "")))
 
 
@@ -5824,7 +6008,35 @@ func _co_apply(m: Dictionary) -> void:
 	match String(op.get("act", "edit")):
 		"add": _co_add(op, who)
 		"del": _co_del(op, who)
+		"folders": _co_folders(op)
 		_: _co_edit(op, who)
+
+
+## One object changed without the selection being involved: a rename in the outliner, hidden, filed in a folder.
+func _co_touch(o: Node3D) -> void:
+	if _co_mute or relay == null or not relay.is_open() or not (session_role in ["maker", "editor"]):
+		return
+	if is_instance_valid(o):
+		_co_queue[o] = true
+
+
+## The outliner's folders changed (one renamed or made): small enough to send as they are.
+func _co_send_folders() -> void:
+	if _co_mute or relay == null or not relay.is_open() or not (session_role in ["maker", "editor"]):
+		return
+	_co_seq += 1
+	relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "folders", "folders": outliner.folders}})
+
+
+func _co_folders(op: Dictionary) -> void:
+	var f = op.get("folders")
+	if not f is Array:
+		return
+	_co_mute = true
+	outliner.folders = (f as Array).duplicate(true)
+	outliner.refresh.call_deferred(true)
+	_map_changed()
+	_co_mute = false
 
 
 ## They made an object: build our own copy of it here.

@@ -316,7 +316,9 @@ async def on_message(p, msg):
         if len(s["runs"]) > MAX_RUNS:
             s["runs"] = s["runs"][-MAX_RUNS:]
         persist("runs", {"session": p.session, "run": run})
-        await broadcast(p.session, {"t": "attempt", "id": p.id, "name": p.name, "attempt": a}, skip=p)
+        # (map_version too: a run that arrives live and again from collect must file under the same build)
+        await broadcast(p.session, {"t": "attempt", "id": p.id, "name": p.name, "map_version": p.map_version,
+                                    "attempt": a}, skip=p)
 
     elif t == "collect":
         if p.role == "maker":

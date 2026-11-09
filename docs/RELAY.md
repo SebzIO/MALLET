@@ -70,7 +70,7 @@ exact dictionary `PlayMode.attempt_ended` already produces in 0.15, so the edito
 ```json
 {"t": "live", "id": "a1b2c3d4", "name": "Sam", "attempt": 2, "p": [128.5, 96.0, -32.25],
  "speed": 683, "stage": 2, "state": "run"}
-{"t": "attempt", "id": "a1b2c3d4", "name": "Sam", "attempt": {…}}
+{"t": "attempt", "id": "a1b2c3d4", "name": "Sam", "map_version": 3, "attempt": {…}}
 {"t": "peer_join", "peer": {"id": "a1b2c3d4", "name": "Sam", "role": "tester", "map_version": 3}}
 {"t": "peer_leave", "id": "a1b2c3d4"}
 {"t": "runs", "runs": [{"tester": "Sam", "map_version": 3, "attempt": {…}, "at": 1762600000.0}]}
@@ -123,6 +123,23 @@ of at most 400 KB (a map with cube builds is well past 4 MB), `part` counting fr
 The joiner puts the pieces back together in order and loads the result when the last one arrives, so an editor
 that joins after work started starts from the same map from its first tick. An editor with unsaved changes is
 asked first: taking the session's map replaces the map it has open, though the file on disk is left alone.
+
+### Undo, redo and the outliner
+
+An undo or redo rebuilds the whole map on the side that ran it, so it is sent as the difference it made: objects
+it changed go as `edit`, ones it brought back as `add`, ones it removed as `del`, all under the session names the
+others already know. The other MALLET ends up with the same map and never runs an undo of its own, so it cannot
+take back something one of its own edits did. Renaming an object, hiding it or filing it in a folder travels with
+the object (name, folder and hidden are part of its state); a folder made, renamed, moved or deleted goes as
+`{"t": "edit", "op": {"act": "folders", "folders": [...]}}`.
+
+### A dropped connection
+
+Both sides keep the code and secret they joined with, so a connection that ends is retried by MALLET itself (a
+second, two, four… up to thirty) and rejoins the same session. The map's owner asks the relay for the runs filed
+while it was away (`collect`); an editor asks for the map again (`state_please`), and an editor also does that
+when the maker reappears in the session, so anything changed in between arrives. Only a wrong secret or a session
+the relay has forgotten stops the retries.
 
 ## Limits and trust
 

@@ -116,6 +116,7 @@ func folder(id: String) -> Dictionary:
 func new_folder(name := "New folder", parent := "") -> String:
 	var id := "f%d" % Time.get_ticks_usec()
 	folders.append({"id": id, "name": name, "parent": parent, "open": true})
+	editor._co_send_folders()
 	refresh(true)
 	return id
 
@@ -141,6 +142,7 @@ func move_to_folder(objs: Array, id: String) -> void:
 			o.remove_meta("folder") if o.has_meta("folder") else null
 		else:
 			o.set_meta("folder", id)
+		editor._co_touch(o)
 	refresh(true)
 
 
@@ -168,10 +170,12 @@ func delete_folder(id: String) -> void:
 				o.remove_meta("folder")
 			else:
 				o.set_meta("folder", f["parent"])
+			editor._co_touch(o)
 	for g in folders:
 		if g["parent"] == id:
 			g["parent"] = f["parent"]
 	folders.erase(f)
+	editor._co_send_folders()
 	refresh(true)
 
 
@@ -182,6 +186,7 @@ func set_hidden(objs: Array, hidden: bool) -> void:
 			o.set_meta("hidden", true)
 		elif o.has_meta("hidden"):
 			o.remove_meta("hidden")
+		editor._co_touch(o)
 	refresh(true)
 
 
@@ -450,12 +455,14 @@ func rename(meta: Dictionary, new_name: String) -> void:
 		var f := folder(meta["folder"])
 		if not f.is_empty() and text != "":
 			f["name"] = text
+			editor._co_send_folders()
 	elif meta.has("object"):
-		var o: Node = meta["object"]
+		var o: Node3D = meta["object"]
 		if text == "":
 			o.remove_meta("name") if o.has_meta("name") else null
 		else:
 			o.set_meta("name", text)
+		editor._co_touch(o)                             # (a name is part of the object: the others rename theirs too)
 		editor._refresh_props()
 	refresh.call_deferred(true)
 
@@ -516,6 +523,7 @@ func _drop(at: Vector2, data) -> void:
 		elif meta.has("object"):
 			dest = String(meta["object"].get_meta("folder", ""))
 	editor._checkpoint()
+	var folders_moved := false
 	for m in data["outliner"]:
 		if m.has("object"):
 			if dest == "":
@@ -523,9 +531,13 @@ func _drop(at: Vector2, data) -> void:
 					m["object"].remove_meta("folder")
 			else:
 				m["object"].set_meta("folder", dest)
+			editor._co_touch(m["object"])
 		elif m.has("folder") and m["folder"] != dest and not _is_inside(dest, m["folder"]):
 			folder(m["folder"])["parent"] = dest
+			folders_moved = true
 	refresh(true)
+	if folders_moved:
+		editor._co_send_folders()
 
 
 ## Is folder `id` inside folder `outer` (or the same)?

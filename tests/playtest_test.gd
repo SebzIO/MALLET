@@ -208,6 +208,53 @@ func _run() -> void:
 	extra.free()
 	check("our own deletion goes out", await wait_for(func(): return _has_uid(co_edits, extra_uid, "del"), 4000))
 
+	# --- undo lands in both copies
+	co_edits.clear()
+	var u_ramp := RampNode.new()
+	ed.ramps_root.add_child(u_ramp)
+	u_ramp.points = PackedVector3Array([Vector3(0, 0, 200), Vector3(0, 0, 220)])
+	u_ramp.rebuild()
+	ed._select(u_ramp)
+	ed._map_changed()
+	check("a ramp we add goes out first", await wait_for(func(): return _has_act(co_edits, "add"), 4000))
+	var u_uid: String = ed._co_uid(u_ramp)
+	ed._checkpoint()
+	u_ramp.points = PackedVector3Array([Vector3(0, 0, 200), Vector3(0, 0, 260)])
+	u_ramp.rebuild()
+	ed._map_changed()
+	check("our change to it goes out", await wait_for(func(): return _has_uid(co_edits, u_uid, "edit"), 4000))
+	co_edits.clear()
+	ed.undo()
+	check("our undo goes out as the same object", await wait_for(func(): return _has_uid(co_edits, u_uid, "edit"), 4000))
+	var undone := {}
+	for m in co_edits:
+		var uop = m.get("op", {})
+		if uop is Dictionary and String(uop.get("uid", "")) == u_uid:
+			undone = uop.get("obj", {})
+	var undone_len := 0.0
+	if undone.get("points") is Array and (undone["points"] as Array).size() >= 2:
+		undone_len = float(((undone["points"] as Array)[1] as Array)[2])
+	check("and with the shape from before the change", undone_len > 0.0 and undone_len < 240.0, str(undone.get("points", "")))
+
+	# --- a rename in the outliner reaches them too
+	var r2 := RampNode.new()
+	ed.ramps_root.add_child(r2)
+	r2.points = PackedVector3Array([Vector3(0, 0, 300), Vector3(0, 0, 320)])
+	r2.rebuild()
+	ed._select(null)
+	ed._map_changed()
+	await wait_ms(400)
+	var r2_uid: String = ed._co_uid(r2)
+	co_edits.clear()
+	ed.outliner.rename({"object": r2}, "Their new name")
+	var named := await wait_for(func(): return not co_edits.is_empty(), 4000)
+	var name_sent := ""
+	for m in co_edits:
+		var nop = m.get("op", {})
+		if nop is Dictionary and String(nop.get("uid", "")) == r2_uid:
+			name_sent = String((nop.get("obj", {}) as Dictionary).get("name", ""))
+	check("a rename in the outliner goes out", named and name_sent == "Their new name", name_sent)
+
 	# --- an editor joining after work started asks for the session's map
 	co_states.clear()
 	co.send({"t": "state_please"})
@@ -225,9 +272,16 @@ func _run() -> void:
 
 	co.close()
 	check("leaving takes their cursor away", await wait_for(func(): return not ed.co_cursors.has(co.you), 3000))
-	ed._select(null)
-	ed.ramps_root.remove_child(ramp)
-	ramp.free()
+
+	# --- a dropped connection gets back into the same session
+	var code_now: String = ed.relay.session
+	ed._reconnect_wait = 200
+	ed._playtest_lost(1006, "test")
+	check("a dropped connection is retried", ed._reconnect_at > 0)
+	check("it comes back to the same session", await wait_for(func(): return ed.relay != null and ed.relay.is_open() and ed.relay.session == code_now, 9000))
+	check("and the retries stop once it is back", ed._reconnect_at == 0 and not ed._rejoining,
+		"%d / %s" % [ed._reconnect_at, str(ed._rejoining)])
+	ed._select(null)                                      # (the undo above rebuilt the map: `ramp` is that old node)
 
 	# --- and what a newcomer does with that map: load it whole, and send none of it back
 	var probe := RampNode.new()

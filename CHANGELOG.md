@@ -22,8 +22,16 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
   and gets it in pieces, so both copies match from the first tick instead of the joiner keeping whatever it had
   open. An editor with unsaved changes is asked first ("Load their map" / "Stay with mine"), and taking their map
   is not an undo step.
-- Not yet: undo (it undoes only in your copy), names/outliner edits, reconnecting after a lost connection, and a
-  whole cube object over 200 KB is left for you to copy over by hand.
+- **Undo and redo follow**: step back in one MALLET and the other copy steps back with it. Your undo goes out as
+  the change it made (that object in its earlier shape), never as an instruction to undo something of theirs, so
+  nobody's work disappears from under them.
+- **Renames, hidden and folders travel too**: a name typed in the outliner, an eye click, a drop into a folder or
+  a new or renamed folder reaches the other side.
+- **A dropped connection gets back in**: MALLET retries the session by itself (a second, two, four… up to thirty),
+  and rejoins the same one. The map's owner collects the testers' runs filed while it was away; an editor asks for
+  the map again, so whatever changed in between arrives with it.
+- Not yet: seeing where each other's mouse is in the 2D views and what they are doing (dragging, painting),
+  removing someone from a session, and a whole cube object over 200 KB is left for you to copy over by hand.
 
 ## 0.16.0 preview — 2026-11-09: Live playtesting
 
