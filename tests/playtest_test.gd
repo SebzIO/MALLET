@@ -154,6 +154,15 @@ func _run() -> void:
 		"session %s, secret %d chars" % [ed.relay.session, secret.length()])
 	ed._refresh_playtest()
 	check("the panel shows the invite", ed._playtest_panel._invite.visible and ed._playtest_panel._invite.text == invite)
+	var parsed_invite: Dictionary = ed.parse_invite(invite)
+	check("the invite parses back into the address, the code and the secret",
+		String(parsed_invite["url"]) == ed.relay.url and String(parsed_invite["code"]) == ed.relay.session
+		and String(parsed_invite["secret"]) == secret, String(parsed_invite["code"]))
+	var messy: Dictionary = ed.parse_invite("  here you go:\n MALLET co-editing - relay %s - session %s - secret %s\n" % [ed.relay.url, ed.relay.session, secret])
+	check("an invite with a greeting and line breaks parses too", String(messy["secret"]) == secret
+		and String(messy["code"]) == ed.relay.session, String(messy["code"]))
+	check("text that is not an invite parses to nothing", String(ed.parse_invite("hello")["code"]) == ""
+		and String(ed.parse_invite("")["secret"]) == "")
 
 	# --- a second MALLET joins as a co-editor
 	var co := Relay.new()

@@ -5400,6 +5400,14 @@ func _build_playtest_dialog() -> void:
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(560, 0)
 	box.add_child(l)
+	var prow := HBoxContainer.new()
+	box.add_child(prow)
+	var paste := Button.new()                               # nobody should have to retype a 32-character secret
+	paste.text = "Paste invite"
+	paste.focus_mode = Control.FOCUS_NONE
+	paste.tooltip_text = "Fill in the address, code and secret from the line the maker copied (their playtest panel > Copy invite)."
+	paste.pressed.connect(func(): _paste_invite())
+	prow.add_child(paste)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 10)
@@ -5433,11 +5441,19 @@ func _build_playtest_dialog() -> void:
 ## session as a co-editor (code and secret are the invite). False if the address isn't a relay, or the invite is
 ## incomplete.
 func start_playtest(url: String, code: String, secret: String, who: String, as_editor := false) -> bool:
+	if code.contains("session") and code.contains("secret"):     # (the whole invite pasted into the code field)
+		var inv := parse_invite(code)
+		if String(inv["code"]) != "":
+			code = String(inv["code"])
+			if String(inv["secret"]) != "":
+				secret = String(inv["secret"])
+			if String(inv["url"]) != "":
+				url = String(inv["url"])
 	if not (url.begins_with("ws://") or url.begins_with("wss://")):
 		_show_message("Playtest session", "The relay address must start with ws:// or wss:// (for example ws://127.0.0.1:8787/ws).")
 		return false
 	if as_editor and (code == "" or secret == ""):
-		_show_message("Co-editing session", "To join as a co-editor, type the session's code and secret. The maker sends both.")
+		_show_message("Co-editing session", "To join as a co-editor, paste the maker's invite (Paste invite) or type the session's code and secret.")
 		return false
 	var role := "editor" if as_editor else "maker"
 	Settings.set_value("relay_url", url)
@@ -5556,7 +5572,7 @@ func _reconnect() -> void:
 func _playtest_problem(code: String, msg: String) -> void:
 	var t := msg
 	if code == "bad_secret":
-		t = "That session's secret doesn't match."
+		t = "That session's secret doesn't match. Press Paste invite to take the whole line from the maker's playtest panel (Copy invite); the secret is 32 characters and must not be retyped."
 	elif code == "unknown_session":
 		t = "No playtest session with that code. Start a new one (leave the code empty)."
 	elif code == "session_full":
@@ -5685,6 +5701,40 @@ func _leave_playtest() -> void:
 	_co_env = ""
 	session_role = ""
 	_refresh_playtest()
+
+
+## An invite line, as _playtest_invite() writes it:
+## "MALLET co-editing - relay wss://relay.sebz.xyz/ws - session ABC123 - secret 9f3c...".
+## Returns {"url", "code", "secret"}; empty strings for whatever isn't in the text.
+func parse_invite(text: String) -> Dictionary:
+	var t := text.strip_edges().replace("\r", " ").replace("\n", " ").replace("\t", " ")
+	var out := {"url": "", "code": "", "secret": ""}
+	var mu := RegEx.create_from_string("(wss?://[^\\s]+)").search(t)
+	if mu != null:
+		out["url"] = mu.get_string(1).trim_suffix(",").trim_suffix(".")
+	var mc := RegEx.create_from_string("session\\s*[:=]?\\s*([A-Za-z0-9]{4,12})").search(t)
+	if mc != null:
+		out["code"] = mc.get_string(1).to_upper()
+	var ms := RegEx.create_from_string("secret\\s*[:=]?\\s*([A-Za-z0-9]{6,128})").search(t)
+	if ms != null:
+		out["secret"] = ms.get_string(1)
+	return out
+
+
+## Fill the dialog from the invite on the clipboard, so nothing has to be retyped.
+func _paste_invite() -> void:
+	var got := parse_invite(DisplayServer.clipboard_get())
+	if String(got["code"]) == "":
+		_set_status("No invite on the clipboard: on the maker's MALLET, Export > Playtest panel > Copy invite.")
+		return
+	if String(got["url"]) != "":
+		_playtest_inputs["address"].text = String(got["url"])
+	_playtest_inputs["code"].text = String(got["code"])
+	if String(got["secret"]) != "":
+		_playtest_inputs["secret"].text = String(got["secret"])
+		_playtest_inputs["co"].button_pressed = true
+		_playtest_inputs["secret"].tooltip_text = "Filled from the invite: %d characters." % String(got["secret"]).length()
+	_set_status("Invite filled in: session %s%s. Press Start / join." % [String(got["code"]), ", as a co-editor" if String(got["secret"]) != "" else ""])
 
 
 ## What to send someone so they can join: the relay, the code and the secret (only the owner has the secret).

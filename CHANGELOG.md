@@ -3,6 +3,13 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.17.2 preview — 2026-11-09: Joining with a pasted invite
+
+- **"Paste invite" in Export > Playtest session…**: fills in the relay address, the session code and the secret from
+  the line the maker's panel copied, so the 32-character secret is never retyped (a typo is refused with "that
+  session's secret doesn't match"). Pasting the whole line into the Session code field does the same.
+- The refusal now says what to do (copy the invite again, don't retype it) instead of only that it doesn't match.
+
 ## 0.17.1 preview — 2026-11-09: The invite, in one line
 
 - **Co-editing's invite is shown and copies as one line.** The playtest panel now displays the relay address, the
