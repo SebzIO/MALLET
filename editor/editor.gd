@@ -154,6 +154,8 @@ var test_version := 0                  ## how many test builds of this map were 
 var tester_runs: Array = []            ## imported tester sessions (Tester.read_runs), saved with the map
 var relay: Relay = null                ## the relay connection (a playtest session, or a test build's)
 var live_peers := {}                   ## tester id -> their last live message (where they are right now)
+var live_trails := {}                  ## tester id -> their last few live positions (the trail drawn in the views)
+var show_tester_paths := true          ## draw testers' finished routes and where they fell (View menu)
 var _playtest_panel: PlaytestPanel
 var _playtest_dialog: ConfirmationDialog
 var _playtest_inputs := {}
@@ -364,6 +366,7 @@ func _build_ui_main() -> void:
 		["Jump arcs: all ramps", KEY_NONE, func(): show_all_arcs = not show_all_arcs; _sync_view_menu(); _map_changed(), "arcs"],
 		["Direction arrows", KEY_NONE, func(): show_direction = not show_direction; _sync_view_menu(), "arrows"],
 		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"],
+		["Testers' paths", KEY_NONE, func(): show_tester_paths = not show_tester_paths; _sync_view_menu(), "paths"],
 		["Ground grid (3D view)", KEY_NONE, _toggle_ground_grid, "groundgrid"],
 		["Outliner (names, folders)", KEY_NONE, func(): _outliner_panel.visible = not _outliner_panel.visible; _sync_view_menu(), "outliner"]])
 	bar.add_child(VSeparator.new())
@@ -1922,6 +1925,92 @@ func _draw_ghost_path(cam: Camera3D, ov: Control) -> void:
 		ov.draw_string(font, at + Vector2(-40, -8), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.6, 0.9, 1.0))
 
 
+## A color per tester, the same in every view (and the same for their live dot and their finished routes).
+static func _tester_color(who: String) -> Color:
+	return Color.from_hsv(float(absi(who.hash()) % 997) / 997.0, 0.62, 1.0)
+
+
+static func _peer_pos(m: Dictionary) -> Vector3:
+	var p: Array = m.get("p", [])
+	return Vector3(p[0], p[1], p[2]) if p.size() >= 3 else Vector3.ZERO
+
+
+## Where every tester is right now: a fading trail of their last few positions, then a dot with their name, speed
+## and stage.
+func _draw_live_peers(cam: Camera3D, ov: Control) -> void:
+	var font := ov.get_theme_default_font()
+	for id in live_peers:
+		var m: Dictionary = live_peers[id]
+		var col := _tester_color(String(m.get("name", id)))
+		var trail: Array = live_trails.get(id, [])
+		var prev := Vector2.INF
+		for k in trail.size():
+			var p: Vector3 = trail[k] + Vector3(0, 0.9, 0)
+			if cam.is_position_behind(p):
+				prev = Vector2.INF
+				continue
+			var s := cam.unproject_position(p)
+			if prev != Vector2.INF:
+				ov.draw_line(prev, s, Color(col, lerpf(0.12, 0.8, float(k + 1) / maxf(trail.size(), 1.0))), 3.0)
+			prev = s
+		var head := _peer_pos(m) + Vector3(0, 0.9, 0)
+		if cam.is_position_behind(head):
+			continue
+		var at := cam.unproject_position(head)
+		ov.draw_circle(at, 7.0, Color(0, 0, 0, 0.6))
+		ov.draw_circle(at, 5.0, col)
+		ov.draw_arc(at, 9.0, 0.0, TAU, 24, col, 2.0)
+		var t := String(m.get("name", "?"))
+		if String(m.get("state", "run")) == "wait":
+			t += "  waiting"
+		else:
+			t += "  %d u/s" % int(m.get("speed", 0))
+		if int(m.get("stage", 0)) > 0:
+			t += "  ·  stage %d" % int(m.get("stage", 0))
+		ov.draw_string_outline(font, at + Vector2(13, -9), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.85))
+		ov.draw_string(font, at + Vector2(13, -9), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
+
+
+## Every tester run's path in that tester's color, with an × where they fell. Decimated: a long run is thousands of
+## samples and every view redraws this each frame.
+func _draw_tester_paths(cam: Camera3D, ov: Control) -> void:
+	for run in tester_runs:
+		if not run is Dictionary:
+			continue
+		var col := _tester_color(String(run.get("tester", "?")))
+		for a in (run.get("attempts", []) as Array):
+			if not a is Dictionary:
+				continue
+			var route: Array = a.get("route", [])
+			var step := maxi(1, route.size() / 400)
+			var prev := Vector2.INF
+			var i := 0
+			while i < route.size():
+				var r = route[i]
+				i += step
+				if not r is Array or (r as Array).size() < 3:
+					prev = Vector2.INF
+					continue
+				var p := Vector3(r[0], r[1], r[2]) + Vector3(0, 0.5, 0)
+				if cam.is_position_behind(p):
+					prev = Vector2.INF
+					continue
+				var s := cam.unproject_position(p)
+				if prev != Vector2.INF:
+					ov.draw_line(prev, s, Color(col, 0.75), 2.0)
+				prev = s
+			for d in (a.get("deaths", []) as Array):
+				if not d is Array or (d as Array).size() < 3:
+					continue
+				var p := Vector3(d[0], d[1], d[2])
+				if cam.is_position_behind(p):
+					continue
+				var s := cam.unproject_position(p)
+				for w in [Color(0, 0, 0, 0.8), Color(1.0, 0.35, 0.3)]:
+					ov.draw_line(s + Vector2(-5, -5), s + Vector2(5, 5), w, 2.0)
+					ov.draw_line(s + Vector2(-5, 5), s + Vector2(5, -5), w, 2.0)
+
+
 func _redraw_overlays() -> void:
 	for p in panes:
 		p.overlay.queue_redraw()
@@ -2099,7 +2188,7 @@ func _menu(bar: Container, title: String, items: Array) -> MenuButton:
 
 ## Tick the View and Add menus' check items to match the current settings.
 func _sync_view_menu() -> void:
-	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["draw", _draw_mode],
+	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["paths", show_tester_paths], ["draw", _draw_mode],
 			["groundgrid", _ground_grid != null and _ground_grid.visible],
 			["playtest", _playtest_panel != null and _playtest_panel.visible],
 			["outliner", _outliner_panel != null and _outliner_panel.visible]]:
@@ -3493,6 +3582,10 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 				ov.draw_line(cam.unproject_position(line[i - 1]), cam.unproject_position(line[i]), Color(1.0, 0.15, 0.1, 0.95), 3.0)
 	if show_ghost_path and not best_ghost.is_empty():
 		_draw_ghost_path(cam, ov)
+	if show_tester_paths and not tester_runs.is_empty():
+		_draw_tester_paths(cam, ov)
+	if not live_peers.is_empty():
+		_draw_live_peers(cam, ov)
 	if show_direction:
 		for r in ramps_root.get_children():
 			_draw_direction(cam, ov, r, r == selected)
@@ -5249,9 +5342,20 @@ func _playtest_problem(code: String, msg: String) -> void:
 func _playtest_message(m: Dictionary) -> void:
 	match String(m.get("t", "")):
 		"live":
-			live_peers[String(m.get("id", ""))] = m
+			var id := String(m.get("id", ""))
+			live_peers[id] = m
+			var trail: Array = live_trails.get(id, [])
+			trail.append(_peer_pos(m))
+			if trail.size() > 40:                           # 3-4 seconds at the 10 Hz test builds send
+				trail = trail.slice(trail.size() - 40)
+			live_trails[id] = trail
 			_refresh_playtest()
-		"peer_join", "peer_leave":
+		"peer_join":
+			_refresh_playtest()
+		"peer_leave":
+			var gone := String(m.get("id", ""))
+			live_peers.erase(gone)
+			live_trails.erase(gone)
 			_refresh_playtest()
 		"attempt":
 			_add_live_attempt(String(m.get("name", "?")), m.get("attempt", {}), int(m.get("map_version", 0)))
@@ -5312,6 +5416,7 @@ func _leave_playtest() -> void:
 		relay.queue_free()
 		relay = null
 	live_peers.clear()
+	live_trails.clear()
 	_refresh_playtest()
 
 

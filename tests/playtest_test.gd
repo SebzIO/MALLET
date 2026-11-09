@@ -79,13 +79,15 @@ func _run() -> void:
 	# --- where they are
 	tester.send({"t": "live", "attempt": 1, "p": [10, 20, 30], "speed": 640, "stage": 2, "state": "run"})
 	check("live positions arrive", await wait_for(func(): return not ed.live_peers.is_empty()))
+	check("their trail is kept for the views", not ed.live_trails.is_empty() and (ed.live_trails.values()[0] as Array).size() >= 1)
+	check("testers keep one color", ed._tester_color("Sam") == ed._tester_color("Sam"))
 	await process_frame
 	var where: String = row().get_text(1)
 	check("the panel shows where they are", where.contains("stage 2") and where.contains("640"), where)
 
 	# --- their runs
-	var attempt := {"outcome": "finish", "time": 12.5, "started": 1000.0, "splits": [[2, 5.0]], "deaths": [],
-		"route": [[0.0, 0.0, 0.0, 500]], "top_speed": 900, "finish_speed": 850}
+	var attempt := {"outcome": "finish", "time": 12.5, "started": 1000.0, "splits": [[2, 5.0]], "deaths": [[1, 2, 3]],
+		"route": [[0.0, 0.0, 0.0, 500], [4, 1, 2, 700], [9, 3, 5, 850]], "top_speed": 900, "finish_speed": 850}
 	tester.send({"t": "attempt", "attempt": attempt})
 	var kept := await wait_for(func(): return ed.tester_runs.size() == 1 and ed.tester_runs[0]["attempts"].size() == 1)
 	check("an attempt is kept with the map", kept)
@@ -102,6 +104,10 @@ func _run() -> void:
 	tester.send({"t": "live", "attempt": 1, "p": [11, 20, 30], "speed": 700, "stage": 3, "state": "run"})
 	var moved := await wait_for(func(): return row().get_text(1).contains("stage 3"), 3000)
 	check("the panel follows them", moved, row().get_text(1))
+	ed._redraw_overlays()
+	await process_frame
+	await process_frame
+	check("the views draw live testers and their paths", ed.live_trails.size() == 1 and ed.show_tester_paths)
 
 	# --- a test build made now carries the session
 	var dir: String = String(out) + "/build"
