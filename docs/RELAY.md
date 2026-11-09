@@ -101,9 +101,10 @@ them to its own undo history. `state` is the whole map for someone joining mid-s
 - Names are cut to 40 characters, numbers are clamped, strings are never used as paths or commands.
 - The relay keeps no map: it only holds runs until `collect`.
 
-## On the VPS (later, when the client side is done)
+## On the VPS
 
-Docker, behind Nginx Proxy Manager with a subdomain and TLS (`wss://relay.example`), container port 8787,
-`/data` as a volume so runs survive a restart. NPM needs **Websockets Support** switched on for the host, and
-`proxy_read_timeout` of at least 120 s since a tester can idle in the menu. The exact steps are in
-`relay/README.md`.
+`wss://relay.sebz.xyz/ws` is the public relay and MALLET's default address; `https://relay.sebz.xyz/health`
+answers `{"ok": true, "sessions": n}`. The relay runs as a Docker container published only on
+`127.0.0.1:8787`, behind Nginx Proxy Manager with a Let's Encrypt certificate and **Websockets Support** on (NPM
+then allows an hour of quiet, so a tester can sit in the pause menu). `/data` is the `mallet-relay-data` volume, so
+runs survive a restart. Exact commands and the NPM settings are in `relay/README.md`.

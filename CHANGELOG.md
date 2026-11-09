@@ -12,8 +12,11 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 - **Export > Playtest panel**: who is on right now, where they are (stage, speed), each tester's attempts, best
   time and finish speed, and the running summary. Their runs are kept with the map, like imported ones.
 - **In the 3D views**: every tester is a dot in their own color with a short fading trail, their name, speed and
-  stage; their finished runs are drawn as paths in that color with an × where they fell. View > Testers' paths
+  stage; their finished routes are drawn as paths in that color with an × where they fell. View > Testers' paths
   turns the runs off.
+- **The relay on the VPS**: `wss://relay.sebz.xyz/ws` is the default address in Settings, so a maker only types a
+  name. Deployment steps (Docker container behind Nginx Proxy Manager, websockets, `/data` volume) are in
+  relay/README.md.
 
 ## 0.15.0 preview — 2026-11-08: Playtest builds (offline)
 
