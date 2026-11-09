@@ -3,7 +3,7 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
-## 0.15.0 preview (in progress) — Playtest builds (offline)
+## 0.15.0 preview — 2026-11-08: Playtest builds (offline)
 
 - **Export > Test build for testers…**: makes a zip with MALLET (renamed "Play <map>.exe"), the map, only the
   materials it uses, a tester.cfg and a READ ME. Each build is stamped with the map's test version (1, 2, 3…).
