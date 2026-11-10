@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.2 preview - 2026-11-10: Round shapes are round
+
+- A cone and a cylinder were wrong twice over: their side planes sat at `r + r cos a + r sin a` instead of `r`, which
+  ballooned the shape and then clipped it against its own box, and the cells around it had their corners pulled
+  toward each cell's middle, so neighbors stopped sharing corners and the surface broke into scattered cubes.
+- Every shape is now built the same way as the ramp: full cubes inside, and where the surface crosses a cell, that
+  cell keeps the shape's own plane as its cut. A cone is a cone (262 cells at a 0.25 m detail), a cylinder is a
+  cylinder (484), and the sphere is faceted by planes that touch it. No corners are pulled anywhere, so there are no
+  gaps at cell boundaries.
+- The corner-trimming code this replaced is gone.
+
 ## 0.18.1 preview - 2026-11-10: A ramp with a flat face
 
 - A ramp is no longer a staircase of corner steps. Each cell carries the slope as its own **cut plane** - the exact

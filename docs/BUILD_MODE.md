@@ -128,9 +128,9 @@ is 1/8 of a grid square, the finest the octree's corners go.
 
 **Detail** is how many levels finer than the grid the surface may be cut. It is the octree's trade: cells wholly
 inside the shape stay big (a box is one cell where it fits) and only the cells the surface passes through are
-split, down to `detail` levels below the grid. Their corners outside the shape are pulled onto it one 1/8 step at a
-time and each result is checked with `is_valid_shape`; when the octree cannot cut a corner cleanly the cell is
-filled instead of leaving a hole. Stairs are laid out as exact boxes. A ramp is not built from corner steps at all:
+split, down to `detail` levels below the grid. Each of those keeps the shape's own plane as its cut - the exact form
+the octree already stores for a pushed face - so the face is the plane itself, not a staircase of corner steps, and
+neighboring cells always share their edges because no corner is ever pulled. Stairs are laid out as exact boxes. A ramp is not built from corner steps at all:
 each cell carries the slope as its own cut plane (the exact form the octree keeps for a pushed face), so the face is
 one flat plane that both exporters turn into a single slanted face. Spheres, cylinders and cones are round at the
 detail you choose.
