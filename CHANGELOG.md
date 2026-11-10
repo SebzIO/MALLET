@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.1 preview - 2026-11-10: A ramp with a flat face
+
+- A ramp is no longer a staircase of corner steps. Each cell carries the slope as its own **cut plane** - the exact
+  form the octree already keeps for a pushed face - so the whole face is one flat plane. A 16 x 8 m ramp on a 1 m
+  grid is 48 cells, and CS:S gets one slanted brush face instead of a stair of cubes.
+- The other shapes stop filling a whole cube where the surface only clips a cell: the cell becomes the biggest box
+  that is genuinely inside the shape, so a sphere, cone or pyramid has no 10-20 cm block sticking out of it.
+- The ramp test now checks the face itself: every cell the slope runs through must sit on the same plane.
+
 ## 0.18.0 preview - 2026-11-10: A geometry menu in build mode
 
 - **Geometry (F6)**: pick a shape - box, sphere, cylinder, cone, pyramid, triangular prism, rhomboid, stairs or

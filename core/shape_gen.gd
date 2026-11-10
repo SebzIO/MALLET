@@ -91,6 +91,8 @@ static func generate(id: String, vals: Dictionary, p: int, detail: int) -> Dicti
 	if String(spec["type"]) == "stairs":
 		for b in spec["boxes"]:
 			_emit_box(b, p, cells)
+	elif String(spec["type"]) == "ramp":
+		_cut_ramp(spec, p, cells)
 	else:
 		for x in nx:
 			for y in ny:
@@ -110,7 +112,8 @@ static func place(w: CubeWorld, cells: Array, offset: Vector3i, tex: String) -> 
 	for c in cells:
 		var o: Vector3i = (c[0] as Vector3i) + offset
 		var q: int = c[1]
-		w.set_cell(o, q, (c[2] as PackedByteArray).duplicate(), t.duplicate())
+		var cut: Array = (c[3] as Array).duplicate(true) if c.size() > 3 else []
+		w.set_cell(o, q, (c[2] as PackedByteArray).duplicate(), t.duplicate(), PackedByteArray(), cut)
 		n += 1
 	return n
 
@@ -314,23 +317,26 @@ static func _at(lo: Vector3, metres: float, co: Vector3i) -> Vector3:
 ## Corners for the cell with the ones outside the shape pulled in to it (one 1/8 step at a time, then pushed back
 ## along each axis as far as it can go while staying inside). Empty when the result would not be a convex cube.
 ## A ramp is one plane, so its cells are cut along Y only: every top corner is lowered to the slope, as far as the
-## 1/8 corner grid goes. A smooth slope, no cube poking above the plane, at any detail setting.
+## 1/8 corner grid goes. A cell that would end up thinner than one corner step is left out: the cell below it
+## already reaches that far, and keeping it one step tall is what made the first ramps look like terraces.
 static func _trim_ramp(s: Dictionary, o: Vector3i, q: int) -> PackedByteArray:
 	var size := CubeWorld.metres(q)
 	var step := size / 8.0
 	var base := float(o.y) * CubeWorld.TICK
 	var c := PackedByteArray()
 	c.resize(24)
+	var z0 := float(o.z) * CubeWorld.TICK
+	var above := (float(s["h"]) * (z0 + size) / float(s["l"]) - base) / step
+	if above <= 0.0:
+		return PackedByteArray()                     # (this cell is entirely above the slope)
+	var k1 := clampi(floori(above), 0, 8)
+	var k0 := clampi(floori((float(s["h"]) * z0 / float(s["l"]) - base) / step + 1e-6), 0, k1)
+	if k1 <= k0:
+		return PackedByteArray()                     # (thinner than one corner step: the cell below already fills it)
 	for n in 8:
-		var zc := 8 if n & 4 else 0
-		var z := float(o.z) * CubeWorld.TICK + float(zc) / 8.0 * size
-		var limit := float(s["h"]) * z / float(s["l"])
-		var y := 0
-		if n & 2:
-			y = clampi(floori((limit - base) / step + 1e-6), 0, 8)
 		c[n * 3] = 8 if n & 1 else 0
-		c[n * 3 + 1] = y
-		c[n * 3 + 2] = zc
+		c[n * 3 + 1] = (k1 if n & 4 else k0) if n & 2 else 0
+		c[n * 3 + 2] = 8 if n & 4 else 0
 	if CubeWorld.is_empty_shape(c) or not CubeWorld.is_valid_shape(c):
 		return PackedByteArray()
 	return c
@@ -375,6 +381,33 @@ static func _trim(s: Dictionary, o: Vector3i, q: int) -> PackedByteArray:
 	return c
 
 
+## A ramp is one plane, and every cell can carry that plane as its own cut (the exact form the octree already keeps
+## for pushed faces), so the slope is a truly flat face: cells wholly under it are full cubes, and the cells the
+## plane runs through are cubes cut along it. Both exporters read cuts, so the slope stays one brush face in CS:S
+## and one slanted face in SurfsUp.
+static func _cut_ramp(s: Dictionary, p: int, cells: Array) -> void:
+	var g := CubeWorld.size_of(p)
+	var size := CubeWorld.metres(p)
+	var sz: Vector3 = s["size"]
+	var nx := maxi(1, ceili(sz.x / size - 0.0001))
+	var ny := maxi(1, ceili(sz.y / size - 0.0001))
+	var nz := maxi(1, ceili(sz.z / size - 0.0001))
+	var m := 1000                                        # (thousandths of a meter: the plane stays exact as integers)
+	var l := roundi(float(s["l"]) * m)
+	var h := roundi(float(s["h"]) * m)
+	var n := Vector3i(0, l, -h)                          # y - (h/l) z <= 0, scaled: l y - h z <= 0
+	for x in nx:
+		for y in ny:
+			for z in nz:
+				var o := Vector3i(x * g, y * g, z * g)
+				var c := roundi((float(h) * float(o.z) - float(l) * float(o.y)) / size)
+				if 8 * l <= c:                           # (the whole cell is under the slope)
+					cells.append([o, p, CubeWorld.FULL.duplicate()])
+				elif -8 * h >= c:                        # (the whole cell is above it)
+					continue
+				else:
+					cells.append([o, p, CubeWorld.FULL.duplicate(), [[n, c, 3]]])
+
 ## Stairs are exact boxes, so they are laid out as aligned cells of their own size: no trimming, no gaps at a step.
 static func _emit_box(b: AABB, p: int, cells: Array) -> void:
 	var lo := Vector3i(roundi(b.position.x / CubeWorld.TICK), roundi(b.position.y / CubeWorld.TICK), roundi(b.position.z / CubeWorld.TICK))
@@ -405,10 +438,37 @@ static func _walk(s: Dictionary, o: Vector3i, q: int, q_min: int, cells: Array) 
 			_walk(s, o + Vector3i(i & 1, (i >> 1) & 1, (i >> 2) & 1) * cs, q - 1, q_min, cells)
 		return
 	var corners := _trim(s, o, q)
+	if corners.is_empty():
+		corners = _inset(s, o, q)                    # (a cell the surface only grazes: the biggest box inside it)
+	if corners.is_empty() and _any_inside(s, o, q):
+		corners = CubeWorld.FULL.duplicate()         # (a sliver thinner than the corner grid: fill it, no hole)
 	if not corners.is_empty():
 		cells.append([o, q, corners])
-	elif _any_inside(s, o, q):
-		cells.append([o, q, CubeWorld.FULL.duplicate()])   # (a corner the octree cannot cut: fill it rather than leave a hole)
+
+
+## The largest box the cell's 1/8 lattice allows that is wholly inside the shape, anywhere in the cell (the surface
+## may only clip a corner). Used where no corner of the cell can be pulled in: the cell becomes a smaller box that
+## is genuinely inside the shape instead of a full cube poking out of it. Empty when not even the smallest is.
+static func _inset(s: Dictionary, o: Vector3i, q: int) -> PackedByteArray:
+	var metres := CubeWorld.metres(q)
+	var lo := Vector3(o) * CubeWorld.TICK
+	for k in [4, 3, 2, 1]:
+		var span: int = 8 - 2 * int(k)
+		for ox in range(span + 1):
+			for oy in range(span + 1):
+				for oz in range(span + 1):
+					var c := PackedByteArray()
+					c.resize(24)
+					var inside := true
+					for n in 8:
+						c[n * 3] = ox + (2 * int(k) if n & 1 else 0)
+						c[n * 3 + 1] = oy + (2 * int(k) if n & 2 else 0)
+						c[n * 3 + 2] = oz + (2 * int(k) if n & 4 else 0)
+						if inside and not _inside(s, _at(lo, metres, Vector3i(c[n * 3], c[n * 3 + 1], c[n * 3 + 2]))):
+							inside = false
+					if inside and not CubeWorld.is_empty_shape(c) and CubeWorld.is_valid_shape(c):
+						return c
+	return PackedByteArray()
 
 
 static func _any_inside(s: Dictionary, o: Vector3i, q: int) -> bool:

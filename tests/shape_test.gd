@@ -66,26 +66,33 @@ func _run() -> void:
 		print("%-9s cells %5d  aligned %s  convex %s  in bounds %s  inside points %4d  holes %d  %s" % [
 			id, cells.size(), str(aligned), str(convex), str(in_bounds), samples, holes, err])
 
-	# a ramp must be a slope, not stairs: no corner may sit above its plane
+	# a ramp is one plane, carried by the cells themselves, so its face must be truly flat
 	var rres: Dictionary = ShapeGen.generate("ramp", ShapeGen.defaults("ramp"), 0, 1)
 	var rh := float(ShapeGen.defaults("ramp")["h"])
 	var rl := float(ShapeGen.defaults("ramp")["l"])
 	var flat := true
-	var slope := 0.0
+	var cut_cells := 0
 	for c in rres["cells"]:
+		if c.size() < 4:
+			continue
+		var cut: Array = c[3]
+		if cut.size() != 1:
+			flat = false
+			continue
 		var o: Vector3i = c[0]
 		var q: int = c[1]
-		var corners: PackedByteArray = c[2]
-		var g := CubeWorld.size_of(q)
-		for n in 8:
-			var y := float(corners[n * 3 + 1]) / 8.0 * CubeWorld.metres(q) + float(o.y) * CubeWorld.TICK
-			var z := float(corners[n * 3 + 2]) / 8.0 * CubeWorld.metres(q) + float(o.z) * CubeWorld.TICK
-			var plane := rh * z / rl
-			if y > plane + 0.13:
-				flat = false
-			slope = maxf(slope, y)
-	print("ramp: top flat under the plane %s  highest point %.2f m (expected %.2f)" % [str(flat), slope, rh])
-	ok = ok and flat and absf(slope - rh) < 0.3
+		var size := CubeWorld.metres(q)
+		var nrm: Vector3i = (cut[0] as Array)[0]
+		var off: int = (cut[0] as Array)[1]
+		var uz := 4.0
+		var uy := (float(off) - float(nrm.z) * uz) / float(nrm.y)
+		var wy := float(o.y) * CubeWorld.TICK + uy / 8.0 * size
+		var wz := float(o.z) * CubeWorld.TICK + uz / 8.0 * size
+		if absf(wy - rh * wz / rl) > 0.01:
+			flat = false
+		cut_cells += 1
+	print("ramp: one plane on every surface cell %s  cut cells %d of %d" % [str(flat), cut_cells, rres["cells"].size()])
+	ok = ok and flat and cut_cells > 0
 
 	# the menu itself: generate, place, one object, undoable
 	ed = load("res://editor/main.tscn").instantiate()
