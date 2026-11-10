@@ -70,7 +70,7 @@ static func defaults(id: String) -> Dictionary:
 
 ## Build the cells for a shape. `vals` are in grid units, `p` is the build mode grid power the shape is aligned to,
 ## `detail` how many levels finer than that the surface may be cut (0-4). Returns
-## {cells: [[Vector3i origin, int power, PackedByteArray corners], ...], size: Vector3 metres, count: int,
+## {cells: [[Vector3i origin, int power, PackedByteArray corners], ...], size: Vector3 meters, count: int,
 ##  finest: float, error: String} - `error` set means nothing to place, with the reason in plain words.
 static func generate(id: String, vals: Dictionary, p: int, detail: int) -> Dictionary:
 	var grid := CubeWorld.metres(p)
