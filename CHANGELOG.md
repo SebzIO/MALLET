@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.3 preview - 2026-11-10: A whole cone, not a quarter of one
+
+- The cone and the cylinder were only a quarter present: their planes stood the shape around `(r, 0, r)`, but the
+  cells are laid out from `(0, 0, 0)`, so only the `+x+z` quarter fell inside the box (the offset that looked wrong
+  was in fact compensating for that center). Both now fill their whole box: a radius 4, height 4 cone at 0.25 m
+  detail is 2,908 cells, and sampled points in all four quadrants land in a cube.
+- The sphere, the ramp and the flat-sided shapes are unchanged.
+
 ## 0.18.2 preview - 2026-11-10: Round shapes are round
 
 - A cone and a cylinder were wrong twice over: their side planes sat at `r + r cos a + r sin a` instead of `r`, which

@@ -161,7 +161,7 @@ static func _spec(id: String, vals: Dictionary, grid: float) -> Dictionary:
 			for i in sides:                                   # a many-sided prism: the octree's slanted faces
 				var a := TAU * float(i) / float(sides)
 				var n := Vector3(cos(a), (r / h) if id == "cone" else 0.0, sin(a))
-				planes.append([n, r])
+				planes.append([n, r + cos(a) * r + sin(a) * r])   # (the cone/cylinder stand on 0..2r: the axis is at (r, 0, r))
 			planes.append([Vector3.UP, h])
 			planes.append([Vector3.DOWN, 0.0])
 			return {"type": "planes", "size": Vector3(r * 2.0, h, r * 2.0), "planes": planes}
