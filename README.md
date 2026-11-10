@@ -31,6 +31,7 @@ Double-click `Run MALLET.cmd` (uses Godot 4.5.1), or open this folder as a proje
 | Camera | 3D: right-drag orbit · middle-drag pan · wheel zoom · right-drag + WASD/QE fly · ortho: right/middle-drag pan, wheel zoom |
 | Look & feel | Nothing selected → **Map** panel: sky preset (Clear day, Sunset, Overcast, Night, Aurora, Deep space) and every color, sun direction/height/color/brightness, stars, aurora, nebula, fog. Ramp panel → **Look**: plain color, glazed ceramic, brushed steel, dev grid, aurora (animated), nebula, neon edges, or your own image (PNG/JPG/WebP, size along the ramp in meters). Everything is embedded in the exported map. |
 | Jump checker | Select a ramp: arcs show where riders fly off its end at full speed (solid) and at 85% speed (dashed): **green** = lands on a ramp, platform, teleport or booster, **red** = falls to a kill zone or the kill floor. The ramp panel shows the exit speed and the outcome. Toolbar **Jump arcs: all ramps** shows every jump at once. Speed comes from the drop since the start/stage plate (from 400 u/s); arcs assume no air strafing. |
+| Geometry | Build mode **F6**: box, sphere, cylinder, cone, pyramid, triangular prism, rhomboid, stairs, ramp - sizes in grid units, a live preview, then a ghost you move with right-drag and build with Enter |
 | Export | **Export to SurfsUp**: writes `<name>.pck` into SurfsUp's Maps folder (auto-detected, remembered); in game press ~ and type `map <name>`. Restart SurfsUp before reloading a map you replaced. |
 | Keys | N ramp · R generate a ramp shape · L lock/unlock the selected point · Del delete point/object · Ctrl+D duplicate · F frame · G snap · Ctrl+Z/Y undo/redo · Ctrl+S save |
 
@@ -73,7 +74,8 @@ Maps save as `.mallet` (plain JSON, engine-neutral so other exporters can be add
 21. Required before 1.0 (planned, not started): playtest builds - Export > Test build makes a small download that
     drops testers onto the map, and their runs (routes, deaths, times) reach MALLET live through a relay
     server on the user's VPS, several testers at once (docs/PLAYTEST.md)
-22. Next: decided with you
+22. Geometry menu ✅ (0.18) nine shapes made of octree cubes, sizes in grid units, a detail control, a live preview and ghost placement
+23. Next: decided with you
 
 Prefabs live in `prefabs/` and are rebuilt by `godot --headless --path . -s res://tools/make_prefabs.gd`.
 

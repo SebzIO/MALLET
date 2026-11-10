@@ -41,7 +41,7 @@ const HELP := [
 	["Keypad 1-5  /  0", "blend painting modes  /  off;  8 / 9 brush size"],
 	["T", "commands: materials (water, lava, glass...), replace"],
 	["Tab", "place an entity;  1-4 + wheel: its settings"],
-	["N", "start a new cube object"],
+	["N", "start a new cube object"], ["F6", "geometry: sphere, ramp, stairs…"],
 	["M  5  6  7  8  L", "materials  HUD  snap  outlines  wireframe  fullbright"],
 	["F5  /  E or Esc", "save  /  back to the editor"], ["F1", "hide this"],
 ]
@@ -97,6 +97,7 @@ var _light_panel: PanelContainer             ## F4: the selected light's color, 
 var _light_fields := {}
 var _light_updating := false
 var _light_before := {}
+var shapes: ShapeMenu                        ## F6: the geometry menu (spheres, ramps, stairs...)
 var _ent_menu: PanelContainer                ## T: the entity menu (a tab per kind of thing, lights first)
 var _ent_body := VBoxContainer.new()
 var _ent_tabs: HBoxContainer
@@ -161,6 +162,7 @@ func _ready() -> void:
 	_menu.popup_hide.connect(_ui_closed)
 	_hud.add_child(_menu)
 	_build_entity_menu()
+	_build_shapes()
 	for c in [_help, _tex_panel, _ent_menu, _light_panel, _menu]:   # (under a CanvasLayer: give them the theme directly)
 		c.theme = UiTheme.shared()
 
@@ -202,6 +204,16 @@ func _build_help() -> void:
 			if i == 0:
 				l.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
 			grid.add_child(l)
+
+
+func _build_shapes() -> void:
+	shapes = ShapeMenu.new()
+	shapes.build(self)
+
+
+func _open_shapes() -> void:
+	if active:
+		shapes.open_panel()
 
 
 # ------------------------------------------------------------------------------------------------ start / stop
@@ -263,6 +275,8 @@ func _leave() -> void:
 	_hud.visible = false
 	_lines.visible = false
 	_tex_panel.visible = false
+	if shapes != null:
+		shapes.dismiss()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
@@ -288,6 +302,9 @@ static func _frame(m) -> Transform3D:
 
 # ------------------------------------------------------------------------------------------------ input
 func _input(event: InputEvent) -> void:
+	if shapes != null and shapes.handle_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if not active or _ui_open:
 		if _ui_open and event is InputEventKey and event.pressed:
 			var k: int = event.keycode
@@ -459,6 +476,7 @@ func _key(e: InputEventKey) -> void:
 		KEY_F2: _open_picker(func(id): _apply_texture(id))
 		KEY_F3: _open_tex_panel()
 		KEY_F4: _open_light_panel()
+		KEY_F6: _open_shapes()
 		KEY_F5:
 			if editor.current_path != "":
 				editor.save_map(editor.current_path)
@@ -1259,7 +1277,8 @@ func _show_menu() -> void:
 func _ui_closed() -> void:
 	if not active:
 		return
-	_ui_open = _tex_panel.visible or _light_panel.visible or (_ent_menu != null and _ent_menu.visible)
+	_ui_open = _tex_panel.visible or _light_panel.visible or (_ent_menu != null and _ent_menu.visible) \
+		or (shapes != null and shapes.is_open())
 	if not _ui_open:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -1793,6 +1812,8 @@ func _process(delta: float) -> void:
 		if move != Vector3.ZERO and _drag != "cut":
 			cam.global_position += move.normalized() * speed * (4.0 if Input.is_key_pressed(KEY_SHIFT) else 1.0) * delta
 	update_target()
+	if shapes != null:
+		shapes.tick(delta)
 	match _drag:
 		"select":
 			if not target.is_empty():
@@ -2087,6 +2108,8 @@ func _layout_hud() -> void:
 	_banner.position = Vector2(vp.x * 0.5 - _banner.size.x * 0.5, 18)
 	_tex_panel.position = Vector2(24, 24)
 	_light_panel.position = Vector2(24, 24)
+	if shapes != null:
+		shapes.layout(vp)
 
 
 func _draw() -> void:

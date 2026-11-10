@@ -118,3 +118,24 @@ block piece and a CS:S brush are, so build mode needs no translation layer:
   when it compiles.
 - **PVS, waypoints, newmap / mapenlarge:** Godot culls on its own, MALLET has no bots, and maps have no fixed size.
 - **The console:** its commands are keys and menus here (T and F3).
+
+## Geometry menu (0.18)
+
+**F6** opens a menu with nine shapes: box / rectangular prism, sphere, cylinder, cone, pyramid, triangular prism,
+rhomboid, stairs and ramp. Each has its own sliders and number boxes, and every size is in **grid units** - a width
+of 4 means four squares of the grid you are building on - so the shape lines up with what is already there. The step
+is 1/8 of a grid square, the finest the octree's corners go.
+
+**Detail** is how many levels finer than the grid the surface may be cut. It is the octree's trade: cells wholly
+inside the shape stay big (a box is one cell where it fits) and only the cells the surface passes through are
+split, down to `detail` levels below the grid. Their corners outside the shape are pulled onto it one 1/8 step at a
+time and each result is checked with `is_valid_shape`; when the octree cannot cut a corner cleanly the cell is
+filled instead of leaving a hole. Stairs are laid out as exact boxes; a ramp is cut along one axis only, so
+neighboring cells share their edges and the slope is smooth; spheres, cylinders and cones are round at the detail
+you choose.
+
+The preview shows the shape in 3D (drag to turn, wheel to zoom), its size in meters, the cube count and the finest
+cube used. **Place in map** closes the menu and shows the shape as a ghost in the world: it follows where you look,
+snapped to the grid, **right-drag moves it a cell at a time**, **Enter** builds it, **Esc** goes back to the menu.
+What lands is one cube object (one undo step) with your current texture, and it is the same geometry as cubes made
+by hand - push its faces, paint it, play it, export it.

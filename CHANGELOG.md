@@ -3,6 +3,22 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.0 preview - 2026-11-10: A geometry menu in build mode
+
+- **Geometry (F6)**: pick a shape - box, sphere, cylinder, cone, pyramid, triangular prism, rhomboid, stairs or
+  ramp - set its sizes in **grid units**, and place it. Every shape is made of octree cubes, so it stays fully
+  editable with the tools you already know (push faces, corners, heightmap, materials, copy/paste, export).
+- **Detail** says how many levels finer than the grid the surface may be cut. Cells wholly inside the shape stay
+  as big cubes; the ones the surface passes through are split, and the corners outside the shape are pulled onto
+  it. A ramp is a real slope and a sphere is round, without thousands of cubes in the middle.
+- The menu shows a **3D preview** you can turn (drag) and zoom (wheel), its size in meters, the cube count, and the
+  finest cube used.
+- **Place in map** turns it into a ghost: it follows where you look, snapped to the build grid, moves a cell at a
+  time with right-drag, and **Enter** builds it (**Esc** goes back to the menu). A placed shape is one cube object
+  and one undo step.
+- A shape that cannot be built says why instead (too many cubes, a zero size), and anything the octree cannot cut
+  cleanly is filled rather than left with a hole.
+
 ## 0.17.15 preview — 2026-11-09: A co-editor's view cone comes out of their eyes
 
 - Another editor's dot, facing arrow and field-of-view cone used to start at their feet, because their cursor
