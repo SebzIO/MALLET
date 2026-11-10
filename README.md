@@ -7,6 +7,11 @@ test your runs, and export straight to SurfsUp or Counter-Strike: Source.
 Maps are `.mallet` files (maps from SurfForge, `.sfmap`, still open). On its first start MALLET copies your
 SurfForge settings, own materials and prefabs across.
 
+## Download
+Tester builds are published as GitHub Releases: **github.com/SebzIO/MALLET/releases**. Unzip one and run
+`MALLET.exe` from the `MALLET` folder (keep `materials/` next to it). The repository is private for now; ask for an
+invite, or for a zip directly.
+
 ## Run
 Double-click `Run MALLET.cmd` (uses Godot 4.5.1), or open this folder as a project in Godot and press F5.
 
