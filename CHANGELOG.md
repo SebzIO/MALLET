@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.17 preview — 2026-11-11: No more being thrown down the ramp
+
+- Play mode: flicking away from a ramp mid-surf (a j-turn) could throw you down the ramp and end the run. The
+  movement code (SUCC) tilted your air strafe to follow the ramp's face, so a flick away from the ramp pointed down
+  the slope; if you were still moving up at that moment, one tick could take away all of your climb (9 m/s in one
+  tick at 10 m/s up a 60-degree ramp). Strafing into a ramp while falling did the opposite and canceled the fall. Air
+  strafing is now horizontal, as in Source and SurfsUp; a ramp only redirects your speed along its face. A flick now
+  costs nothing but gravity, and strafing into a ramp gives exactly what Source gives.
+- Straight surfing is unchanged (2,137 u/s after a 76 m drop; SurfsUp measured about 2,200), and the physics tick
+  rate makes no difference to it.
+- New test: surf_flick_test.
+
 ## 0.18.16 preview — 2026-11-11: Export button back
 
 - The Export to SurfsUp and Export to Counter-Strike: Source dialogs grew taller than the screen, so their Export

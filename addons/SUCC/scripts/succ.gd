@@ -458,17 +458,14 @@ func _air_accelerate(delta: float, wish_dir: Vector3) -> void:
 		return
 	wish_dir = wish_dir.normalized()
 
-	# move_and_slide strips a wish pointing into the ramp face straight back out, so
-	# sliding it along the surface first is what lets a surf ramp build speed.
-	var on_ramp: bool = floor_type == FloorType.RAMP and enable_surf
-	if on_ramp:
-		var along: Vector3 = wish_dir.slide(ground_normal)
-		if along.length() > 0.001:
-			wish_dir = along.normalized()
-
-	# Full 3D on a ramp: the aligned wish has a vertical component a flat dot misses.
-	var reference: Vector3 = velocity if on_ramp else Vector3(velocity.x, 0.0, velocity.z)
-	var speed_alignment: float = reference.dot(wish_dir)
+	# Source AirAccelerate, on a surf ramp too: the wish stays horizontal and is measured
+	# against horizontal speed; the ramp turns it into lift through ClipVelocity
+	# (_clip_velocity_to_contacts). MALLET change: SUCC slid the wish along the ramp
+	# face and measured it against the full 3D velocity, so a flick away from the
+	# ramp while still moving up pointed down the slope with the speed cap wide open
+	# (one tick took away 9 m/s of climb), and strafing into it while falling
+	# canceled the fall: a lift Source and SurfsUp don't have.
+	var speed_alignment: float = Vector3(velocity.x, 0.0, velocity.z).dot(wish_dir)
 	var max_accel: float = config.max_air_speed - speed_alignment
 	if max_accel <= 0.0:
 		return

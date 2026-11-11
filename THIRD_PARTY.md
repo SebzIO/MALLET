@@ -4,7 +4,8 @@
 - Author: Mark Arneman (creator of SurfsUp) — https://github.com/bearlikelion/SUCC
 - License: MIT (full text in `addons/SUCC/LICENSE`)
 - Used for: play mode. It is SurfsUp's own movement code (ported from the game), so surfing in MALLET
-  matches surfing in SurfsUp. Unmodified; the demo level was not included.
+  matches surfing in SurfsUp. One change (MALLET 0.18.17): air strafing on a surf ramp is Source's AirAccelerate
+  (horizontal), as in SurfsUp itself; see the comment in `_air_accelerate`. The demo level was not included.
 
 ## Material library (materials/)
 
