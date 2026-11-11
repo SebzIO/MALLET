@@ -6,8 +6,11 @@ next to Source's Hammer: that is the whole idea of this editor.
 1.0.0 is reached only when **every** milestone below is done **and the user says so**. Each milestone ships as its
 own preview (0.10.0, 0.11.0, …) with a tester zip; fixes in between are 0.x.y. Never 1.0.0 by default.
 
-Where we are: **0.17.14** (2026-11-09): every batch of the 0.17.4 testing list (A-G) is done, on top of co-editing, build mode's cubes and folding, the ramp creator, lights and particles. Build mode, cube objects, custom zones, SurfsUp + CS:S export all work and
-have been tested by the user and a friend.
+Where we are: **0.18.5** (2026-11-11): build mode's Geometry menu draws nine shapes out of octree cells, every
+surface is one cut plane and the preview is built off the main thread; 0.18.0-0.18.5 are published and 0.18.5 is
+installed in the live build folder. Under it sit every batch of the 0.17.4 testing list (A-F), co-editing, build
+mode's cubes and folding, the ramp creator, lights and particles. Build mode, cube objects, custom zones, SurfsUp +
+CS:S export all work and have been tested by the user and a friend.
 
 ---
 
@@ -99,6 +102,20 @@ Work on one map together, live. Uses the same relay on the user's VPS as live pl
 - [ ] The goal: working together feels seamless, as if both people were at the same computer.
 
 ## 0.18.0 → 1.0.0: Release candidate
+- [x] **Geometry menu** (0.18.0) and its fixes (0.18.1-0.18.5): nine shapes cut from octree cells, one flat cut face
+      per cell, whole cones and cylinders, sliders that keep up, a typed value that sticks, and a preview built on a
+      worker thread.
+- [ ] **Cubes become ramps** (next feature, not started): a **Make ramp from cubes** command that reads a selected cube
+      object's one slope plane back into a ramp - spine points along the slope, width to `style` half, `angle`,
+      `face_length`, `solid` + `base_depth`, `detail` - carries the riding surface's material into the ramp's look, and
+      is one undo step. A top that is not one plane (a hand-pushed staircase) is refused in plain words, with the
+      cubes kept. About a day; the block-to-cube path from 0.17.14 is the precedent.
+- [ ] **A ramp material per surface** (top / left / right / ends), so a converted ramp keeps its slope and side
+      textures instead of one look for everything. About a day. A third narrow trim material cannot survive: a ramp
+      has one material per surface group. Ramps already map u across the face and v in meters along, so nothing
+      stretches when one is bent or lengthened.
+- [ ] **A prefab that keeps its look**: store `look` in `.malletramp` files (they hold shape only today), then
+      optionally a "full ramp" prefab that also stores the path, so a favorite ramp comes back exactly as made.
 - [ ] 0.18.x fixes from testing 0.17.4: [ISSUES.md](ISSUES.md) holds the 17 items in seven batches. A (menus,
       buttons, the playtest panel) shipped in 0.17.5;      B shipped in 0.17.6-0.17.8 (U7, picking through a folded face, in 0.17.8). C shipped in 0.17.7 (a new map resets
       the session, map properties sync as they change, undo keeps other people's later work).      D: U9 (one Source
