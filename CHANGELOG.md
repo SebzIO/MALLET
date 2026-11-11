@@ -5,7 +5,7 @@ releases. 1.0 is the first release we call complete (the MVP). The version lives
 
 ## 0.18.11 preview — 2026-11-11: Template pictures in the installed program
 
-- The welcome screen's template pictures show in the installed MALLET. They only ever worked in the development
+- The welcome screen's template pictures show in the installed MALLET. They were only working in the development
   version: the screen read the raw PNG files, which an exported build doesn't have.
 
 ## 0.18.10 preview — 2026-11-11: Instant outlines
