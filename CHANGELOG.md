@@ -3,6 +3,21 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.4 preview - 2026-11-11: A geometry menu that keeps up, and numbers that stick
+
+- Dragging a slider used to stall the editor: every tick of the slider rebuilt the whole preview through a
+  `CubeWorld` and its render chunks, which cost over a second on a cone. The preview and the placing ghost are now
+  meshed straight from the generated cells - one surface, no textures, faces with a cell behind them dropped - and
+  rebuilds are coalesced to one per frame. While a value is still moving the shape is drawn at grid detail (cheap
+  enough to follow the slider); the exact detail follows 0.15 s after it stops. A 25-sided cone, radius 4, height 4:
+  1,150 ms per tick became 33 ms while dragging and 316 ms for the single exact pass at the end.
+- Generating a shape is quicker too: for cones, cylinders, prisms and pyramids, "is this cell wholly inside, wholly
+  outside, or cut" is now decided from the cell's middle and its reach along each plane instead of eight corners
+  against every side.
+- A typed value now stays: the number field was repainted with the old value the moment the new one was taken, so
+  width 6.5 looked ignored even though the shape had changed. Pressing Enter now shows the value that was taken
+  (clamped and rounded as it really is), and dragging a number field changes the shape, which it never did before.
+
 ## 0.18.3 preview - 2026-11-10: A whole cone, not a quarter of one
 
 - The cone and the cylinder were only a quarter present: their planes stood the shape around `(r, 0, r)`, but the

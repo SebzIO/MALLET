@@ -6,6 +6,8 @@ extends RefCounted
 ## What it builds is plain CubeWorld cells - the same cubes every other build mode tool edits.
 
 const ACCENT := Color(0.45, 0.72, 1.0)
+const SETTLE := 0.15                            ## how long a value has to hold still before the exact shape is built
+const LIVE_MS := 40.0                           ## an exact rebuild cheaper than this runs while a slider still moves
 
 var host                                        ## BuildMode (not typed: build mode and this refer to each other)
 var panel: PanelContainer
@@ -33,6 +35,14 @@ var _yaw := -35.0
 var _pitch := 22.0
 var _zoom := 1.0
 var _preview_drag := false
+
+var _mesh_inst: MeshInstance3D
+var _dirty := false                             ## a value changed and the shape has not caught up yet
+var _cheap := false                             ## what is on screen is the quick preview, not the exact shape
+var _quiet := 0.0                               ## seconds since the last change: the exact rebuild waits for it
+var _since := 0.0                               ## seconds since the last rebuild: paces the quick ones
+var _cost_ms := 0.0                             ## how long the last exact rebuild took
+var _cheap_ms := 0.0                            ## how long the last quick rebuild took
 
 var _placing := false
 var _ghost: Node3D
@@ -269,6 +279,7 @@ func _build_params() -> void:
 		row.add_child(num)
 		sl.value_changed.connect(func(v): _set_value(key, v, "slider"))
 		num.typed.connect(func(v): _set_value(key, v, "number"))
+		num.changed_by.connect(func(amount: float): _set_value(key, float(_values.get(key, p[2])) + amount, "drag"))
 		_params.add_child(row)
 		_rows[key] = {"slider": sl, "number": num, "def": p}
 
@@ -284,28 +295,48 @@ func _set_value(key: String, v: float, from: String) -> void:
 	_updating = true
 	if from != "slider":
 		(_rows[key]["slider"] as HSlider).value = value
-	if from != "number":
-		(_rows[key]["number"] as DragNumber).show_value(value)
+	# (always, so a typed value shows the clamped / rounded number it really took, never the old one)
+	(_rows[key]["number"] as DragNumber).show_value(value)
 	_updating = false
-	_regen()
+	_ask_regen()
 
 
 func _on_detail(v: float) -> void:
 	if _updating:
 		return
 	_detail_value = int(v)
-	_regen()
+	_ask_regen()
 
 
-func _regen() -> void:
-	var res: Dictionary = ShapeGen.generate(_shape, _values, host.grid_p, _detail_value)
+## A value moved: rebuild when the frame allows it, never in the middle of the slider's own signal, so dragging a
+## slider can't stack rebuilds up into a hitch.
+func _ask_regen() -> void:
+	_dirty = true
+	_quiet = 0.0
+
+
+## Build the shape. `cheap` is the moving preview: it skips the finer octree levels (a solid's shape is the same,
+## only its surface is blockier), which is many times quicker, so a slider stays smooth; the exact shape follows as
+## soon as the value holds still. Cheap passes leave the size / cube count text as the last exact pass left it.
+func _regen(cheap := false) -> void:
+	var t0 := Time.get_ticks_usec()
+	var res: Dictionary = ShapeGen.generate(_shape, _values, host.grid_p, 0 if cheap else _detail_value)
 	_cells = res["cells"]
-	_error = String(res.get("error", ""))
-	_cubes = int(res.get("count", 0))
 	_size = res.get("size", Vector3.ONE)
+	_error = String(res.get("error", ""))
+	_place.disabled = _error != "" or _cells.is_empty()
+	_cheap = cheap
+	_dirty = cheap
+	_since = 0.0
+	_rebuild_preview()
+	var spent := float(Time.get_ticks_usec() - t0) / 1000.0
+	if cheap:
+		_cheap_ms = spent
+		return
+	_cost_ms = spent
+	_cubes = int(res.get("count", 0))
 	var finest := float(res.get("finest", CubeWorld.metres(host.grid_p)))
 	_detail_lbl.text = "%.3f m" % finest
-	_place.disabled = _error != "" or _cells.is_empty()
 	if _error != "":
 		_info.text = _error
 		_info.add_theme_color_override("font_color", Color(1.0, 0.72, 0.35))
@@ -313,7 +344,6 @@ func _regen() -> void:
 		_info.text = "%.2f × %.2f × %.2f m   ·   %s cubes   ·   finest %.3f m   ·   built on the %s grid" % [
 			_size.x, _size.y, _size.z, _thousands(_cubes), finest, _metres_text(CubeWorld.metres(host.grid_p))]
 		_info.add_theme_color_override("font_color", UiTheme.TEXT)
-	_rebuild_preview()
 
 
 static func _thousands(n: int) -> String:
@@ -331,19 +361,12 @@ static func _metres_text(m: float) -> String:
 
 # ------------------------------------------------------------------------------------------------ 3D preview
 func _rebuild_preview() -> void:
-	for c in _mesh_root.get_children():
-		if c is MeshInstance3D:
-			_mesh_root.remove_child(c)
-			c.queue_free()
-	if _cells.is_empty():
-		return
-	var w := CubeWorld.new()
-	ShapeGen.place(w, _cells, Vector3i.ZERO, "")
-	for ck in w.render_chunks():
-		var got := w.chunk_mesh(ck)
-		var mi := MeshInstance3D.new()
-		mi.mesh = got[0]
-		_mesh_root.add_child(mi)
+	if _mesh_inst == null:
+		_mesh_inst = MeshInstance3D.new()
+		_mesh_inst.material_override = CubeWorld.material_for("")     # (the same look the chunk meshes gave)
+		_mesh_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_mesh_root.add_child(_mesh_inst)
+	_mesh_inst.mesh = null if _cells.is_empty() else ShapeGen.preview_mesh(_cells)[0]
 	_frame_preview()
 
 
@@ -379,6 +402,8 @@ func _on_preview_input(event: InputEvent) -> void:
 
 # ------------------------------------------------------------------------------------------------ placing
 func start_placing() -> void:
+	if _dirty or _cheap:
+		_regen(false)                                # (never place the quick preview: build the exact cells first)
 	if _error != "" or _cells.is_empty():
 		return
 	panel.visible = false
@@ -399,30 +424,32 @@ func _build_ghost() -> void:
 	_clear_ghost()
 	_ghost = Node3D.new()
 	host.add_child(_ghost)
-	var w := CubeWorld.new()
-	ShapeGen.place(w, _cells, Vector3i.ZERO, "")
+	var got := ShapeGen.preview_mesh(_cells)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = Color(ACCENT.r, ACCENT.g, ACCENT.b, 0.42)
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var line := StandardMaterial3D.new()
-	line.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	line.albedo_color = Color(0.85, 0.93, 1.0, 0.85)
-	for ck in w.render_chunks():
-		var got := w.chunk_mesh(ck, true)
-		var mi := MeshInstance3D.new()
-		mi.mesh = got[0]
-		mi.material_override = mat
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_ghost.add_child(mi)
-		var lo = got[2] if got.size() > 2 else null
-		if lo is ArrayMesh and (lo as ArrayMesh).get_surface_count() > 0:
-			var li := MeshInstance3D.new()
-			li.mesh = lo
-			li.material_override = line
-			li.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			_ghost.add_child(li)
+	var mi := MeshInstance3D.new()
+	mi.mesh = got[0]
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ghost.add_child(mi)
+	var edges: PackedVector3Array = got[1]
+	if not edges.is_empty():
+		var line := StandardMaterial3D.new()
+		line.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		line.albedo_color = Color(0.85, 0.93, 1.0, 0.85)
+		var lm := ArrayMesh.new()
+		var la := []
+		la.resize(Mesh.ARRAY_MAX)
+		la[Mesh.ARRAY_VERTEX] = edges
+		lm.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, la)
+		var li := MeshInstance3D.new()
+		li.mesh = lm
+		li.material_override = line
+		li.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_ghost.add_child(li)
 
 
 func _clear_ghost() -> void:
@@ -442,7 +469,14 @@ func _anchor() -> Vector3:
 	return base + Vector3(_move) * g
 
 
-func tick(_delta: float) -> void:
+func tick(delta: float) -> void:
+	if _dirty:
+		_quiet += delta
+		_since += delta
+		if _quiet >= SETTLE or _cost_ms <= LIVE_MS:
+			_regen(false)
+		elif _cheap_ms <= LIVE_MS or _since >= 0.12:
+			_regen(true)                             # (a cheap pass leaves _dirty set, so the exact one still comes)
 	if not _placing or _ghost == null or not is_instance_valid(_ghost):
 		return
 	_ghost.position = _anchor()

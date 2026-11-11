@@ -94,6 +94,48 @@ func _run() -> void:
 	print("ramp: one plane on every surface cell %s  cut cells %d of %d" % [str(flat), cut_cells, rres["cells"].size()])
 	ok = ok and flat and cut_cells > 0
 
+
+
+	# the preview mesh the menu draws (and the placing ghost uses): it has to wind exactly like the real cube meshes, or
+	# its faces are culled from the outside, and it may not be made of slivers
+	var bw := CubeWorld.new()
+	ShapeGen.place(bw, ShapeGen.generate("box", {"w": 1.0, "h": 1.0, "d": 1.0}, 0, 0)["cells"], Vector3i.ZERO, "")
+	var core_sign := 0.0
+	for ck in bw.render_chunks():
+		var cm: ArrayMesh = bw.chunk_mesh(ck)[0]
+		for si in cm.get_surface_count():
+			var ca: Array = cm.surface_get_arrays(si)
+			var cv: PackedVector3Array = ca[Mesh.ARRAY_VERTEX]
+			var cn: PackedVector3Array = ca[Mesh.ARRAY_NORMAL]
+			for i in range(0, cv.size(), 3):
+				var cf: Vector3 = (cv[i + 1] - cv[i]).cross(cv[i + 2] - cv[i])
+				if core_sign == 0.0 and cf.length() > 1e-9:
+					core_sign = signf(cf.dot(cn[i]))
+	var pv_tris := 0
+	var pv_wind := 0
+	var pv_degen := 0
+	var pv_bad := 0
+	for id in ["box", "cone", "cylinder", "pyramid", "prism", "rhomboid", "sphere", "ramp", "stairs"]:
+		var cres: Dictionary = ShapeGen.generate(id, ShapeGen.defaults(id), 0, 2)
+		var got: Array = ShapeGen.preview_mesh(cres["cells"])
+		var m: ArrayMesh = got[0]
+		if m.get_surface_count() != 1:
+			pv_bad += 1
+			continue
+		var arr: Array = m.surface_get_arrays(0)
+		var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var ns: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+		for i in range(0, vs.size(), 3):
+			pv_tris += 1
+			var fn: Vector3 = (vs[i + 1] - vs[i]).cross(vs[i + 2] - vs[i])
+			if fn.length() < 1e-9:
+				pv_degen += 1
+			elif core_sign == 0.0 or signf(fn.dot(ns[i])) != core_sign:
+				pv_wind += 1
+	print("preview mesh: %d triangles, %d wound unlike the cube mesh, %d degenerate (cube mesh winds %s)" % [
+		pv_tris, pv_wind, pv_degen, str(core_sign)])
+	ok = ok and pv_wind == 0 and pv_degen == 0 and pv_bad == 0 and pv_tris > 0
+
 	# the menu itself: generate, place, one object, undoable
 	ed = load("res://editor/main.tscn").instantiate()
 	root.add_child(ed)
@@ -101,6 +143,22 @@ func _run() -> void:
 	await process_frame
 	var before: int = ed.cube_models_root.get_child_count()
 	ed.build.shapes.open_panel()
+
+	# a typed number is taken on Enter, and the field shows the value it actually took
+	ed.build.shapes._on_shape_selected(0)                       # box
+	var wnum: DragNumber = ed.build.shapes._rows["w"]["number"]
+	wnum.editable = true
+	wnum.text = "6.5"
+	wnum.text_submitted.emit("6.5")
+	ed.build.shapes.tick(0.2)                                   # (flush the pending rebuild, as a frame would)
+	var took := float(ed.build.shapes._values["w"])
+	var shown: String = wnum.text
+	var shown_preview: bool = ed.build.shapes._mesh_inst != null and ed.build.shapes._mesh_inst.mesh != null
+	print("typed width 6.5: took %.3f  field shows '%s'  slider %.3f  preview %s" % [
+		took, shown, float(ed.build.shapes._rows["w"]["slider"].value), str(shown_preview)])
+	ok = ok and absf(took - 6.5) < 0.001 and shown == "6.50" and shown_preview
+	ok = ok and absf(float(ed.build.shapes._rows["w"]["slider"].value) - 6.5) < 0.001
+
 	ed.build.shapes._on_shape_selected(7)                       # stairs
 	ed.build.shapes._values = {"w": 4.0, "run": 1.0, "rise": 0.5, "steps": 5.0}
 	ed.build.shapes._build_params()

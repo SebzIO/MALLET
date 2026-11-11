@@ -118,6 +118,169 @@ static func place(w: CubeWorld, cells: Array, offset: Vector3i, tex: String) -> 
 	return n
 
 
+## A preview mesh for the Geometry menu and its placing ghost: one surface of triangles, no textures, built straight
+## from the cells, so it can follow a slider. Returns [ArrayMesh, PackedVector3Array of the surface's edges].
+## Only faces that face no cell of the same size are drawn (culling those keeps a solid's inside out of the picture),
+## and a cut cell's faces are clipped by its planes, so a ramp or a cone shows its real slanted surface.
+static func preview_mesh(cells: Array) -> Array:
+	var have := {}
+	var levels := {}
+	for c in cells:
+		var o: Vector3i = c[0]
+		have[Vector4i(o.x, o.y, o.z, int(c[1]))] = true
+		levels[int(c[1])] = true
+	var lv: Array = levels.keys()
+	lv.sort()
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var lines := PackedVector3Array()
+	for c in cells:
+		var o: Vector3i = c[0]
+		var q: int = c[1]
+		var step := CubeWorld.size_of(q)
+		var unit := CubeWorld.metres(q) / 8.0
+		var base := Vector3(o) * CubeWorld.TICK
+		var planes := _cut_planes_of(c)
+		for oi in 6:
+			var n: Vector3 = CubeWorld.orient_normal(oi)
+			var d := Vector3i(roundi(n.x), roundi(n.y), roundi(n.z))
+			if _covered_by(have, lv, o, q, d):
+				continue                                 # (a cell sits against this face: it is inside the shape)
+			var poly := PackedVector3Array()
+			for cn in CubeWorld.face_corners(oi):
+				poly.append(CubeWorld.corner(CubeWorld.FULL, cn))
+			for pl in planes:
+				poly = _clip_poly(poly, pl[0], float(pl[1]))
+				if poly.size() < 3:
+					break
+			_emit_face(poly, n, base, unit, verts, normals, lines)
+		for i in planes.size():
+			var poly := _plane_square(planes[i][0], float(planes[i][1]))
+			for wi in 6:
+				poly = _clip_poly(poly, CubeWorld.orient_normal(wi), 8.0 if wi & 1 else 0.0)
+				if poly.size() < 3:
+					break
+			for j in planes.size():
+				if j == i:
+					continue
+				poly = _clip_poly(poly, planes[j][0], float(planes[j][1]))
+				if poly.size() < 3:
+					break
+			_emit_face(poly, planes[i][0], base, unit, verts, normals, lines)
+	var m := ArrayMesh.new()
+	if not verts.is_empty():
+		var a := []
+		a.resize(Mesh.ARRAY_MAX)
+		a[Mesh.ARRAY_VERTEX] = verts
+		a[Mesh.ARRAY_NORMAL] = normals
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+	return [m, lines]
+
+
+## True when a cell of the same size or a bigger one sits against a face: that face is inside the shape.
+static func _covered_by(have: Dictionary, levels: Array, o: Vector3i, q: int, dir: Vector3i) -> bool:
+	var np := o + dir * CubeWorld.size_of(q)
+	if have.has(Vector4i(np.x, np.y, np.z, q)):
+		return true
+	for q2 in levels:
+		if q2 <= q:
+			continue
+		var s := CubeWorld.size_of(q2)
+		var b := Vector3i(floori(float(np.x) / s) * s, floori(float(np.y) / s) * s, floori(float(np.z) / s) * s)
+		if have.has(Vector4i(b.x, b.y, b.z, q2)):
+			return true
+	return false
+
+
+## A cell's cuts as planes in its own 0..8 units: [unit normal, offset], solid where normal . p <= offset.
+static func _cut_planes_of(c: Array) -> Array:
+	var out := []
+	if c.size() <= 3:
+		return out
+	for pl in c[3]:
+		var n := Vector3(pl[0])
+		var l := n.length()
+		if l < 1e-9:
+			continue
+		out.append([n / l, float(pl[1]) / l])
+	return out
+
+
+## A square on a plane, big enough to hold any cut face and then some (the cell's walls trim it).
+static func _plane_square(n: Vector3, off: float) -> PackedVector3Array:
+	var nn := n.normalized()
+	var u := nn.cross(Vector3.UP if absf(nn.y) < 0.9 else Vector3.RIGHT).normalized()
+	var v := nn.cross(u)
+	var c := nn * off
+	var r := 16.0
+	return PackedVector3Array([c + (u + v) * r, c + (-u + v) * r, c + (-u - v) * r, c + (u - v) * r])
+
+
+## Sutherland-Hodgman: the part of a polygon where normal . p <= offset.
+static func _clip_poly(poly: PackedVector3Array, n: Vector3, off: float) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var cnt := poly.size()
+	if cnt == 0:
+		return out
+	for i in cnt:
+		var a := poly[i]
+		var b := poly[(i + 1) % cnt]
+		var da := n.dot(a) - off
+		var db := n.dot(b) - off
+		if da <= 1e-6:
+			out.append(a)
+			if db > 1e-6:
+				out.append(a + (b - a) * (da / (da - db)))
+		elif db <= 1e-6:
+			out.append(a + (b - a) * (da / (da - db)))
+	return out
+
+
+## Add a polygon facing `want` as triangles (Godot winds front faces clockwise) and its edges as lines.
+static func _emit_face(poly: PackedVector3Array, want: Vector3, base: Vector3, unit: float,
+		verts: PackedVector3Array, normals: PackedVector3Array, lines: PackedVector3Array) -> void:
+	if poly.size() < 3:
+		return
+	var nrm := _poly_normal(poly)
+	if nrm.length() < 1e-9:
+		return
+	if nrm.dot(want) < 0.0:
+		poly.reverse()
+		nrm = -nrm
+	nrm = nrm.normalized()
+	var w := PackedVector3Array()
+	for p in poly:
+		var wp := base + p * unit
+		if w.size() > 0 and wp.distance_squared_to(w[w.size() - 1]) < 1e-10:
+			continue                                 # (clipping can repeat a point: dropping it keeps slivers out)
+		w.append(wp)
+	if w.size() > 1 and w[0].distance_squared_to(w[w.size() - 1]) < 1e-10:
+		w.remove_at(w.size() - 1)
+	for i in range(1, w.size() - 1):
+		if (w[i + 1] - w[0]).cross(w[i] - w[0]).length() < 1e-9:
+			continue
+		verts.append(w[0])
+		verts.append(w[i + 1])
+		verts.append(w[i])
+		for _j in 3:
+			normals.append(nrm)
+	for i in w.size():
+		lines.append(w[i])
+		lines.append(w[(i + 1) % w.size()])
+
+
+## The direction a polygon faces, from its plane: a fan of cross products around its middle.
+static func _poly_normal(poly: PackedVector3Array) -> Vector3:
+	var c := Vector3.ZERO
+	for p in poly:
+		c += p
+	c /= float(poly.size())
+	var n := Vector3.ZERO
+	for i in poly.size():
+		n += (poly[i] - c).cross(poly[(i + 1) % poly.size()] - c)
+	return n * 0.5
+
+
 ## The box the cells fill, in ticks (for the placement preview and its outline).
 static func cell_bounds(cells: Array) -> AABB:
 	if cells.is_empty():
@@ -270,18 +433,19 @@ static func _state(s: Dictionary, o: Vector3i, q: int) -> int:
 				far = maxf(far, (p - c).length_squared())
 			return 1 if far <= r * r else 0
 		"planes":
+			# (one dot at the cell's middle decides each side: a cube reaches rad * (|nx| + |ny| + |nz|) along n,
+			#  so a whole cell is decided without testing its 8 corners - the biggest shape-generation saving)
+			var mid := (lo + hi) * 0.5
+			var rad := (hi.x - lo.x) * 0.5
 			var all_in := true
 			for pl in s["planes"]:
 				var n: Vector3 = pl[0]
-				var off: float = float(pl[1])
-				var inside_n := 0
-				for p in corners:
-					if n.dot(p) - off <= 1e-5:
-						inside_n += 1
-					else:
-						all_in = false
-				if inside_n == 0:
+				var reach := rad * (absf(n.x) + absf(n.y) + absf(n.z))
+				var d := n.dot(mid) - float(pl[1])
+				if d > reach + 1e-5:
 					return -1
+				if d > -reach + 1e-5:
+					all_in = false
 			return 1 if all_in else 0
 		"ramp":
 			var w: float = s["w"]
