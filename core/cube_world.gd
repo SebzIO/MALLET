@@ -2489,8 +2489,8 @@ static func _tri_tangent(w: Array, uv: Array, n: Vector3) -> Plane:
 
 
 ## A render chunk's mesh (a surface per texture slot, plus materials), its collision triangles, and (with
-## `outline`) a lines mesh of every cube face's edges.
-func chunk_mesh(ck: Vector3i, outline := false) -> Array:
+## `outline`: faces unmerged; with `lines_too`: faces still merged) a lines mesh of every cube face's edges.
+func chunk_mesh(ck: Vector3i, outline := false, lines_too := false) -> Array:
 	var groups := {}
 	var col := PackedVector3Array()
 	var lines := PackedVector3Array()
@@ -2507,7 +2507,7 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 		var alpha := cube_in_mat(k, "alpha")
 		var cut := _cut_of(v)
 		if not cut.is_empty():
-			_cut_mesh(k, v, cut, origin, unit, noclip, alpha, groups, col, lines, outline, pre.get(k))
+			_cut_mesh(k, v, cut, origin, unit, noclip, alpha, groups, col, lines, outline or lines_too, pre.get(k))
 			continue
 		var flat := not outline and c == FULL and bl.is_empty()
 		var sz := size_of(k.w)
@@ -2553,6 +2553,11 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 				if bg != null and (bg as Array).size() <= 3 and bg[0] == FULL:
 					continue                             # (two coplanar walls would flicker: only the bigger one is drawn)
 			if flat:                                         # whole faces: merged with their neighbors below
+				if lines_too:                                # (the outline still shows each cube)
+					var fq: Array = face_corners(o)
+					for i in 4:
+						lines.append(origin + corner(c, fq[i]) * unit)
+						lines.append(origin + corner(c, fq[(i + 1) % 4]) * unit)
 				var d := o >> 1
 				var sk: String = v[1][o]
 				if alpha or noclip:
@@ -2596,7 +2601,7 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 					cols.append(Color(1, 1, 1, float(bl[t[j]]) / 255.0 if not bl.is_empty() else 0.0))
 					if not noclip:
 						col.append(w[j])
-			if outline:
+			if outline or lines_too:
 				var q: Array = face_corners(o)
 				for i in 4:
 					var pa := origin + corner(c, q[i]) * unit

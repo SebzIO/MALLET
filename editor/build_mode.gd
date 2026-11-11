@@ -536,7 +536,7 @@ func _toggle(what: String) -> void:
 			var on := not CubeModelNode.outline_mode
 			CubeModelNode.outline_mode = on
 			for m in models.get_children():
-				m.rebuild_all()
+				m.show_outlines()
 			say("Cube outlines %s" % ("on" if on else "off"))
 		"wireframe":
 			var vp := get_viewport()

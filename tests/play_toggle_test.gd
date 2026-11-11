@@ -50,6 +50,21 @@ func _run() -> void:
 		if not ck in hidden and cm._chunks[ck][0].mesh != meshes[ck]:
 			redone += 1
 	check("...and leaves every other chunk alone", redone == 0, "%d redrawn" % redone)
+	# build mode's 7: outlines were made with the mesh, so toggling only shows or hides them
+	ed.build.start(Transform3D(Basis(), Vector3(4, 4, 20)), cm)
+	await process_frame
+	var before: Mesh = cm._chunks[meshes.keys()[0]][0].mesh
+	var was := CubeModelNode.outline_mode
+	var t := Time.get_ticks_usec()
+	ed.build._toggle("outline")
+	var us := Time.get_ticks_usec() - t
+	var part: Array = cm._chunks[meshes.keys()[0]]
+	check("7 shows the outlines without rebuilding anything", CubeModelNode.outline_mode != was and part[0].mesh == before and part[3].visible
+		and (part[3].mesh as ArrayMesh).get_surface_count() > 0, "%.2f ms" % (us / 1000.0))
+	ed.build._toggle("outline")
+	check("...and 7 again hides them", not part[3].visible and part[0].mesh == before)
+	ed.build.stop()
+	await process_frame
 	ed.queue_free()
 	await process_frame
 	print("play_toggle_test: ", "PASS" if ok else "FAIL")

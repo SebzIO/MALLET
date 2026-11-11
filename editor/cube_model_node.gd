@@ -44,7 +44,7 @@ func rebuild_dirty() -> void:
 
 
 func _rebuild(ck: Vector3i) -> void:
-	var got := world.chunk_mesh(ck, outline_mode)
+	var got := world.chunk_mesh(ck, false, true)         # (outlines are always made with the mesh: 7 only shows or hides them)
 	var mesh: ArrayMesh = got[0]
 	var col: PackedVector3Array = got[1]
 	if mesh.get_surface_count() == 0 and col.is_empty():
@@ -76,13 +76,20 @@ func _rebuild(ck: Vector3i) -> void:
 	(parts[2] as CollisionShape3D).shape = shape
 	(parts[2] as CollisionShape3D).disabled = col.is_empty()
 	(parts[3] as MeshInstance3D).mesh = got[2]
+	(parts[3] as MeshInstance3D).visible = outline_mode
 
 
 func set_outline(on: bool) -> void:
 	if outline_mode == on:
 		return
 	outline_mode = on
-	rebuild_all()
+	show_outlines()
+
+
+## Show or hide the outlines already made with the mesh (no rebuilding).
+func show_outlines() -> void:
+	for ck in _chunks:
+		(_chunks[ck][3] as MeshInstance3D).visible = outline_mode
 
 
 func set_selected(on: bool) -> void:

@@ -3,6 +3,11 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.10 preview — 2026-11-11: Instant outlines
+
+- Build mode's 7 (outlines) is instant. It used to rebuild every cube object each time; the outlines are now made along
+  with the mesh, and 7 only shows or hides them.
+
 ## 0.18.9 preview — 2026-11-11: Smooth hovering over big shapes
 
 - Build mode stays smooth while you aim at a big shape with a large grid. The highlight used to outline every small
