@@ -6700,6 +6700,14 @@ func _draw_co_editors(cam: Camera3D, ov: Control) -> void:
 
 
 # ================================================================================================= export
+## Wrapped text in a dialog needs its width up front: measured at no width, a label is one word a line, and the
+## dialog grew past the screen with its Export button off the bottom (a window never shrinks back on its own).
+static func _wrap_width(box: Control, width: int) -> void:
+	for c in box.find_children("*", "Label", true, false):
+		if (c as Label).autowrap_mode != TextServer.AUTOWRAP_OFF and c.custom_minimum_size.x <= 0.0:
+			c.custom_minimum_size.x = width
+
+
 func _build_export_dialog() -> void:
 	_export_dialog = ConfirmationDialog.new()
 	_export_dialog.title = "Export to SurfsUp"
@@ -6744,6 +6752,7 @@ They're Valve's textures: leave this off and those surfaces get a similar MALLET
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD
 	note.add_theme_color_override("font_color", Color(0.8, 0.8, 0.6))
 	box.add_child(note)
+	_wrap_width(box, 528)
 	_export_dialog.confirmed.connect(_do_export)
 	_ui_root.add_child(_export_dialog)
 	_dir_dialog = FileDialog.new()
@@ -6808,6 +6817,7 @@ func _build_css_dialog() -> void:
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD
 	note.add_theme_color_override("font_color", Color(0.8, 0.8, 0.6))
 	box.add_child(note)
+	_wrap_width(box, 568)
 	_css_dialog.confirmed.connect(_do_css_export)
 	_ui_root.add_child(_css_dialog)
 
@@ -6828,6 +6838,7 @@ func _css_clicked() -> void:
 	_css_compile.disabled = css == ""
 	_css_compile.button_pressed = css != "" and cfg.get_value("css", "compile", true)
 	_css_compile.tooltip_text = "Found CS:S at " + css if css != "" else "Counter-Strike: Source wasn't found, so only the .vmf is written."
+	_css_dialog.size = Vector2i(600, 0)                   # (fit it to what shows now)
 	_css_dialog.popup_centered()
 
 
@@ -6915,6 +6926,7 @@ func _export_clicked() -> void:
 	_fields["export_css"].visible = n_css > 0
 	_fields["export_css_note"].visible = n_css > 0
 	_fields["export_css_note"].text = ("This map uses %d CS:S material%s. They're Valve's textures, copied from your CS:S " 		+ "install when this is on; off, those surfaces get a similar MALLET material.") % [n_css, "" if n_css == 1 else "s"]
+	_export_dialog.size = Vector2i(560, 0)                # (a window never shrinks on its own: fit it to what shows now)
 	_export_dialog.popup_centered()
 	_export_name.grab_focus()
 

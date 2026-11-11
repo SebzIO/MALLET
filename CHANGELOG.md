@@ -3,6 +3,13 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.16 preview — 2026-11-11: Export button back
+
+- The Export to SurfsUp and Export to Counter-Strike: Source dialogs grew taller than the screen, so their Export
+  button was off the bottom. Their wrapped text was measured before it had a width (one word a line) and the dialog
+  kept that size. They now open at the right size every time.
+- New test: dialog_fit_test (every dialog fits a 1600 x 900 screen with its buttons showing).
+
 ## 0.18.15 preview — 2026-11-11: Maps of big blocks are fast again
 
 - Maps built from big cubes (made before 0.18.12) ran slowly when you looked toward the build, and in play mode the
