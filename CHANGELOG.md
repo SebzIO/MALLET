@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.6 preview — 2026-11-11: No more holes in cones
+
+- Generated shapes no longer have see-through pits. Along the seams of a many-sided cone or cylinder, cubes cut by two
+  nearly parallel planes lost a face to rounding error: up to a fifth of a 64-sided cone's surface was missing, in its
+  collision too. Cut cubes are now worked out at full precision.
+- CS:S: cut cubes are written from their exact planes, corners a few millimeters apart are merged and slivers too thin
+  to be a brush are left out, so the compiler handles these shapes without crashing.
+
 ## 0.18.5 preview - 2026-11-11: Heavy shapes stop hitching
 
 - The preview is now built on a worker thread, so a slider never waits for it. One rebuild runs at a time and the

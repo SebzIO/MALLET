@@ -653,30 +653,74 @@ static func cut_planes(cut: Array) -> Array:
 	return out
 
 
-## The corners of a cut piece's solid (empty if nothing is left).
-static func cut_vertices(cut: Array) -> PackedVector3Array:
-	var planes := cut_planes(cut)
-	var out := PackedVector3Array()
-	var cnt := planes.size()
+## A cut piece's planes as plain floats [nx, ny, nz, d] (unit normals, walls first in orient order), inside = n . p <= d.
+## GDScript floats are doubles but a Vector3 is single precision, and where two nearly parallel planes meet (the seams
+## of a many-sided cone) single-precision rounding is bigger than any sensible tolerance: corners got rejected and
+## whole faces vanished. So everything about a cut's corners is worked out here, in doubles, from its integer planes.
+static func _cut_rows(cut: Array) -> Array:
+	var rows := []
+	for o in 6:
+		var e := orient_normal(o)
+		rows.append([float(e.x), float(e.y), float(e.z), 8.0 if o & 1 else 0.0])
+	for pl in cut:
+		var x := float(pl[0].x)
+		var y := float(pl[0].y)
+		var z := float(pl[0].z)
+		var l := sqrt(x * x + y * y + z * z)
+		rows.append([x / l, y / l, z / l, float(pl[1]) / l])
+	return rows
+
+
+## The corners of the solid those planes bound, as [x, y, z] in doubles.
+static func _cut_corners(rows: Array) -> Array:
+	var out := []
+	var cnt := rows.size()
 	for i in cnt:
+		var a: Array = rows[i]
 		for j in range(i + 1, cnt):
+			var b: Array = rows[j]
+			var abx: float = a[1] * b[2] - a[2] * b[1]
+			var aby: float = a[2] * b[0] - a[0] * b[2]
+			var abz: float = a[0] * b[1] - a[1] * b[0]
 			for k in range(j + 1, cnt):
-				var a: Vector3 = planes[i][0]
-				var b: Vector3 = planes[j][0]
-				var c: Vector3 = planes[k][0]
-				var det := a.dot(b.cross(c))
+				var c: Array = rows[k]
+				var det: float = abx * c[0] + aby * c[1] + abz * c[2]
 				if absf(det) < 1e-9:
 					continue
-				var p: Vector3 = (b.cross(c) * float(planes[i][1]) + c.cross(a) * float(planes[j][1]) + a.cross(b) * float(planes[k][1])) / det
-				if not _in_planes(planes, p, 1e-6):
+				var bcx: float = b[1] * c[2] - b[2] * c[1]
+				var bcy: float = b[2] * c[0] - b[0] * c[2]
+				var bcz: float = b[0] * c[1] - b[1] * c[0]
+				var cax: float = c[1] * a[2] - c[2] * a[1]
+				var cay: float = c[2] * a[0] - c[0] * a[2]
+				var caz: float = c[0] * a[1] - c[1] * a[0]
+				var x: float = (bcx * a[3] + cax * b[3] + abx * c[3]) / det
+				var y: float = (bcy * a[3] + cay * b[3] + aby * c[3]) / det
+				var z: float = (bcz * a[3] + caz * b[3] + abz * c[3]) / det
+				var inside := true
+				for r in rows:
+					if r[0] * x + r[1] * y + r[2] * z - r[3] > 1e-7:
+						inside = false
+						break
+				if not inside:
 					continue
 				var dup := false
 				for q in out:
-					if q.distance_squared_to(p) < 1e-10:
+					var dx: float = q[0] - x
+					var dy: float = q[1] - y
+					var dz: float = q[2] - z
+					if dx * dx + dy * dy + dz * dz < 1e-10:
 						dup = true
 						break
 				if not dup:
-					out.append(p)
+					out.append([x, y, z])
+	return out
+
+
+## The corners of a cut piece's solid (empty if nothing is left).
+static func cut_vertices(cut: Array) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for q in _cut_corners(_cut_rows(cut)):
+		out.append(Vector3(q[0], q[1], q[2]))
 	return out
 
 
@@ -826,26 +870,20 @@ static func leaf_face_full(v: Array, o: int) -> bool:
 	return true
 
 
-## A cut piece's faces: [[slot orient, wall orient or -1, polygon PackedVector3Array counter-clockwise from outside], ...]
+## A cut piece's faces: [[slot orient, wall orient or -1, polygon PackedVector3Array counter-clockwise from outside, unit normal], ...]
 static func cut_faces(cut: Array) -> Array:
-	var pts := cut_vertices(cut)
-	var list := []
-	for o in 6:
-		var e := orient_normal(o)
-		list.append([e, 8.0 if o & 1 else 0.0, o, o])
-	for pl in cut:
-		var n := Vector3(pl[0])
-		var l := n.length()
-		list.append([n / l, float(pl[1]) / l, int(pl[2]), -1])
+	var rows := _cut_rows(cut)
+	var pts := _cut_corners(rows)
 	var out := []
-	for f in list:
-		var n: Vector3 = f[0]
+	for fi in rows.size():
+		var r: Array = rows[fi]
 		var on := []
 		for p in pts:
-			if absf(n.dot(p) - float(f[1])) < 1e-5:
-				on.append(p)
+			if absf(r[0] * p[0] + r[1] * p[1] + r[2] * p[2] - r[3]) < 3e-5:
+				on.append(Vector3(p[0], p[1], p[2]))
 		if on.size() < 3:
 			continue
+		var n := Vector3(r[0], r[1], r[2])
 		var cen := Vector3.ZERO
 		for p in on:
 			cen += p
@@ -853,7 +891,7 @@ static func cut_faces(cut: Array) -> Array:
 		var t: Vector3 = ((on[0] as Vector3) - cen).normalized()
 		var b := n.cross(t)
 		on.sort_custom(func(p, q): return atan2((p - cen).dot(b), (p - cen).dot(t)) < atan2((q - cen).dot(b), (q - cen).dot(t)))
-		out.append([f[2], f[3], PackedVector3Array(on)])
+		out.append([fi if fi < 6 else int(cut[fi - 6][2]), fi if fi < 6 else -1, PackedVector3Array(on), n])
 	return out
 
 

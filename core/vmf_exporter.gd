@@ -16,6 +16,9 @@ const U := 39.37
 const LIMIT := 16384.0                   ## Source maps must fit inside +-16384 units on every axis
 const SKY_MARGIN := 256.0                ## room between the map and the skybox walls (6.5 m)
 const SKY_THICK := 64.0
+const WELD := 0.5                        ## units: a cut cube's corners closer than this become one (about 1 cm)
+const SIDE_SPREAD := 256.0               ## units between the three points that define a cut cube's brush side
+const MIN_THICK := 1.0                   ## units: a cut piece thinner than this is left out (about 2.5 cm)
 const MIN_SEGMENT := 2.0                 ## meters: ramp cross-sections closer than this are merged (brush budget)
 const MAX_BRUSHES := 8192                ## Source's brush limit
 const RAMP_MATERIAL := "DEV/DEV_MEASUREGENERIC01B"
@@ -670,14 +673,62 @@ func _shader_material(id: String, params: Dictionary, fallback: String) -> Strin
 	return fallback
 
 
+## A cut cube's brush sides straight from its exact planes. A side is written as three points far apart on its plane:
+## three corners of a tiny face would barely pin the plane down once rounded to the file's decimals, which crashes vbsp.
+func _cut_sides(w: CubeWorld, k: Vector4i, xf: Transform3D) -> Array:
+	var origin := Vector3(k.x, k.y, k.z) * CubeWorld.TICK
+	var unit := CubeWorld.metres(k.w) / 8.0
+	var out := []
+	for f in CubeWorld.cut_faces(w.leaves[k][3]):
+		var poly: PackedVector3Array = f[2]
+		var cen := Vector3.ZERO
+		var size := 0.0
+		for q in poly:
+			cen += q
+		cen /= poly.size()
+		for q in poly:
+			size = maxf(size, q.distance_to(cen))
+		if size * unit * U < WELD:
+			continue                                     # (a speck of a face: its neighbors close the brush)
+		var g: Vector3 = xf.basis * (f[3] as Vector3)
+		var n := Vector3(g.x, -g.z, g.y).normalized()
+		var c := src(xf * (origin + cen * unit))
+		var t := n.cross(Vector3.UP if absf(n.y) < 0.9 else Vector3.RIGHT).normalized()
+		var b := n.cross(t)
+		out.append([c, c + b * SIDE_SPREAD, c + t * SIDE_SPREAD])   # ((p3 - p1) x (p2 - p1) points out: Hammer's rule)
+	return out
+
+
+## Is a convex brush thinner than MIN_THICK anywhere (measured from each of its sides, across the solid)?
+static func _too_thin(sides: Array, pts: Array) -> bool:
+	for sd in sides:
+		var n: Vector3 = (sd[2] - sd[0]).cross(sd[1] - sd[0]).normalized()
+		var far := 0.0
+		for p in pts:
+			far = maxf(far, absf((p - sd[0]).dot(n)))
+		if far < MIN_THICK:
+			return true
+	return false
+
+
 ## One cube from build mode as a brush, each side with its own texture and texture settings.
 func _cube_solid(w: CubeWorld, k: Vector4i, xf := Transform3D.IDENTITY) -> String:
 	var pts := []
+	var is_cut: bool = (w.leaves[k] as Array).size() > 3 and not (w.leaves[k][3] as Array).is_empty()
 	for q in w.cube_points(k):
-		pts.append(src(xf * q))
+		var sp := src(xf * q)
+		if is_cut and pts.any(func(o): return (o as Vector3).distance_to(sp) < WELD):
+			continue                                     # (corners a few mm apart: Source can't hold such a tiny edge)
+		pts.append(sp)
 	var sides := _hull(pts)
 	if sides.size() < 4:
 		return ""
+	if is_cut and _too_thin(sides, pts):
+		return ""                                        # (a plane just nicking a corner: vbsp crashes on such slivers)
+	if is_cut:
+		sides = _cut_sides(w, k, xf)
+		if sides.size() < 4:
+			return ""
 	var tex: PackedStringArray = w.leaves[k][1]
 	var alpha := w.cube_in_mat(k, "alpha")
 	var inv := xf.basis.inverse()
