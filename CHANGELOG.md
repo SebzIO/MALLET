@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.5 preview - 2026-11-11: Heavy shapes stop hitching
+
+- The preview is now built on a worker thread, so a slider never waits for it. One rebuild runs at a time and the
+  shape catches up as each lands, always with the newest values. Before, the work ran inside the frame, so every
+  shape past a certain size - a wide cone, many sides, fine detail - stalled the editor for a tenth of a second up to
+  several seconds. On a cone at the default grid (radius 13, height 4, 24 sides, detail 2, 18,732 cells) a rebuild
+  took 1.6 s of frozen frame; that cost is now off the main thread and dragging stays smooth. Shapes that build in
+  under 40 ms (a box, a ramp, a small cone) still rebuild in the frame itself, with no delay at all.
+- A cut face a plane cannot reach is no longer rebuilt: the polygon clipper returns it as it is. A 64-sided cone's
+  preview went from 85 ms to 75 ms, and the shape it draws is unchanged.
+- Placing still builds the exact shape on the spot, and it can never place the quick preview.
+
 ## 0.18.4 preview - 2026-11-11: A geometry menu that keeps up, and numbers that stick
 
 - Dragging a slider used to stall the editor: every tick of the slider rebuilt the whole preview through a

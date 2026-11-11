@@ -123,6 +123,13 @@ static func place(w: CubeWorld, cells: Array, offset: Vector3i, tex: String) -> 
 ## Only faces that face no cell of the same size are drawn (culling those keeps a solid's inside out of the picture),
 ## and a cut cell's faces are clipped by its planes, so a ramp or a cone shows its real slanted surface.
 static func preview_mesh(cells: Array) -> Array:
+	var arrays := preview_arrays(cells)
+	return [mesh_of(arrays), arrays[2]]
+
+
+## The preview's geometry as plain arrays: [vertices, normals, edge lines]. Nothing here touches the scene tree or the
+## renderer, so a shape that takes a long time can be built on a worker thread and turned into a mesh afterwards.
+static func preview_arrays(cells: Array) -> Array:
 	var have := {}
 	var levels := {}
 	for c in cells:
@@ -167,14 +174,21 @@ static func preview_mesh(cells: Array) -> Array:
 				if poly.size() < 3:
 					break
 			_emit_face(poly, planes[i][0], base, unit, verts, normals, lines)
+	return [verts, normals, lines]
+
+
+## The mesh for preview_arrays' vertices and normals (made on the main thread, where the renderer is).
+static func mesh_of(arrays: Array) -> ArrayMesh:
 	var m := ArrayMesh.new()
-	if not verts.is_empty():
-		var a := []
-		a.resize(Mesh.ARRAY_MAX)
-		a[Mesh.ARRAY_VERTEX] = verts
-		a[Mesh.ARRAY_NORMAL] = normals
-		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
-	return [m, lines]
+	var verts: PackedVector3Array = arrays[0]
+	if verts.is_empty():
+		return m
+	var a := []
+	a.resize(Mesh.ARRAY_MAX)
+	a[Mesh.ARRAY_VERTEX] = verts
+	a[Mesh.ARRAY_NORMAL] = arrays[1]
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+	return m
 
 
 ## True when a cell of the same size or a bigger one sits against a face: that face is inside the shape.
@@ -216,12 +230,27 @@ static func _plane_square(n: Vector3, off: float) -> PackedVector3Array:
 	return PackedVector3Array([c + (u + v) * r, c + (-u + v) * r, c + (-u - v) * r, c + (u - v) * r])
 
 
-## Sutherland-Hodgman: the part of a polygon where normal . p <= offset.
+## Sutherland-Hodgman: the part of a polygon where normal . p <= offset. A convex polygon that is wholly on one
+## side is returned or dropped as it is: most clips in a many-sided cone hit that case, and skipping them is what
+## keeps a cut cell with dozens of planes quick.
 static func _clip_poly(poly: PackedVector3Array, n: Vector3, off: float) -> PackedVector3Array:
-	var out := PackedVector3Array()
 	var cnt := poly.size()
 	if cnt == 0:
-		return out
+		return poly
+	var all_in := true
+	var all_out := true
+	for i in cnt:
+		if n.dot(poly[i]) > off + 1e-6:
+			all_in = false
+		else:
+			all_out = false
+		if not all_in and not all_out:
+			break
+	if all_in:
+		return poly
+	if all_out:
+		return PackedVector3Array()
+	var out := PackedVector3Array()
 	for i in cnt:
 		var a := poly[i]
 		var b := poly[(i + 1) % cnt]

@@ -43,6 +43,10 @@ var _quiet := 0.0                               ## seconds since the last change
 var _since := 0.0                               ## seconds since the last rebuild: paces the quick ones
 var _cost_ms := 0.0                             ## how long the last exact rebuild took
 var _cheap_ms := 0.0                            ## how long the last quick rebuild took
+var _task := -1                                 ## a rebuild running off the main thread (-1 when none)
+var _task_result := {}                          ## what that rebuild produced, filled in by the thread
+var _seq := 0                                   ## every rebuild gets a number, so an older result never wins
+var _shown_seq := -1                            ## the rebuild number the mesh on screen came from
 
 var _placing := false
 var _ghost: Node3D
@@ -194,6 +198,8 @@ func build(mode) -> void:
 
 	_values = ShapeGen.defaults(_shape)
 	_list.select(0)
+	for i in 6:
+		CubeWorld.face_corners(i)                # (built here, so a rebuild on a thread only ever reads that table)
 	_build_params()
 	_regen()
 
@@ -213,7 +219,8 @@ func open_panel() -> void:
 	panel.visible = true
 	host._ui_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_regen()
+	if _cells.is_empty() or _cheap or _dirty:
+		_ask_regen()
 	layout(host.get_viewport().get_visible_rect().size)
 
 
@@ -226,6 +233,7 @@ func close_panel() -> void:
 
 ## F6 again, E / Esc out of build mode, or play mode: leave nothing behind.
 func dismiss() -> void:
+	_poll()                                      # (take a finished rebuild so it does not land later)
 	_clear_ghost()
 	_placing = false
 	_confirm.visible = false
@@ -248,7 +256,9 @@ func _on_shape_selected(i: int) -> void:
 	_shape = String(def["id"])
 	_values = ShapeGen.defaults(_shape)
 	_build_params()
-	_regen()
+	if _mesh_inst != null:
+		_mesh_inst.mesh = null                   # (the old shape goes at once; the new one lands when it is built)
+	_ask_regen()
 
 
 func _build_params() -> void:
@@ -315,25 +325,46 @@ func _ask_regen() -> void:
 	_quiet = 0.0
 
 
-## Build the shape. `cheap` is the moving preview: it skips the finer octree levels (a solid's shape is the same,
-## only its surface is blockier), which is many times quicker, so a slider stays smooth; the exact shape follows as
-## soon as the value holds still. Cheap passes leave the size / cube count text as the last exact pass left it.
+## Build the shape now, on this thread. Used where the result has to be in hand: the first build, opening the menu,
+## and placing, where the exact cells are what gets built - never for a value that is still moving.
 func _regen(cheap := false) -> void:
+	_seq += 1
 	var t0 := Time.get_ticks_usec()
-	var res: Dictionary = ShapeGen.generate(_shape, _values, host.grid_p, 0 if cheap else _detail_value)
+	var got := _build(_shape, _values, 0 if cheap else _detail_value, cheap)
+	got["ms"] = float(Time.get_ticks_usec() - t0) / 1000.0
+	got["seq"] = _seq
+	_apply(got)
+
+
+## The heavy part: cells, then the preview's geometry as plain arrays. Touches nothing but its arguments and reads
+## CubeWorld's shared tables, so a big shape can run on a worker thread while the sliders stay responsive.
+func _build(shape: String, values: Dictionary, detail: int, cheap: bool) -> Dictionary:
+	var res: Dictionary = ShapeGen.generate(shape, values, host.grid_p, detail)
+	return {"res": res, "arrays": ShapeGen.preview_arrays(res["cells"]), "cheap": cheap}
+
+
+## Put a built shape on screen. `cheap` is the moving preview: it skips the finer octree levels (a solid's shape is
+## the same, only its surface is blockier), which is many times quicker, so a slider stays smooth; the exact shape
+## follows as soon as the value holds still. Cheap passes leave the size / cube count text as the last exact pass
+## left it.
+func _apply(got: Dictionary) -> void:
+	var seq := int(got.get("seq", -1))
+	if seq <= _shown_seq:
+		return                                   # (a newer shape is already on screen)
+	_shown_seq = seq
+	var res: Dictionary = got["res"]
 	_cells = res["cells"]
 	_size = res.get("size", Vector3.ONE)
 	_error = String(res.get("error", ""))
 	_place.disabled = _error != "" or _cells.is_empty()
-	_cheap = cheap
-	_dirty = cheap
+	_dirty = bool(got["cheap"])
 	_since = 0.0
-	_rebuild_preview()
-	var spent := float(Time.get_ticks_usec() - t0) / 1000.0
-	if cheap:
-		_cheap_ms = spent
+	_cheap = bool(got["cheap"])
+	_show_arrays(got["arrays"])
+	if _cheap:
+		_cheap_ms = float(got["ms"])
 		return
-	_cost_ms = spent
+	_cost_ms = float(got["ms"])
 	_cubes = int(res.get("count", 0))
 	var finest := float(res.get("finest", CubeWorld.metres(host.grid_p)))
 	_detail_lbl.text = "%.3f m" % finest
@@ -344,6 +375,42 @@ func _regen(cheap := false) -> void:
 		_info.text = "%.2f × %.2f × %.2f m   ·   %s cubes   ·   finest %.3f m   ·   built on the %s grid" % [
 			_size.x, _size.y, _size.z, _thousands(_cubes), finest, _metres_text(CubeWorld.metres(host.grid_p))]
 		_info.add_theme_color_override("font_color", UiTheme.TEXT)
+
+
+## Start a rebuild on a worker thread. Only one ever runs: a value that moves while it works is picked up by the
+## build that follows, so heavy shapes can't pile up into a stall.
+func _start(cheap: bool) -> void:
+	_seq += 1
+	var req := {"shape": _shape, "values": _values.duplicate(), "detail": 0 if cheap else _detail_value,
+		"cheap": cheap, "seq": _seq}
+	_dirty = cheap                             # (a cheap pass leaves the shape marked dirty: the exact one still comes)
+	_since = 0.0
+	_task = WorkerThreadPool.add_task(_work.bind(req), false, "geometry preview")
+
+
+func _work(req: Dictionary) -> void:
+	var t0 := Time.get_ticks_usec()
+	var got := _build(String(req["shape"]), req["values"], int(req["detail"]), bool(req["cheap"]))
+	got["ms"] = float(Time.get_ticks_usec() - t0) / 1000.0
+	got["seq"] = int(req["seq"])
+	_task_result = got
+
+
+## Take a finished rebuild, if there is one, without waiting for a running one.
+func _poll() -> void:
+	if _task < 0 or not WorkerThreadPool.is_task_completed(_task):
+		return
+	WorkerThreadPool.wait_for_task_completion(_task)
+	_task = -1
+	var got: Dictionary = _task_result
+	_task_result = {}
+	if not got.is_empty():
+		_apply(got)
+
+
+## Build the exact shape now: placing needs the cells themselves, never a quick preview.
+func settle() -> void:
+	_regen(false)
 
 
 static func _thousands(n: int) -> String:
@@ -360,13 +427,13 @@ static func _metres_text(m: float) -> String:
 
 
 # ------------------------------------------------------------------------------------------------ 3D preview
-func _rebuild_preview() -> void:
+func _show_arrays(arrays: Array) -> void:
 	if _mesh_inst == null:
 		_mesh_inst = MeshInstance3D.new()
 		_mesh_inst.material_override = CubeWorld.material_for("")     # (the same look the chunk meshes gave)
 		_mesh_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_mesh_root.add_child(_mesh_inst)
-	_mesh_inst.mesh = null if _cells.is_empty() else ShapeGen.preview_mesh(_cells)[0]
+	_mesh_inst.mesh = null if (_cells.is_empty() or (arrays[0] as PackedVector3Array).is_empty()) else ShapeGen.mesh_of(arrays)
 	_frame_preview()
 
 
@@ -402,8 +469,8 @@ func _on_preview_input(event: InputEvent) -> void:
 
 # ------------------------------------------------------------------------------------------------ placing
 func start_placing() -> void:
-	if _dirty or _cheap:
-		_regen(false)                                # (never place the quick preview: build the exact cells first)
+	if _dirty or _cheap or _cells.is_empty():
+		settle()                                 # (never place the quick preview: build the exact cells first)
 	if _error != "" or _cells.is_empty():
 		return
 	panel.visible = false
@@ -470,13 +537,18 @@ func _anchor() -> Vector3:
 
 
 func tick(delta: float) -> void:
+	_poll()                                      # (a rebuild from a worker thread lands here)
 	if _dirty:
 		_quiet += delta
 		_since += delta
-		if _quiet >= SETTLE or _cost_ms <= LIVE_MS:
-			_regen(false)
-		elif _cheap_ms <= LIVE_MS or _since >= 0.12:
-			_regen(true)                             # (a cheap pass leaves _dirty set, so the exact one still comes)
+		if _task < 0:                            # (only one at a time: a new value is picked up by the next one)
+			if _quiet >= SETTLE or _cost_ms <= LIVE_MS:
+				if _cost_ms <= LIVE_MS:
+					_regen(false)                # (cheap enough to just do it: no thread, no lag)
+				else:
+					_start(false)
+			elif _since >= 0.10:
+				_start(true)                     # (a cheap pass leaves _dirty set, so the exact one still comes)
 	if not _placing or _ghost == null or not is_instance_valid(_ghost):
 		return
 	_ghost.position = _anchor()

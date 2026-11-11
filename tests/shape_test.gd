@@ -159,6 +159,26 @@ func _run() -> void:
 	ok = ok and absf(took - 6.5) < 0.001 and shown == "6.50" and shown_preview
 	ok = ok and absf(float(ed.build.shapes._rows["w"]["slider"].value) - 6.5) < 0.001
 
+	# a slow shape rebuilds on a worker thread: the value can keep moving and the exact shape still lands
+	ed.build.shapes._on_shape_selected(3)                       # cone
+	ed.build.shapes._values = {"r": 2.5, "h": 4.0, "sides": 24.0}
+	ed.build.shapes._build_params()
+	ed.build.shapes._on_detail(2.0)
+	ed.build.shapes._cost_ms = 500.0                            # (pretend the last exact build was slow)
+	ed.build.shapes._set_value("r", 3.0, "slider")
+	var frames_waited := 0
+	for i in 500:
+		ed.build.shapes.tick(0.02)
+		frames_waited += 1
+		if ed.build.shapes._task < 0 and not ed.build.shapes._dirty:
+			break
+		await process_frame
+	var threaded_ok: bool = ed.build.shapes._task < 0 and not ed.build.shapes._cheap \
+		and not ed.build.shapes._cells.is_empty() and ed.build.shapes._mesh_inst.mesh != null
+	print("worker-thread rebuild: %s  frames %d  cubes %d  quick preview left over: %s" % [
+		str(threaded_ok), frames_waited, ed.build.shapes._cubes, str(ed.build.shapes._cheap)])
+	ok = ok and threaded_ok
+
 	ed.build.shapes._on_shape_selected(7)                       # stairs
 	ed.build.shapes._values = {"w": 4.0, "run": 1.0, "rise": 0.5, "steps": 5.0}
 	ed.build.shapes._build_params()
