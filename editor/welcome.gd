@@ -107,11 +107,10 @@ func _card(path: String) -> Button:
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var bytes := FileAccess.get_file_as_bytes(path.get_basename() + ".png")
-	if not bytes.is_empty():
-		var img := Image.new()
-		if img.load_png_from_buffer(bytes) == OK:
-			thumb.texture = ImageTexture.create_from_image(img)
+	# through the importer, not the raw file: an exported MALLET only has the converted texture
+	var picture := path.get_basename() + ".png"
+	if ResourceLoader.exists(picture):
+		thumb.texture = load(picture)
 	v.add_child(thumb)
 	var t := Label.new()
 	t.text = info["title"]

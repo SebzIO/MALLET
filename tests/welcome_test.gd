@@ -27,7 +27,7 @@ func _run() -> void:
 	var thumbs := 0
 	for c in ed.welcome._grid.get_children():
 		var tr: TextureRect = c.get_child(0).get_child(0)
-		thumbs += 1 if tr.texture else 0
+		thumbs += 1 if tr.texture is CompressedTexture2D else 0   # (the imported texture: raw PNGs are not in an exported build)
 	print("cards with thumbnails: ", thumbs)
 	ok = ok and thumbs == 4
 	await shot(out + "/welcome.png")
