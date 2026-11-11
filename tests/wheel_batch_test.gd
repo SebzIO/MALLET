@@ -93,7 +93,7 @@ func _run() -> void:
 	var r_merged := mesh_area(w, false)
 	var r_plain := mesh_area(w, true)                     # (outline mode draws every face on its own)
 	check("greedy mesh covers the same area (%.2f m2, %d vs %d triangles)" % [r_merged[0], r_merged[1], r_plain[1]],
-		absf(r_merged[0] - r_plain[0]) < 0.01 and r_merged[1] * 10 < r_plain[1], "(unmerged %.2f m2)" % r_plain[0])
+		absf(r_merged[0] - r_plain[0]) < 0.01 and r_merged[1] * 5 < r_plain[1], "(unmerged %.2f m2)" % r_plain[0])
 	check("greedy mesh collision covers the same area", absf(r_merged[2] - r_plain[2]) < 0.01)
 	# speed: an 8 m face at 0.125 m
 	var big := world(false)

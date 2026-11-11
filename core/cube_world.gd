@@ -18,8 +18,8 @@ const TICK := 0.125
 const MIN_P := -3
 const MAX_P := 6
 const INDEX_TICKS := 512                 ## 64 m: the biggest cube, so no cube straddles an index cell
-const RENDER_TICKS := 128                ## 16 m render chunks (rebuilt when something in them changes)
-const _RENDER_SHIFT := 7                 ## RENDER_TICKS = 1 << this
+const RENDER_TICKS := 32                 ## 4 m render chunks (rebuilt when something in them changes: small, so an edit is quick)
+const _RENDER_SHIFT := 5                 ## RENDER_TICKS = 1 << this
 const _INDEX_SHIFT := 9                  ## INDEX_TICKS = 1 << this
 ## Faces, numbered like Sauerbraten's orientations: axis * 2 + side (side 1 = the + side). Y is up here.
 const ORIENT_SLOTS := ["left", "right", "bottom", "top", "front", "back"]   ## -X, +X, -Y, +Y, -Z, +Z
@@ -61,6 +61,14 @@ const FACE_GROW := 0.0005                ## meters: a cut cube's faces are drawn
 const CUT_THREADS_FROM := 256            ## a chunk with this many cut cubes works them out on all cores
 var show_mats := true                    ## draw the invisible materials (clip, death...) - Sauerbraten's M
 var dirty := {}                          ## render chunk Vector3i -> true
+var reading_task := -1                   ## a WorkerThreadPool group task reading this world (a background redraw), or -1
+
+
+## Wait for a background redraw that reads this world (before anything changes it).
+func finish_reading() -> void:
+	if reading_task >= 0:
+		WorkerThreadPool.wait_for_group_task_completion(reading_task)
+		reading_task = -1
 var revision := 0
 var _index := {}                         ## Vector3i (64 m cell) -> {Vector4i: true}
 var _render := {}                        ## Vector3i (16 m chunk) -> {Vector4i: true}
@@ -134,6 +142,7 @@ const SLOT_DEFAULTS := {"id": "", "s": 1.0, "r": 0, "u": 0.0, "v": 0.0, "su": 0.
 static func parse_slot(slot: String) -> Dictionary:
 	if _slot_cache.has(slot):
 		return _slot_cache[slot]
+	var main := OS.get_thread_caller_id() == OS.get_main_thread_id()   # (workers only read the cache: no racing writes)
 	var out := SLOT_DEFAULTS.duplicate()
 	var parts := slot.split("|", true, 1)
 	out["id"] = parts[0]
@@ -143,7 +152,8 @@ static func parse_slot(slot: String) -> Dictionary:
 			if pair.size() == 2 and out.has(pair[0]):
 				var def = SLOT_DEFAULTS[pair[0]]
 				out[pair[0]] = int(pair[1]) if def is int else (float(pair[1]) if def is float else pair[1])
-	_slot_cache[slot] = out
+	if main:
+		_slot_cache[slot] = out
 	return out
 
 
@@ -1000,6 +1010,7 @@ static func _blend_of(v: Array) -> PackedByteArray:
 
 # ------------------------------------------------------------------------------------------------ storage
 func clear() -> void:
+	finish_reading()
 	for k in leaves.keys():
 		_mark(k)
 	for k in mats.keys():
@@ -1031,6 +1042,8 @@ const _MAT_TAG := 32                     ## undo records keep material cells apa
 
 
 func _put(k: Vector4i, v) -> void:
+	if reading_task >= 0:
+		finish_reading()
 	if _edit != null and not (_edit as Dictionary).has(k):
 		_edit[k] = leaves.get(k)
 	var ik := Vector3i(k.x >> _INDEX_SHIFT, k.y >> _INDEX_SHIFT, k.z >> _INDEX_SHIFT)       # (= _index_key, render_key:
@@ -1103,6 +1116,8 @@ func cell_occupied(c: Vector3i, p: int) -> bool:
 
 
 func _put_mat(k: Vector4i, m) -> void:
+	if reading_task >= 0:
+		finish_reading()
 	var tk := Vector4i(k.x, k.y, k.z, k.w + _MAT_TAG)
 	if _edit != null and not (_edit as Dictionary).has(tk):
 		_edit[tk] = mats.get(k)
@@ -1201,19 +1216,31 @@ func mat_at(pt: Vector3) -> String:
 	return ""
 
 
+## Every cube overlapping the box o .. o + size (ticks). Walks the octree, so only cells that hold something are
+## visited (scanning the 64 m index cell was millions of checks when clearing a few cells of a big shape).
 func leaves_in(o: Vector3i, size: Vector3i) -> Array:
 	var out := []
-	var hi := o + size - Vector3i.ONE
-	for x in range(_fdiv(o.x, INDEX_TICKS), _fdiv(hi.x, INDEX_TICKS) + 1):
-		for y in range(_fdiv(o.y, INDEX_TICKS), _fdiv(hi.y, INDEX_TICKS) + 1):
-			for z in range(_fdiv(o.z, INDEX_TICKS), _fdiv(hi.z, INDEX_TICKS) + 1):
-				var cell: Dictionary = _index.get(Vector3i(x, y, z), {})
-				for k in cell:
-					var s := size_of(k.w)
-					if k.x < o.x + size.x and k.x + s > o.x and k.y < o.y + size.y and k.y + s > o.y \
-							and k.z < o.z + size.z and k.z + s > o.z:
-						out.append(k)
+	var hi := o + size
+	var top := size_of(MAX_P)
+	for x in range(_fdiv(o.x, top), _fdiv(hi.x - 1, top) + 1):
+		for y in range(_fdiv(o.y, top), _fdiv(hi.y - 1, top) + 1):
+			for z in range(_fdiv(o.z, top), _fdiv(hi.z - 1, top) + 1):
+				_leaves_walk(Vector3i(x, y, z) * top, MAX_P, o, hi, out)
 	return out
+
+
+func _leaves_walk(co: Vector3i, q: int, lo: Vector3i, hi: Vector3i, out: Array) -> void:
+	var k := Vector4i(co.x, co.y, co.z, q)
+	if leaves.has(k):
+		out.append(k)
+		return
+	if q <= MIN_P or _occ.get(k, 0) == 0:
+		return
+	var cs := size_of(q - 1)
+	for i in 8:
+		var c := co + Vector3i(i & 1, (i >> 1) & 1, (i >> 2) & 1) * cs
+		if c.x < hi.x and c.x + cs > lo.x and c.y < hi.y and c.y + cs > lo.y and c.z < hi.z and c.z + cs > lo.z:
+			_leaves_walk(c, q - 1, lo, hi, out)
 
 
 func mats_in(o: Vector3i, size: Vector3i) -> Array:
@@ -2491,12 +2518,18 @@ static func _tri_tangent(w: Array, uv: Array, n: Vector3) -> Plane:
 ## A render chunk's mesh (a surface per texture slot, plus materials), its collision triangles, and (with
 ## `outline`: faces unmerged; with `lines_too`: faces still merged) a lines mesh of every cube face's edges.
 func chunk_mesh(ck: Vector3i, outline := false, lines_too := false) -> Array:
+	return chunk_build(ck, chunk_arrays(ck, outline, lines_too))
+
+
+## The math of chunk_mesh, nothing made: {groups, col, lines}. Only reads the world, so it can run on a worker thread
+## (`threads` false there: it must not start tasks of its own).
+func chunk_arrays(ck: Vector3i, outline := false, lines_too := false, threads := true) -> Dictionary:
 	var groups := {}
 	var col := PackedVector3Array()
 	var lines := PackedVector3Array()
 	var flats := {}                                      # slot key -> [slot, alpha, noclip, {Vector3i(orient, plane, size): {Vector2i cell: true}}]
 	var no_mats := mats.is_empty()
-	var pre := _cut_visible_all(ck)
+	var pre := _cut_visible_all(ck) if threads else {}
 	for k in _render.get(ck, {}):
 		var v: Array = leaves[k]
 		var c: PackedByteArray = v[0]
@@ -2619,6 +2652,14 @@ func chunk_mesh(ck: Vector3i, outline := false, lines_too := false) -> Array:
 		var f: Array = flats[sk]
 		for pk in f[3]:
 			_flat_quads([f[0], f[1], f[2], pk.x, pk.y, pk.z], f[3][pk], groups, col)
+	return {"groups": groups, "col": col, "lines": lines}
+
+
+## chunk_arrays' result as meshes [mesh, collision triangles, lines mesh] (main thread: materials, the renderer).
+func chunk_build(ck: Vector3i, arr: Dictionary) -> Array:
+	var groups: Dictionary = arr["groups"]
+	var col: PackedVector3Array = arr["col"]
+	var lines: PackedVector3Array = arr["lines"]
 	var m := ArrayMesh.new()
 	for key in groups:
 		var g: Array = groups[key]
@@ -2649,7 +2690,7 @@ func chunk_mesh(ck: Vector3i, outline := false, lines_too := false) -> Array:
 
 
 ## Greedy meshing: the visible whole faces of same-size cubes on one plane, with the same texture slot, drawn as
-## the fewest rectangles that cover them (a flat 8 m floor of 0.125 m cubes is 2 triangles, not 8192). Texture
+## the fewest rectangles that cover them (a flat 8 m floor of 0.125 m cubes is 8 triangles (2 per 4 m chunk), not 8192). Texture
 ## coordinates are planar in world space, so a merged rectangle looks exactly like the faces it replaces.
 func _flat_quads(fk: Array, cells: Dictionary, groups: Dictionary, col: PackedVector3Array) -> void:
 	var slot: String = fk[0]
@@ -3012,6 +3053,7 @@ func to_dict() -> Dictionary:
 
 
 func load_dict(data: Dictionary) -> void:
+	finish_reading()
 	if data == to_dict():
 		return
 	clear()

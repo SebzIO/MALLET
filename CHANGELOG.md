@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.12 preview — 2026-11-11: Big edits without the hitch
+
+- Deleting or pushing away lots of cubes at once no longer freezes MALLET. On a 32,000-cube sphere, pushing an 8 x 8
+  layer used to stall for about 4 seconds; now the cubes change in about 15 ms and the redraw happens in the
+  background, a few pieces a frame, so MALLET stays smooth (no frame over about 10 ms) while it catches up.
+- Clearing cells found their cubes by checking every cube in a 64 m area; it now goes straight to them.
+- Cube objects are drawn in 4 m pieces instead of 16 m ones, so an edit redraws only what's near it. Small edits are
+  still redrawn instantly.
+
 ## 0.18.11 preview — 2026-11-11: Template pictures in the installed program
 
 - The welcome screen's template pictures show in the installed MALLET. They were only working in the development
