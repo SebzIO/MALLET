@@ -273,10 +273,10 @@ func _run() -> void:
 	w.begin()
 	w.pull(CubeWorld.make_sel(Vector3i(0, -8, 0), p, 3, Vector3i(2, 1, 1)))
 	w.commit()
-	var mesh_data := w.chunk_mesh(Vector3i(0, 0, 0), true)   # (outline mode: every face on its own)
+	var mesh_data := w.chunk_mesh(CubeWorld.render_key(Vector4i(0, 0, 0, 0)), true)   # (outline mode: every face on its own)
 	check("faces between touching cubes aren't drawn", (mesh_data[1] as PackedVector3Array).size() == 20 * 3,
 		"(%d triangles)" % ((mesh_data[1] as PackedVector3Array).size() / 3))
-	mesh_data = w.chunk_mesh(Vector3i(0, 0, 0))
+	mesh_data = w.chunk_mesh(CubeWorld.render_key(Vector4i(0, 0, 0, 0)))
 	check("and the faces side by side are drawn as one (6 rectangles)", (mesh_data[1] as PackedVector3Array).size() == 12 * 3,
 		"(%d triangles)" % ((mesh_data[1] as PackedVector3Array).size() / 3))
 
@@ -297,7 +297,7 @@ func _run() -> void:
 	var top_slot: String = w.leaves[Vector4i(0, 0, 0, 0)][1][3]
 	check("O / P: shift a face's texture (only that face)", CubeWorld.parse_slot(top_slot)["u"] == 0.5
 		and w.leaves[Vector4i(0, 0, 0, 0)][1][0] == "Bricks104", "(%s)" % top_slot)
-	var mm: Array = w.chunk_mesh(Vector3i.ZERO)
+	var mm: Array = w.chunk_mesh(CubeWorld.render_key(Vector4i(0, 0, 0, 0)))
 	check("faces with different settings get their own surface", (mm[0] as ArrayMesh).get_surface_count() == 2)
 	w.begin()
 	var nrep := w.replace_texture("Bricks104", "Metal009")
@@ -316,7 +316,7 @@ func _run() -> void:
 	check("water fills a 4 x 2 x 4 space", w.mat_at(Vector3(4, 12, 4)) == "water" and w.mat_at(Vector3(4, 20, 28)) == "water")
 	var mb := w.material_boxes()
 	check("material boxes for export", (mb.get("water", []) as Array).size() >= 1 and (mb.get("clip", []) as Array).size() == 1)
-	var cm2: Array = w.chunk_mesh(Vector3i.ZERO)
+	var cm2: Array = w.chunk_mesh(CubeWorld.render_key(Vector4i(0, 0, 0, 0)))
 	var col_n := (cm2[1] as PackedVector3Array).size() / 3
 	var floor_n := 12                                     # (the 4 x 1 x 4 floor alone: 6 merged rectangles)
 	w.undo()
@@ -326,7 +326,7 @@ func _run() -> void:
 	w.begin()
 	w.set_material(CubeWorld.make_sel(Vector3i(0, 0, 0), p, 3, Vector3i(4, 1, 4)), "noclip")
 	w.commit()
-	var cm3: Array = w.chunk_mesh(Vector3i.ZERO)
+	var cm3: Array = w.chunk_mesh(CubeWorld.render_key(Vector4i(0, 0, 0, 0)))
 	check("noclip: the floor cubes have no collision any more", (cm3[1] as PackedVector3Array).size() / 3 <= 12 + 2,
 		"(%d triangles)" % ((cm3[1] as PackedVector3Array).size() / 3))
 	var w3 := CubeWorld.from_dict(w.to_dict())
@@ -486,7 +486,7 @@ func _run() -> void:
 	var bl: PackedByteArray = CubeWorld._blend_of(w.leaves[mid_k]) if mid_k != null else PackedByteArray()
 	check("blend paint: the layer is painted in around the brush", painted > 0 and not bl.is_empty() and Array(bl).max() > 200,
 		"(%d cubes, %s)" % [painted, bl])
-	var pm: Array = w.chunk_mesh(Vector3i.ZERO)
+	var pm: Array = w.chunk_mesh(CubeWorld.render_key(Vector4i(0, 0, 0, 0)))
 	var shader_surface := false
 	for i in (pm[0] as ArrayMesh).get_surface_count():
 		shader_surface = shader_surface or (pm[0] as ArrayMesh).surface_get_material(i) is ShaderMaterial

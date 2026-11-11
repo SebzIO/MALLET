@@ -18,8 +18,16 @@ const TICK := 0.125
 const MIN_P := -3
 const MAX_P := 6
 const INDEX_TICKS := 512                 ## 64 m: the biggest cube, so no cube straddles an index cell
-const RENDER_TICKS := 32                 ## 4 m render chunks (rebuilt when something in them changes: small, so an edit is quick)
-const _RENDER_SHIFT := 5                 ## RENDER_TICKS = 1 << this
+## Render chunks come in two sizes, by the size of the cube. Cubes of half a meter or less (generated shapes, detail)
+## go in 4 m chunks, so an edit there redraws little. Bigger cubes go in 16 m chunks: a cube goes in the chunk it
+## starts in, so 4 m chunks for a build of big cubes would be a chunk (a draw call, a physics body) per cube; a map of
+## big blocks made 14,000 chunks that way, ran at 7 fps and went past the physics engine's body limit.
+const RENDER_TICKS := 128                ## 16 m: the big chunks
+const FINE_TICKS := 32                   ## 4 m: the small chunks
+const FINE_MAX_P := -1                   ## cubes up to this size (0.5 m) go in the small chunks
+const _RENDER_SHIFT := 7                 ## RENDER_TICKS = 1 << this
+const _FINE_SHIFT := 5                   ## FINE_TICKS = 1 << this
+const COARSE_TAG := 1 << 22              ## a big chunk's key has this added to y (keeps the two kinds of key apart)
 const _INDEX_SHIFT := 9                  ## INDEX_TICKS = 1 << this
 ## Faces, numbered like Sauerbraten's orientations: axis * 2 + side (side 1 = the + side). Y is up here.
 const ORIENT_SLOTS := ["left", "right", "bottom", "top", "front", "back"]   ## -X, +X, -Y, +Y, -Z, +Z
@@ -1038,7 +1046,38 @@ static func _index_key(k: Vector4i) -> Vector3i:
 
 
 static func render_key(k: Vector4i) -> Vector3i:
-	return Vector3i(_fdiv(k.x, RENDER_TICKS), _fdiv(k.y, RENDER_TICKS), _fdiv(k.z, RENDER_TICKS))
+	if k.w <= FINE_MAX_P:
+		return Vector3i(k.x >> _FINE_SHIFT, k.y >> _FINE_SHIFT, k.z >> _FINE_SHIFT)     # (shifts floor like _fdiv)
+	return Vector3i(k.x >> _RENDER_SHIFT, (k.y >> _RENDER_SHIFT) + COARSE_TAG, k.z >> _RENDER_SHIFT)
+
+
+## The middle of a render chunk, in ticks (for drawing the nearest chunks first).
+static func chunk_center(ck: Vector3i) -> Vector3:
+	if ck.y >= COARSE_TAG >> 1:
+		return Vector3(ck.x, ck.y - COARSE_TAG, ck.z) * RENDER_TICKS + Vector3.ONE * (RENDER_TICKS * 0.5)
+	return Vector3(ck) * FINE_TICKS + Vector3.ONE * (FINE_TICKS * 0.5)
+
+
+## Mark every render chunk (of both sizes) that overlaps ticks lo..hi as needing a redraw. Only chunks that hold
+## something can look different, so with a big box it's quicker to go through the chunks there are.
+func _mark_box(lo: Vector3i, hi: Vector3i) -> void:
+	for sh in [_FINE_SHIFT, _RENDER_SHIFT]:
+		var tag := 0 if sh == _FINE_SHIFT else COARSE_TAG
+		var a := Vector3i(lo.x >> sh, (lo.y >> sh) + tag, lo.z >> sh)
+		var b := Vector3i(hi.x >> sh, (hi.y >> sh) + tag, hi.z >> sh)
+		var n := (b.x - a.x + 1) * (b.y - a.y + 1) * (b.z - a.z + 1)
+		if n > _render.size() + _mrender.size():
+			for src in [_render, _mrender]:
+				for ck in src:
+					if ck.x >= a.x and ck.y >= a.y and ck.z >= a.z and ck.x <= b.x and ck.y <= b.y and ck.z <= b.z:
+						dirty[ck] = true
+			continue
+		for x in range(a.x, b.x + 1):
+			for y in range(a.y, b.y + 1):
+				for z in range(a.z, b.z + 1):
+					var ck := Vector3i(x, y, z)
+					if _render.has(ck) or _mrender.has(ck):
+						dirty[ck] = true
 
 
 const _MAT_TAG := 32                     ## undo records keep material cells apart from cubes by w + 32
@@ -1049,8 +1088,8 @@ func _put(k: Vector4i, v) -> void:
 		finish_reading()
 	if _edit != null and not (_edit as Dictionary).has(k):
 		_edit[k] = leaves.get(k)
-	var ik := Vector3i(k.x >> _INDEX_SHIFT, k.y >> _INDEX_SHIFT, k.z >> _INDEX_SHIFT)       # (= _index_key, render_key:
-	var rk := Vector3i(k.x >> _RENDER_SHIFT, k.y >> _RENDER_SHIFT, k.z >> _RENDER_SHIFT)    #  shifts floor like _fdiv)
+	var ik := Vector3i(k.x >> _INDEX_SHIFT, k.y >> _INDEX_SHIFT, k.z >> _INDEX_SHIFT)       # (= _index_key: shifts floor like _fdiv)
+	var rk := render_key(k)
 	if v == null:
 		if leaves.erase(k):
 			_index[ik].erase(k)
@@ -1154,10 +1193,7 @@ func _bulk_end() -> void:
 		return
 	var lo: Vector3i = b[0] - Vector3i.ONE
 	var hi: Vector3i = b[1] + Vector3i.ONE
-	for x in range(_fdiv(lo.x, RENDER_TICKS), _fdiv(hi.x, RENDER_TICKS) + 1):
-		for y in range(_fdiv(lo.y, RENDER_TICKS), _fdiv(hi.y, RENDER_TICKS) + 1):
-			for z in range(_fdiv(lo.z, RENDER_TICKS), _fdiv(hi.z, RENDER_TICKS) + 1):
-				dirty[Vector3i(x, y, z)] = true
+	_mark_box(lo, hi)
 	for k in leaves_in(lo, hi - lo + Vector3i.ONE):     # big neighbors that start in another chunk
 		dirty[render_key(k)] = true
 
@@ -1175,10 +1211,7 @@ func _mark(k: Vector4i) -> void:
 		return
 	var lo := Vector3i(k.x - 1, k.y - 1, k.z - 1)
 	var hi := Vector3i(k.x + s, k.y + s, k.z + s)
-	for x in range(_fdiv(lo.x, RENDER_TICKS), _fdiv(hi.x, RENDER_TICKS) + 1):
-		for y in range(_fdiv(lo.y, RENDER_TICKS), _fdiv(hi.y, RENDER_TICKS) + 1):
-			for z in range(_fdiv(lo.z, RENDER_TICKS), _fdiv(hi.z, RENDER_TICKS) + 1):
-				dirty[Vector3i(x, y, z)] = true
+	_mark_box(lo, hi)
 	for o in 6:
 		var nk = leaf_at(_beyond(k, o))
 		if nk != null:

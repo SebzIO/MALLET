@@ -3992,7 +3992,8 @@ func _update_arcs() -> void:
 	if targets.is_empty():
 		return
 	var space := get_world_3d().direct_space_state
-	var volumes := entities_root.get_children().filter(func(x): return x.is_volume())
+	var volumes: Array = []                             # (untyped: lava / death in cube objects are KillBoxes, not nodes)
+	volumes.append_array(entities_root.get_children().filter(func(x): return x.is_volume()))
 	var kill_y := kill_floor_y()
 	var zones := []                                  # entering the finish / a stage zone counts, like in game
 	for e in entities_root.get_children():
@@ -5311,7 +5312,8 @@ func _play_from(at: Transform3D, start: EntityNode = null, finish: EntityNode = 
 	if selected:
 		selected.set_selected(false)
 	_ui.visible = false
-	var volumes := entities_root.get_children().filter(func(x): return x.is_volume())
+	var volumes: Array = []                             # (untyped: lava / death in cube objects are KillBoxes, not nodes)
+	volumes.append_array(entities_root.get_children().filter(func(x): return x.is_volume()))
 	for cm in cube_models_root.get_children():
 		volumes.append_array(cm.kill_volumes())
 		cm.set_show_mats(false)

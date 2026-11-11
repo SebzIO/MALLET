@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.15 preview — 2026-11-11: Maps of big blocks are fast again
+
+- Maps built from big cubes (made before 0.18.12) ran slowly when you looked toward the build, and in play mode the
+  player couldn't move. 0.18.12 cut every cube object into 4 m pieces so big edits redraw quickly, but a cube goes in
+  the piece it starts in, so a map of spread-out big blocks became one piece per block: a 76,000-cube map made
+  14,700 pieces (about 7 fps), more physics bodies than the physics engine allows, and the player was never created
+  properly. Pieces now come in two sizes by cube size: cubes of 0.5 m or less (generated shapes, detail) in 4 m
+  pieces, bigger cubes in 16 m pieces. That map is now 850 pieces at about 100 fps, and big edits stay smooth.
+- The physics engine now allows 65,536 bodies (it was 10,240), so a very big map can't stop the player again.
+- Lava and death material inside cube objects kills in play mode again (it was dropped with an error).
+- New test: chunk_budget_test.
+
 ## 0.18.14 preview — 2026-11-11: Release of the 0.18.6-0.18.13 fixes
 
 - Framing the 3D view on a course no longer fails on maps with blocks, cube objects, lights or other scenery (it looks

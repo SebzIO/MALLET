@@ -172,7 +172,9 @@ func _run() -> void:
 		for z in [0, 4]:
 			cw2.set_cell(Vector3i(8, y, z), -1, CubeWorld.FULL, CubeWorld.blank_tex())
 	var area := 0.0
-	var v: PackedVector3Array = cw2.chunk_mesh(Vector3i.ZERO, true)[1]
+	var v := PackedVector3Array()
+	for ck in cw2.render_chunks():                       # (the 1 m cube and the 0.5 m ones are in different chunks)
+		v.append_array(cw2.chunk_mesh(ck, true)[1])
 	for i in range(0, v.size(), 3):
 		area += (v[i + 1] - v[i]).cross(v[i + 2] - v[i]).length() * 0.5
 	check("#8 the 1 m cube + 0.5 m slab draws only its outside (a 1.5 x 1 x 1 box: 8 m2)", absf(area - 8.0) < 0.01,

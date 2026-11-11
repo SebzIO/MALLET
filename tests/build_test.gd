@@ -101,13 +101,13 @@ func _run() -> void:
 	await frames(2)
 	check("aiming at nothing: the target is a spot in the air", not bm.target["hit"])
 	await wheel(-1)
-	check("wheel towards you: a cube appears, in a new cube object", cubes() == 1 and models().size() == 1)
+	check("wheel towards you: a cube appears, in a new cube object", cubes() == 1 and models().size() == 1, "(%d cubes, %d objects)" % [cubes(), models().size()])
 	await frames(6)
 	check("...and the crosshair is now on its face", bm.target["hit"] and bm.target["sel"]["orient"] == 5)
 	await wheel(-1, 3)
-	check("three more: a row of 4 coming towards you", cubes() == 4)
+	check("three more: a row of 4 coming towards you", cubes() == 4, "(%d cubes, %d objects)" % [cubes(), models().size()])
 	await wheel(1)
-	check("wheel away: the nearest one is pushed back in", cubes() == 3)
+	check("wheel away: the nearest one is pushed back in", cubes() == 3, "(%d cubes, %d objects)" % [cubes(), models().size()])
 
 	# ---- a floor: G + wheel to 4 m, drag a selection across the air, pull it out
 	await held_wheel(KEY_G, 1, 2)
@@ -208,7 +208,7 @@ func _run() -> void:
 	wq.set_cell(Vector3i(8, 0, 0), 0, CubeWorld.FULL, CubeWorld.blank_tex())
 	wq.set_cell(Vector3i(16, 0, 0), 1, CubeWorld.FULL, CubeWorld.blank_tex())
 	wq.commit()
-	var colq: PackedVector3Array = wq.chunk_mesh(Vector3i.ZERO)[1]
+	var colq: PackedVector3Array = wq.chunk_mesh(CubeWorld.render_key(Vector4i(0, 0, 0, 0)))[1]
 	var shared := 0
 	for i in range(0, colq.size(), 3):
 		var flatq := true

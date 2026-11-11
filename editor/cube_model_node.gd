@@ -79,9 +79,8 @@ func _sort_nearest(list: Array) -> void:
 	if cam == null or list.size() < 2:
 		return
 	var eye := to_local(cam.global_position) / CubeWorld.TICK
-	var half := Vector3.ONE * CubeWorld.RENDER_TICKS * 0.5
 	list.sort_custom(func(a: Array, b: Array) -> bool:
-		return (Vector3(a[0]) * CubeWorld.RENDER_TICKS + half).distance_squared_to(eye) < (Vector3(b[0]) * CubeWorld.RENDER_TICKS + half).distance_squared_to(eye))
+		return CubeWorld.chunk_center(a[0]).distance_squared_to(eye) < CubeWorld.chunk_center(b[0]).distance_squared_to(eye))
 
 
 func _exit_tree() -> void:
@@ -112,9 +111,8 @@ func rebuild_dirty(budget_ms := -1.0) -> void:
 		var cam := get_viewport().get_camera_3d()
 		if cam:
 			var eye := to_local(cam.global_position) / CubeWorld.TICK
-			var half := Vector3.ONE * CubeWorld.RENDER_TICKS * 0.5
 			keys.sort_custom(func(a: Vector3i, b: Vector3i) -> bool:
-				return (Vector3(a) * CubeWorld.RENDER_TICKS + half).distance_squared_to(eye) < (Vector3(b) * CubeWorld.RENDER_TICKS + half).distance_squared_to(eye))
+				return CubeWorld.chunk_center(a).distance_squared_to(eye) < CubeWorld.chunk_center(b).distance_squared_to(eye))
 	var t0 := Time.get_ticks_usec()
 	for ck in keys:
 		world.dirty.erase(ck)
