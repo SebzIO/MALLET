@@ -4939,7 +4939,7 @@ func frame_course(cam: OrbitCamera, aspect: float) -> void:
 	for o in _all_objects():
 		if o is RampNode:
 			pts.append_array(Array(o.ridge))
-		else:
+		elif o is EntityNode:                           # (the course: ramps and platforms; scenery is left out)
 			var hs: Vector3 = o.size / 2.0
 			for c in 8:
 				pts.append(o.position + Vector3(hs.x * (1 if c & 1 else -1), hs.y * (1 if c & 2 else -1), hs.z * (1 if c & 4 else -1)))
