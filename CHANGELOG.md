@@ -3,6 +3,13 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.14 preview — 2026-11-11: Release of the 0.18.6-0.18.13 fixes
+
+- Framing the 3D view on a course no longer fails on maps with blocks, cube objects, lights or other scenery (it looks
+  at the ramps and platforms only).
+- For the 1.0 trailer: tools/demo/trailer.gd films the footage on a showcase map, tools/demo/cut_trailer.py cuts it
+  on the beat (docs/TRAILER.md). Nothing changes in MALLET itself.
+
 ## 0.18.13 preview — 2026-11-11: A trail for crashes
 
 - MALLET keeps a short trail of what you just did in build mode (keys, clicks with Shift / Ctrl / Alt, each cube edit,
