@@ -57,6 +57,8 @@ static var _shaders := {}
 
 var leaves := {}                         ## Vector4i(x, y, z, p) -> [corners PackedByteArray(24), slots PackedStringArray(6), blend PackedByteArray(0 or 8)]
 var mats := {}                           ## Vector4i(x, y, z, p) -> material name (cells of empty space filled with water etc.)
+const FACE_GROW := 0.0005                ## meters: a cut cube's faces are drawn this much bigger, so neighbors overlap
+const CUT_THREADS_FROM := 256            ## a chunk with this many cut cubes works them out on all cores
 var show_mats := true                    ## draw the invisible materials (clip, death...) - Sauerbraten's M
 var dirty := {}                          ## render chunk Vector3i -> true
 var revision := 0
@@ -671,56 +673,122 @@ static func _cut_rows(cut: Array) -> Array:
 	return rows
 
 
-## The corners of the solid those planes bound, as [x, y, z] in doubles.
-static func _cut_corners(rows: Array) -> Array:
+## One polygon per plane: the face that plane leaves on the solid, flat [x, y, z, x, y, z...] in doubles, counter-clockwise
+## from outside (empty: no face). Each face starts as a square on its plane and is clipped by the others, which costs
+## far less than trying every combination of three planes.
+static func _cut_polys(rows: Array, skip_walls := 0) -> Array:
 	var out := []
-	var cnt := rows.size()
-	for i in cnt:
-		var a: Array = rows[i]
-		for j in range(i + 1, cnt):
-			var b: Array = rows[j]
-			var abx: float = a[1] * b[2] - a[2] * b[1]
-			var aby: float = a[2] * b[0] - a[0] * b[2]
-			var abz: float = a[0] * b[1] - a[1] * b[0]
-			for k in range(j + 1, cnt):
-				var c: Array = rows[k]
-				var det: float = abx * c[0] + aby * c[1] + abz * c[2]
-				if absf(det) < 1e-9:
-					continue
-				var bcx: float = b[1] * c[2] - b[2] * c[1]
-				var bcy: float = b[2] * c[0] - b[0] * c[2]
-				var bcz: float = b[0] * c[1] - b[1] * c[0]
-				var cax: float = c[1] * a[2] - c[2] * a[1]
-				var cay: float = c[2] * a[0] - c[0] * a[2]
-				var caz: float = c[0] * a[1] - c[1] * a[0]
-				var x: float = (bcx * a[3] + cax * b[3] + abx * c[3]) / det
-				var y: float = (bcy * a[3] + cay * b[3] + aby * c[3]) / det
-				var z: float = (bcz * a[3] + caz * b[3] + abz * c[3]) / det
-				var inside := true
-				for r in rows:
-					if r[0] * x + r[1] * y + r[2] * z - r[3] > 1e-7:
-						inside = false
-						break
-				if not inside:
-					continue
-				var dup := false
-				for q in out:
-					var dx: float = q[0] - x
-					var dy: float = q[1] - y
-					var dz: float = q[2] - z
-					if dx * dx + dy * dy + dz * dz < 1e-10:
-						dup = true
-						break
-				if not dup:
-					out.append([x, y, z])
+	for fi in rows.size():
+		if fi < 6 and skip_walls & (1 << fi):
+			out.append(PackedFloat64Array())             # (a wall known to be hidden: no need to work it out)
+			continue
+		var r: Array = rows[fi]
+		var nx: float = r[0]
+		var ny: float = r[1]
+		var nz: float = r[2]
+		var tx: float
+		var ty: float
+		var tz: float
+		if absf(nx) < 0.9:                               # t = n x X
+			tx = 0.0
+			ty = nz
+			tz = -ny
+		else:                                            # t = n x Y
+			tx = -nz
+			ty = 0.0
+			tz = nx
+		var tl := sqrt(tx * tx + ty * ty + tz * tz)
+		tx /= tl
+		ty /= tl
+		tz /= tl
+		var bx := ny * tz - nz * ty
+		var by := nz * tx - nx * tz
+		var bz := nx * ty - ny * tx
+		var wall := fi < 6
+		var h := 4.0 if wall else 64.0                   # (a wall is exactly its square; a slanted plane is cut down by the walls)
+		var cx: float = nx * r[3] + (0.0 if wall and nx != 0.0 else 4.0 if wall else 0.0)
+		var cy: float = ny * r[3] + (0.0 if wall and ny != 0.0 else 4.0 if wall else 0.0)
+		var cz: float = nz * r[3] + (0.0 if wall and nz != 0.0 else 4.0 if wall else 0.0)
+		var poly := PackedFloat64Array([cx + (tx + bx) * h, cy + (ty + by) * h, cz + (tz + bz) * h,
+			cx + (bx - tx) * h, cy + (by - ty) * h, cz + (bz - tz) * h,
+			cx - (tx + bx) * h, cy - (ty + by) * h, cz - (tz + bz) * h,
+			cx + (tx - bx) * h, cy + (ty - by) * h, cz + (tz - bz) * h])
+		for j in range(6 if wall else 0, rows.size()):
+			if j == fi:
+				continue
+			poly = _clip_rows(poly, rows[j])
+			if poly.size() < 9:
+				break
+		out.append(poly if poly.size() >= 9 and _poly_area2(poly) > 1e-9 else PackedFloat64Array())
 	return out
+
+
+## A polygon cut down to the inside of one plane row.
+static func _clip_rows(poly: PackedFloat64Array, r: Array) -> PackedFloat64Array:
+	var nx: float = r[0]
+	var ny: float = r[1]
+	var nz: float = r[2]
+	var d: float = r[3]
+	var n := poly.size()
+	var all_in := true
+	for i in range(0, n, 3):
+		if nx * poly[i] + ny * poly[i + 1] + nz * poly[i + 2] - d > 1e-9:
+			all_in = false
+			break
+	if all_in:
+		return poly
+	var out := PackedFloat64Array()
+	var px := poly[n - 3]
+	var py := poly[n - 2]
+	var pz := poly[n - 1]
+	var pd := nx * px + ny * py + nz * pz - d
+	for i in range(0, n, 3):
+		var x := poly[i]
+		var y := poly[i + 1]
+		var z := poly[i + 2]
+		var cd := nx * x + ny * y + nz * z - d
+		if (pd > 1e-9 and cd < -1e-9) or (pd < -1e-9 and cd > 1e-9):
+			var t := pd / (pd - cd)
+			out.append_array([px + (x - px) * t, py + (y - py) * t, pz + (z - pz) * t])
+		if cd <= 1e-9:
+			out.append_array([x, y, z])
+		px = x
+		py = y
+		pz = z
+		pd = cd
+	return out
+
+
+static func _poly_area2(p: PackedFloat64Array) -> float:
+	var ax := 0.0
+	var ay := 0.0
+	var az := 0.0
+	for i in range(3, p.size() - 3, 3):
+		var ux := p[i] - p[0]
+		var uy := p[i + 1] - p[1]
+		var uz := p[i + 2] - p[2]
+		var vx := p[i + 3] - p[0]
+		var vy := p[i + 4] - p[1]
+		var vz := p[i + 5] - p[2]
+		ax += uy * vz - uz * vy
+		ay += uz * vx - ux * vz
+		az += ux * vy - uy * vx
+	return sqrt(ax * ax + ay * ay + az * az)
 
 
 ## The corners of a cut piece's solid (empty if nothing is left).
 static func cut_vertices(cut: Array) -> PackedVector3Array:
 	var out := PackedVector3Array()
-	for q in _cut_corners(_cut_rows(cut)):
-		out.append(Vector3(q[0], q[1], q[2]))
+	for poly in _cut_polys(_cut_rows(cut)):
+		for i in range(0, poly.size(), 3):
+			var v := Vector3(poly[i], poly[i + 1], poly[i + 2])
+			var dup := false
+			for q in out:
+				if q.distance_squared_to(v) < 1e-10:
+					dup = true
+					break
+			if not dup:
+				out.append(v)
 	return out
 
 
@@ -861,37 +929,47 @@ static func leaf_planes(v: Array) -> Array:
 static func leaf_face_full(v: Array, o: int) -> bool:
 	var cut := _cut_of(v)
 	if cut.is_empty():
-		return face_is_full(v[0], o)
-	for n in face_corners(o):
-		var p := Vector3i(corner(FULL, n))
-		for pl in cut:
-			if _idot(pl[0], p) > int(pl[1]):
-				return false
+		return v[0] == FULL or face_is_full(v[0], o)
+	# the wall's four corners all inside every plane: each plane's worst corner is known without visiting them
+	var d := o >> 1
+	var at := 8 if o & 1 else 0
+	for pl in cut:
+		var n: Vector3i = pl[0]
+		var worst := n[d] * at
+		var a := n[(d + 1) % 3]
+		var b := n[(d + 2) % 3]
+		if a > 0:
+			worst += a * 8
+		if b > 0:
+			worst += b * 8
+		if worst > int(pl[1]):
+			return false
 	return true
 
 
 ## A cut piece's faces: [[slot orient, wall orient or -1, polygon PackedVector3Array counter-clockwise from outside, unit normal], ...]
 static func cut_faces(cut: Array) -> Array:
 	var rows := _cut_rows(cut)
-	var pts := _cut_corners(rows)
+	return _faces_of(cut, rows, _cut_polys(rows))
+
+
+static func _faces_of(cut: Array, rows: Array, polys: Array) -> Array:
 	var out := []
 	for fi in rows.size():
-		var r: Array = rows[fi]
-		var on := []
-		for p in pts:
-			if absf(r[0] * p[0] + r[1] * p[1] + r[2] * p[2] - r[3]) < 3e-5:
-				on.append(Vector3(p[0], p[1], p[2]))
-		if on.size() < 3:
+		var poly: PackedFloat64Array = polys[fi]
+		if poly.is_empty():
 			continue
-		var n := Vector3(r[0], r[1], r[2])
-		var cen := Vector3.ZERO
-		for p in on:
-			cen += p
-		cen /= on.size()
-		var t: Vector3 = ((on[0] as Vector3) - cen).normalized()
-		var b := n.cross(t)
-		on.sort_custom(func(p, q): return atan2((p - cen).dot(b), (p - cen).dot(t)) < atan2((q - cen).dot(b), (q - cen).dot(t)))
-		out.append([fi if fi < 6 else int(cut[fi - 6][2]), fi if fi < 6 else -1, PackedVector3Array(on), n])
+		var pts := PackedVector3Array()
+		for i in range(0, poly.size(), 3):
+			var v := Vector3(poly[i], poly[i + 1], poly[i + 2])
+			if pts.is_empty() or pts[pts.size() - 1].distance_squared_to(v) > 1e-10:
+				pts.append(v)
+		if pts.size() > 1 and pts[0].distance_squared_to(pts[pts.size() - 1]) <= 1e-10:
+			pts.remove_at(pts.size() - 1)
+		if pts.size() < 3:
+			continue
+		var r: Array = rows[fi]
+		out.append([fi if fi < 6 else int(cut[fi - 6][2]), fi if fi < 6 else -1, pts, Vector3(r[0], r[1], r[2])])
 	return out
 
 
@@ -2413,6 +2491,7 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 	var lines := PackedVector3Array()
 	var flats := {}                                      # slot key -> [slot, alpha, noclip, {Vector3i(orient, plane, size): {Vector2i cell: true}}]
 	var no_mats := mats.is_empty()
+	var pre := _cut_visible_all(ck)
 	for k in _render.get(ck, {}):
 		var v: Array = leaves[k]
 		var c: PackedByteArray = v[0]
@@ -2423,7 +2502,7 @@ func chunk_mesh(ck: Vector3i, outline := false) -> Array:
 		var alpha := cube_in_mat(k, "alpha")
 		var cut := _cut_of(v)
 		if not cut.is_empty():
-			_cut_mesh(k, v, cut, origin, unit, noclip, alpha, groups, col, lines, outline)
+			_cut_mesh(k, v, cut, origin, unit, noclip, alpha, groups, col, lines, outline, pre.get(k))
 			continue
 		var flat := not outline and c == FULL and bl.is_empty()
 		var sz := size_of(k.w)
@@ -2646,12 +2725,9 @@ static var _line_mat: ShaderMaterial = null    ## outline mode's lines (bright, 
 
 ## An exact cut piece's faces into the chunk's surfaces (same layout as chunk_mesh's corner cubes).
 func _cut_mesh(k: Vector4i, v: Array, cut: Array, origin: Vector3, unit: float, noclip: bool, alpha: bool,
-		groups: Dictionary, col: PackedVector3Array, lines: PackedVector3Array, outline: bool) -> void:
+		groups: Dictionary, col: PackedVector3Array, lines: PackedVector3Array, outline: bool, pre = null) -> void:
 	var bl := _blend_of(v)
-	for f in cut_faces(cut):
-		var wall: int = f[1]
-		if wall >= 0 and _face_hidden(k, v[0], wall):
-			continue
+	for f in (pre if pre != null else _cut_visible(k)):
 		var slot: String = v[1][int(f[0])]
 		var sl := parse_slot(slot)
 		var key := slot + ("#alpha" if alpha else "")
@@ -2669,10 +2745,23 @@ func _cut_mesh(k: Vector4i, v: Array, cut: Array, origin: Vector3, unit: float, 
 			g[i] = null
 		var layered: bool = sl["l"] != ""
 		var poly: PackedVector3Array = f[2]
+		var n: Vector3 = f[3]
+		# drawn a hair bigger than it is, so neighbors overlap: no rounding can open a pinhole between them (same plane,
+		# same texture, so the overlap can't be seen). Collision keeps the exact shape.
+		var cen := Vector3.ZERO
+		for q in poly:
+			cen += q
+		cen = origin + cen / poly.size() * unit
+		var drawn := PackedVector3Array()
+		var exact := PackedVector3Array()
+		for q in poly:
+			var p := origin + q * unit
+			exact.append(p)
+			drawn.append(p + (p - cen).normalized() * FACE_GROW)
 		for i in range(1, poly.size() - 1):
 			var lp := [poly[0], poly[i], poly[i + 1]]
-			var w := [origin + lp[0] * unit, origin + lp[1] * unit, origin + lp[2] * unit]
-			var n: Vector3 = (w[1] - w[0]).cross(w[2] - w[0]).normalized()
+			var w := [drawn[0], drawn[i], drawn[i + 1]]
+			var ex := [exact[0], exact[i], exact[i + 1]]
 			var uv := [slot_uv(w[0], n, sl), slot_uv(w[1], n, sl), slot_uv(w[2], n, sl)]
 			var tan := _tri_tangent(w, uv, n)
 			for j in [0, 2, 1]:                              # Godot winds front faces clockwise
@@ -2683,7 +2772,7 @@ func _cut_mesh(k: Vector4i, v: Array, cut: Array, origin: Vector3, unit: float, 
 				uv2s.append(slot_uv(w[j], n, sl, true) if layered else Vector2.ZERO)
 				cols.append(Color(1, 1, 1, _blend_at(bl, lp[j]) / 255.0 if not bl.is_empty() else 0.0))
 				if not noclip:
-					col.append(w[j])
+					col.append(ex[j])
 		if outline:
 			for i in poly.size():
 				lines.append(origin + poly[i] * unit)
@@ -2694,6 +2783,89 @@ func _cut_mesh(k: Vector4i, v: Array, cut: Array, origin: Vector3, unit: float, 
 		g[3] = uvs
 		g[4] = uv2s
 		g[5] = cols
+
+
+## A cut cube's faces that can be seen. Most of a cut shape's cells only touch other cells, so skipping the walls a
+## neighbor covers is most of its faces (and most of the work of finding them). Only reads the world: safe on a thread.
+func _cut_visible(k: Vector4i) -> Array:
+	var v: Array = leaves[k]
+	var cut: Array = v[3]
+	var rows := _cut_rows(cut)
+	var skip := 0
+	var nbs := [null, null, null, null, null, null]
+	for o in 6:
+		var nk = _wall_neighbor(k, o)
+		if nk == null:
+			if _face_hidden(k, v[0], o):                 # (smaller cubes beyond may cover it)
+				skip |= 1 << o
+			continue
+		var nv: Array = leaves[nk]
+		if leaf_face_full(nv, o ^ 1):
+			skip |= 1 << o
+		elif nv.size() > 3 and not (nv[3] as Array).is_empty():
+			nbs[o] = nk
+	var polys := _cut_polys(rows, skip)
+	for o in 6:
+		if nbs[o] != null and not (polys[o] as PackedFloat64Array).is_empty() and _wall_inside(k, polys[o], nbs[o]):
+			polys[o] = PackedFloat64Array()
+	return _faces_of(cut, rows, polys)
+
+
+## Every cut cube's visible faces in a chunk, key -> faces, worked out across the CPU's cores when there are enough.
+func _cut_visible_all(ck: Vector3i) -> Dictionary:
+	var keys := []
+	for k in _render.get(ck, {}):
+		var v: Array = leaves[k]
+		if v.size() > 3 and not (v[3] as Array).is_empty():
+			keys.append(k)
+	var out := {}
+	if keys.size() < CUT_THREADS_FROM:
+		return out                                       # (a few cubes: _cut_mesh does them as it goes)
+	for o in 6:
+		face_corners(o)                                  # (fills its cache here: threads only read it)
+	var res := []
+	res.resize(keys.size())
+	var task := WorkerThreadPool.add_group_task(func(i: int): res[i] = _cut_visible(keys[i]), keys.size())
+	WorkerThreadPool.wait_for_group_task_completion(task)
+	for i in keys.size():
+		out[keys[i]] = res[i]
+	return out
+
+
+## The cube of the same size or bigger across wall o, if a wall can be hidden by it (null: empty, smaller cubes, or
+## one side see-through and the other not).
+func _wall_neighbor(k: Vector4i, o: int):
+	var sz := size_of(k.w)
+	var st := orient_step(o) * sz
+	var nk = Vector4i(k.x + st.x, k.y + st.y, k.z + st.z, k.w)
+	if not leaves.has(nk):
+		nk = _leaf_at_from(_beyond(k, o), k.w + 1)
+		if nk == null:
+			return null
+	if not mats.is_empty() and _see_through(nk) != _see_through(k):
+		return null
+	return nk
+
+
+## Does neighbor nk's solid cover all of this wall polygon (k's 0..8 units)? The tolerance is tight on purpose: shapes
+## saved with coarser planes don't quite line up, and there the wall stays to plug the hairline between the two.
+func _wall_inside(k: Vector4i, poly: PackedFloat64Array, nk: Vector4i) -> bool:
+	var ks := float(size_of(k.w)) / 8.0
+	var ns := 8.0 / float(size_of(nk.w))
+	var ox := (float(k.x) - float(nk.x)) * ns
+	var oy := (float(k.y) - float(nk.y)) * ns
+	var oz := (float(k.z) - float(nk.z)) * ns
+	var sc := ks * ns
+	for pl in _cut_of(leaves[nk]):
+		var n: Vector3i = pl[0]
+		var nx := float(n.x)
+		var ny := float(n.y)
+		var nz := float(n.z)
+		var lim := float(pl[1]) + 2e-4 * sqrt(nx * nx + ny * ny + nz * nz)
+		for i in range(0, poly.size(), 3):
+			if nx * (ox + poly[i] * sc) + ny * (oy + poly[i + 1] * sc) + nz * (oz + poly[i + 2] * sc) > lim:
+				return false
+	return true
 
 
 ## A blend weight anywhere in a cube (trilinear from its 8 corner weights; p in 0..8 units).

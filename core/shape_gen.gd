@@ -583,7 +583,7 @@ static func _world_planes(s: Dictionary) -> Array:
 
 ## One world plane as a cell cut plane: [normal Vector3i, offset int, slot orient], inside = normal . u <= offset.
 static func _local_plane(n: Vector3, off: float, lo: Vector3, size: float) -> Array:
-	var m := 1000
+	var m := 100000  # (fine enough that neighboring cells' pieces of one plane meet exactly)
 	var nn := Vector3i(roundi(n.x * m), roundi(n.y * m), roundi(n.z * m))
 	var c := roundi((off - n.dot(lo)) * 8.0 / size * m)
 	var unit := n.normalized()

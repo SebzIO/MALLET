@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.8 preview — 2026-11-11: Big generated shapes draw faster
+
+- Drawing a big generated shape is more than three times faster (a 36,000-cube cone: 9.2 s down to 2.8 s). Each cut
+  cube's faces are found by clipping instead of trying every combination of planes, and the work is spread across
+  the CPU's cores.
+- The same cone has 77% fewer triangles (230,000 down to 52,700): walls between cubes that nobody can see are no longer
+  drawn, which also makes the map lighter to render and to collide with.
+- Neighboring pieces overlap by half a millimeter when drawn, so no pinholes show where those walls used to be.
+
 ## 0.18.7 preview — 2026-11-11: Instant play mode with big cube objects
 
 - Pressing P and Esc no longer stalls after placing a big shape (9.5 seconds each way on a large cone, now a few

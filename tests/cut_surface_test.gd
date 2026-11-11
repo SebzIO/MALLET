@@ -76,6 +76,52 @@ func _slanted(v: PackedVector3Array) -> float:
 	return a
 
 
+## A rendered cone against bright green: looking straight at it from four sides, no green may show through.
+func _see_through_check() -> void:
+	var r := 4.0
+	var h := 8.0
+	var cells: Array = ShapeGen.generate("cone", {"r": r, "h": h, "sides": 30}, 0, 2)["cells"]
+	var w := CubeWorld.new()
+	ShapeGen.place(w, cells, Vector3i.ZERO, "")
+	var scene := Node3D.new()
+	root.add_child(scene)
+	var we := WorldEnvironment.new()
+	we.environment = Environment.new()
+	we.environment.background_mode = Environment.BG_COLOR
+	we.environment.background_color = Color(0, 1, 0)
+	scene.add_child(we)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color.BLACK
+	for ck in w._render:
+		var mi := MeshInstance3D.new()
+		mi.mesh = w.chunk_mesh(ck)[0]
+		mi.material_override = mat
+		scene.add_child(mi)
+	var cam := Camera3D.new()
+	cam.fov = 30.0
+	scene.add_child(cam)
+	cam.current = true
+	var target := Vector3(r, h * 0.25, r)
+	var green := 0
+	var looked := 0
+	for yaw in [0.3, 1.9, 3.4, 5.0]:
+		cam.position = target + Vector3(sin(yaw), 0.15, cos(yaw)).normalized() * 14.0
+		cam.look_at(target)
+		for i in 3:
+			await process_frame
+		var img := root.get_texture().get_image()
+		var mid := Vector2i(img.get_width() / 2, img.get_height() / 2)
+		var half := img.get_height() / 5
+		for y in range(mid.y - half, mid.y + half):
+			for x in range(mid.x - half, mid.x + half):
+				looked += 1
+				if img.get_pixel(x, y).g > 0.2:
+					green += 1
+	check("a rendered cone shows no sky through its surface", green == 0 and looked > 0, "%d of %d pixels" % [green, looked])
+	scene.queue_free()
+
+
 func _run() -> void:
 	for spec in [["cone", {"r": 11.13, "h": 21.25, "sides": 30}], ["cone", {"r": 7.125, "h": 21.25, "sides": 64}], ["cone", {"r": 4.0, "h": 4.0, "sides": 25}]]:
 		var v: Dictionary = spec[1]
@@ -109,5 +155,6 @@ func _run() -> void:
 				if n.dot(mid - sd[0]) > 1e-3:
 					wrong += 1
 		check("...every CS:S brush side from the exact planes faces outward", wrong == 0 and brushes > 0, "%d cut brushes, %d wrong" % [brushes, wrong])
+	await _see_through_check()
 	print("cut_surface_test: ", "PASS" if ok else "FAIL")
 	quit(0 if ok else 1)
