@@ -3,6 +3,12 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.9 preview — 2026-11-11: Smooth hovering over big shapes
+
+- Build mode stays smooth while you aim at a big shape with a large grid. The highlight used to outline every small
+  cube inside the hovered grid cell, every frame (264 ms a frame at an 8 m grid, now under 0.3 ms). A cell holding
+  more than 8 small cubes is now highlighted as its plain square.
+
 ## 0.18.8 preview — 2026-11-11: Big generated shapes draw faster
 
 - Drawing a big generated shape is more than three times faster (a 36,000-cube cone: 9.2 s down to 2.8 s). Each cut

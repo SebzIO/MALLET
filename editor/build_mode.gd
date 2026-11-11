@@ -2193,6 +2193,7 @@ func _draw() -> void:
 	_fills.clear()
 
 
+const TRUE_FACE_MAX := 8                  ## a cell with more small cubes than this is highlighted as its plain square
 var _fills: Array = []                   ## quads to fill this frame (4 points each)
 var last_fill_count := 0                 ## how many corner squares were filled in the last frame
 
@@ -2300,6 +2301,9 @@ func _true_face(xf: Transform3D, s: Dictionary, c: Color, inset := 0.0) -> bool:
 	var p: int = s["p"]
 	var g := CubeWorld.size_of(p)
 	var o: int = s["orient"]
+	var oc: Vector3i = s["o"]
+	if w.cubes_in_cell(oc, p) > TRUE_FACE_MAX:
+		return false                                     # (a big cell over many small cubes: its square, not thousands of outlines every frame)
 	var keys := w.leaves_in(s["o"], Vector3i(g, g, g))
 	if keys.is_empty():
 		return false

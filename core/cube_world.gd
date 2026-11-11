@@ -1065,6 +1065,11 @@ func _count_occ(k: Vector4i, add: int) -> void:
 			_occ[ck] = n
 
 
+## How many smaller cubes are inside this grid cell (instant: kept up to date as cubes change).
+func cubes_in_cell(c: Vector3i, p: int) -> int:
+	return _occ.get(Vector4i(c.x, c.y, c.z, p), 0)
+
+
 ## Is there anything in this grid cell - part of a cube, or a material? (Build mode aims at cells like this: a cell
 ## with something in it counts as a whole block, even where its faces have been pushed in.)
 func cell_occupied(c: Vector3i, p: int) -> bool:
