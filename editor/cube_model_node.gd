@@ -44,6 +44,7 @@ func _start_background() -> void:
 		CubeWorld.face_corners(o)
 	_bg_keys = world.dirty.keys()
 	world.dirty.clear()
+	Trail.note("  background redraw of %d chunks" % _bg_keys.size())
 	_bg_res = []
 	_bg_res.resize(_bg_keys.size())
 	var keys := _bg_keys
@@ -57,6 +58,7 @@ func _start_background() -> void:
 func _poll_background(all := false) -> void:
 	if not _bg_keys.is_empty() and (world.reading_task < 0 or WorkerThreadPool.is_group_task_completed(world.reading_task)):
 		world.finish_reading()
+		Trail.note("  background redraw finished")
 		for i in _bg_keys.size():
 			if _bg_res[i] != null:
 				_bg_ready.append([_bg_keys[i], _bg_res[i]])

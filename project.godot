@@ -31,3 +31,7 @@ common/physics_interpolation=true
 
 movie_writer/mjpeg_quality=0.95
 movie_writer/fps=60
+
+[debug]
+
+file_logging/max_log_files=30

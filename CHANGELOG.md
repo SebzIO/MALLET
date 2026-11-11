@@ -3,6 +3,13 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.13 preview — 2026-11-11: A trail for crashes
+
+- MALLET keeps a short trail of what you just did in build mode (keys, clicks with Shift / Ctrl / Alt, each cube edit,
+  background redraws) in its logs folder (actions.log, and actions_previous.log for the session before), written
+  line by line so a crash can't lose it. Godot now keeps 30 log files instead of 5. If MALLET ever closes on its own,
+  those files say what it was doing.
+
 ## 0.18.12 preview — 2026-11-11: Big edits without the hitch
 
 - Deleting or pushing away lots of cubes at once no longer freezes MALLET. On a 32,000-cube sphere, pushing an 8 x 8

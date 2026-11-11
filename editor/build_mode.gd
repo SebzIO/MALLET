@@ -346,6 +346,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _mouse_button(e: InputEventMouseButton) -> void:
+	Trail.note("build mouse %d %s%s%s%s  drag=%s hmap=%s corners=%s grid=%d" % [e.button_index, "down" if e.pressed else "up",
+		" shift" if e.shift_pressed else "", " ctrl" if e.ctrl_pressed else "", " alt" if e.alt_pressed else "", _drag, hmap_on(),
+		not corners.is_empty(), grid_p])
 	if e.button_index != MOUSE_BUTTON_WHEEL_UP and e.button_index != MOUSE_BUTTON_WHEEL_DOWN:
 		_flush_wheel()                                   # (a click acts on the selection after the notches)
 	match e.button_index:
@@ -447,6 +450,7 @@ func _right_click() -> void:
 
 
 func _key(e: InputEventKey) -> void:
+	Trail.note("build key %s" % OS.get_keycode_string(e.get_keycode_with_modifiers()))
 	_flush_wheel()                                       # (keys act after the notches gathered this frame)
 	var ctrl := e.ctrl_pressed or e.meta_pressed
 	match e.keycode:
@@ -662,9 +666,11 @@ func _edit(s: Dictionary, fn: Callable):
 		models.add_child(m)
 		created = true
 	var w := m.world
+	Trail.note("  edit: selection %s at grid %d, object with %d cubes" % [str(s.get("s", Vector3i.ONE)), int(s.get("p", 0)), w.count()])
 	w.begin()
 	var out = fn.call(w)
 	var changed := w.commit()
+	Trail.note("  edit done: changed %s, %d cubes, %d chunks to redraw" % [changed, w.count(), w.dirty.size()])
 	if w.push_note != "":                             # a push the cube refused: say why, once
 		say(w.push_note)
 		w.push_note = ""

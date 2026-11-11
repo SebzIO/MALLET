@@ -67,8 +67,11 @@ var reading_task := -1                   ## a WorkerThreadPool group task readin
 ## Wait for a background redraw that reads this world (before anything changes it).
 func finish_reading() -> void:
 	if reading_task >= 0:
+		Trail.note("  (a change waits for the background redraw)")
 		WorkerThreadPool.wait_for_group_task_completion(reading_task)
 		reading_task = -1
+
+
 var revision := 0
 var _index := {}                         ## Vector3i (64 m cell) -> {Vector4i: true}
 var _render := {}                        ## Vector3i (16 m chunk) -> {Vector4i: true}
