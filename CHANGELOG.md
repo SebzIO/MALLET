@@ -3,6 +3,12 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.7 preview — 2026-11-11: Instant play mode with big cube objects
+
+- Pressing P and Esc no longer stalls after placing a big shape (9.5 seconds each way on a large cone, now a few
+  milliseconds). Entering and leaving play mode redrew every cube object in full just to hide or show invisible
+  materials; now only the chunks that hold them are redrawn.
+
 ## 0.18.6 preview — 2026-11-11: No more holes in cones
 
 - Generated shapes no longer have see-through pits. Along the seams of a many-sided cone or cylinder, cubes cut by two

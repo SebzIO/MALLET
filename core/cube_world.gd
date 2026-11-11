@@ -1805,6 +1805,17 @@ func set_material(sel: Dictionary, mat: String) -> void:
 
 
 ## Material cells as boxes in meters (this object's space): {material: [AABB, ...]}.
+## The render chunks holding a material that's only drawn while show_mats is on (clip, death...).
+func hidden_mat_chunks() -> Array:
+	var out := []
+	for ck in _mrender:
+		for k in _mrender[ck]:
+			if not mats[k] in ["water", "lava", "glass"]:
+				out.append(ck)
+				break
+	return out
+
+
 func material_boxes() -> Dictionary:
 	var out := {}
 	for k in mats:

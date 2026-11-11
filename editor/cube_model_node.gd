@@ -163,7 +163,9 @@ func set_show_mats(on: bool) -> void:
 	if world.show_mats == on:
 		return
 	world.show_mats = on
-	rebuild_all()
+	for ck in world.hidden_mat_chunks():                 # (only these look different: P and Esc must not re-mesh a whole object)
+		world.dirty[ck] = true
+	rebuild_dirty()
 
 
 ## A point in the world, in this object's grid (ticks).
