@@ -15,11 +15,12 @@ func check(label: String, good: bool, detail := "") -> void:
 	ok = ok and good
 
 
-func key(k: int, ctrl := false) -> void:
+func key(k: int, ctrl := false, shift := false) -> void:
 	var e := InputEventKey.new()
 	e.keycode = k
 	e.pressed = true
 	e.ctrl_pressed = ctrl
+	e.shift_pressed = shift
 	ed._unhandled_input(e)
 
 
@@ -43,20 +44,22 @@ func _run() -> void:
 			top = p
 			break
 
-	# ---- #14: D while flying (right mouse held) doesn't toggle draw blocks; E doesn't open build mode
+	# ---- #14: Shift+O (draw blocks, D until 0.19.5) while flying (right mouse held) does nothing; E doesn't open build mode
 	(persp.camera as OrbitCamera)._orbiting = true
-	key(KEY_D)
+	key(KEY_O, false, true)
 	key(KEY_E)
-	check("#14 D and E while flying do nothing but fly", not ed._draw_mode and not ed.build.active)
+	check("#14 Shift+O and E while flying do nothing but fly", not ed._draw_mode and not ed.build.active)
 	(persp.camera as OrbitCamera)._orbiting = false
 	root.warp_mouse(persp.get_global_rect().get_center())
 	await frames(1)
-	key(KEY_D)
-	check("#14 D over the perspective view doesn't toggle draw blocks", not ed._draw_mode)
+	key(KEY_O, false, true)
+	check("#14 Shift+O over the perspective view doesn't toggle draw blocks", not ed._draw_mode)
 	root.warp_mouse(top.get_global_rect().get_center())
 	await frames(1)
 	key(KEY_D)
-	check("#14 D over a 2D view does", ed._draw_mode)
+	check("D does nothing now (it's for flying)", not ed._draw_mode)
+	key(KEY_O, false, true)
+	check("#14 Shift+O over a 2D view does", ed._draw_mode)
 	key(KEY_ESCAPE)
 
 	# ---- #1: F in the Outliner focuses the selection

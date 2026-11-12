@@ -255,12 +255,12 @@ static func material_for(slot: String, alpha_mat := false) -> Material:
 	return m
 
 
-static func _surface_shader(see_through: bool) -> Shader:
-	var k := "alpha" if see_through else "solid"
+static func _surface_shader(see_through: bool, double_sided := false) -> Shader:
+	var k := ("alpha" if see_through else "solid") + ("2" if double_sided else "")
 	if not _shaders.has(k):
 		var s := Shader.new()
 		var code := FileAccess.get_file_as_string("res://core/shaders/cube_surface.gdshader")
-		s.code = ("#define SEE_THROUGH\n" if see_through else "") + code
+		s.code = ("#define SEE_THROUGH\n" if see_through else "") + ("#define DOUBLE_SIDED\n" if double_sided else "") + code
 		_shaders[k] = s
 	return _shaders[k]
 

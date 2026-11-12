@@ -2,8 +2,12 @@ shader_type spatial;
 // Cube faces with Sauerbraten's texture settings: a tint, see-through (when SEE_THROUGH is defined), scrolling, and
 // a second texture (the blend layer) that shows where it's been painted in (vertex color alpha). UVs come from the
 // mesh (UV = the texture, UV2 = the layer's).
-#ifdef SEE_THROUGH
+#if defined(SEE_THROUGH) && defined(DOUBLE_SIDED)
+render_mode cull_disabled, depth_draw_always;
+#elif defined(SEE_THROUGH)
 render_mode cull_back, depth_draw_always;
+#elif defined(DOUBLE_SIDED)
+render_mode cull_disabled;
 #else
 render_mode cull_back;
 #endif

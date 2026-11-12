@@ -300,6 +300,53 @@ func center() -> Vector3:
 	return position
 
 
+## The box in the entity's own space: a volume around its position, a platform below it, a zone above it.
+func _local_box() -> AABB:
+	var h := size * 0.5
+	if is_volume():
+		return AABB(-h, size)
+	if is_zone_box():
+		return AABB(Vector3(-h.x, 0, -h.z), size)
+	return AABB(Vector3(-h.x, -size.y, -h.z), size)
+
+
+## Squares on the box's six sides to stretch or shrink it in the 2D views (0.19.5), like a block's:
+## [world point, outward normal, axis, sign].
+func face_handles() -> Array:
+	var b := _local_box()
+	var xf := global_transform
+	var out := []
+	for axis in 3:
+		for sgn in [-1.0, 1.0]:
+			var local := b.get_center()
+			local[axis] = b.end[axis] if sgn > 0.0 else b.position[axis]
+			var n := Vector3.ZERO
+			n[axis] = sgn
+			out.append([xf * local, (xf.basis * n).normalized(), axis, sgn])
+	return out
+
+
+## `d` with one side moved `amount` meters along its outward normal; the opposite side stays put.
+func resized(d: Dictionary, axis: int, sgn: float, amount: float) -> Dictionary:
+	var out := d.duplicate(true)
+	var sz := Vector3(d["size"][0], d["size"][1], d["size"][2])
+	var new_len := maxf(sz[axis] + amount, 0.25)
+	var grow := new_len - sz[axis]
+	sz[axis] = new_len
+	var shift := Vector3.ZERO
+	if axis == 1 and not is_volume():
+		if is_zone_box():
+			shift.y = -grow if sgn < 0.0 else 0.0        # (a zone sits on its floor)
+		else:
+			shift.y = grow if sgn > 0.0 else 0.0         # (a platform hangs from its top)
+	else:
+		shift[axis] = grow * 0.5 * sgn
+	var pos := Vector3(d["position"][0], d["position"][1], d["position"][2]) + Basis(Vector3.UP, deg_to_rad(float(d.get("yaw", 0.0)))) * shift
+	out["size"] = [sz.x, sz.y, sz.z]
+	out["position"] = [pos.x, pos.y, pos.z]
+	return out
+
+
 func translate_by(delta: Vector3) -> void:
 	position += delta
 

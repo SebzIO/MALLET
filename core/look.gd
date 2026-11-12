@@ -181,6 +181,75 @@ static func image_texture(path: String) -> Texture2D:
 ## Material for a ramp. `texture_scale` = how many meters one copy of the image covers.
 ## `square`: for blocks and cubes (world-meter UVs): the Dev grid as even 1 m squares instead of the ramp layout.
 ## `shader_id` / `shader_params`: look "shader" (your own surface shader; a plain `color` while it doesn't work).
+## A ramp's texture settings, the same as a cube face's in build mode (0.19.5): r turn / flip (0-5), u / v shift
+## (in repeats), su / sv scroll (repeats a second), a see-through (1 = solid). Missing keys are the defaults.
+const RAMP_TEX_DEFAULTS := {"r": 0, "u": 0.0, "v": 0.0, "su": 0.0, "sv": 0.0, "a": 1.0}
+
+
+static func ramp_tex_plain(t: Dictionary) -> bool:
+	for k in RAMP_TEX_DEFAULTS:
+		if t.has(k) and t[k] != RAMP_TEX_DEFAULTS[k] and float(t[k]) != float(RAMP_TEX_DEFAULTS[k]):
+			return false
+	return true
+
+
+## A ramp mesh with its texture turned, shifted and scrolling as `t` says, drawn with the same surface shader as
+## build mode's cube faces; null when there's nothing to do (plain settings, or a look without a texture) - then the
+## usual ramp_material is used.
+static func ramp_textured(mesh: ArrayMesh, look: String, color: Color, texture_path: String, texture_scale: float,
+		material_id: String, face_length: float, t: Dictionary) -> ArrayMesh:
+	if ramp_tex_plain(t) or not look in ["material", "texture"]:
+		return null
+	var base: StandardMaterial3D = null
+	var sx := 1.0
+	var sy := 20.0 / maxf(texture_scale, 0.5)
+	var albedo: Texture2D = null
+	if look == "material":
+		if not MaterialLibrary.has(material_id):
+			return null
+		base = MaterialLibrary.material(material_id, Color.WHITE)
+		albedo = base.albedo_texture
+		var size := MaterialLibrary.world_size(material_id) * maxf(texture_scale / 20.0, 0.05)
+		sx = face_length / size
+		sy = 20.0 / size
+	else:
+		albedo = image_texture(texture_path)
+		if albedo == null:
+			return null
+	var r := int(t.get("r", 0))
+	var off := Vector2(float(t.get("u", 0.0)), float(t.get("v", 0.0)))
+	var a := float(t.get("a", 1.0))
+	var sm := ShaderMaterial.new()
+	sm.shader = CubeWorld._surface_shader(a < 1.0, true)  # (two-sided, like every ramp material)
+	sm.set_shader_parameter("albedo_tex", albedo)
+	if base and base.normal_texture:
+		sm.set_shader_parameter("normal_tex", base.normal_texture)
+		sm.set_shader_parameter("has_normal", true)
+	if base and base.roughness_texture:
+		sm.set_shader_parameter("rough_tex", base.roughness_texture)
+		sm.set_shader_parameter("has_rough", true)
+	sm.set_shader_parameter("tint", color if look == "material" else Color.WHITE * color)
+	sm.set_shader_parameter("alpha", a)
+	sm.set_shader_parameter("scroll", Vector2(float(t.get("su", 0.0)), float(t.get("sv", 0.0))))
+	var out := ArrayMesh.new()
+	for si in mesh.get_surface_count():
+		var arr := mesh.surface_get_arrays(si)
+		var uv: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV]
+		for i in uv.size():
+			var p := Vector2(uv[i].x * sx, uv[i].y * sy)
+			match r:
+				1: p = Vector2(-p.y, p.x)
+				2: p = -p
+				3: p = Vector2(p.y, -p.x)
+				4: p = Vector2(-p.x, p.y)
+				5: p = Vector2(p.x, -p.y)
+			uv[i] = p + off
+		arr[Mesh.ARRAY_TEX_UV] = uv
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		out.surface_set_material(si, sm)
+	return out
+
+
 static func ramp_material(look: String, color: Color, texture_path := "", texture_scale := 20.0, material_id := "",
 		face_length := 10.5, square := false, shader_id := "", shader_params := {}) -> Material:
 	if look == "shader":

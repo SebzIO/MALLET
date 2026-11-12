@@ -382,7 +382,7 @@ func _build_ui_main() -> void:
 	_menu(bar, "Add ▾", [
 		["Ramp", KEY_N, _add_ramp_clicked], ["Generate a ramp shape…", KEY_R, _generate_clicked],
 		["Ramp creator (cross-sections, ends, ramp prefabs)…", KEY_NONE, _open_ramp_creator], [],
-		["Block", KEY_O, _add_block_clicked], ["Draw blocks (drag in a 2D view)", KEY_D, _toggle_draw_mode, "draw"], [],
+		["Block", KEY_O, _add_block_clicked], ["Draw blocks (drag in a 2D view)", KEY_MASK_SHIFT | KEY_O, _toggle_draw_mode, "draw"], [],
 		["Start platform", KEY_B, func(): _add_entity("start")], ["Finish platform", KEY_M, func(): _add_entity("finish")],
 		["Stage plate", KEY_T, func(): _add_entity("stage")], ["Teleport", KEY_Y, func(): _add_entity("teleport")],
 		["Start zone (on your own platform)", KEY_NONE, func(): _add_entity("start", true)],
@@ -631,6 +631,18 @@ func _build_props(props: VBoxContainer) -> void:
 	_tex_box.add_child(tex_name)
 	_fields["tex_name"] = tex_name
 	_add_slider(_tex_box, "tex_scale", "Image size along the ramp (m)", 1.0, 200.0, 1.0)
+	var turn := OptionButton.new()                       # the same texture settings as build mode's F3 (0.19.5)
+	for t in ["Not turned", "Turned 90°", "Turned 180°", "Turned 270°", "Flipped across", "Flipped up"]:
+		turn.add_item(t)
+	turn.focus_mode = Control.FOCUS_NONE
+	turn.item_selected.connect(func(i): _edit_prop("tex_r", i))
+	_add_row(_tex_box, "Turn", turn)
+	_fields["tex_r"] = turn
+	_add_slider(_tex_box, "tex_u", "Shift across", 0.0, 1.0, 0.01)
+	_add_slider(_tex_box, "tex_v", "Shift along", 0.0, 1.0, 0.01)
+	_add_slider(_tex_box, "tex_su", "Scroll across (per second)", -2.0, 2.0, 0.05)
+	_add_slider(_tex_box, "tex_sv", "Scroll along (per second)", -2.0, 2.0, 0.05)
+	_add_slider(_tex_box, "tex_a", "See-through (1 = solid)", 0.05, 1.0, 0.05)
 	_surface_shader_box(_ramp_props, "")
 
 	_build_gen_props(props)
@@ -1418,6 +1430,9 @@ func _refresh_props() -> void:
 			_fill_shader_controls(_fields["shader_params"], r.shader, r.shader_params, "ramp%d" % r.get_instance_id(),
 				func(n, v): _edit_prop("shader_param", [n, v]), "a plain color (the Color above)")
 		_set_field("tex_scale", r.tex_scale)
+		(_fields["tex_r"] as OptionButton).select(int(r.tex.get("r", 0)))
+		for k in ["u", "v", "su", "sv", "a"]:
+			_set_field("tex_" + k, float(r.tex.get(k, Look.RAMP_TEX_DEFAULTS[k])))
 	else:
 		var e := selected as EntityNode
 		_fields["head"].text = e.label()
@@ -2829,7 +2844,7 @@ func _add_block_clicked() -> void:
 	b.from_dict(d)
 	_rebuild_blocks()
 	_select(b)
-	_set_status("New block. Drag the squares on its sides to resize it, or use Draw block (D) to draw blocks in the 2D views.")
+	_set_status("New block. Drag the squares on its sides to resize it, or use Draw blocks (Shift+O) to draw blocks in the 2D views.")
 
 
 ## U12: a block that build mode edits becomes a cube object - one cell for a plain, cube-shaped box (1, 2, 4 or 8 m
@@ -3684,7 +3699,7 @@ func _paint_face(pane: ViewPane, mouse: Vector2) -> void:
 func _pick_face(pane: ViewPane, mouse: Vector2) -> int:
 	var best := -1
 	var best_d := PICK_PIXELS
-	var hs: Array = (selected as BlockNode).face_handles()
+	var hs: Array = selected.face_handles()
 	for i in hs.size():
 		var fh: Array = hs[i]
 		if pane.camera.is_position_behind(fh[0]):
@@ -3982,8 +3997,8 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			ov.draw_circle(s, HANDLE_RADIUS, col)
 			if selected.is_locked_point(i):
 				_draw_padlock(ov, s + Vector2(0, -HANDLE_RADIUS - 12), Color(1.0, 0.62, 0.15))
-	elif selected is BlockNode:
-		for fh in (selected as BlockNode).face_handles():
+	elif selected is BlockNode or selected is EntityNode:
+		for fh in selected.face_handles():
 			if cam.is_position_behind(fh[0]):
 				continue
 			# in a 2D view only the sides seen edge-on can be dragged
@@ -4145,12 +4160,13 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and event.alt_pressed:
 		_paint_face(pane, event.position)
 		return true
-	if selected is BlockNode and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if (selected is BlockNode or selected is EntityNode) and selection().size() == 1 and event is InputEventMouseButton \
+			and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		var f := _pick_face(pane, event.position)
 		if f >= 0:
 			_face = f
 			# top and bottom handles move up and down: drag them on an upright plane (a level one can't go up)
-			var up_down := absf(((selected as BlockNode).face_handles()[f][1] as Vector3).y) > 0.7
+			var up_down := absf((selected.face_handles()[f][1] as Vector3).y) > 0.7
 			_begin_drag(pane, Drag.FACE, event.position, up_down)
 			return true
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -4168,8 +4184,8 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 			if hp >= 0:
 				_begin_drag(pane, Drag.POINT, event.position, event.shift_pressed, hp)
 				return true
-			var obj := _pick_object(pane, event.position)
 			var ctrl: bool = event.ctrl_pressed or event.meta_pressed
+			var obj := _pick_object(pane, event.position, not ctrl)   # (a selected object behind another one: still it)
 			if obj and ctrl:
 				_select_with_group(obj, true)            # Ctrl+click: add to / take out of the selection
 				_set_status("%d selected" % selection().size())
@@ -4268,15 +4284,15 @@ func _handle_key(e: InputEventKey) -> void:
 			else: _group()
 		KEY_A when ctrl: _set_selection(_all_objects())
 		KEY_N: _add_ramp_clicked()
+		KEY_O when e.shift_pressed:                      # Shift+O: draw blocks (O is a block; D is for flying)
+			if _draw_mode or _hovered_pane() == null or _hovered_pane().is_ortho():
+				_toggle_draw_mode()
+			else:
+				_set_status("Draw blocks works in the Top, Front and Side views: press Shift+O with the mouse over one.")
 		KEY_O: _add_block_clicked()
 		KEY_U: _add_light("point")
 		KEY_H: _add_water_clicked()
 		KEY_X when not ctrl: _add_text_clicked()
-		KEY_D when not ctrl:
-			if _draw_mode or _hovered_pane() == null or _hovered_pane().is_ortho():
-				_toggle_draw_mode()
-			else:
-				_set_status("Draw blocks works in the Top, Front and Side views: press D with the mouse over one.")
 		KEY_F11: _toggle_fullscreen()
 		KEY_I: _add_prop_clicked()
 		KEY_L: _lock_toggle()
@@ -4316,11 +4332,15 @@ func _pick_handle(pane: ViewPane, mouse: Vector2) -> int:
 	return best
 
 
-func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
+## The object under the mouse. `through_to_selected`: if a selected object is anywhere under the mouse, even behind
+## another one, that's the one (so a selected object can be dragged from behind whatever is in front of it).
+func _pick_object(pane: ViewPane, mouse: Vector2, through_to_selected := false) -> Node3D:
 	var r := pane.ray(mouse)
 	var q := PhysicsRayQueryParameters3D.create(r[0], r[0] + r[1] * 20000.0)
 	var exclude := []
-	for attempt in 8:                                    # look past things hidden in the Outliner
+	var first: Node3D = null
+	var sel_now := selection() if through_to_selected else []
+	for attempt in (24 if through_to_selected else 8):  # look past things hidden in the Outliner
 		q.exclude = exclude
 		var hit := get_world_3d().direct_space_state.intersect_ray(q)
 		if hit.is_empty():
@@ -4333,8 +4353,13 @@ func _pick_object(pane: ViewPane, mouse: Vector2) -> Node3D:
 		if obj == null:
 			break                                        # not an object: try the ramp ridges below
 		if obj.is_visible_in_tree():
-			return obj
+			if not through_to_selected or obj in sel_now:
+				return obj
+			if first == null:
+				first = obj
 		exclude.append(hit.collider.get_rid())
+	if first != null:
+		return first                                     # (no selected one under the mouse: the front one)
 	# fallback: the ridge line on screen (thin ramps seen edge-on in the side views, clicks on the ridge seam)
 	var best: Node3D = null
 	var best_d := PICK_PIXELS
@@ -4410,6 +4435,17 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 		_drag_moved = true
 	if _drag != Drag.OBJECT or not _text_surface.is_empty():
 		selected.from_dict(_drag_origin)                 # (shapes and text on faces start over from the drag's start)
+	if _drag == Drag.FACE and selected is EntityNode:   # (a zone, kill zone, booster, platform: stretched by a side)
+		var efh: Array = selected.face_handles()[_face]
+		var eamount: float = (hit - _drag_start_hit).dot(efh[1])
+		if snap_enabled:
+			eamount = snappedf(eamount, snap_step)
+		selected.from_dict(selected.resized(_drag_origin, efh[2], efh[3], eamount))
+		selected.rebuild()
+		var esz: Vector3 = selected.size
+		_set_status("Size %.2f x %.2f x %.2f m" % [esz.x, esz.y, esz.z])
+		_refresh_props()
+		return
 	if _drag == Drag.FACE:
 		var fh: Array = (selected as BlockNode).face_handles()[_face]
 		var amount: float = (hit - _drag_start_hit).dot(fh[1])
@@ -5238,6 +5274,12 @@ func _edit_prop(key: String, value) -> void:
 			r.shader = value
 			r.shader_params = {}
 			r._update_material()
+			return
+		if key.begins_with("tex_") and key != "tex_scale":  # (a texture setting: turn, shift, scroll, see-through)
+			var t := r.tex.duplicate()
+			t[key.substr(4)] = int(value) if key == "tex_r" else float(value)
+			r.tex = t
+			r.rebuild()
 			return
 		if key == "look" and value == "shader" and r.shader == "" and not UserShaders.ids("surface").is_empty():
 			r.shader = UserShaders.ids("surface")[0]

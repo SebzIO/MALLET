@@ -95,7 +95,12 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 		var mat := Look.ramp_material(rd.get("look", "color"), Color.html(rd.get("color", "edebe3")), rd.get("texture", ""),
 			rd.get("tex_scale", 20.0), rd.get("material", ""), float(sp["face_length"]), false, rd.get("shader", ""),
 			rd.get("shader_params", {}))
-		mesh.surface_set_material(0, mat)
+		var tm := Look.ramp_textured(mesh, rd.get("look", "color"), Color.html(rd.get("color", "edebe3")), rd.get("texture", ""),
+			rd.get("tex_scale", 20.0), rd.get("material", ""), float(sp["face_length"]), rd.get("tex", {}) if rd.get("tex") is Dictionary else {})
+		if tm != null:
+			mesh = tm                                     # (turned / shifted / scrolling / see-through texture)
+		else:
+			mesh.surface_set_material(0, mat)
 		var body := StaticBody3D.new()
 		body.name = "Ramp%d" % i
 		_add(root, ramps, body)

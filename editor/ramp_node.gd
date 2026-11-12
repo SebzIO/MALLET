@@ -76,6 +76,11 @@ func shape_spec() -> Dictionary:
 	return RampShape.spec(to_dict())
 
 
+## The texture's turn, shift, scroll and see-through (Look.RAMP_TEX_DEFAULTS keys; empty = plain).
+var tex := {}
+var _textured: ArrayMesh = null
+
+
 func rebuild() -> void:
 	position = Vector3.ZERO                              # (shift() moves the node while dragging; the mesh is world space)
 	geometry = RampShape.build(points, shape_spec())
@@ -84,6 +89,11 @@ func rebuild() -> void:
 	var mesh: ArrayMesh = geometry["mesh"]
 	_mesh_instance.mesh = mesh
 	_shape.shape = mesh.create_trimesh_shape() if mesh.get_surface_count() > 0 else null
+	_textured = Look.ramp_textured(mesh, look, color, texture, tex_scale, material, face_length, tex)
+	if _textured != null:                                # (turned / shifted / scrolling / see-through: its own UVs and shader)
+		_mesh_instance.mesh = _textured
+		_mesh_instance.material_override = null
+		_material_key = ""
 	triangle_count = geometry["triangles"]
 	length = geometry["length"]
 	_build_outline()
@@ -97,6 +107,8 @@ func set_selected(on: bool) -> void:
 
 
 func _update_material() -> void:
+	if _textured != null:
+		return                                           # (the textured mesh carries its own material)
 	# selection is shown with an outline, so the material is always the ramp's real look
 	var key := "%s|%s|%s|%s|%s|%s" % [look, color.to_html(), texture, tex_scale, material, face_length]
 	if look == "shader":
@@ -159,7 +171,7 @@ func to_dict() -> Dictionary:
 		"frozen": frozen.duplicate(true), "seam_tangent_lock": seam_tangent_lock,
 		"solid": solid, "base_depth": base_depth, "color": color.to_html(false), "look": look, "texture": texture,
 		"tex_scale": tex_scale, "material": material, "shader": shader, "shader_params": shader_params.duplicate(true),
-		"profile": profile.duplicate(true), "ends": ends.duplicate(true), "design": design}
+		"profile": profile.duplicate(true), "ends": ends.duplicate(true), "design": design, "tex": tex.duplicate()}
 
 
 func from_dict(data: Dictionary) -> void:
@@ -175,6 +187,7 @@ func from_dict(data: Dictionary) -> void:
 	profile = sp["profile"] if RampShape.custom_profile(sp) else {}
 	ends = sp["ends"] if RampShape.custom_ends(sp) else {}
 	design = String(data.get("design", ""))
+	tex = (data.get("tex", {}) as Dictionary).duplicate() if data.get("tex") is Dictionary else {}
 	color = Color.html(data.get("color", DEFAULT_COLOR.to_html(false)))
 	look = data.get("look", "color")
 	texture = data.get("texture", "")

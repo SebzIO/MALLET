@@ -3,6 +3,19 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.5 preview — 2026-11-11: The 2D editor (pre-1.0 batch 6)
+
+- A selected object behind another one is still the one you grab and drag; a click where no selected object is picks
+  the one in front, as before.
+- Zones, kill zones, boosters, teleports and platforms stretch and shrink by squares on their sides in the 2D views,
+  like blocks (the other side stays put).
+- **Draw blocks is Shift+O** (it was D, which is for flying); O still adds a block.
+- Ramp textures get build mode's texture settings: turn and flip, shift across and along, scroll, and see-through,
+  in the ramp's properties under its material. They show the same in SurfsUp.
+- (Re-checked: the draw tool starts on the grid point you aim at since 0.17.9, and drawn blocks become build-mode
+  cubes the first time you edit them since 0.17.14; both have tests.)
+- New test: editor2d_test.
+
 ## 0.19.4 preview — 2026-11-11: Lights you can handle, color cycles, soft light (pre-1.0 batch 5)
 
 - Build mode: a light is an invisible handle: its bulb hides and a box shows where it is, blue, with the face you
