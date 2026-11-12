@@ -310,10 +310,17 @@ func _run() -> void:
 	var light_tab: Array = bm.ENT_TABS["lights"][1]
 	check("T's Lights tab has point, spot and strip", light_tab.size() == 3 and int(light_tab[1][1]) == 101, str(light_tab))
 	bm._open_commands()
-	check("T opens a panel with tabs, on Lights", bm._ent_menu.visible and bm._ent_pages["lights"].visible and bm._ent_tab_buttons.size() == 4,
+	check("T opens a panel with tabs, on Lights", bm._ent_menu.visible and bm._ent_pages["lights"].visible and bm._ent_tab_buttons.size() == 5,
 		"menu %s lights %s tabs %s hud %s" % [bm._ent_menu.visible, bm._ent_pages["lights"].visible, bm._ent_tab_buttons.size(), bm._hud.visible])
+	await frames(1)
+	var top: float = bm._ent_menu.position.y
 	bm._ent_show("world")
 	check("hovering another tab switches the page", bm._ent_pages["world"].visible and not bm._ent_pages["lights"].visible)
+	bm._ent_show("fill")
+	await frames(1)
+	check("fills have their own tab (water, lava, glass...)", bm._ent_pages["fill"].visible and bm._ent_pages["fill"].get_child_count() >= 2)
+	check("...and the menu's title bar stays put when a tab changes its size", absf(bm._ent_menu.position.y - top) < 0.5,
+		"(%.0f -> %.0f)" % [top, bm._ent_menu.position.y])
 	bm._close_ent_menu()
 	check("closing it hands the mouse back", not bm._ent_menu.visible and not bm._ui_open)
 	bm._place(100)

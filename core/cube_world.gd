@@ -3073,6 +3073,9 @@ func _material_surfaces(ck: Vector3i, m: ArrayMesh, col: PackedVector3Array) -> 
 			_mat_face_pieces(name, Vector3i(k.x + st.x, k.y + st.y, k.z + st.z), k.w, o, pieces)
 			var ax := o >> 1
 			for piece in pieces:
+				if piece[0] is String:                   # (the open part of a face a pushed-in cube half covers)
+					_mat_quad(name, piece[1], o, visible_kind, col, by)
+					continue
 				var plo: Vector3 = piece[0]
 				var phi: Vector3 = piece[1]
 				plo[ax] = lo[ax]                         # (the piece of our face that this part of the neighbor touches)
@@ -3104,12 +3107,46 @@ func _mat_face_pieces(name: String, b: Vector3i, q: int, o: int, out: Array) -> 
 			var v: Array = leaves[lk]
 			if (qq == q and leaf_face_full(v, o ^ 1)) or (qq > q and v[0] == FULL and _cut_of(v).is_empty()):
 				return
+			if qq == q:                                  # (a pushed-in cube beside: only the part of the face it leaves open)
+				var nopen := _open_parts(v, b, q, o ^ 1)
+				if not nopen.is_empty() and not nopen[0] is String:
+					for poly in nopen:
+						var rev: Array = (poly as Array).duplicate()
+						rev.reverse()                    # (seen from our side)
+						out.append(["poly", rev])
+					return
 			break
 	if _occ.get(Vector4i(b.x, b.y, b.z, q), 0) > 0:
 		mixed = true
+	# our own side: a cube in the fill's cell whose face is right here already covers it (glass poured over a block
+	# isn't drawn on the block's faces: the two flickered against each other)
+	var st := orient_step(o) * s
+	var inn := Vector3i(b.x - st.x, b.y - st.y, b.z - st.z)
+	var ax := o >> 1
+	for qq in range(q, MAX_P + 1):
+		var ss := size_of(qq)
+		var ik := Vector4i(_fdiv(inn.x, ss) * ss, _fdiv(inn.y, ss) * ss, _fdiv(inn.z, ss) * ss, qq)
+		if leaves.has(ik):
+			var iv: Array = leaves[ik]
+			if qq == q:
+				if leaf_face_full(iv, o):
+					return
+				var open := _open_parts(iv, inn, q, o)
+				if not open.is_empty():
+					if open[0] is String:                # (its face doesn't lie on this square: the whole square)
+						break
+					for poly in open:
+						out.append(["poly", poly])
+					return
+			elif iv[0] == FULL and _cut_of(iv).is_empty():
+				return
+			elif inn[ax] + (s if o & 1 else 0) == ik[ax] + (ss if o & 1 else 0) and leaf_face_full(iv, o):
+				return                                   # (on the bigger cube's own full face)
+			break
+	if _occ.get(Vector4i(inn.x, inn.y, inn.z, q), 0) > 0:
+		mixed = true
 	if mixed and q > MIN_P:
 		var cs := size_of(q - 1)
-		var ax := o >> 1
 		var near := 0 if (o & 1) == 1 else 1              # (the children of the cell beyond that touch our face)
 		for i in 8:
 			var c := Vector3i(i & 1, (i >> 1) & 1, (i >> 2) & 1)
@@ -3120,10 +3157,79 @@ func _mat_face_pieces(name: String, b: Vector3i, q: int, o: int, out: Array) -> 
 	out.append([Vector3(b) * TICK, Vector3(b + Vector3i(s, s, s)) * TICK])
 
 
+## A fill face over a cube's face that a fold left only partly covering it: the square minus the cube's face polygon,
+## as convex polygons (meters, counter-clockwise from outside), so the fill and the cube never share a surface. ["full"]
+## when the cube's face doesn't lie on this square (pushed off it): then the fill's whole square is drawn.
+func _open_parts(v: Array, cell: Vector3i, q: int, o: int) -> Array:
+	var ax := o >> 1
+	var a := (ax + 1) % 3
+	var b := (ax + 2) % 3
+	var side := 8.0 if o & 1 else 0.0
+	var c: PackedByteArray = v[0]
+	if not _cut_of(v).is_empty():
+		return ["full"]
+	var poly: Array[Vector2] = []
+	for n in face_corners(o):
+		var p := corner(c, n)
+		if absf(p[ax] - side) > 1e-4:
+			return ["full"]
+		var p2 := Vector2(p[a], p[b])
+		if poly.is_empty() or not poly[poly.size() - 1].is_equal_approx(p2):
+			poly.append(p2)
+	if poly.size() > 1 and poly[0].is_equal_approx(poly[poly.size() - 1]):
+		poly.pop_back()
+	var area := 0.0
+	for i in poly.size():
+		area += poly[i].cross(poly[(i + 1) % poly.size()])
+	if poly.size() < 3 or absf(area) < 1e-6:
+		return ["full"]                                  # (squashed to nothing on this side)
+	if area < 0.0:
+		poly.reverse()
+	var square: Array[Vector2] = [Vector2(0, 0), Vector2(8, 0), Vector2(8, 8), Vector2(0, 8)]
+	var pieces := []
+	for i in poly.size():                                # outside edge i, inside the edges before it: disjoint pieces
+		var piece := _clip_half(square, poly[(i + 1) % poly.size()], poly[i])
+		for j in i:
+			piece = _clip_half(piece, poly[j], poly[(j + 1) % poly.size()])
+		if piece.size() >= 3:
+			pieces.append(piece)
+	var sz := float(size_of(q))
+	var out := []
+	var n3 := orient_normal(o)
+	for piece in pieces:
+		var pts := []
+		for p2 in piece:
+			var w := Vector3.ZERO
+			w[ax] = float(cell[ax]) + side / 8.0 * sz
+			w[a] = float(cell[a]) + p2.x / 8.0 * sz
+			w[b] = float(cell[b]) + p2.y / 8.0 * sz
+			pts.append(w * TICK)
+		if ((pts[1] as Vector3) - pts[0]).cross((pts[2] as Vector3) - pts[0]).dot(n3) < 0.0:
+			pts.reverse()
+		out.append(pts)
+	return out
+
+
+## The part of a convex polygon to the left of the line p0 -> p1 (Sutherland-Hodgman, one edge).
+static func _clip_half(poly: Array[Vector2], p0: Vector2, p1: Vector2) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	var d := p1 - p0
+	for i in poly.size():
+		var cur: Vector2 = poly[i]
+		var nxt: Vector2 = poly[(i + 1) % poly.size()]
+		var sc := d.cross(cur - p0)
+		var sn := d.cross(nxt - p0)
+		if sc >= -1e-9:
+			out.append(cur)
+		if (sc >= -1e-9) != (sn >= -1e-9) and absf(sc - sn) > 1e-12:
+			out.append(cur.lerp(nxt, sc / (sc - sn)))
+	return out
+
+
 func _mat_quad(name: String, quad: Array, o: int, visible_kind: bool, col: PackedVector3Array, by: Dictionary) -> void:
 	if name in ["glass", "clip", "gameclip"]:
-		for j in [0, 1, 2, 0, 2, 3]:
-			col.append(quad[j])
+		for i in range(1, quad.size() - 1):
+			col.append_array([quad[0], quad[i], quad[i + 1]])
 	if not visible_kind and not show_mats:
 		return
 	if not by.has(name):
@@ -3136,10 +3242,11 @@ func _mat_quad(name: String, quad: Array, o: int, visible_kind: bool, col: Packe
 	arr[1] = null
 	arr[2] = null
 	var n := orient_normal(o)
-	for j in [0, 2, 1, 0, 3, 2]:
-		vs.append(quad[j])
-		ns.append(n)
-		us.append(BlockShape._uv(quad[j], n))
+	for i in range(1, quad.size() - 1):                  # (a fan: a quad, or the open part of one)
+		for j in [0, i + 1, i]:
+			vs.append(quad[j])
+			ns.append(n)
+			us.append(BlockShape._uv(quad[j], n))
 	arr[0] = vs
 	arr[1] = ns
 	arr[2] = us

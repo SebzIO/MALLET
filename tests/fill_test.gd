@@ -63,5 +63,23 @@ func _run() -> void:
 		w.set_cell(Vector3i(8 + (i & 1) * 4, ((i >> 1) & 1) * 4, ((i >> 2) & 1) * 4), -1, CubeWorld.FULL.duplicate(), CubeWorld.blank_tex())
 	w.set_material(CubeWorld.make_sel(Vector3i(0, 0, 0), 0, 3), "glass")
 	check("glass beside a block of small cubes: no face against them (5 m2)", absf(area_of(w, "glass") - 5.0) < 0.01, "(%.2f m2)" % area_of(w, "glass"))
+	# glass poured over blocks (0.19.3): nothing drawn on a full block's faces, only over a pushed-in one's dip
+	w = CubeWorld.new()
+	var dip := CubeWorld.FULL.duplicate()
+	for n in 8:
+		if (n >> 1) & 1:
+			dip[n * 3 + 1] = 4                            # (its top pushed halfway down)
+	w.set_cell(Vector3i(0, 0, 0), 0, CubeWorld.FULL.duplicate(), CubeWorld.blank_tex())
+	w.set_cell(Vector3i(8, 0, 0), 0, dip, CubeWorld.blank_tex())
+	w.set_material(CubeWorld.make_sel(Vector3i(0, 0, 0), 0, 3, Vector3i(2, 1, 1)), "glass")
+	var ga := area_of(w, "glass")
+	# (only the 1 x 1 top over the dip, and the dip's open sides: 3 half-meter strips of 1 x 0.5)
+	check("glass over a full block draws nothing on it; over a dip, only the open part", absf(ga - (1.0 + 3.0 * 0.5)) < 0.01, "(%.2f m2)" % ga)
+	# glass beside a pushed-in block: only the part of the shared side the block leaves open
+	w = CubeWorld.new()
+	w.set_cell(Vector3i(8, 0, 0), 0, dip, CubeWorld.blank_tex())
+	w.set_material(CubeWorld.make_sel(Vector3i(0, 0, 0), 0, 3), "glass")
+	ga = area_of(w, "glass")
+	check("glass beside a pushed-in block: just the open half of the shared side", absf(ga - (5.0 + 0.5)) < 0.01, "(%.2f m2)" % ga)
 	print("fill_test: ", "PASS" if ok else "FAIL")
 	quit()

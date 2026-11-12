@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.3 preview — 2026-11-11: Clean fills, a Fill tab and presets (pre-1.0 batch 4)
+
+- Fills (glass, water, lava...) poured over blocks no longer flicker: no fill face is drawn where a cube's face is
+  already there, whether the cube is in the fill's own cell or beside it, and over a pushed-in face only the part
+  it leaves open is drawn, cut exactly to its shape.
+- The T menu has a **Fill** tab of its own (it was part of Session), and its title bar stays where it is when you
+  switch tabs (it moved as the menu changed size).
+- **Presets** for light settings (F4) and texture settings (F3): save what's set under a name, apply it to any
+  other light or faces, delete the ones you don't need. A light preset keeps everything but where the light is and
+  which way it points; a texture preset keeps the settings, not the texture. They work in every map.
+- New test: presets_test (and fill_test checks the new cases).
+
 ## 0.19.2 preview — 2026-11-11: Selecting as in Sauerbraten (pre-1.0 batch 3)
 
 - The selected face is drawn as its whole square, however much of the geometry in it is pushed in, and outlines sit

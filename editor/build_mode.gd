@@ -1414,26 +1414,34 @@ func _ent_page(id: String) -> void:
 	_ent_tab_buttons[id] = tb
 
 
-## The Session tab: the old T menu (fill with a material, texture tools, selection commands), as buttons.
+## The Fill tab (fill the selection with water, lava, glass...) and the Session tab (texture tools, selection
+## commands), as buttons.
 func _session_page() -> void:
 	var page := VBoxContainer.new()
 	page.add_theme_constant_override("separation", 4)
 	page.visible = false
 	_ent_body.add_child(page)
 	_ent_pages["session"] = page
-	var tb := Button.new()
-	tb.text = "Session"
-	tb.toggle_mode = true
-	tb.focus_mode = Control.FOCUS_NONE
-	tb.mouse_entered.connect(func(): _ent_show("session"))
-	tb.pressed.connect(func(): _ent_show("session"))
-	_ent_tabs.add_child(tb)
-	_ent_tab_buttons["session"] = tb
-	page.add_child(UiTheme.header("Fill the selection with"))
+	var fill := VBoxContainer.new()                      # Fill: its own tab (it was part of Session)
+	fill.add_theme_constant_override("separation", 4)
+	fill.visible = false
+	_ent_body.add_child(fill)
+	_ent_pages["fill"] = fill
+	for spec in [["Fill", "fill"], ["Session", "session"]]:
+		var tb := Button.new()
+		tb.text = String(spec[0])
+		tb.toggle_mode = true
+		tb.focus_mode = Control.FOCUS_NONE
+		var tid := String(spec[1])
+		tb.mouse_entered.connect(func(): _ent_show(tid))
+		tb.pressed.connect(func(): _ent_show(tid))
+		_ent_tabs.add_child(tb)
+		_ent_tab_buttons[tid] = tb
+	fill.add_child(UiTheme.header("Fill the selection with"))
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 4)
-	page.add_child(grid)
+	fill.add_child(grid)
 	for i in CubeWorld.MATERIALS.size():
 		var m: String = CubeWorld.MATERIALS[i]
 		var b := Button.new()
@@ -1442,7 +1450,6 @@ func _session_page() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(func(): _run_and_close(i))
 		grid.add_child(b)
-	page.add_child(HSeparator.new())
 	for spec in [["Replace the texture you aim at, everywhere", 50], ["…only in the selection", 51],
 			["Reset the selected faces' texture settings", 52], ["Select the entities in the selection", 60],
 			["Go to the selection (J)", 61], ["Start a new cube object (N)", 62]]:
@@ -1569,6 +1576,7 @@ func _build_light_panel() -> void:
 	close.focus_mode = Control.FOCUS_NONE
 	close.pressed.connect(_close_light_panel)
 	head.add_child(close)
+	box.add_child(_preset_row("light", _light_preset_now, _light_preset_apply))
 	var kind := OptionButton.new()
 	for k in LightNode.KINDS:
 		kind.add_item(String(k).capitalize())
@@ -1691,6 +1699,126 @@ func _light_set(key: String, value, push := true) -> void:
 			_refresh_light_panel()
 
 
+## A preset row: pick a saved preset and Apply it, or save what's set now under a name, or delete the one picked.
+## `now` gives the settings to save, `apply` takes a preset's settings.
+func _preset_row(kind: String, now: Callable, apply: Callable) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	var row := HBoxContainer.new()
+	col.add_child(row)
+	var pick := OptionButton.new()
+	pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pick.focus_mode = Control.FOCUS_NONE
+	row.add_child(pick)
+	var refill := func():
+		pick.clear()
+		var names := Presets.all(kind).keys()
+		if names.is_empty():
+			pick.add_item("(no presets yet)")
+			pick.disabled = true
+		else:
+			pick.disabled = false
+			for n in names:
+				pick.add_item(String(n))
+	refill.call()
+	_preset_refills[kind] = refill
+	var use := Button.new()
+	use.text = "Apply"
+	use.focus_mode = Control.FOCUS_NONE
+	use.pressed.connect(func():
+		if pick.disabled:
+			return
+		var name := pick.get_item_text(pick.selected)
+		apply.call(Presets.all(kind).get(name, {}))
+		say("Preset \"%s\" applied" % name))
+	row.add_child(use)
+	var del := Button.new()
+	del.text = "Delete"
+	del.focus_mode = Control.FOCUS_NONE
+	del.pressed.connect(func():
+		if pick.disabled:
+			return
+		var name := pick.get_item_text(pick.selected)
+		Presets.remove(kind, name)
+		refill.call()
+		say("Preset \"%s\" deleted" % name))
+	row.add_child(del)
+	var row2 := HBoxContainer.new()
+	col.add_child(row2)
+	var nm := LineEdit.new()
+	nm.placeholder_text = "Preset name"
+	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row2.add_child(nm)
+	var keep := Button.new()
+	keep.text = "Save preset"
+	keep.focus_mode = Control.FOCUS_NONE
+	keep.pressed.connect(func():
+		var name := nm.text.strip_edges()
+		var got: Dictionary = now.call()
+		if name == "" or got.is_empty():
+			say("Type a name for the preset first" if name == "" else "Nothing to save here")
+			return
+		Presets.save(kind, name, got)
+		nm.text = ""
+		refill.call()
+		for i in pick.item_count:
+			if pick.get_item_text(i) == name:
+				pick.select(i)
+		say("Saved preset \"%s\"" % name))
+	row2.add_child(keep)
+	col.add_child(HSeparator.new())
+	return col
+
+
+var _preset_refills := {}                 ## kind -> Callable that reloads its preset list
+
+
+## A light's settings for a preset: everything but where it is and which way it points.
+func _light_preset_now() -> Dictionary:
+	var o := _light_now()
+	if o == null:
+		return {}
+	var d: Dictionary = LightNode.spec(o.data).duplicate(true)
+	for k in ["position", "yaw", "pitch", "roll", "name", "group", "folder", "hidden"]:
+		d.erase(k)
+	return d
+
+
+func _light_preset_apply(p: Dictionary) -> void:
+	var o := _light_now()
+	if o == null or p.is_empty():
+		return
+	var before := o.to_dict()
+	var d := o.to_dict()
+	d.merge(p, true)
+	o.from_dict(d)
+	_push_history({"t": "ent", "obj": o, "before": before, "after": o.to_dict()})
+	_refresh_light_panel()
+
+
+## The selected faces' texture settings for a preset (not the texture itself).
+func _tex_preset_now() -> Dictionary:
+	if op_sel().is_empty():
+		return {}
+	var d := CubeWorld.parse_slot(_slot_here()).duplicate()   # (a copy: parse_slot's result is shared)
+	d.erase("id")
+	return d
+
+
+func _tex_preset_apply(p: Dictionary) -> void:
+	var s := op_sel()
+	if s.is_empty() or p.is_empty():
+		return
+	_edit(s, func(w: CubeWorld):
+		w.set_slot_param(s, all_faces, func(d: Dictionary) -> Dictionary:
+			for k in p:
+				if k != "id":
+					d[k] = p[k]
+			return d)
+		return s)
+	_refresh_tex_panel()
+
+
 func _open_picker(cb: Callable) -> void:
 	_ui_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -1717,6 +1845,7 @@ func _build_tex_panel() -> void:
 	head.add_theme_font_size_override("font_size", 16)
 	box.add_child(head)
 	_tex_fields["head"] = head
+	box.add_child(_preset_row("texture", _tex_preset_now, _tex_preset_apply))
 	var pick := Button.new()
 	pick.text = "Texture…"
 	pick.pressed.connect(func(): _open_picker(func(id):
@@ -2176,7 +2305,7 @@ func _layout_hud() -> void:
 	_co.queue_redraw()
 	if _ent_menu != null and _ent_menu.visible:
 		_ent_menu.position = Vector2(maxf(20.0, vp.x * 0.5 - _ent_menu.size.x * 0.5),
-			maxf(60.0, vp.y * 0.5 - _ent_menu.size.y * 0.5))
+			maxf(60.0, vp.y * 0.16))                      # (the title bar stays put when a tab makes it taller or shorter)
 	_cross.position = vp * 0.5 - _cross.size * 0.5
 	_info.position = Vector2(16, vp.y - _info.size.y - 14)
 	_help.position = Vector2(vp.x - _help.size.x - 16, 16)
