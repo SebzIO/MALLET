@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.1 preview — 2026-11-11: Play mode as in SurfsUp (pre-1.0 batch 2)
+
+- No sprint in play mode, as in SurfsUp (Shift does nothing there; build mode keeps Shift to fly fast). You leave
+  the start platform at 400 u/s at most, as before.
+- Build mode: **P is Play (Start)**, a proper run from the start platform, and **Ctrl+P is Play (Current
+  Position)**, from where you are. Both are in the bar at the bottom, next to E for the editor, and in F1's keys.
+- Start, finish and stage platforms show their zone as an outline in the platform's color instead of a colored
+  see-through box.
+- A co-editor in build mode is a person: legs with feet pointing forward, a body, arms, a head with the glowing
+  visor, all facing where they look (the head tilts up and down with their view).
+- (Already in 0.18.17: strafing away from a ramp no longer drops you.)
+
 ## 0.19.0 preview — 2026-11-11: Big maps stay quick (pre-1.0 batch 1: performance)
 
 Measured on a tester's 76,000-cube map:

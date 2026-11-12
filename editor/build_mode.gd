@@ -22,7 +22,7 @@ const ENT_TABS := {
 	"text": ["Text & particles", [["Text", 108], ["Particles (fire, smoke, snow…)", 110]]],
 }
 const HELP := [
-	["Look / fly", "mouse  /  W A S D  (Shift: fast)"], ["P", "play from here (Esc comes back)"], ["Ctrl+P", "play from the start (Esc comes back)"], ["", ""],
+	["Look / fly", "mouse  /  W A S D  (Shift: fast)"], ["P", "Play (Start): a run from the start (Esc comes back)"], ["Ctrl+P", "Play (Current Position): from where you are"], ["", ""],
 	["Mouse wheel", "pull cubes out / push them in"],
 	["F + wheel", "push / pull the face 1/8 at a time"],
 	["Q + wheel", "push / pull the corner you aim at"],
@@ -455,11 +455,11 @@ func _key(e: InputEventKey) -> void:
 	var ctrl := e.ctrl_pressed or e.meta_pressed
 	match e.keycode:
 		KEY_E, KEY_ESCAPE: stop()
-		KEY_P:
+		KEY_P:                                           # P: Play (Start), Ctrl+P: Play (Current Position)
 			if ctrl:
-				_play_from_start()
-			elif not Input.is_key_pressed(KEY_O):
 				_play_here()
+			elif not Input.is_key_pressed(KEY_O):
+				_play_from_start()
 		KEY_SPACE:
 			sel = {}
 			corners = []
@@ -1859,7 +1859,7 @@ func _process(delta: float) -> void:
 			size_txt += "  ·  face push %d/4" % pushes
 	var obj := "new object" if model == null or not is_instance_valid(model) or not model.is_inside_tree() else \
 		String(model.get_meta("name", "cube object %d" % (model.get_index() + 1)))
-	_info.text = "BUILD  ·  %s  ·  grid %s  ·  texture: %s%s%s%s  ·  F1 keys  ·  E editor" % [obj,
+	_info.text = "BUILD  ·  %s  ·  grid %s  ·  texture: %s%s%s%s  ·  F1 keys  ·  P play (start)  ·  Ctrl+P play (here)  ·  E editor" % [obj,
 		_metres_text(CubeWorld.metres(grid_p)), _tex_name(texture), " (all faces)" if all_faces else "", mode, size_txt]
 
 

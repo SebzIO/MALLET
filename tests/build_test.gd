@@ -345,31 +345,32 @@ func _run() -> void:
 	await frames(2)
 	check("N, then building: a second cube object", models().size() == 2)
 
-	# ---- P: play from here, Esc comes back to build mode
-	await tap(KEY_P)
+	# ---- Ctrl+P: Play (Current Position), Esc comes back to build mode
+	for down in [true, false]:                          # (as the keyboard sends it, with the Ctrl modifier)
+		var he := InputEventKey.new()
+		he.keycode = KEY_P
+		he.physical_keycode = KEY_P
+		he.ctrl_pressed = true
+		he.pressed = down
+		Input.parse_input_event(he)
+		Input.flush_buffered_events()
 	await frames(3)
-	check("P: playing from where you were", ed.play.active and not bm.active)
+	check("Ctrl+P: Play (Current Position), from where you were", ed.play.active and not bm.active)
+	check("...with no sprint in play mode (as in SurfsUp)", ed.play.active and not ed.play.player._action_available.get("sprint", true))
 	ed.play.stop()
 	await frames(2)
 	check("...and stopping play comes back to build mode", bm.active and not ed._ui.visible)
 
-	# ---- Ctrl+P: play from the map's start (like the editor's Play), Esc comes back to build mode
+	# ---- P: Play (Start), from the map's start (like the editor's Play), Esc comes back to build mode
 	var plate := EntityNode.create("start")
 	plate.position = Vector3(80, 6, -40)
 	ed.entities_root.add_child(plate)
 	var where := bm.cam.global_position
-	for down in [true, false]:                          # Ctrl+P as the keyboard sends it (with the Ctrl modifier)
-		var ce := InputEventKey.new()
-		ce.keycode = KEY_P
-		ce.physical_keycode = KEY_P
-		ce.ctrl_pressed = true
-		ce.pressed = down
-		Input.parse_input_event(ce)
-		Input.flush_buffered_events()
+	await tap(KEY_P)
 	await frames(3)
 	var spawn_at: Vector3 = plate.spawn_transform().origin
 	var got: Vector3 = ed.play.player.global_position if ed.play.active else Vector3.INF
-	check("Ctrl+P: playing from the start plate, not from here", ed.play.active and not bm.active
+	check("P: Play (Start), from the start plate, not from here", ed.play.active and not bm.active
 		and got.distance_to(spawn_at) < 3.0 and got.distance_to(where) > 20.0, "(at %s, plate %s)" % [got, spawn_at])
 	ed.play.stop()
 	await frames(2)

@@ -120,6 +120,7 @@ func start(at: Transform3D, start_box = AABB(), finish_box = AABB(), kill_y := -
 	_build_ghost()
 	player = load(SUCC_SCENE).instantiate()
 	add_child(player)
+	player._action_available["sprint"] = false           # (no sprint in SurfsUp: Shift does nothing here, as in the game)
 	apply_mouse_settings()
 	_place()
 	active = true

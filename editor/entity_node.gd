@@ -56,7 +56,7 @@ func _ready() -> void:
 	_mat.roughness = 0.6
 	_mesh.material_override = _mat
 	add_child(_mesh)
-	_zone_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_zone_mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	_zone_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_zone_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_zone_mesh.material_override = _zone_mat
@@ -110,6 +110,29 @@ func is_zone_box() -> bool:
 	return zone_only and kind in ["start", "finish", "stage"]
 
 
+## A box's 12 edges as lines, centered (zones are drawn as outlines).
+static func wire_box(s: Vector3) -> ArrayMesh:
+	var h := s * 0.5
+	var v := PackedVector3Array()
+	for a in 3:                                          # 4 edges along each axis
+		var b := (a + 1) % 3
+		var c := (a + 2) % 3
+		for i in 4:
+			var p := Vector3.ZERO
+			p[b] = h[b] if i & 1 else -h[b]
+			p[c] = h[c] if i & 2 else -h[c]
+			var q := p
+			p[a] = -h[a]
+			q[a] = h[a]
+			v.append_array([p, q])
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = v
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arr)
+	return m
+
+
 func rebuild() -> void:
 	basis = Basis(Vector3.UP, deg_to_rad(yaw))
 	var c: Color = KINDS[kind]["color"]
@@ -146,12 +169,10 @@ func rebuild() -> void:
 			_shape.position = Vector3(0, zh / 2, 0)
 			_body.collision_layer = PICK_ONLY_LAYER
 			_body.collision_mask = 0
-		var zone := BoxMesh.new()
-		zone.size = Vector3(size.x, zh, size.z)
-		_zone_mesh.mesh = zone
-		_zone_mesh.position = Vector3(0, zh / 2, 0)
+		_zone_mesh.mesh = wire_box(Vector3(size.x, zh, size.z))   # (the zone as an outline in the platform's color,
+		_zone_mesh.position = Vector3(0, zh / 2, 0)                #  not a colored see-through box over it)
 		_zone_mesh.visible = true
-		_zone_mat.albedo_color = Color(c.r, c.g, c.b, 0.25 if is_zone_box() else 0.12)
+		_zone_mat.albedo_color = Color(c.r, c.g, c.b, 1.0)
 		# arrow on start / stage plates showing which way the player will face
 		_flat_arrow.visible = kind in ["start", "stage"]
 		if kind in ["start", "stage"]:
