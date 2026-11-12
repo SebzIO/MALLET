@@ -385,6 +385,7 @@ func _build_ui_main() -> void:
 		["Block", KEY_O, _add_block_clicked], ["Draw blocks (drag in a 2D view)", KEY_MASK_SHIFT | KEY_O, _toggle_draw_mode, "draw"], [],
 		["Start platform", KEY_B, func(): _add_entity("start")], ["Finish platform", KEY_M, func(): _add_entity("finish")],
 		["Stage plate", KEY_T, func(): _add_entity("stage")], ["Teleport", KEY_Y, func(): _add_entity("teleport")],
+		["Teleport destination", KEY_NONE, func(): _add_entity("destination")],
 		["Start zone (on your own platform)", KEY_NONE, func(): _add_entity("start", true)],
 		["Finish zone (on your own platform)", KEY_NONE, func(): _add_entity("finish", true)],
 		["Stage zone (on your own platform)", KEY_NONE, func(): _add_entity("stage", true)],
@@ -690,7 +691,14 @@ func _build_props(props: VBoxContainer) -> void:
 	_stage_props = VBoxContainer.new()
 	_stage_props.add_theme_constant_override("separation", 6)
 	_entity_props.add_child(_stage_props)
-	_add_slider(_stage_props, "number", "Stage number", 2.0, 50.0, 1.0)
+	var goes := OptionButton.new()                       # a teleport: to a stage plate, or to a destination (0.19.9)
+	goes.add_item("A stage (reaches it: your respawn moves there)")
+	goes.add_item("A destination (just moves you on)")
+	goes.focus_mode = Control.FOCUS_NONE
+	goes.item_selected.connect(func(i): _edit_prop("tp_to", i == 1))
+	_add_row(_stage_props, "Goes to", goes)
+	_fields["tp_to"] = goes
+	_add_slider(_stage_props, "number", "Stage number", 1.0, 50.0, 1.0)
 	var keep := CheckButton.new()
 	keep.text = "Keep the player's speed"
 	keep.focus_mode = Control.FOCUS_NONE
@@ -1459,11 +1467,16 @@ func _refresh_props() -> void:
 		_fields["zone_only"].visible = e.kind in ["start", "finish", "stage"]
 		_fields["zone_only"].button_pressed = e.zone_only
 		_booster_props.visible = e.kind == "booster"
-		_stage_props.visible = e.kind in ["stage", "teleport"]
+		_stage_props.visible = e.kind in ["stage", "teleport", "destination"]
 		_fields["keep_speed"].visible = e.kind == "teleport"
+		var goes: Control = _fields["tp_to"]
+		goes.visible = e.kind == "teleport"
+		goes.get_parent().get_child(goes.get_index() - 1).visible = e.kind == "teleport"   # (its label)
+		(_fields["tp_to"] as OptionButton).select(1 if e.to_dest else 0)
 		var num_label: Label = _fields["number"][0].get_parent().get_parent().get_child(_fields["number"][0].get_parent().get_index() - 1)
-		num_label.text = "Stage number" if e.kind == "stage" else "Sends the player to stage"
-		if e.kind in ["stage", "teleport"]:
+		num_label.text = {"stage": "Stage number", "destination": "Destination number"}.get(e.kind,
+			"Sends the player to destination" if e.to_dest else "Sends the player to stage")
+		if e.kind in ["stage", "teleport", "destination"]:
 			_set_field("number", e.number)
 			_fields["keep_speed"].button_pressed = e.keep_speed
 		if e.kind == "booster":
@@ -1608,7 +1621,8 @@ func _refresh_info() -> void:
 			"kill": "Touching this sends the player back to their spawn. Players fly through it; it is invisible in game.",
 			"booster": "Players passing through are pushed along the arrow. Add = extra speed on top of theirs; Set = this exact speed.",
 			"stage": "Stage checkpoint: reaching this plate (landing on it or being teleported here) makes it the player's respawn point and records a split. Players spawn here facing the arrow.",
-			"teleport": "Sends the player to the stage plate with this number. Keep speed: they arrive still moving (same direction of travel); off: they arrive standing still.",
+			"teleport": "Sends the player to the stage plate (or the destination) with this number. A stage is reached and becomes the respawn; a destination just moves them on (dying after it still sends them back to their respawn). Keep speed: they arrive still moving (same direction of travel), looking along the arrow; off: they arrive standing still.",
+			"destination": "Where a teleport set to \"A destination\" sends the player: their feet land at the bottom of this box, looking along the arrow. Give it the teleport's number.",
 		}
 		_info.text = "Position: (%.0f, %.0f, %.0f)\n%s" % [e.position.x, e.position.y, e.position.z, about.get(e.kind, "")]
 
@@ -3928,6 +3942,25 @@ func _stage_numbers() -> Array:
 	return entities_root.get_children().filter(func(x): return x.kind == "stage").map(func(x): return x.number)
 
 
+## A new destination takes the next free number; a new teleport points at the highest stage without one.
+func _number_new_entity(e: EntityNode) -> void:
+	if e.kind == "destination":
+		var nums := entities_root.get_children().filter(func(x): return x != e and x.kind == "destination").map(func(x): return x.number)
+		e.number = (nums.max() + 1) if not nums.is_empty() else 1
+	elif e.kind == "teleport":
+		var stages := _stage_numbers()
+		var targeted := entities_root.get_children().filter(func(x): return x != e and x.kind == "teleport").map(func(x): return x.number)
+		var free := stages.filter(func(st): return not st in targeted)
+		e.number = free.min() if not free.is_empty() else (stages.max() if not stages.is_empty() else 2)
+
+
+func _destination(n: int) -> EntityNode:
+	for e in entities_root.get_children():
+		if e.kind == "destination" and e.number == n:
+			return e
+	return null
+
+
 func _stage_plate(n: int) -> EntityNode:
 	for e in entities_root.get_children():
 		if e.kind == "stage" and e.number == n:
@@ -3976,7 +4009,7 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 	if selected == null:
 		return
 	if selected is EntityNode and selected.kind == "teleport":      # where does this teleport go?
-		var target := _stage_plate(selected.number)
+		var target := _destination(selected.number) if selected.to_dest else _stage_plate(selected.number)
 		if target and not cam.is_position_behind(target.global_position) and not cam.is_position_behind(selected.global_position):
 			var a := cam.unproject_position(selected.global_position)
 			var b := cam.unproject_position(target.global_position)
@@ -4920,6 +4953,9 @@ func _add_entity(kind: String, zone_only := false) -> void:
 	if zone_only:                                       # just the zone: set it on the platform you built
 		n.zone_only = true
 		n.size.y = 10.0
+	if kind == "destination":                            # (the next free destination number, from 1)
+		var nums := entities_root.get_children().filter(func(x): return x.kind == "destination").map(func(x): return x.number)
+		n.number = (nums.max() + 1) if not nums.is_empty() else 1
 	if kind in ["stage", "teleport"]:
 		# new stage plates take the next free number; new teleports point at the highest stage without one
 		var stages := _stage_numbers()
@@ -5321,6 +5357,9 @@ func _edit_prop(key: String, value) -> void:
 			"mode": e.mode = value
 			"number": e.number = int(value)
 			"keep_speed": e.keep_speed = value
+			"tp_to":
+				e.to_dest = value
+				_refresh_props.call_deferred()
 			"zone_only":
 				e.zone_only = value
 				e.size.y = 10.0 if value else EntityNode.KINDS[e.kind]["size"].y

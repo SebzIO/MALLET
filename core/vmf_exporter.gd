@@ -269,9 +269,13 @@ func build(map: Dictionary, opts := {}) -> String:
 		var kind: String = e.get("kind", "")
 		var hull := _hull(_box_corners(e, false).map(func(c): return src(c)))
 		match kind:
+			"destination":                               # (0.19.9: a teleport's own target, no stage)
+				var dpos := Vector3(e["position"][0], float(e["position"][1]) - float(e["size"][1]) * 0.5, e["position"][2])
+				entities.append(_point_entity({"classname": "info_teleport_destination", "targetname": "dest_%d" % int(e.get("number", 1)),
+					"angles": "0 %s 0" % _n(float(e.get("yaw", 0.0)) + 90.0)}, src(dpos)))
 			"teleport":
-				entities.append(_brush_entity({"classname": "trigger_teleport", "spawnflags": "1",
-					"target": "spawn_s%d_start" % int(e.get("number", 2))}, hull))
+				var tgt := ("dest_%d" if String(e.get("to", "stage")) == "destination" else "spawn_s%d_start") % int(e.get("number", 2))
+				entities.append(_brush_entity({"classname": "trigger_teleport", "spawnflags": "1", "target": tgt}, hull))
 				if e.get("keep_speed", true):
 					kept_speed += 1
 			"kill":

@@ -11,6 +11,8 @@ const KINDS := {
 	"teleport": {"label": "Teleport", "size": Vector3(30, 30, 10), "color": Color(0.78, 0.3, 0.95), "volume": true},
 	"kill": {"label": "Kill zone", "size": Vector3(40, 20, 40), "color": Color(0.95, 0.15, 0.15), "volume": true},
 	"booster": {"label": "Booster", "size": Vector3(20, 12, 20), "color": Color(1.0, 0.8, 0.1), "volume": true},
+	## where a teleport can send you without a stage (0.19.9): a spot and the way you face; nothing touches it
+	"destination": {"label": "Teleport destination", "size": Vector3(2, 3.5, 2), "color": Color(1.0, 0.6, 0.15), "volume": true},
 }
 ## Volumes are pickable in the editor but must never block the player: their picking body lives on this layer only.
 const PICK_ONLY_LAYER := 1 << 19
@@ -23,6 +25,8 @@ var pitch := 20.0                       ## booster: degrees above horizontal the
 var mode := 0                           ## booster: 0 = add to the player's speed, 1 = set it
 var number := 2                         ## stage plate: its stage number; teleport: the stage it sends you to
 var keep_speed := true                  ## teleport: keep the player's velocity (else they stop on the plate)
+var to_dest := false                    ## teleport: goes to destination `number`, not a stage (no stage reached, the
+                                        ## respawn stays where it was)
 ## start / finish / stage: just the zone, a see-through box the player passes through, for a platform you built
 ## yourself (size.y is the zone's height; `position` the middle of its floor). Several boxes of one kind (and stage
 ## number) make one zone of any shape.
@@ -87,7 +91,8 @@ func label() -> String:
 		return {"start": "Start zone", "finish": "Finish zone"}.get(kind, "Stage %d zone" % number)
 	match kind:
 		"stage": return "Stage %d" % number
-		"teleport": return "Teleport to stage %d" % number
+		"teleport": return ("Teleport to destination %d" if to_dest else "Teleport to stage %d") % number
+		"destination": return "Teleport destination %d" % number
 	return KINDS[kind]["label"]
 
 
@@ -97,7 +102,8 @@ func tag() -> String:
 		"start": return "Start"
 		"finish": return "Finish"
 		"stage": return "Stage %d" % number
-		"teleport": return "→ Stage %d" % number
+		"teleport": return ("→ Dest %d" if to_dest else "→ Stage %d") % number
+		"destination": return "Dest %d" % number
 	return ""
 
 
@@ -182,9 +188,9 @@ func rebuild() -> void:
 			_flat_arrow.position = Vector3(0, 0.15, 0)
 			_flat_arrow.rotation = Vector3(-PI / 2, 0, 0)     # lay it flat, pointing towards -Z (forward)
 	# booster: a 3D arrow along the push direction
-	_arrow.visible = kind == "booster"
-	if kind == "booster":
-		var length: float = clamp(min(size.x, size.z) * 0.8, 4.0, 40.0)
+	_arrow.visible = kind in ["booster", "destination"]
+	if kind in ["booster", "destination"]:
+		var length: float = clamp(min(size.x, size.z) * 0.8, 4.0, 40.0) if kind == "booster" else 2.5
 		var shaft := CylinderMesh.new()
 		shaft.top_radius = length * 0.06
 		shaft.bottom_radius = length * 0.06
@@ -197,7 +203,7 @@ func rebuild() -> void:
 		head.height = length * 0.3
 		_arrow_head.mesh = head
 		_arrow_head.position = Vector3(0, length * 0.35, 0)
-		var local_dir := Basis(Vector3.RIGHT, deg_to_rad(pitch)) * Vector3.FORWARD      # -Z tipped up by pitch
+		var local_dir := Basis(Vector3.RIGHT, deg_to_rad(pitch if kind == "booster" else 0.0)) * Vector3.FORWARD   # -Z tipped up by pitch
 		_arrow.basis = Basis(Quaternion(Vector3.UP, local_dir.normalized()))
 	_update_material()
 
@@ -263,6 +269,11 @@ func spawn_transform() -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)), global_transform * Vector3(0, 0.1, size.z * 0.25))
 
 
+## A teleport destination: where the player's feet land (the bottom middle of its box), facing its arrow.
+func dest_transform() -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)), global_position - Vector3(0, size.y * 0.5, 0))
+
+
 func to_dict() -> Dictionary:
 	var d := {"kind": kind, "position": [snappedf(position.x, 0.001), snappedf(position.y, 0.001), snappedf(position.z, 0.001)],
 		"size": [size.x, size.y, size.z], "yaw": yaw}
@@ -270,10 +281,12 @@ func to_dict() -> Dictionary:
 		d["strength"] = strength
 		d["pitch"] = pitch
 		d["mode"] = mode
-	if kind in ["stage", "teleport"]:
+	if kind in ["stage", "teleport", "destination"]:
 		d["number"] = number
 	if kind == "teleport":
 		d["keep_speed"] = keep_speed
+		if to_dest:
+			d["to"] = "destination"
 	if is_zone_box():
 		d["zone_only"] = true
 	return d
@@ -291,6 +304,7 @@ func from_dict(d: Dictionary) -> void:
 	mode = d.get("mode", 0)
 	number = d.get("number", 2)
 	keep_speed = d.get("keep_speed", true)
+	to_dest = String(d.get("to", "stage")) == "destination"
 	zone_only = d.get("zone_only", false)
 	if is_inside_tree():
 		rebuild()

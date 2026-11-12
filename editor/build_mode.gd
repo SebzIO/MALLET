@@ -13,12 +13,12 @@ signal stopped
 const PICK_LAYER := 1 << 19
 ## Tab places world pieces only: lights live in the T menu, on their own tab, so there is one place per kind of thing.
 const PLACE_ITEMS := [["Start platform", 102], ["Finish platform", 103], ["Stage plate", 104], ["Teleport", 105],
-	["Kill zone", 106], ["Booster", 107], ["Text", 108], ["Particles (fire, smoke, snow…)", 110]]
+	["Teleport destination", 111], ["Kill zone", 106], ["Booster", 107], ["Text", 108], ["Particles (fire, smoke, snow…)", 110]]
 ## The T menu's tabs: id -> [title, [[label, what it places], …]]. Order is the order of the tabs.
 const ENT_TABS := {
 	"lights": ["Lights", [["Point light", 100], ["Spot light", 101], ["Light strip (neon)", 109]]],
 	"world": ["Platforms & zones", [["Start platform", 102], ["Finish platform", 103], ["Stage plate", 104],
-		["Teleport", 105], ["Kill zone", 106], ["Booster", 107]]],
+		["Teleport", 105], ["Teleport destination", 111], ["Kill zone", 106], ["Booster", 107]]],
 	"text": ["Text & particles", [["Text", 108], ["Particles (fire, smoke, snow…)", 110]]],
 }
 const HELP := [
@@ -1331,6 +1331,8 @@ func _place(id: int) -> void:
 			editor.entities_root.add_child(e)
 			e.position = at + (Vector3.UP * e.size.y * 0.5 if e.is_volume() else Vector3.ZERO)
 			e.yaw = rad_to_deg(yaw)
+			if kind == "teleport":
+				editor._number_new_entity(e)
 			if kind == "kill" and not sel.is_empty():      # a kill zone fills the selection, exactly
 				var sxf := _frame(sel.get("model"))
 				var slo := Vector3(sel["o"]) * CubeWorld.TICK
@@ -1340,6 +1342,14 @@ func _place(id: int) -> void:
 				e.yaw = rad_to_deg(sxf.basis.get_euler().y)
 			e.rebuild()
 			o = e
+		111:                                             # a teleport destination: feet where you aim, facing your way
+			var dn := EntityNode.create("destination")
+			editor.entities_root.add_child(dn)
+			dn.position = at + Vector3.UP * dn.size.y * 0.5
+			dn.yaw = rad_to_deg(yaw)
+			editor._number_new_entity(dn)
+			dn.rebuild()
+			o = dn
 		108:
 			var t := TextNode.new()
 			editor.texts_root.add_child(t)

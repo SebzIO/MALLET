@@ -53,7 +53,14 @@ static func check(map: Dictionary) -> PackedStringArray:
 		if err != "":
 			out.append("A prop can't be exported: %s" % err)
 	for e in map.get("entities", []):
-		if e.get("kind", "") == "teleport" and not int(e.get("number", 2)) in stages:
+		if e.get("kind", "") == "teleport" and String(e.get("to", "stage")) == "destination":
+			var found := false
+			for d in map.get("entities", []):
+				if d.get("kind", "") == "destination" and int(d.get("number", 1)) == int(e.get("number", 2)):
+					found = true
+			if not found:
+				out.append("A teleport goes to destination %d, but there is no destination %d." % [int(e.get("number", 2)), int(e.get("number", 2))])
+		elif e.get("kind", "") == "teleport" and not int(e.get("number", 2)) in stages:
 			out.append("A teleport goes to stage %d, but there is no stage %d plate." % [int(e.get("number", 2)), int(e.get("number", 2))])
 	return out
 
@@ -238,12 +245,35 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	var n_tp := 0
 	for ed in map.get("entities", []):
 		var kind: String = ed.get("kind", "")
+		if kind == "destination":                       # (a point teleport's target: a marker where the feet land)
+			var dp: Array = ed.get("position", [0, 0, 0])
+			var dsz: Array = ed.get("size", [2, 3.5, 2])
+			var mk := Marker3D.new()
+			mk.name = "Dest%d" % int(ed.get("number", 1))
+			mk.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(float(ed.get("yaw", 0.0)))),
+				Vector3(dp[0], float(dp[1]) - float(dsz[1]) * 0.5, dp[2]))
+			_add(root, root, mk)
+			continue
 		if not kind in ["kill", "booster", "teleport"]:
 			continue
 		var pa: Array = ed.get("position", [0, 0, 0])
 		var sa: Array = ed.get("size", [20, 20, 20])
 		var basis := Basis(Vector3.UP, deg_to_rad(ed.get("yaw", 0.0)))
 		var xf := Transform3D(basis, Vector3(pa[0], pa[1], pa[2]))
+		if kind == "teleport" and String(ed.get("to", "stage")) == "destination":
+			var dname := "Dest%d" % int(ed.get("number", 2))
+			var dyaw := 0.0
+			for other in map.get("entities", []):
+				if other.get("kind", "") == "destination" and int(other.get("number", 1)) == int(ed.get("number", 2)):
+					dyaw = float(other.get("yaw", 0.0))
+			var tz := _zone(root, "TeleportTo%s_%d" % [dname, n_tp], "point_tp", xf, Vector3(sa[0], sa[1], sa[2]))
+			tz.set_meta("target", dname)                 # (a point teleport sets no stage and no respawn)
+			tz.set_meta("reset_velocity_on_teleport", not bool(ed.get("keep_speed", true)))
+			tz.set_meta("reset_view_on_teleport", true)
+			tz.set_meta("horizontal_view_override", dyaw)
+			tz.set_meta("cancel_run", false)
+			n_tp += 1
+			continue
 		if kind == "teleport":
 			var target := "Stage%d" % int(ed.get("number", 2))
 			var dest_yaw := 0.0

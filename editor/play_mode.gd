@@ -236,7 +236,19 @@ func _physics_process(delta: float) -> void:
 			_inside[v] = inside
 			if entered and v.kind == "booster":
 				_boost(v)                        # once per entry, like a trigger
-			if entered and v.kind == "teleport":
+			if entered and v.kind == "teleport" and v.to_dest:
+				# to a destination: on with your speed (its direction kept, your view turned to the arrow, as SurfsUp's
+				# point teleport does); no stage is reached, so dying after it sends you back where you'd respawn anyway
+				var dest: EntityNode = null
+				for d in _volumes:
+					if d is EntityNode and d.kind == "destination" and d.number == v.number:
+						dest = d
+				if dest == null:
+					_flash_message("This teleport goes to destination %d, which doesn't exist yet" % v.number)
+				else:
+					_put(dest.dest_transform(), player.velocity if v.keep_speed else Vector3.ZERO)
+					return
+			elif entered and v.kind == "teleport":
 				var plate: EntityNode = _stages.get(v.number)
 				if plate == null:
 					_flash_message("This teleport goes to stage %d, which doesn't exist yet" % v.number)

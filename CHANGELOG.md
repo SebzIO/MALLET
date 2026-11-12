@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.9 preview — 2026-11-11: Teleports that just move you on
+
+- **Teleport destinations** (Add > Teleport destination, or T > Platforms & zones in build mode): a spot where the
+  player's feet land and an arrow for the way they look. A teleport's new **Goes to** setting sends players to a
+  stage, as before, or to a destination: they keep their speed (its direction too, as SurfsUp's point teleport does)
+  and look along the arrow, but no stage is reached and their respawn stays where it was - fail after it and they go
+  back to the start (or the last stage they really reached).
+- Exports: SurfsUp gets a point teleport to a marker; CS:S a trigger_teleport to an info_teleport_destination (CS:S
+  teleports stop the player, as the export already warns). A teleport to a destination that isn't there is flagged.
+- The editor draws a dashed line from a teleport to its destination, like it does to a stage.
+- New test: tp_dest_test.
+
 ## 0.19.8 preview — 2026-11-11: The Geometry menu grows up (pre-1.0 batch 9, the last)
 
 - **Yaw, Pitch and Roll** for every shape but spheres and stairs: the shape's planes are turned before it's cut into
