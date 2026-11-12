@@ -3,6 +3,24 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.0 preview — 2026-11-11: Big maps stay quick (pre-1.0 batch 1: performance)
+
+Measured on a tester's 76,000-cube map:
+
+- **Undo and redo: 18 s each, now 0.01 s.** A step used to reload and re-mesh the whole map; now only what the
+  step changed is touched, down to the single cubes of a cube object, and everything else stays exactly as it is.
+- **Opening it: 20 s, now about 6 s, and MALLET keeps running while it draws in.** Cube objects are drawn on every
+  core, the nearest pieces first, and play mode waits only if you press P before it has finished.
+- **Cubes merge**: wherever 8 cubes of a bigger cell are the same full cube (same textures, nothing folded, cut or
+  painted, the same fill around them) they become that one bigger cube, level after level, like Sauerbraten's remip.
+  Maps are merged as they open, and so are shapes from the Geometry menu (F6). Nothing looks or plays differently;
+  there are just far fewer cubes to load, draw, save and edit (a test scene went from 2,960 cubes to 867).
+- **Fills are quick and one thing**: filling a big selection with water, lava, glass or another fill scanned every
+  fill cell for each cell it filled; 8,192 small cells took 15 s, now 1 s, and become 16 big cells.
+- Fill surfaces are worked out piece by piece where cells of different sizes meet, so no fill face shows against
+  solid cubes, however small, and no inside faces appear.
+- New tests: undo_diff_test, fill_test, merge_test.
+
 ## 0.18.18 preview — 2026-11-11: Co-editing keeps up with big pastes, and small grids stay smooth
 
 - Co-editing: a paste of more than 8 objects only sent the first 8 to the others; the rest were dropped for good.

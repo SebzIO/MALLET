@@ -48,6 +48,7 @@ func _run() -> void:
 	root.add_child(cm)
 	cm.from_dict({"position": [0.0, 0.0, 0.0], "yaw": 0.0, "cubes": src.to_dict()})
 	var w: CubeWorld = cm.world
+	cm.finish_background()                                # (opening it draws in the background since 0.19.0: done first)
 	var before := w.count()
 	var t := Time.get_ticks_usec()
 	w.begin()

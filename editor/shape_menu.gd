@@ -610,13 +610,14 @@ func confirm_place() -> void:
 	var m := CubeModelNode.new()
 	host.models.add_child(m)
 	m.position = at
-	var n := ShapeGen.place(m.world, _cells, Vector3i.ZERO, host.texture)
+	ShapeGen.place(m.world, _cells, Vector3i.ZERO, host.texture)
+	m.world.merge_cubes()                                # (its solid inside as big cubes: fewer polygons)
 	m.set_meta("name", String(ShapeGen.def_of(_shape)["name"]))
 	m.rebuild_all()
 	host._push_history({"t": "new", "m": m})
 	host._push_history({"t": "cubes", "m": m})
 	host.model = m
-	host.say("Placed %d cubes as one cube object: push, paint or shape them like any others." % n)
+	host.say("Placed %d cubes as one cube object: push, paint or shape them like any others." % m.world.count())
 	dismiss()
 	host._ui_closed()
 

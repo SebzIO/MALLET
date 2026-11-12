@@ -1312,13 +1312,33 @@ func _leaves_walk(co: Vector3i, q: int, lo: Vector3i, hi: Vector3i, out: Array) 
 			_leaves_walk(c, q - 1, lo, hi, out)
 
 
+## Every material cell overlapping the box o .. o + size (ticks). Walks the octree like leaves_in (scanning every
+## material cell for each filled cell made a big fill quadratic: minutes for a 32,000-cell glass fill).
 func mats_in(o: Vector3i, size: Vector3i) -> Array:
 	var out := []
-	for k in mats:
-		var s := size_of(k.w)
-		if k.x < o.x + size.x and k.x + s > o.x and k.y < o.y + size.y and k.y + s > o.y and k.z < o.z + size.z and k.z + s > o.z:
-			out.append(k)
+	if mats.is_empty():
+		return out
+	var hi := o + size
+	var top := size_of(MAX_P)
+	for x in range(_fdiv(o.x, top), _fdiv(hi.x - 1, top) + 1):
+		for y in range(_fdiv(o.y, top), _fdiv(hi.y - 1, top) + 1):
+			for z in range(_fdiv(o.z, top), _fdiv(hi.z - 1, top) + 1):
+				_mats_walk(Vector3i(x, y, z) * top, MAX_P, o, hi, out)
 	return out
+
+
+func _mats_walk(co: Vector3i, q: int, lo: Vector3i, hi: Vector3i, out: Array) -> void:
+	var k := Vector4i(co.x, co.y, co.z, q)
+	if mats.has(k):
+		out.append(k)
+		return
+	if q <= MIN_P or _mocc.get(k, 0) == 0:
+		return
+	var cs := size_of(q - 1)
+	for i in 8:
+		var c := co + Vector3i(i & 1, (i >> 1) & 1, (i >> 2) & 1) * cs
+		if c.x < hi.x and c.x + cs > lo.x and c.y < hi.y and c.y + cs > lo.y and c.z < hi.z and c.z + cs > lo.z:
+			_mats_walk(c, q - 1, lo, hi, out)
 
 
 func _split(k: Vector4i) -> void:
@@ -1975,12 +1995,44 @@ func paint_blend(pt: Vector3, radius: float, mode: int) -> int:
 func set_material(sel: Dictionary, mat: String) -> void:
 	var p: int = sel["p"]
 	var s := size_of(p)
+	var parents := {}
 	for c in box_cells(sel):
 		_prepare_mat(c, p)
 		for k in mats_in(c, Vector3i(s, s, s)):
 			_put_mat(k, null)
 		if mat != "air" and mat != "":
 			_put_mat(Vector4i(c.x, c.y, c.z, p), mat)
+			if p < MAX_P:
+				var ps := size_of(p + 1)
+				parents[Vector4i(_fdiv(c.x, ps) * ps, _fdiv(c.y, ps) * ps, _fdiv(c.z, ps) * ps, p + 1)] = true
+	_merge_mats(parents)
+
+
+## A fill is one thing, not thousands of cells: wherever all 8 cells of a bigger cell hold the same material, they
+## become that one bigger cell, all the way up (a 32 x 32 x 32 fill of small cells is a handful of big ones).
+func _merge_mats(parents: Dictionary) -> void:
+	while not parents.is_empty():
+		var up := {}
+		for pk in parents:
+			var cs := size_of(pk.w - 1)
+			var m = null
+			var all_same := true
+			for i in 8:
+				var ck := Vector4i(pk.x + (i & 1) * cs, pk.y + ((i >> 1) & 1) * cs, pk.z + ((i >> 2) & 1) * cs, pk.w - 1)
+				var here = mats.get(ck)
+				if here == null or (m != null and here != m):
+					all_same = false
+					break
+				m = here
+			if not all_same:
+				continue
+			for i in 8:
+				_put_mat(Vector4i(pk.x + (i & 1) * cs, pk.y + ((i >> 1) & 1) * cs, pk.z + ((i >> 2) & 1) * cs, pk.w - 1), null)
+			_put_mat(pk, m)
+			if pk.w < MAX_P:
+				var ps := size_of(pk.w + 1)
+				up[Vector4i(_fdiv(pk.x, ps) * ps, _fdiv(pk.y, ps) * ps, _fdiv(pk.z, ps) * ps, pk.w + 1)] = true
+		parents = up
 
 
 ## Material cells as boxes in meters (this object's space): {material: [AABB, ...]}.
@@ -3008,38 +3060,88 @@ func _material_surfaces(ck: Vector3i, m: ArrayMesh, col: PackedVector3Array) -> 
 		var s := float(size_of(k.w))
 		var lo := Vector3(k.x, k.y, k.z) * TICK
 		var hi := lo + Vector3.ONE * s * TICK
+		var sz := size_of(k.w)
 		for o in 6:
-			var nb := _beyond(k, o)
-			if mat_at(nb) == name:
-				continue
 			if name in ["water", "lava"] and o == 2:
 				continue                                 # (no underside to a pool)
-			var nk = leaf_at(nb)
-			if nk != null and nk.w >= k.w and leaf_face_full(leaves[nk], o ^ 1):
+			var st := orient_step(o) * sz
+			var pieces := []
+			_mat_face_pieces(name, Vector3i(k.x + st.x, k.y + st.y, k.z + st.z), k.w, o, pieces)
+			var ax := o >> 1
+			for piece in pieces:
+				var plo: Vector3 = piece[0]
+				var phi: Vector3 = piece[1]
+				plo[ax] = lo[ax]                         # (the piece of our face that this part of the neighbor touches)
+				phi[ax] = hi[ax]
+				_mat_quad(name, _box_face(plo, phi, o), o, visible_kind, col, by)
+	_mat_surfaces_out(by, m)
+
+
+## Which parts of a material cell's face to draw, looking at the cell beyond it (origin b, power q, ticks): none where
+## the same material or a full solid is there, all of it where it's empty or another material, and where the cell
+## beyond is mixed (smaller cubes or materials), its four quarters along the face, each the same way. A one-point
+## look drew fills against smaller cubes (and inside faces once a fill merges into bigger cells).
+func _mat_face_pieces(name: String, b: Vector3i, q: int, o: int, out: Array) -> void:
+	var s := size_of(q)
+	var mixed := false
+	for qq in range(q, MAX_P + 1):                       # a material covering the whole cell beyond
+		var ss := size_of(qq)
+		var mk := Vector4i(_fdiv(b.x, ss) * ss, _fdiv(b.y, ss) * ss, _fdiv(b.z, ss) * ss, qq)
+		if mats.has(mk):
+			if mats[mk] == name:
+				return
+			break
+	if _mocc.get(Vector4i(b.x, b.y, b.z, q), 0) > 0:
+		mixed = true
+	for qq in range(q, MAX_P + 1):                       # a cube covering it
+		var ss := size_of(qq)
+		var lk := Vector4i(_fdiv(b.x, ss) * ss, _fdiv(b.y, ss) * ss, _fdiv(b.z, ss) * ss, qq)
+		if leaves.has(lk):
+			var v: Array = leaves[lk]
+			if (qq == q and leaf_face_full(v, o ^ 1)) or (qq > q and v[0] == FULL and _cut_of(v).is_empty()):
+				return
+			break
+	if _occ.get(Vector4i(b.x, b.y, b.z, q), 0) > 0:
+		mixed = true
+	if mixed and q > MIN_P:
+		var cs := size_of(q - 1)
+		var ax := o >> 1
+		var near := 0 if (o & 1) == 1 else 1              # (the children of the cell beyond that touch our face)
+		for i in 8:
+			var c := Vector3i(i & 1, (i >> 1) & 1, (i >> 2) & 1)
+			if c[ax] != near:
 				continue
-			var quad := _box_face(lo, hi, o)
-			if name in ["glass", "clip", "gameclip"]:
-				for j in [0, 1, 2, 0, 2, 3]:
-					col.append(quad[j])
-			if not visible_kind and not show_mats:
-				continue
-			if not by.has(name):
-				by[name] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array()]
-			var arr: Array = by[name]
-			var vs: PackedVector3Array = arr[0]
-			var ns: PackedVector3Array = arr[1]
-			var us: PackedVector2Array = arr[2]
-			arr[0] = null
-			arr[1] = null
-			arr[2] = null
-			var n := orient_normal(o)
-			for j in [0, 2, 1, 0, 3, 2]:
-				vs.append(quad[j])
-				ns.append(n)
-				us.append(BlockShape._uv(quad[j], n))
-			arr[0] = vs
-			arr[1] = ns
-			arr[2] = us
+			_mat_face_pieces(name, b + c * cs, q - 1, o, out)
+		return
+	out.append([Vector3(b) * TICK, Vector3(b + Vector3i(s, s, s)) * TICK])
+
+
+func _mat_quad(name: String, quad: Array, o: int, visible_kind: bool, col: PackedVector3Array, by: Dictionary) -> void:
+	if name in ["glass", "clip", "gameclip"]:
+		for j in [0, 1, 2, 0, 2, 3]:
+			col.append(quad[j])
+	if not visible_kind and not show_mats:
+		return
+	if not by.has(name):
+		by[name] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array()]
+	var arr: Array = by[name]
+	var vs: PackedVector3Array = arr[0]
+	var ns: PackedVector3Array = arr[1]
+	var us: PackedVector2Array = arr[2]
+	arr[0] = null
+	arr[1] = null
+	arr[2] = null
+	var n := orient_normal(o)
+	for j in [0, 2, 1, 0, 3, 2]:
+		vs.append(quad[j])
+		ns.append(n)
+		us.append(BlockShape._uv(quad[j], n))
+	arr[0] = vs
+	arr[1] = ns
+	arr[2] = us
+
+
+func _mat_surfaces_out(by: Dictionary, m: ArrayMesh) -> void:
 	for name in by:
 		var arr: Array = by[name]
 		var a := []
@@ -3198,6 +3300,9 @@ func load_dict(data: Dictionary) -> void:
 	finish_reading()
 	if data == to_dict():
 		return
+	if not data.is_empty() and not (leaves.is_empty() and mats.is_empty()):
+		_load_changes_only(data)                         # (an undo step on a big object: only what differs is touched)
+		return
 	clear()
 	if data.is_empty():
 		return
@@ -3205,11 +3310,98 @@ func load_dict(data: Dictionary) -> void:
 	var palette: Array = data.get("palette", [""])
 	var buf := StreamPeerBuffer.new()
 	buf.data_array = Marshalls.base64_to_raw(data.get("data", ""))
+	_bulk = []                                           # (a fresh load: no per-cube chunk marking, every chunk at the end)
 	for i in int(data.get("count", 0)):
 		var r := _read_leaf(buf, palette, ver)
 		_put(r[0], r[1])
 	for m in data.get("mats", []):
 		_put_mat(Vector4i(int(m[0]), int(m[1]), int(m[2]), int(m[3])), String(m[4]))
+	if merge_on_load:
+		merge_cubes()                                    # (fewer, bigger cubes: a big map opens and draws much faster)
+	_bulk = null
+	for ck in render_chunks():
+		dirty[ck] = true
+	_undo.clear()
+	_redo.clear()
+
+
+## Join cubes into bigger ones wherever all 8 cubes of a bigger cell are the same full cube (same textures, no fold,
+## cut or blend paint, the same fill material around them), level by level up to the biggest size, like Sauerbraten's
+## remip. Nothing looks different (textures are mapped by position, not per cube); there are just far fewer cubes to
+## load, draw, save and edit. Returns how many cubes were saved.
+static var merge_on_load := true          ## (tests that need a file's cubes exactly as written turn this off)
+
+
+func merge_cubes() -> int:
+	var before := leaves.size()
+	var was_bulk = _bulk
+	if _bulk == null:
+		_bulk = []
+	for q in range(MIN_P, MAX_P):
+		var parents := {}
+		var ps := size_of(q + 1)
+		for k in leaves:
+			if k.w == q:
+				parents[Vector4i(_fdiv(k.x, ps) * ps, _fdiv(k.y, ps) * ps, _fdiv(k.z, ps) * ps, q + 1)] = true
+		var cs := size_of(q)
+		for pk in parents:
+			var first = null
+			var same := true
+			var mat = null
+			for i in 8:
+				var ck := Vector4i(pk.x + (i & 1) * cs, pk.y + ((i >> 1) & 1) * cs, pk.z + ((i >> 2) & 1) * cs, q)
+				var v = leaves.get(ck)
+				if v == null or (v as Array)[0] != FULL or not _cut_of(v).is_empty() or not _blend_of(v).is_empty():
+					same = false
+					break
+				if first == null:
+					first = v
+				elif v != first:
+					same = false
+					break
+				if not mats.is_empty():
+					var m := mat_at(Vector3(ck.x, ck.y, ck.z) + Vector3.ONE * cs * 0.5)
+					if mat == null:
+						mat = m
+					elif m != mat:
+						same = false
+						break
+			if not same or (not mats.is_empty() and mat_at(Vector3(pk.x, pk.y, pk.z) + Vector3.ONE * ps * 0.5) != mat):
+				continue
+			for i in 8:
+				_put(Vector4i(pk.x + (i & 1) * cs, pk.y + ((i >> 1) & 1) * cs, pk.z + ((i >> 2) & 1) * cs, q), null)
+			_put(pk, (first as Array).duplicate(true))
+	if was_bulk == null:
+		_bulk_end()
+	return before - leaves.size()
+
+
+## load_dict over a world that has cubes: change only the cells that differ, so only their chunks redraw (an undo
+## step that changed a few cubes of a big object reloaded and re-meshed all of it).
+func _load_changes_only(data: Dictionary) -> void:
+	var ver := int(data.get("v", 1))
+	var palette: Array = data.get("palette", [""])
+	var buf := StreamPeerBuffer.new()
+	buf.data_array = Marshalls.base64_to_raw(data.get("data", ""))
+	var want := {}
+	for i in int(data.get("count", 0)):
+		var r := _read_leaf(buf, palette, ver)
+		want[r[0]] = r[1]
+	var want_m := {}
+	for m in data.get("mats", []):
+		want_m[Vector4i(int(m[0]), int(m[1]), int(m[2]), int(m[3]))] = String(m[4])
+	for k in leaves.keys():
+		if not want.has(k):
+			_put(k, null)
+	for k in want:
+		if leaves.get(k) != want[k]:
+			_put(k, want[k])
+	for k in mats.keys():
+		if not want_m.has(k):
+			_put_mat(k, null)
+	for k in want_m:
+		if mats.get(k) != want_m[k]:
+			_put_mat(k, want_m[k])
 	_undo.clear()
 	_redo.clear()
 

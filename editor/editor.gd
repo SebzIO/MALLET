@@ -1739,6 +1739,89 @@ func _load_dict(data: Dictionary) -> void:
 	_rebuild_blocks()
 
 
+## Undo and redo: put the map in the state `data` describes, keeping every object that is already exactly that way
+## (only what the step changed is rebuilt). Loading the whole map instead took 18 s on a 76,000-cube map.
+func _restore_dict(data: Dictionary) -> void:
+	outliner.folders = (data.get("folders", []) as Array).duplicate(true)
+	_gen_ramp = null
+	_gen_source = null
+	UserShaders.add_embedded(data.get("shaders", {}))
+	test_version = int(data.get("test_version", 0))
+	tester_runs = (data.get("tester_runs", []) as Array).duplicate(true) if data.get("tester_runs") is Array else []
+	var env := Look.default_environment()
+	env.merge(data.get("environment", {}), true)
+	if env != environment:
+		environment = env
+		_apply_environment()
+	_select(null)
+	var kinds := [["ramps", ramps_root, RampNode], ["entities", entities_root, EntityNode], ["props", props_root, PropNode],
+		["blocks", blocks_root, BlockNode], ["texts", texts_root, TextNode], ["cube_models", cube_models_root, CubeModelNode],
+		["lights", lights_root, LightNode], ["particles", particles_root, ParticleNode]]
+	var blocks_changed := false
+	for k in kinds:
+		var want: Array = data.get(k[0], [])
+		var root: Node3D = k[1]
+		var have: Array = []
+		for c in root.get_children():
+			if not c.is_queued_for_deletion():
+				have.append(c)
+		var by_state := {}                                # state hash -> indexes of objects that are exactly that now
+		for j in have.size():
+			var h: int = _with_group(have[j]).hash()
+			if not by_state.has(h):
+				by_state[h] = []
+			by_state[h].append(j)
+		var taken := []
+		taken.resize(have.size())
+		taken.fill(false)
+		var result: Array = []
+		result.resize(want.size())
+		var todo := []                                    # wanted states no object here has
+		for i in want.size():
+			var cands: Array = by_state.get((want[i] as Dictionary).hash(), [])
+			var hit := -1
+			for j in cands:
+				if not taken[j] and _with_group(have[j]) == want[i]:
+					hit = j
+					break
+			if hit >= 0:
+				taken[hit] = true
+				result[i] = have[hit]
+			else:
+				todo.append(i)
+		var spare := []                                   # objects here that match nothing: reused for the changed ones
+		for j in have.size():
+			if not taken[j]:
+				spare.append(have[j])
+		for i in todo:
+			var d: Dictionary = want[i]
+			var o: Node3D
+			if not spare.is_empty():
+				o = spare.pop_front()
+				for key in ["group", "name", "folder", "hidden"]:
+					if o.has_meta(key) and not d.has(key):
+						o.remove_meta(key)
+				if not d.get("hidden", false):
+					o.visible = true
+			else:
+				o = k[2].new()
+				root.add_child(o)
+			o.from_dict(d)
+			_take_group(o, d)
+			if o.has_method("rebuild") and not o is CubeModelNode:
+				o.rebuild()
+			result[i] = o
+			blocks_changed = blocks_changed or root == blocks_root
+		for o in spare:                                   # (left over: the step removed them)
+			root.remove_child(o)
+			o.queue_free()
+			blocks_changed = blocks_changed or root == blocks_root
+		for i in result.size():
+			root.move_child(result[i], i)
+	if blocks_changed:
+		_rebuild_blocks()
+
+
 func _new_map() -> void:
 	_load_dict({})
 	best_ghost = {}
@@ -1807,7 +1890,7 @@ func _restore(s: Dictionary) -> void:
 	var before := _co_step_before()                 # (what every object was, so the others can follow the step)
 	var keep := _co_foreign_since(int(s.get("t", 0)))   # (what they changed since: not ours to undo)
 	_co_mute = true
-	_load_dict(s["map"])
+	_restore_dict(s["map"])
 	var objs := _all_objects()
 	var sel: int = s["sel"]
 	if sel >= 0 and sel < objs.size():
@@ -5318,6 +5401,7 @@ func _play_from(at: Transform3D, start: EntityNode = null, finish: EntityNode = 
 	var volumes: Array = []                             # (untyped: lava / death in cube objects are KillBoxes, not nodes)
 	volumes.append_array(entities_root.get_children().filter(func(x): return x.is_volume()))
 	for cm in cube_models_root.get_children():
+		cm.finish_background()                          # (a map still drawing in after opening: solid before you land)
 		volumes.append_array(cm.kill_volumes())
 		cm.set_show_mats(false)
 	var stages := {}

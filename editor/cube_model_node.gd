@@ -12,6 +12,8 @@ var _bg_keys: Array = []                 ## chunks being redrawn in the backgrou
 var _bg_res: Array = []                  ## ...their results (chunk_arrays) as they finish
 var _bg_ready: Array = []                ## finished [chunk, arrays] waiting to go in, a few a frame
 const APPLY_MS := 6.0                    ## per frame, putting finished background chunks in
+const LOAD_APPLY_MS := 40.0              ## the same while a map is opening (you wait for it anyway; 6 ms made it 8 s)
+var _apply_ms := APPLY_MS
 static var outline_mode := false         ## build mode's "7": draw every cube's edges
 
 var world := CubeWorld.new()
@@ -34,6 +36,7 @@ func _process(_delta: float) -> void:
 	if n <= SYNC_CUBES:
 		rebuild_dirty()                                  # (small changes: right away, in this frame)
 	else:
+		_apply_ms = APPLY_MS
 		_start_background()                              # (big ones: on every core, while MALLET keeps running)
 
 
@@ -70,7 +73,7 @@ func _poll_background(all := false) -> void:
 		var r: Array = _bg_ready.pop_front()
 		if not world.dirty.has(r[0]):                    # (changed again since: its newer redraw is on the way)
 			_apply_chunk(r[0], world.chunk_build(r[0], r[1]))
-		if not all and (Time.get_ticks_usec() - t0) / 1000.0 > APPLY_MS:
+		if not all and (Time.get_ticks_usec() - t0) / 1000.0 > _apply_ms:
 			break
 
 
@@ -96,7 +99,18 @@ func rebuild_all() -> void:
 		world.dirty[ck] = true
 	for ck in _chunks:
 		world.dirty[ck] = true
+	if world.count() > SYNC_CUBES and is_inside_tree():
+		finish_background()
+		_apply_ms = LOAD_APPLY_MS
+		_start_background()                              # (a big object: on every core, nearest first, MALLET keeps running;
+		return                                           #  meshing 76,000 cubes on one core froze opening a map for 15 s)
 	rebuild_dirty()
+
+
+## Everything drawn and solid now (play mode needs the collision): wait for a background redraw and put it all in.
+func finish_background() -> void:
+	world.finish_reading()
+	_poll_background(true)
 
 
 ## Redraw the chunks that changed. With `budget_ms`, stop once that much of this frame is used (at least one chunk) and
@@ -221,6 +235,22 @@ func from_dict(d: Dictionary) -> void:
 	basis = Basis(Vector3.UP, deg_to_rad(yaw))
 	world.load_dict(d.get("cubes", {}))
 	if is_inside_tree():
+		redraw_changed()
+
+
+## Redraw what changed: right away when it's small, on every core in the background when it's big (opening a map, an
+## undo step on a big object).
+func redraw_changed() -> void:
+	var n := 0
+	for ck in world.dirty:
+		n += (world._render.get(ck, {}) as Dictionary).size()
+		if n > SYNC_CUBES:
+			break
+	if n > SYNC_CUBES:
+		finish_background()
+		_apply_ms = LOAD_APPLY_MS if _chunks.is_empty() else APPLY_MS     # (nothing drawn yet: it's opening)
+		_start_background()
+	else:
 		rebuild_dirty()
 
 
