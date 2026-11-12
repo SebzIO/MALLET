@@ -85,6 +85,7 @@ var _index := {}                         ## Vector3i (64 m cell) -> {Vector4i: t
 var _render := {}                        ## Vector3i (16 m chunk) -> {Vector4i: true}
 var _mrender := {}                       ## render chunk -> {material cell: true}
 var _occ := {}                           ## Vector4i(cell, q) -> how many smaller cubes are inside that cell (fast "is anything there")
+var _mocc := {}                          ## the same for material cells
 var _edit = null                         ## while an edit is open: {key: value before the edit (or null)}
 var _undo: Array = []
 var _redo: Array = []
@@ -1026,12 +1027,15 @@ func clear() -> void:
 		_mark(k)
 	for k in mats.keys():
 		_mark(k)
+	if change_log != null and not (leaves.is_empty() and mats.is_empty()):
+		changed_all = true                               # (a list of changes can't say this: the whole object goes)
 	leaves.clear()
 	mats.clear()
 	_index.clear()
 	_render.clear()
 	_mrender.clear()
 	_occ.clear()
+	_mocc.clear()
 	_undo.clear()
 	_redo.clear()
 	revision += 1
@@ -1088,6 +1092,8 @@ func _put(k: Vector4i, v) -> void:
 		finish_reading()
 	if _edit != null and not (_edit as Dictionary).has(k):
 		_edit[k] = leaves.get(k)
+	if change_log != null:
+		change_log[k] = true
 	var ik := Vector3i(k.x >> _INDEX_SHIFT, k.y >> _INDEX_SHIFT, k.z >> _INDEX_SHIFT)       # (= _index_key: shifts floor like _fdiv)
 	var rk := render_key(k)
 	if v == null:
@@ -1109,15 +1115,16 @@ func _put(k: Vector4i, v) -> void:
 	revision += 1
 
 
-func _count_occ(k: Vector4i, add: int) -> void:
+func _count_occ(k: Vector4i, add: int, occ = null) -> void:
+	var into: Dictionary = _occ if occ == null else occ
 	for q in range(k.w + 1, MAX_P + 1):
 		var sh := q + 3                                  # (size_of(q) = 1 << sh)
 		var ck := Vector4i((k.x >> sh) << sh, (k.y >> sh) << sh, (k.z >> sh) << sh, q)
-		var n: int = _occ.get(ck, 0) + add
+		var n: int = into.get(ck, 0) + add
 		if n <= 0:
-			_occ.erase(ck)
+			into.erase(ck)
 		else:
-			_occ[ck] = n
+			into[ck] = n
 
 
 ## How many smaller cubes are inside this grid cell (instant: kept up to date as cubes change).
@@ -1152,9 +1159,30 @@ func cell_occupied(c: Vector3i, p: int) -> bool:
 							return true
 			break
 	if not mats.is_empty():
-		if mat_at(Vector3(c) + Vector3.ONE * g * 0.5) != "" or not mats_in(c, Vector3i(g, g, g)).is_empty():
+		# (a material this size, a smaller one inside, or a bigger one around it; mats_in scanned every material
+		#  cell for every cell a build-mode aim walked through: thousands of times a frame on a map with lava)
+		if mats.has(Vector4i(c.x, c.y, c.z, p)) or _mocc.get(Vector4i(c.x, c.y, c.z, p), 0) > 0 				or mat_at(Vector3(c) + Vector3.ONE * g * 0.5) != "":
 			return true
 	return false
+
+
+## The biggest grid power q >= p whose cell around `c` (a cell of power p, ticks) is completely empty: no cube or
+## material in it or around it. p - 1 when that can't be said cheaply (a bigger cube or material contains the cell:
+## ask cell_occupied). Lets a look along the line of sight jump over empty space instead of crossing it cell by cell.
+func empty_level(c: Vector3i, p: int) -> int:
+	for q in range(p, MAX_P + 1):                       # inside a bigger cube or material: no jumping
+		var s := size_of(q)
+		var k := Vector4i(floori(float(c.x) / s) * s, floori(float(c.y) / s) * s, floori(float(c.z) / s) * s, q)
+		if leaves.has(k) or mats.has(k):
+			return p - 1
+	var best := p - 1
+	for q in range(p, MAX_P + 1):                       # (counts only grow going up: stop at the first that isn't 0)
+		var s := size_of(q)
+		var k := Vector4i(floori(float(c.x) / s) * s, floori(float(c.y) / s) * s, floori(float(c.z) / s) * s, q)
+		if _occ.get(k, 0) > 0 or _mocc.get(k, 0) > 0:
+			break
+		best = q
+	return best
 
 
 func _put_mat(k: Vector4i, m) -> void:
@@ -1163,11 +1191,16 @@ func _put_mat(k: Vector4i, m) -> void:
 	var tk := Vector4i(k.x, k.y, k.z, k.w + _MAT_TAG)
 	if _edit != null and not (_edit as Dictionary).has(tk):
 		_edit[tk] = mats.get(k)
+	if change_log != null:
+		change_log[tk] = true
 	var rk := render_key(k)
 	if m == null:
 		if mats.erase(k):
 			_mrender[rk].erase(k)
+			_count_occ(k, -1, _mocc)
 	else:
+		if not mats.has(k):
+			_count_occ(k, 1, _mocc)
 		mats[k] = m
 		if not _mrender.has(rk):
 			_mrender[rk] = {}
@@ -3051,41 +3084,114 @@ func to_dict() -> Dictionary:
 		_saved = {}
 		_saved_rev = revision
 		return _saved
-	var palette := PackedStringArray([""])
+	var palette := [""]
 	var buf := StreamPeerBuffer.new()
 	for k in leaves:
-		var v: Array = leaves[k]
-		buf.put_32(k.x)
-		buf.put_32(k.y)
-		buf.put_32(k.z)
-		buf.put_8(k.w)
-		buf.put_data(v[0])
-		for id in v[1]:
-			var i := palette.find(id)
-			if i < 0:
-				palette.append(id)
-				i = palette.size() - 1
-			buf.put_u16(i)
-		var bl := _blend_of(v)
-		buf.put_u8(1 if not bl.is_empty() else 0)
-		if not bl.is_empty():
-			buf.put_data(bl)
-		var cut := _cut_of(v)                            # v3: an exact cut piece's planes
-		buf.put_u8(cut.size())
-		for pl in cut:
-			var n: Vector3i = pl[0]
-			buf.put_32(n.x)
-			buf.put_32(n.y)
-			buf.put_32(n.z)
-			buf.put_64(int(pl[1]))
-			buf.put_u8(int(pl[2]))
+		_write_leaf(buf, palette, k)
 	var mlist := []
 	for k in mats:
 		mlist.append([k.x, k.y, k.z, k.w, mats[k]])
-	_saved = {"v": 3, "palette": Array(palette), "count": leaves.size(), "data": Marshalls.raw_to_base64(buf.data_array),
+	_saved = {"v": 3, "palette": palette, "count": leaves.size(), "data": Marshalls.raw_to_base64(buf.data_array),
 		"mats": mlist}
 	_saved_rev = revision
 	return _saved
+
+
+func _write_leaf(buf: StreamPeerBuffer, palette: Array, k: Vector4i) -> void:
+	var v: Array = leaves[k]
+	buf.put_32(k.x)
+	buf.put_32(k.y)
+	buf.put_32(k.z)
+	buf.put_8(k.w)
+	buf.put_data(v[0])
+	for id in v[1]:
+		var i := palette.find(id)
+		if i < 0:
+			palette.append(id)
+			i = palette.size() - 1
+		buf.put_u16(i)
+	var bl := _blend_of(v)
+	buf.put_u8(1 if not bl.is_empty() else 0)
+	if not bl.is_empty():
+		buf.put_data(bl)
+	var cut := _cut_of(v)                            # v3: an exact cut piece's planes
+	buf.put_u8(cut.size())
+	for pl in cut:
+		var n: Vector3i = pl[0]
+		buf.put_32(n.x)
+		buf.put_32(n.y)
+		buf.put_32(n.z)
+		buf.put_64(int(pl[1]))
+		buf.put_u8(int(pl[2]))
+
+
+static func _read_leaf(buf: StreamPeerBuffer, palette: Array, ver: int) -> Array:
+	var k := Vector4i(buf.get_32(), buf.get_32(), buf.get_32(), buf.get_8())
+	var got: Array = buf.get_data(24)
+	var t := PackedStringArray()
+	for j in 6:
+		var pi := buf.get_u16()
+		t.append(palette[pi] if pi < palette.size() else "")
+	var bl := PackedByteArray()
+	if ver >= 2 and buf.get_u8() == 1:
+		bl = buf.get_data(8)[1]
+	var cut := []
+	if ver >= 3:
+		for j in buf.get_u8():
+			var n := Vector3i(buf.get_32(), buf.get_32(), buf.get_32())
+			cut.append([n, buf.get_64(), buf.get_u8()])
+	return [k, _v(got[1] as PackedByteArray, t, bl, cut)]
+
+
+## Co-editing: while this is a Dictionary, every cube and material cell that changes is noted in it (materials under
+## w + _MAT_TAG), so only what changed goes to the others instead of the whole object (a big object is megabytes).
+## changed_all: the whole world was replaced (cleared) since, so a list of changes can't describe it.
+var change_log = null
+var changed_all := false
+
+
+## The cells that changed since the last call, as data (the save format for the cubes there now, and the cells
+## emptied), and start a fresh list.
+func take_changes() -> Dictionary:
+	var palette := [""]
+	var buf := StreamPeerBuffer.new()
+	var n := 0
+	var gone := []
+	var mset := []
+	for k in (change_log as Dictionary):
+		if k.w >= _MAT_TAG - 8:
+			var mk := Vector4i(k.x, k.y, k.z, k.w - _MAT_TAG)
+			mset.append([mk.x, mk.y, mk.z, mk.w, mats.get(mk, "")])
+		elif leaves.has(k):
+			_write_leaf(buf, palette, k)
+			n += 1
+		else:
+			gone.append([k.x, k.y, k.z, k.w])
+	change_log = {}
+	return {"v": 3, "palette": palette, "count": n, "data": Marshalls.raw_to_base64(buf.data_array),
+		"gone": gone, "mats": mset}
+
+
+## Make the same changes another copy made (take_changes there). Not undoable here, and not noted as our own changes.
+func apply_changes(d: Dictionary) -> void:
+	finish_reading()
+	var palette: Array = d.get("palette", [""])
+	var buf := StreamPeerBuffer.new()
+	buf.data_array = Marshalls.base64_to_raw(String(d.get("data", "")))
+	for g in d.get("gone", []):
+		if g is Array and (g as Array).size() >= 4:
+			_put(Vector4i(int(g[0]), int(g[1]), int(g[2]), int(g[3])), null)
+	for i in int(d.get("count", 0)):
+		var r := _read_leaf(buf, palette, int(d.get("v", 3)))
+		_put(r[0], r[1])
+	for m in d.get("mats", []):
+		if m is Array and (m as Array).size() >= 5:
+			var mk := Vector4i(int(m[0]), int(m[1]), int(m[2]), int(m[3]))
+			_put_mat(mk, null if String(m[4]) == "" else String(m[4]))
+	_undo.clear()                                        # (the steps here no longer match what's there)
+	_redo.clear()
+	if change_log != null:
+		change_log = {}
 
 
 func load_dict(data: Dictionary) -> void:
@@ -3100,21 +3206,8 @@ func load_dict(data: Dictionary) -> void:
 	var buf := StreamPeerBuffer.new()
 	buf.data_array = Marshalls.base64_to_raw(data.get("data", ""))
 	for i in int(data.get("count", 0)):
-		var k := Vector4i(buf.get_32(), buf.get_32(), buf.get_32(), buf.get_8())
-		var got: Array = buf.get_data(24)
-		var t := PackedStringArray()
-		for j in 6:
-			var pi := buf.get_u16()
-			t.append(palette[pi] if pi < palette.size() else "")
-		var bl := PackedByteArray()
-		if ver >= 2 and buf.get_u8() == 1:
-			bl = buf.get_data(8)[1]
-		var cut := []
-		if ver >= 3:
-			for j in buf.get_u8():
-				var n := Vector3i(buf.get_32(), buf.get_32(), buf.get_32())
-				cut.append([n, buf.get_64(), buf.get_u8()])
-		_put(k, _v(got[1] as PackedByteArray, t, bl, cut))
+		var r := _read_leaf(buf, palette, ver)
+		_put(r[0], r[1])
 	for m in data.get("mats", []):
 		_put_mat(Vector4i(int(m[0]), int(m[1]), int(m[2]), int(m[3])), String(m[4]))
 	_undo.clear()

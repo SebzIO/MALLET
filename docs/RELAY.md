@@ -104,6 +104,17 @@ holds for it — so one shape covers a dragged ramp point, a moved block and a c
 never seen that id can still find the object, since both copies of the map start out identical. The sender never
 needs an acknowledgement.
 
+Since 0.18.18 (MALLET only; the relay passes every `edit` on unchanged):
+
+- `cubes`: a cube object both sides already have, as only the cells that changed: `props` (position, yaw, name,
+  group, folder, hidden), `changes` (the save format for the cubes there now, plus `gone` cells and `mats` with ""
+  for a material removed), and `n` / `m`, the sender's cube and material counts afterward. A whole big cube object
+  is megabytes, so this is how build-mode work on one reaches the others.
+- `need` (`uid`, `from`): the receiver's copy didn't match `n` / `m` after applying `cubes`; only the editor whose
+  relay id is `from` answers, by sending that object whole.
+- `part` (`pid`, `part`, `of`, `text`): an edit message over 400 KB, cut into pieces of its JSON text; the receiver
+  joins them in order and applies the whole message (a pasted big cube object).
+
 `cursor` is throttled to about 10 a second. `edit` messages are relayed to the maker and the other editors (never
 back to the sender); the sender's own file stays authoritative and the editor applies remote edits without adding
 them to its own undo history.

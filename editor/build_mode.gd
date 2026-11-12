@@ -1993,6 +1993,9 @@ func update_target() -> void:
 
 ## Walk the line of sight through a cube object's grid (cells of grid power p) and return the first cell with
 ## anything in it: {cell (ticks), orient (the face it was entered through), point (where, meters, object space)}.
+var aim_jumps := true                     ## (tests turn this off to check the jumps against the plain walk)
+
+
 func _first_occupied(m: CubeModelNode, from_w: Vector3, dir_w: Vector3, max_d: float, p: int) -> Dictionary:
 	var w: CubeWorld = m.world
 	if w.count() == 0 and w.mats.is_empty():
@@ -2052,6 +2055,34 @@ func _first_occupied(m: CubeModelNode, from_w: Vector3, dir_w: Vector3, max_d: f
 			if float(clip[0]) <= float(clip[1]) and float(clip[0]) <= tmax[axis] + 1e-4:
 				return {"cell": ct, "orient": orient, "point": (o + d * t) * CubeWorld.TICK}
 			# (the ray runs through the air a folded face left: keep walking, the block behind is the one we see)
+		elif not inside and aim_jumps:
+			# empty: jump to the far side of the biggest empty block around this cell (at a 0.125 m grid, crossing a
+			# big object's empty space cell by cell was thousands of steps a frame)
+			var q := w.empty_level(ct, p)
+			if q > p:
+				var s := float(CubeWorld.size_of(q))
+				var te := INF
+				var ea := -1
+				for i in 3:
+					if absf(d[i]) > 1e-9:
+						var b := floorf(float(ct[i]) / s) * s + (s if step[i] > 0 else 0.0)
+						var ti := (b - o[i]) / d[i]
+						if ti < te:
+							te = ti
+							ea = i
+				if ea >= 0 and te > t:
+					t = te
+					axis = ea
+					var at := o + d * t
+					for i in 3:
+						if i == ea:
+							var b := floorf(float(ct[i]) / s) * s + (s if step[i] > 0 else 0.0)
+							cell[i] = int(roundf(b / g)) - (0 if step[i] > 0 else 1)
+						else:
+							cell[i] = floori(at[i] / g)
+						if absf(d[i]) > 1e-9:
+							tmax[i] = (float(cell[i] + (1 if step[i] > 0 else 0)) * g - o[i]) / d[i]
+					continue
 		axis = 0 if tmax.x <= tmax.y and tmax.x <= tmax.z else (1 if tmax.y <= tmax.z else 2)
 		t = tmax[axis]
 		cell[axis] += step[axis]

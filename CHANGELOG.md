@@ -3,6 +3,21 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.18.18 preview — 2026-11-11: Co-editing keeps up with big pastes, and small grids stay smooth
+
+- Co-editing: a paste of more than 8 objects only sent the first 8 to the others; the rest were dropped for good.
+  Deleting several objects removed only every other one on the others' side. Both fixed.
+- Co-editing: a change to a cube object over 200 KB (most real builds: the cube objects on the map that showed this
+  are 3.5 MB and 1.7 MB) was never sent, so build-mode work on it, including copy and paste inside it, never
+  reached the others until they rejoined. Edits to a cube object now go as just the cubes that changed (and where
+  it is, its name and folder), and anything still too big for one message (a pasted big cube object) goes in parts.
+  If a copy has drifted apart, it notices and gets the whole object again.
+- Build mode: at a small grid (0.125 m), aiming at a big cube object with lava or glass in it could take up to 0.4 s
+  a frame. Every empty cell along the line of sight checked every material cell in the object; that check is now
+  instant, and the aim jumps over empty space instead of crossing it cell by cell. Aiming finds exactly the same
+  cell as before.
+- New tests: aim_skip_test, co_sync_test (two MALLETs on a real relay).
+
 ## 0.18.17 preview — 2026-11-11: No more being thrown down the ramp
 
 - Play mode: flicking away from a ramp mid-surf (a j-turn) could throw you down the ramp and end the run. The

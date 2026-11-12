@@ -169,8 +169,9 @@ var _cursor_clock := 0.0
 var _co_queue := {}                    ## objects changed here that the other editors haven't been sent yet
 var _co_last := {}                     ## session id -> where that object was when we last sent or applied it
 var _co_uids := {}                     ## session id -> {"o", "kind"}: every object both sides believe exists
-var _co_new_now := {}                  ## objects that appeared since the last tick (they go out as adds)
+var _co_new_now := {}                  ## objects that appeared and haven't gone out yet (they go out as adds)
 var _co_dels := []                     ## [kind, uid] waiting to be sent as deletions
+var _co_parts := {}                    ## an edit too big for one message, arriving: id -> {part: text}
 var _co_seq := 0
 var _co_mute := false                  ## a remote edit or an undo is being applied: nothing goes back out
 var _co_waiting_state := false         ## waiting for the session's map: nothing goes out until it lands
@@ -1936,6 +1937,8 @@ func _co_step_after(before: Array) -> void:
 	_co_seed()                                               # (everything is known again, under those names)
 	for o in changed:
 		_co_queue[o] = true
+		if o is CubeModelNode:
+			o.world.changed_all = true                   # (just marked as in step: it has to go whole, not as no changes)
 	for o in made:
 		_co_new_now[o] = true
 	for j in before.size():
@@ -6128,13 +6131,14 @@ func _co_seed() -> void:
 			var uid := _co_uid(o)
 			_co_uids[uid] = {"o": o, "kind": _co_kind(o)}
 			_co_last[uid] = (o as Node3D).center()   # (so the first edit says where this copy still has it)
+			_co_track(o)
 	_co_env = JSON.stringify(environment)          # (both copies start from the same map's look)
 
 
-## Objects that appeared or vanished since the last tick. Watching the map's contents is one place instead of every
+## Objects that appeared or vanished since the last tick (new ones wait in _co_new_now until they have gone out: a
+## paste of more than a tick's worth used to lose the rest). Watching the map's contents is one place instead of every
 ## way an object can be made or removed (paste, every Add menu item, build mode, delete...).
 func _co_scan_objects() -> void:
-	_co_new_now.clear()
 	var here := {}
 	for o in _all_objects():
 		if not is_instance_valid(o) or o.is_queued_for_deletion():
@@ -6164,17 +6168,16 @@ func _co_send_edits() -> void:
 		_set_status("The session's map hasn't arrived: make sure its owner is in the session.")
 	_co_scan_objects()
 	var sent := 0
-	for pair in _co_dels:
-		if sent >= 8:
-			break
-		_co_dels.pop_front()
+	while not _co_dels.is_empty() and sent < 8:          # (popping inside a for over the same list skipped every other)
+		var pair: Array = _co_dels.pop_front()
 		_co_seq += 1
 		relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "del", "kind": pair[0], "uid": pair[1]}})
 		sent += 1
 	for o in _co_new_now.keys():
 		if sent >= 8:
 			break
-		if is_instance_valid(o) and _co_send_one(o, "add"):
+		_co_new_now.erase(o)
+		if is_instance_valid(o) and not o.is_queued_for_deletion() and o.is_inside_tree() and _co_send_one(o, "add"):
 			sent += 1
 	for o in _co_queue.keys():
 		if sent >= 8:
@@ -6186,20 +6189,87 @@ func _co_send_edits() -> void:
 			sent += 1
 
 
-## One object's whole state, as `act` (add or edit). False if it's too big to send.
-func _co_send_one(o: Node3D, act: String) -> bool:
+## One object's state, as `act` (add or edit). A cube object both sides already have sends only the cubes that
+## changed (whole, it can be megabytes); `full` sends it whole anyway. False if there was nothing to send.
+func _co_send_one(o: Node3D, act: String, full := false) -> bool:
+	if act == "edit" and not full and o is CubeModelNode:
+		var r := _co_send_cubes(o)
+		if r >= 0:
+			return r == 1
 	var d := _with_group(o)
-	if JSON.stringify(d).length() > 200000:              # (a whole cube object can be huge; its file is the way)
-		var what := String(o.call("label")) if o.has_method("label") else "That object"
-		_set_status("%s is too big to send live: copy it to the other MALLET by hand." % what)
-		return false
 	var uid := _co_uid(o)
 	var at: Vector3 = _co_last.get(uid, o.center())
 	_co_seq += 1
-	relay.send({"t": "edit", "seq": _co_seq, "op": {"act": act, "kind": _co_kind(o), "uid": uid,
+	_co_send_msg({"t": "edit", "seq": _co_seq, "op": {"act": act, "kind": _co_kind(o), "uid": uid,
 		"at": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)], "obj": d}})
 	_co_last[uid] = o.center()
+	_co_track(o)
 	return true
+
+
+const CO_EDIT_PART := 400000          ## bytes of an edit per message; bigger ones go in parts (the relay's limit is 2 MB)
+
+
+## Send an edit message, in parts when it is too big for one (a whole big cube object; it used to be refused, so a
+## paste of a big object never reached the others).
+func _co_send_msg(msg: Dictionary) -> void:
+	var text := JSON.stringify(msg)
+	if text.to_utf8_buffer().size() <= CO_EDIT_PART:
+		relay.send(msg)
+		return
+	var parts := []
+	var i := 0
+	while i < text.length():
+		var n: int = mini(CO_EDIT_PART, text.length() - i)
+		while n > 1 and text.substr(i, n).to_utf8_buffer().size() > CO_EDIT_PART:
+			n = int(n * 0.9)
+		parts.append(text.substr(i, n))
+		i += n
+	var pid := "%s.%d" % [relay.you, int(msg.get("seq", 0))]
+	for k in parts.size():
+		_co_seq += 1
+		relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "part", "pid": pid, "part": k, "of": parts.size(), "text": parts[k]}})
+
+
+## From now on, note which cubes of this cube object change, so its edits can go as just those.
+func _co_track(o) -> void:
+	if not o is CubeModelNode or not is_instance_valid(o):
+		return
+	var w: CubeWorld = o.world
+	w.change_log = {}
+	w.changed_all = false
+	o.set_meta("co_world", w)
+	o.set_meta("co_props", JSON.stringify(_co_cube_props(o)))
+
+
+func _co_cube_props(o: CubeModelNode) -> Dictionary:
+	var d := {"position": [snappedf(o.position.x, 0.001), snappedf(o.position.y, 0.001), snappedf(o.position.z, 0.001)],
+		"yaw": snappedf(o.yaw, 0.001)}
+	for key in ["group", "name", "folder", "hidden"]:
+		if o.has_meta(key):
+			d[key] = o.get_meta(key)
+	return d
+
+
+## A cube object's edit as only the cells that changed (and where it is, its name and folder). 1 sent, 0 nothing to
+## send, -1 it has to go whole (not tracked, or replaced as a whole since).
+func _co_send_cubes(o: CubeModelNode) -> int:
+	var w: CubeWorld = o.world
+	if w.change_log == null or w.changed_all or o.get_meta("co_world", null) != w:
+		return -1
+	var props := _co_cube_props(o)
+	var sig := JSON.stringify(props)
+	if (w.change_log as Dictionary).is_empty() and sig == String(o.get_meta("co_props", "")):
+		return 0
+	o.set_meta("co_props", sig)
+	var uid := _co_uid(o)
+	var at: Vector3 = _co_last.get(uid, o.center())
+	_co_seq += 1
+	_co_send_msg({"t": "edit", "seq": _co_seq, "op": {"act": "cubes", "kind": "cube", "uid": uid,
+		"at": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)], "props": props,
+		"changes": w.take_changes(), "n": w.count(), "m": w.mats.size()}})
+	_co_last[uid] = o.center()
+	return 1
 
 
 const CO_STATE_CHUNK := 400000        ## bytes of map text per message (the relay refuses one message over 2 MB)
@@ -6397,7 +6467,91 @@ func _co_apply(m: Dictionary) -> void:
 		"folders": _co_folders(op)
 		"env": _co_env_props(op)
 		"reset": _co_reset(who)
+		"part": _co_part(op, m)
+		"cubes": _co_cubes(op, who, m)
+		"need": _co_need(op)
 		_: _co_edit(op, who)
+
+
+## A piece of an edit too big for one message: put the pieces back together and apply it.
+func _co_part(op: Dictionary, m: Dictionary) -> void:
+	var pid := String(op.get("pid", ""))
+	var of := int(op.get("of", 0))
+	var k := int(op.get("part", -1))
+	if pid == "" or of < 1 or of > 64 or k < 0 or k >= of:
+		return
+	if not _co_parts.has(pid):
+		if _co_parts.size() > 16:                        # (pieces of an edit that never finished: let them go)
+			_co_parts.erase(_co_parts.keys()[0])
+		_co_parts[pid] = {}
+	var got: Dictionary = _co_parts[pid]
+	got[k] = String(op.get("text", ""))
+	if got.size() < of:
+		return
+	_co_parts.erase(pid)
+	var text := ""
+	for i in of:
+		text += String(got.get(i, ""))
+	var whole = JSON.parse_string(text)
+	if not whole is Dictionary or not (whole as Dictionary).get("op") is Dictionary or String(whole["op"].get("act", "")) == "part":
+		return
+	whole["id"] = m.get("id", "")
+	whole["name"] = m.get("name", "A co-editor")
+	_co_apply(whole)
+
+
+## They changed some cubes of a cube object: make the same changes here. If the two copies turn out to differ, ask
+## for the whole object.
+func _co_cubes(op: Dictionary, who: String, m: Dictionary) -> void:
+	var uid := String(op.get("uid", ""))
+	var o := _co_find("cube", uid, _co_vec3(op.get("at", [])))
+	var ch = op.get("changes")
+	if o == null or not o is CubeModelNode or not ch is Dictionary:
+		_co_ask_whole(uid, m)
+		return
+	var cm := o as CubeModelNode
+	var props: Dictionary = op.get("props", {}) if op.get("props") is Dictionary else {}
+	_co_mute = true
+	if uid != "" and not cm.has_meta("co_uid"):
+		cm.set_meta("co_uid", uid)
+	var p = props.get("position")
+	if p is Array and (p as Array).size() >= 3:
+		cm.position = Vector3(p[0], p[1], p[2])
+	cm.yaw = float(props.get("yaw", cm.yaw))
+	cm.basis = Basis(Vector3.UP, deg_to_rad(cm.yaw))
+	_take_group(cm, props)
+	if String(props.get("group", "")) == "" and cm.has_meta("group"):
+		cm.remove_meta("group")
+	cm.world.apply_changes(ch)
+	cm.set_meta("co_remote_at", Time.get_ticks_msec())
+	if cm == selected:
+		_refresh_props()
+	_map_changed()
+	_co_mute = false
+	_co_queue.erase(cm)
+	_co_track(cm)
+	_co_last[_co_uid(cm)] = cm.center()
+	if cm.world.count() != int(op.get("n", -1)) or cm.world.mats.size() != int(op.get("m", -1)):
+		_co_ask_whole(uid, m)                            # (the copies had drifted apart: get theirs whole)
+		return
+	_set_status("%s: %s" % [who, cm.label()])
+
+
+## Ask the editor who sent `m` for the whole of object `uid`.
+func _co_ask_whole(uid: String, m: Dictionary) -> void:
+	if uid == "" or relay == null or not relay.is_open():
+		return
+	_co_seq += 1
+	relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "need", "uid": uid, "from": String(m.get("id", ""))}})
+
+
+## Someone's copy of one of our objects differs: send it whole (only the one who changed it answers).
+func _co_need(op: Dictionary) -> void:
+	if relay == null or String(op.get("from", "")) != relay.you:
+		return
+	var rec = _co_uids.get(String(op.get("uid", "")), {})
+	if rec is Dictionary and rec.get("o") is Node3D and is_instance_valid(rec["o"]):
+		_co_send_one(rec["o"], "edit", true)
 
 
 ## True while we have the object in hand: an edit to something being dragged here waits, so a drag can't be pulled
@@ -6484,6 +6638,7 @@ func _co_add(op: Dictionary, who: String) -> void:
 	o.set_meta("co_remote_at", Time.get_ticks_msec())
 	_map_changed()
 	_co_mute = false
+	_co_track(o)
 	_co_uids[uid] = {"o": o, "kind": kind}
 	_co_last[uid] = o.center()
 	_set_status("%s added a %s." % [who, String(o.call("label")) if o.has_method("label") else kind])
@@ -6563,6 +6718,7 @@ func _co_edit(op: Dictionary, who: String) -> void:
 	_map_changed()
 	_co_mute = false
 	_co_queue.erase(o)
+	_co_track(o)
 	var oid := _co_uid(o)
 	_co_last[oid] = o.center()
 	_set_status("%s: %s" % [who, String(o.call("label")) if o.has_method("label") else kind])
