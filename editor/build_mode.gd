@@ -37,7 +37,7 @@ const HELP := [
 	["Right drag  /  + Shift", "move the selection  /  ...leaving a copy of its cubes there"],
 	["Space  /  J", "drop the selection  /  go to it"],
 	["C / V  /  Delete", "copy / paste  /  delete"], ["Z or U  /  I", "undo / redo"], ["", ""],
-	["H (or hold Alt)", "heightmap mode;  B + wheel: brush"],
+	["H (or hold Alt)", "heightmap mode;  B + wheel: brush"], ["Shift+H", "experimental heightmap (random shapes)"],
 	["Keypad 1-5  /  0", "blend painting modes  /  off;  8 / 9 brush size"],
 	["T", "commands: materials (water, lava, glass...), replace"],
 	["Tab", "place an entity;  1-4 + wheel: its settings"],
@@ -508,8 +508,12 @@ func _key(e: InputEventKey) -> void:
 			sel = {}
 			say("The next cubes you build in the air start a new cube object")
 		KEY_H:
-			hmap = not hmap
-			say("Heightmap mode %s (B + wheel: brush = %s)" % ["on" if hmap else "off", CubeWorld.BRUSHES[brush][0]])
+			if e.shift_pressed:                          # Shift+H: the experimental, random heightmap
+				hmap_rough = not hmap_rough
+				say("Experimental heightmap %s: each stroke is shaped at random (every face still joined)" % ["on" if hmap_rough else "off"])
+			else:
+				hmap = not hmap
+				say("Heightmap mode %s (B + wheel: brush = %s)" % ["on" if hmap else "off", CubeWorld.BRUSHES[brush][0]])
 		KEY_M: _toggle("mats")
 		KEY_5: _toggle("hud")
 		KEY_6: _toggle("snap")
@@ -569,6 +573,9 @@ func op_sel() -> Dictionary:
 	if not sel.is_empty():
 		return sel
 	return target.get("sel", {})
+
+
+var hmap_rough := false                  ## Shift+H: the experimental heightmap (CubeWorld.hmap_edit rough)
 
 
 func hmap_on() -> bool:
@@ -768,7 +775,7 @@ func _hmap(dir: int) -> void:
 	var b: Array = CubeWorld.BRUSHES[brush][1]
 	var s: Dictionary = target["sel"]
 	_edit(s, func(w: CubeWorld):
-		w.hmap_edit(center, int(lp.y), grid_p, b, dir)
+		w.hmap_edit(center, int(lp.y), grid_p, b, dir, hmap_rough)
 		return s)
 
 
@@ -2132,7 +2139,7 @@ func _process(delta: float) -> void:
 	_msg.visible = _msg_time > 0.0
 	var mode := ""
 	if hmap_on():
-		mode = "  ·  HEIGHTMAP (%s)" % CubeWorld.BRUSHES[brush][0]
+		mode = "  ·  HEIGHTMAP (%s%s)" % [CubeWorld.BRUSHES[brush][0], ", experimental" if hmap_rough else ""]
 	if blend_mode > 0:
 		mode += "  ·  BLEND PAINT %d (%.1f m)" % [blend_mode, blend_radius]
 	var size_txt := ""

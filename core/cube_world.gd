@@ -2069,10 +2069,29 @@ func cube_in_mat(k: Vector4i, m: String) -> bool:
 ## Heightmap mode (Sauerbraten's hmapedit): treat the tops of the cubes as terrain and move its corner points with a
 ## brush centered on `center` (ticks, a corner point of the grid) - dir 1 lowers, -1 raises. `around_y` (ticks) is
 ## roughly where the surface is. Raising past a cube's top builds new cubes; lowering past its bottom digs them away.
-func hmap_edit(center: Vector3i, around_y: int, p: int, brush: Array, dir: int) -> void:
+func hmap_edit(center: Vector3i, around_y: int, p: int, brush: Array, dir: int, rough := false) -> void:
 	_top_cache = {}                                      # column tops don't change until the columns are written
+	_hmap_rough = rough
 	_hmap_edit(center, around_y, p, brush, dir)
+	_hmap_rough = false
 	_top_cache = null
+
+
+## The experimental heightmap mode (0.19.7): every corner's push is scaled by a noise value at that corner (0.1 to
+## 1.9 times the brush), so the brush's shape doesn't repeat. The terrain stays joined because a heightmap is corner
+## heights its columns share: whatever a corner's height, every face that meets there meets there.
+var _hmap_rough := false
+static var _rough_noise: FastNoiseLite
+
+
+static func _rough_factor(pt: Vector2i, g: int) -> float:
+	if _rough_noise == null:
+		_rough_noise = FastNoiseLite.new()
+		_rough_noise.seed = 1729
+		_rough_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		_rough_noise.fractal_octaves = 3
+	_rough_noise.frequency = 0.45 / float(g)            # (a few grid cells per bump, whatever the grid size)
+	return 1.0 + 0.9 * clampf(_rough_noise.get_noise_2d(float(pt.x), float(pt.y)) * 1.6, -1.0, 1.0)
 
 
 var _top_cache = null                                    ## column -> top cube (or null) while a heightmap edit reads
@@ -2115,7 +2134,8 @@ func _hmap_edit(center: Vector3i, around_y: int, p: int, brush: Array, dir: int)
 					continue
 				var pt := Vector2i(center.x + (i - n / 2) * g, center.z + (j - n / 2) * g)
 				if pts.has(pt):
-					new_h[pt] = int(pts[pt]) - dir * w * step
+					var wr := w if not _hmap_rough else maxi(roundi(float(w) * _rough_factor(pt, g)), 0)
+					new_h[pt] = int(pts[pt]) - dir * wr * step
 	if new_h.is_empty():
 		return
 	# Sauerbraten's ripple: no column's corners may cross into the next layer of cubes (except one corner, diagonally,

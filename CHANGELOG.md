@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.7 preview — 2026-11-11: An experimental heightmap (pre-1.0 batch 8)
+
+- **Shift+H** in build mode turns on the experimental heightmap: each stroke is shaped at random (every corner's
+  push is scaled by a noise value there), so the same brush no longer stamps the same shape over and over. Every
+  face stays joined: a heightmap is corner heights its columns share, so whatever height a corner gets, every face
+  that meets there meets there. H alone is the normal heightmap, unchanged. The bottom bar says which is on.
+- New test: hmap_rough_test (drops rays 25 cm apart onto the terrain: no cracks or pits in either mode).
+
 ## 0.19.6 preview — 2026-11-11: Ramps that follow your lines (pre-1.0 batch 7)
 
 - **New ramps run straight from point to point**, rounded only near each point (Path: "Straight, rounded at the
