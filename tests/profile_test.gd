@@ -57,7 +57,7 @@ func _run() -> void:
 	case("spiral climbing (combined)", spiral, {"angle": 60.0, "face_length": 9.0})
 	case("half ramp, left face, solid", curved, {"style": "half_left", "solid": true, "base_depth": 4.0})
 	case("half ramp, right face, hollow", curved, {"style": "half_right"})
-	case("near-vertical stretch (no NaN)", vertical, {})
+	case("near-vertical stretch (no NaN)", vertical, {}, true)   # (0.19.6: it turns with the spine, so the tight bend folds)
 	case("Freeform: uneven faces", curved, {"freeform": true, "angle": 50.0, "angle_right": 65.0, "face_length_right": 14.0})
 	# a twist in an old file is ignored: ramps never roll, even in Freeform
 	case("old twist value is ignored (stays level)", straight, {"freeform": true, "twist": 30.0})

@@ -83,6 +83,24 @@ func _run() -> void:
 	var r: RampNode = ed.ramps_root.get_child(0)
 	r.points = PackedVector3Array([Vector3(0, 200, 0), Vector3(0, 185, -60), Vector3(30, 170, -120), Vector3(10, 155, -180),
 		Vector3(40, 140, -240), Vector3(20, 125, -300)])
+	# a "corners" ramp (new ramps, 0.19.6): locking it leaves its surface exactly where it was
+	r.path = "corners"
+	r.rebuild()
+	var c_before: Array = r.geometry["rings"].duplicate()
+	ed._select(r)
+	r.frozen = []
+	r.lock_at(2)
+	r.rebuild()
+	var c_moved := 0.0
+	var c_after: Array = r.geometry["rings"]
+	for i in mini(c_before.size(), c_after.size()):
+		for j in (c_before[i] as PackedVector3Array).size():
+			c_moved = maxf(c_moved, (c_before[i][j] as Vector3).distance_to(c_after[i][j]))
+	check("a corners ramp: locking leaves the surface where it was", r.frozen.size() > 0 and c_moved < 0.01 and c_after.size() == c_before.size(),
+		"(%d locks, moved at most %.3f m)" % [r.frozen.size(), c_moved])
+	r.frozen = []
+	# the rest checks a smooth ramp, whose path passes through its points (seams sit exactly on a locked point)
+	r.path = "smooth"
 	r.rebuild()
 	ed._select(r)
 

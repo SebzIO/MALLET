@@ -167,6 +167,7 @@ func build(mode) -> void:
 	_detail_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	detail_row.add_child(_detail_lbl)
 	right.add_child(detail_row)
+	right.add_child(host._preset_row("shape", _preset_now, _preset_apply))   # (save a shape and its settings: 0.19.8)
 	_info = Label.new()
 	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_info.custom_minimum_size = Vector2(370, 34)
@@ -202,6 +203,34 @@ func build(mode) -> void:
 		CubeWorld.face_corners(i)                # (built here, so a rebuild on a thread only ever reads that table)
 	_build_params()
 	_regen()
+
+
+## A shape preset: the shape, every value (its turn too) and the detail.
+func _preset_now() -> Dictionary:
+	return {"shape": _shape, "values": _values.duplicate(), "detail": _detail_value}
+
+
+func _preset_apply(p: Dictionary) -> void:
+	var id := String(p.get("shape", ""))
+	var i := -1
+	for k in ShapeGen.defs().size():
+		if String(ShapeGen.defs()[k]["id"]) == id:
+			i = k
+	if i < 0:
+		return
+	_shape = id
+	_values = ShapeGen.defaults(_shape)
+	var vals = p.get("values", {})
+	if vals is Dictionary:
+		for k in vals:
+			_values[k] = float(vals[k])
+	_detail_value = int(p.get("detail", _detail_value))
+	_updating = true
+	_list.select(i)
+	_detail.value = _detail_value
+	_updating = false
+	_build_params()
+	_ask_regen()
 
 
 # ------------------------------------------------------------------------------------------------ opening / closing

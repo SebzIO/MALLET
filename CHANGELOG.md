@@ -3,6 +3,22 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.8 preview — 2026-11-11: The Geometry menu grows up (pre-1.0 batch 9, the last)
+
+- **Yaw, Pitch and Roll** for every shape but spheres and stairs: the shape's planes are turned before it's cut into
+  cubes, so a turned shape is exact octree cubes (a box turned 30 degrees has exactly the surface it had).
+- **The octree's own test**: after a shape is cut into cubes, points spread through the true shape must all land in
+  a cube. A shape the octree can't make whole at your grid and detail isn't shown or placed, and the menu says what
+  to change. Thin slabs and many-sided cones pass (cut cubes hold them exactly).
+- **New shapes: Quarter pipe and Halfpipe** (length, radius, floor under it, deck behind / flat bottom), concave and
+  smooth, built from cut cubes like every other shape.
+- **Shape presets**: save the shape you've set up (its values, turn and detail) under a name and bring it back.
+- (Bigger cubes: since 0.19.0 a placed shape's solid inside merges into the biggest cubes it can.)
+- Ramp fixes to 0.19.6: locking a ramp with the straight-with-rounded-corners path no longer moves it (the path is
+  now worked out once over all the points); a steep stretch starts turning with the spine at 60 degrees, not 40, so
+  every ramp up to 60 degrees keeps its upright cross-section.
+- New test: geo_gen_test.
+
 ## 0.19.7 preview — 2026-11-11: An experimental heightmap (pre-1.0 batch 8)
 
 - **Shift+H** in build mode turns on the experimental heightmap: each stroke is shaped at random (every corner's

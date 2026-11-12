@@ -47,7 +47,18 @@ const SHAPES := [
 	{"id": "ramp", "name": "Ramp", "params": [
 		["w", "Width", 4.0, 0.125, 64.0, 0.125], ["l", "Length", 8.0, 0.125, 64.0, 0.125],
 		["h", "Height", 2.0, 0.125, 32.0, 0.125]]},
+	{"id": "quarter_pipe", "name": "Quarter pipe", "params": [
+		["l", "Length", 8.0, 0.125, 64.0, 0.125], ["r", "Radius", 4.0, 0.5, 32.0, 0.125],
+		["t", "Floor under it", 1.0, 0.0, 8.0, 0.125], ["deck", "Deck behind", 1.0, 0.0, 16.0, 0.125]]},
+	{"id": "halfpipe", "name": "Halfpipe", "params": [
+		["l", "Length", 8.0, 0.125, 64.0, 0.125], ["r", "Radius", 4.0, 0.5, 32.0, 0.125],
+		["flat", "Flat bottom", 2.0, 0.0, 32.0, 0.125], ["t", "Floor under it", 1.0, 0.0, 8.0, 0.125]]},
 ]
+## Turning a shape (0.19.8): degrees, applied to its planes before it's cut into cubes, so a turned shape is still
+## exact octree cut cubes. Not for spheres (no use) or stairs (boxes on the grid: turn them in 90 degree steps).
+const ROT_PARAMS := [["yaw", "Yaw (°)", 0.0, -180.0, 180.0, 1.0], ["pitch", "Pitch (°)", 0.0, -90.0, 90.0, 1.0],
+	["roll", "Roll (°)", 0.0, -180.0, 180.0, 1.0]]
+const NO_ROTATION := ["sphere", "stairs"]
 
 
 static func defs() -> Array:
@@ -57,8 +68,12 @@ static func defs() -> Array:
 static func def_of(id: String) -> Dictionary:
 	for s in SHAPES:
 		if s["id"] == id:
-			return s
-	return SHAPES[0]
+			if id in NO_ROTATION:
+				return s
+			var d: Dictionary = s.duplicate(true)
+			d["params"] = (d["params"] as Array) + ROT_PARAMS
+			return d
+	return def_of(String(SHAPES[0]["id"]))
 
 
 static func defaults(id: String) -> Dictionary:
@@ -78,6 +93,7 @@ static func generate(id: String, vals: Dictionary, p: int, detail: int) -> Dicti
 	if spec.has("error"):
 		return {"cells": [], "error": String(spec["error"])}
 	var q_min := maxi(CubeWorld.MIN_P, p - clampi(detail, 0, 6))
+	spec = _rotated(spec, Vector3(float(vals.get("pitch", 0.0)), float(vals.get("yaw", 0.0)), float(vals.get("roll", 0.0))))
 	var g := CubeWorld.size_of(p)
 	var sz: Vector3 = spec["size"]
 	if sz.x <= 0.0001 or sz.y <= 0.0001 or sz.z <= 0.0001:
@@ -91,7 +107,7 @@ static func generate(id: String, vals: Dictionary, p: int, detail: int) -> Dicti
 	if String(spec["type"]) == "stairs":
 		for b in spec["boxes"]:
 			_emit_box(b, p, cells)
-	elif String(spec["type"]) == "ramp":
+	elif String(spec["type"]) == "ramp" and not spec.get("turned", false):
 		_cut_ramp(spec, p, cells)
 	else:
 		for x in nx:
@@ -102,7 +118,105 @@ static func generate(id: String, vals: Dictionary, p: int, detail: int) -> Dicti
 					_walk(spec, Vector3i(x * g, y * g, z * g), p, q_min, cells)
 	if cells.is_empty():
 		return {"cells": [], "error": "Nothing landed inside the grid: make it bigger than %s." % _m(grid)}
+	var whole := verify(id, vals, spec, cells, CubeWorld.metres(q_min))
+	if whole != "":
+		return {"cells": [], "error": whole}             # (it would come out with pieces missing: not shown, not placed)
 	return {"cells": cells, "size": sz, "count": cells.size(), "finest": CubeWorld.metres(q_min), "error": ""}
+
+
+## The octree's own test (0.19.8): points spread through the true shape must each land in a cube (and, in a cut
+## cube, on its solid side). A shape the octree can't make whole at this grid and detail - parts thinner than its
+## finest cube, details it can't hold - fails this and isn't shown or placed; the reason says what to change.
+## "" = whole (up to 8% of the points may miss: a stair's edges and a curve's facets miss a few right on them).
+static func verify(id: String, vals: Dictionary, spec: Dictionary, cells: Array, finest: float) -> String:
+	var sz: Vector3 = spec["size"]
+	var have := {}
+	var levels := {}
+	for c in cells:
+		var o: Vector3i = c[0]
+		have[Vector4i(o.x, o.y, o.z, int(c[1]))] = c
+		levels[int(c[1])] = true
+	var samples := 0
+	var misses := 0
+	var n := 11
+	for ix in n:
+		for iy in n:
+			for iz in n:
+				var pt := Vector3((ix + 0.5) / n * sz.x, (iy + 0.5) / n * sz.y, (iz + 0.5) / n * sz.z)
+				if not _inside(spec, pt):
+					continue
+				samples += 1
+				if not _covered(have, levels, pt):
+					misses += 1
+	if samples > 0 and misses > maxi(2, samples * 8 / 100):   # (edges and curves miss a few points: real failures miss most)
+		return "The octree can't make this whole at this grid and detail (%d of %d points of it would be missing): raise the detail, make the thin parts bigger, or use a smaller grid." % [misses, samples]
+	return ""
+
+
+## Is this point (meters) in one of the cells, on its solid side?
+static func _covered(have: Dictionary, levels: Dictionary, pt: Vector3) -> bool:
+	var t := (pt - Vector3.ONE * 0.002) / CubeWorld.TICK   # (2 mm in: a point on a face isn't a miss)
+	for q in levels:
+		var sz := CubeWorld.size_of(q)
+		var k := Vector4i(floori(t.x / sz) * sz, floori(t.y / sz) * sz, floori(t.z / sz) * sz, q)
+		if not have.has(k):
+			continue
+		var c: Array = have[k]
+		if c.size() <= 3:
+			return true
+		var u := (t - Vector3(k.x, k.y, k.z)) / float(sz) * 8.0
+		var solid := true
+		for pl in _cut_planes_of(c):
+			if (pl[0] as Vector3).dot(u) > float(pl[1]) + 0.05:
+				solid = false
+				break
+		return solid
+	return false
+
+
+## A shape turned by pitch / yaw / roll (degrees) around its middle, as planes (or carved planes), moved back so its
+## box starts at 0 again. Spheres and stairs come back as they are.
+static func _rotated(s: Dictionary, rot: Vector3) -> Dictionary:
+	if rot.is_zero_approx() or String(s["type"]) in ["sphere", "stairs"]:
+		return s
+	var b := Basis.from_euler(Vector3(deg_to_rad(rot.x), deg_to_rad(rot.y), deg_to_rad(rot.z)), EULER_ORDER_YXZ)
+	var sz: Vector3 = s["size"]
+	var c := sz * 0.5
+	var lo := Vector3(INF, INF, INF)
+	var hi := -lo
+	for i in 8:
+		var p := Vector3(sz.x if i & 1 else 0.0, sz.y if i & 2 else 0.0, sz.z if i & 4 else 0.0)
+		var q := b * (p - c) + c
+		lo = lo.min(q)
+		hi = hi.max(q)
+	var shift := -lo                                     # (p' = b (p - c) + c + shift)
+	var turn := func(pl: Array) -> Array:
+		var n: Vector3 = pl[0]
+		var n2 := b * n
+		return [n2, float(pl[1]) - n.dot(c) + n2.dot(c + shift)]
+	var out := {"type": "planes", "size": hi - lo, "turned": true}
+	if String(s["type"]) == "carve":
+		out["type"] = "carve"
+		var bp: Array = []
+		for pl in s["box_planes"]:
+			bp.append(turn.call(pl))
+		out["box_planes"] = bp
+		var holes: Array = []
+		for h in s["holes"]:
+			if String(h["kind"]) == "cyl":
+				holes.append({"kind": "cyl", "a": b * ((h["a"] as Vector3) - c) + c + shift, "u": (b * (h["u"] as Vector3)).normalized(), "r": h["r"]})
+			else:
+				var hp: Array = []
+				for pl in h["planes"]:
+					hp.append(turn.call(pl))
+				holes.append({"kind": "planes", "planes": hp})
+		out["holes"] = holes
+		return out
+	var planes: Array = []
+	for pl in _world_planes(s):
+		planes.append(turn.call(pl))
+	out["planes"] = planes
+	return out
 
 
 ## Put generated cells into a CubeWorld at `offset` (ticks), every face using `tex`. Returns how many cells landed.
@@ -396,6 +510,29 @@ static func _spec(id: String, vals: Dictionary, grid: float) -> Dictionary:
 			if w <= 0.0 or h <= 0.0 or l <= 0.0:
 				return {"error": "The width, length and height have to be bigger than zero."}
 			return {"type": "ramp", "size": Vector3(w, h, l), "w": w, "h": h, "l": l}
+		"quarter_pipe", "halfpipe":
+			# a block with round channels carved out of it (0.19.8): a concave shape is "the box, minus these"
+			var l := float(v.get("l", 8.0)) * grid
+			var r := float(v.get("r", 4.0)) * grid
+			var t := float(v.get("t", 0.5)) * grid
+			if l <= 0.0 or r <= 0.0:
+				return {"error": "The length and the radius have to be bigger than zero."}
+			var top := r + t
+			var holes: Array = []
+			var depth: float
+			if id == "quarter_pipe":
+				depth = r + float(v.get("deck", 1.0)) * grid
+				holes.append({"kind": "cyl", "a": Vector3(0.0, top, 0.0), "u": Vector3.RIGHT, "r": r})
+			else:
+				var flat := float(v.get("flat", 2.0)) * grid
+				depth = r * 2.0 + flat
+				holes.append({"kind": "cyl", "a": Vector3(0.0, top, r), "u": Vector3.RIGHT, "r": r})
+				holes.append({"kind": "cyl", "a": Vector3(0.0, top, r + flat), "u": Vector3.RIGHT, "r": r})
+				if flat > 0.0:
+					holes.append({"kind": "planes", "planes": [[Vector3.DOWN, -t], [Vector3.BACK, r + flat], [Vector3.FORWARD, -r]]})
+			return {"type": "carve", "size": Vector3(l, top, depth), "holes": holes, "box_planes": [
+				[Vector3.RIGHT, l], [Vector3.LEFT, 0.0], [Vector3.UP, top], [Vector3.DOWN, 0.0],
+				[Vector3.BACK, depth], [Vector3.FORWARD, 0.0]]}
 	return {"error": "Unknown shape: %s." % id}
 
 
@@ -417,6 +554,14 @@ static func _inside(s: Dictionary, pt: Vector3) -> bool:
 			if pt.x > float(s["w"]) + 1e-5 or pt.z > float(s["l"]) + 1e-5:
 				return false
 			return pt.y <= float(s["h"]) * pt.z / float(s["l"]) + 1e-5
+		"carve":
+			for pl in s["box_planes"]:
+				if (pl[0] as Vector3).dot(pt) > float(pl[1]) + 1e-5:
+					return false
+			for h in s["holes"]:
+				if _hole_state(h, pt, 0.0) == 1:
+					return false
+			return true
 		"stairs":
 			for b in s["boxes"]:
 				if (b as AABB).has_point(pt):
@@ -488,6 +633,25 @@ static func _state(s: Dictionary, o: Vector3i, q: int) -> int:
 			if lo.y >= h * hi.z / l - 1e-6:
 				return -1
 			return 0
+		"carve":
+			var mid := (lo + hi) * 0.5
+			var rad := (hi.x - lo.x) * 0.5
+			var all_in := true
+			for pl in s["box_planes"]:
+				var n: Vector3 = pl[0]
+				var reach := rad * (absf(n.x) + absf(n.y) + absf(n.z))
+				var d := n.dot(mid) - float(pl[1])
+				if d > reach + 1e-5:
+					return -1
+				if d > -reach + 1e-5:
+					all_in = false
+			for h in s["holes"]:
+				var hs := _hole_state(h, mid, rad)
+				if hs == 1:
+					return -1                            # (wholly in a channel: air)
+				if hs == 0:
+					all_in = false
+			return 1 if all_in else 0
 		"stairs":
 			for b in s["boxes"]:
 				var bb: AABB = b
@@ -501,6 +665,32 @@ static func _state(s: Dictionary, o: Vector3i, q: int) -> int:
 					return 0
 			return -1
 	return -1
+
+
+## A carved hole against a cell (middle `mid`, half size `rad`): 1 the cell is wholly in it, -1 wholly out, 0 the
+## hole's surface passes through.
+static func _hole_state(h: Dictionary, mid: Vector3, rad: float) -> int:
+	if String(h["kind"]) == "cyl":
+		var a: Vector3 = h["a"]
+		var u: Vector3 = h["u"]
+		var off := mid - a
+		var dist := (off - u * u.dot(off)).length()
+		var reach := rad * sqrt(3.0)
+		if dist + reach <= float(h["r"]) - 1e-6:
+			return 1
+		if dist - reach >= float(h["r"]) + 1e-6:
+			return -1
+		return 0
+	var inside := true
+	for pl in h["planes"]:
+		var n: Vector3 = pl[0]
+		var reach := rad * (absf(n.x) + absf(n.y) + absf(n.z))
+		var d := n.dot(mid) - float(pl[1])
+		if d > reach + 1e-5:
+			return -1
+		if d > -reach + 1e-5:
+			inside = false
+	return 1 if inside else 0
 
 
 ## A ramp is one plane, and every cell can carry that plane as its own cut, so the slope is a truly flat face: cells
@@ -611,6 +801,39 @@ static func _cell_cut(s: Dictionary, o: Vector3i, q: int) -> Array:
 		var n := d.normalized()
 		return [_local_plane(n, n.dot(c) + float(s["r"]), lo, size)]
 	var out: Array = []
+	if String(s["type"]) == "carve":                     # the box's own sides, then each channel's surface, flipped
+		var mid := lo + Vector3.ONE * size * 0.5
+		for pl in s["box_planes"]:
+			var n: Vector3 = pl[0]
+			for i in 8:
+				var p := lo + Vector3(size if i & 1 else 0.0, size if i & 2 else 0.0, size if i & 4 else 0.0)
+				if n.dot(p) > float(pl[1]) + 1e-6:
+					out.append(_local_plane(n, float(pl[1]), lo, size))
+					break
+		for h in s["holes"]:
+			if _hole_state(h, mid, size * 0.5) != 0:
+				continue
+			if String(h["kind"]) == "cyl":
+				var a: Vector3 = h["a"]
+				var u: Vector3 = h["u"]
+				var off := mid - a
+				var radial := off - u * u.dot(off)
+				if radial.length() < 1e-6:
+					continue
+				var dir := radial.normalized()
+				var qs := a + u * u.dot(off) + dir * float(h["r"])
+				out.append(_local_plane(-dir, -dir.dot(qs), lo, size))   # (solid outside the channel's round wall)
+			else:
+				var best: Array = []
+				var bd := -INF
+				for pl in h["planes"]:                   # (the channel's side this cell is against)
+					var d := (pl[0] as Vector3).dot(mid) - float(pl[1])
+					if d > bd:
+						bd = d
+						best = pl
+				if not best.is_empty():
+					out.append(_local_plane(-(best[0] as Vector3), -float(best[1]), lo, size))
+		return out
 	for pl in _world_planes(s):
 		var n: Vector3 = pl[0]
 		var off := float(pl[1])

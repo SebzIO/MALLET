@@ -396,6 +396,8 @@ static func spine(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 	var prev_tan := Vector3.ZERO
 	var prev_vals: Array = []
 	var secs := sections(points, s)
+	if s["path"] == "corners" and secs.size() > 1:
+		return _corner_spine(points, s, secs, spacing)
 	for k in secs.size():
 		var sec: Dictionary = secs[k]
 		var sub := points.slice(sec["from"], sec["to"] + 1)
@@ -423,6 +425,45 @@ static func spine(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 		prev_tan = st["tan"][st["tan"].size() - 1]
 		prev_vals = v
 	return {"pos": pos, "tan": tan, "dist": dist, "length": offset, "values": values, "seams": seams}
+
+
+## The spine of a "corners" ramp with locked sections: the path is one rounded polyline over all the points (each
+## corner's rounding depends only on its own two stretches, so locking can't move it, and the next section can't
+## either); the sections only decide the face settings along it, blended in after each seam as for smooth ramps.
+static func _corner_spine(points: PackedVector3Array, s: Dictionary, secs: Array, spacing: float) -> Dictionary:
+	var st := stations(points, spacing, [], Vector3.ZERO, float(s["corner"]))
+	var pos: PackedVector3Array = st["pos"]
+	var values: Array = []
+	var seams := PackedInt32Array()
+	var prev_k := -1
+	var seam_d := 0.0
+	var prev_vals: Array = []
+	for i in pos.size():
+		var span := 0                                    # (the stretch of points this station is on)
+		var bd := INF
+		for j in points.size() - 1:
+			var cp := Geometry3D.get_closest_point_to_segment(pos[i], points[j], points[j + 1])
+			var d := cp.distance_to(pos[i])
+			if d < bd - 1e-6:
+				bd = d
+				span = j
+		var k := 0
+		for kk in secs.size():
+			if span >= int(secs[kk]["from"]) and span < int(secs[kk]["to"]):
+				k = kk
+		if prev_k >= 0 and k > prev_k:
+			seams.append(i)
+			seam_d = float(st["dist"][i])
+			prev_vals = values[values.size() - 1]
+		prev_k = maxi(prev_k, k)
+		var v: Array = secs[prev_k]["values"]
+		if not prev_vals.is_empty() and prev_vals != v:
+			var w := smoothstep(0.0, SETTINGS_BLEND, float(st["dist"][i]) - seam_d)
+			values.append([lerpf(prev_vals[0], v[0], w), lerpf(prev_vals[1], v[1], w),
+				lerpf(prev_vals[2], v[2], w), lerpf(prev_vals[3], v[3], w)])
+		else:
+			values.append(v)
+	return {"pos": pos, "tan": st["tan"], "dist": st["dist"], "length": st["length"], "values": values, "seams": seams}
 
 
 ## Points along the spine about `spacing` meters apart.
@@ -618,6 +659,10 @@ static func end_lift(e: Dictionary, d: float) -> float:
 
 
 ## The upright frame at every station: right (always level) and up. Ramps never roll. Returns [rights, ups].
+const STEEP_FROM := 60.0                 ## degrees of climb or drop where a vertical slice starts turning with the spine
+const STEEP_TO := 85.0                   ## ...and where it stands square to it
+
+
 static func frames(st: Dictionary, s: Dictionary) -> Array:
 	var tan: PackedVector3Array = st["tan"]
 	var n := tan.size()
@@ -647,11 +692,11 @@ static func frames(st: Dictionary, s: Dictionary) -> Array:
 		var perp := r.cross(tan[i]).normalized()
 		var up := Vector3.UP if s["slice"] != "perpendicular" else perp
 		if s["slice"] != "perpendicular" and perp.length() > 1e-4:
-			# a vertical slice can't hold a steep drop (straight down, it collapses to nothing): from 40 to 75 degrees
+			# a vertical slice can't hold a steep drop (straight down, it collapses to nothing): from 60 to 85 degrees
 			# the cross-section turns to stand square to the spine, so the ramp keeps its shape around the spine.
-			# Under 40 degrees nothing changes (surf ramps ride as they always have).
+			# Under 60 degrees nothing changes (surf ramps ride as they always have).
 			var pitch := rad_to_deg(asin(clampf(absf(tan[i].y), 0.0, 1.0)))
-			var w := smoothstep(40.0, 75.0, pitch)
+			var w := smoothstep(STEEP_FROM, STEEP_TO, pitch)
 			if w > 0.0:
 				up = Vector3.UP.lerp(perp, w).normalized() # (right stays level: square to both, so the frame holds)
 		if up.length() < 1e-4:
@@ -931,7 +976,9 @@ static func self_check(s: Dictionary, res: Dictionary, tol := 1e-3) -> PackedStr
 				return problems
 		if absf(r.y) > tol:
 			problems.append("station %d: right is not level (y = %.4f)" % [i, r.y])
-		if s["slice"] == "vertical" and up.distance_to(Vector3.UP) > tol:
+		var steep: bool = s["slice"] == "vertical" and i < (res.get("tan", PackedVector3Array()) as PackedVector3Array).size() \
+			and rad_to_deg(asin(clampf(absf((res["tan"][i] as Vector3).y), 0.0, 1.0))) > STEEP_FROM
+		if s["slice"] == "vertical" and not steep and up.distance_to(Vector3.UP) > tol:
 			problems.append("station %d: profile is not upright" % i)
 		var v: Array = res["values"][i]
 		if custom_profile(s) or float((res.get("scales", PackedFloat32Array()) as PackedFloat32Array)[i] if i < (res.get("scales", PackedFloat32Array()) as PackedFloat32Array).size() else 1.0) != 1.0:
@@ -950,7 +997,7 @@ static func self_check(s: Dictionary, res: Dictionary, tol := 1e-3) -> PackedStr
 				problems.append("station %d: face angle %.2f, expected %.2f" % [i, got, want_a])
 		if symmetric and absf((ring[0] - ring[2]).dot(up)) > tol * 10.0:
 			problems.append("station %d: the bar across the edges is not level" % i)
-		if symmetric and s["slice"] == "vertical":
+		if symmetric and s["slice"] == "vertical" and not steep:
 			var mid: Vector3 = (ring[0] + ring[2]) * 0.5
 			if Vector2(mid.x - ridge[i].x, mid.z - ridge[i].z).length() > tol * 10.0:
 				problems.append("station %d: apex is not above the middle of the profile" % i)
