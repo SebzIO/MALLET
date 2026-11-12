@@ -3,6 +3,20 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.4 preview — 2026-11-11: Lights you can handle, color cycles, soft light (pre-1.0 batch 5)
+
+- Build mode: a light is an invisible handle: its bulb hides and a box shows where it is, blue, with the face you
+  aim at in orange. Aiming picks the light alone, even with a cube right behind it.
+- Clicking a light no longer moves it. Dragging it moves it freely, off the grid, across the plane of the face you
+  grabbed (grab a side to move it up and down, the top to move it around).
+- Copying a light copies just the light; pasting puts it on the middle of the face you aim at.
+- A light's reach goes up to 2,000 m (was 200 in build mode, 400 in the editor).
+- **Color cycles** (F4, with Slow pulse or Flicker): add colors with +, take them off with −, set the seconds per
+  color. Pulse flows through them; Flicker jumps between them, in order or at random. They play in SurfsUp too.
+- **Softer light on slopes**: where cube faces meet at less than 44 degrees (Sauerbraten's lerpangle), light rolls
+  smoothly across them instead of stepping at every triangle; a cube's sharp edges stay sharp.
+- New test: lights_test.
+
 ## 0.19.3 preview — 2026-11-11: Clean fills, a Fill tab and presets (pre-1.0 batch 4)
 
 - Fills (glass, water, lava...) poured over blocks no longer flicker: no fill face is drawn where a cube's face is

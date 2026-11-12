@@ -238,6 +238,7 @@ func start(from: Transform3D, edit_model: CubeModelNode = null) -> void:
 
 func _enter() -> void:
 	active = true
+	LightNode.show_bulbs(editor.lights_root, false)     # (lights are handle boxes here)
 	cam.current = true
 	_hud.visible = true
 	_lines.visible = true
@@ -270,6 +271,7 @@ func stop() -> void:
 
 func _leave() -> void:
 	active = false
+	LightNode.show_bulbs(editor.lights_root, true)
 	_drag = ""
 	cam.clear_current(false)
 	_hud.visible = false
@@ -409,6 +411,14 @@ func _left_down(shift: bool, ctrl: bool) -> void:
 			ent_sel = [ent]
 		_drag = "entity"
 		_ent_drag = {"start": target["point"], "before": {}, "plane_y": ent.center().y}
+		if ent is LightNode:                             # (the grabbed face picks the plane it moves in, off the grid)
+			_light_face = int(target.get("ent_face", 3))
+			var n := Vector3(CubeWorld.orient_step(maxi(_light_face, 0)))
+			_ent_drag["plane"] = Plane(n, n.dot(ent.center()))
+		var pl: Plane = _ent_drag.get("plane", Plane(Vector3.UP, float(_ent_drag["plane_y"])))
+		var at = pl.intersects_ray(cam.global_position, -cam.global_basis.z)
+		_ent_drag["start"] = at if at != null else ent.center()   # (from where the crosshair meets that plane now:
+		_ent_drag["from_plane"] = true                             #  it used to jump by the gap to the cube behind)
 		for o in ent_sel:
 			_ent_drag["before"][o] = o.to_dict()
 		say("%s selected - drag to move it, 1-4 + wheel to change it, Delete to remove it" % ent.label())
@@ -794,6 +804,8 @@ func flip() -> void:
 func copy() -> void:
 	var s := op_sel()
 	clip = {}
+	if sel.is_empty() and not ent_sel.is_empty():
+		s = {}                                           # (lights / entities picked, no cube selection: just them)
 	if not s.is_empty() and s.get("model") != null and is_instance_valid(s["model"]):
 		clip = (s["model"] as CubeModelNode).world.copy(s)
 		clip["origin"] = _frame(s["model"]) * (Vector3(s["o"]) * CubeWorld.TICK)
@@ -837,6 +849,14 @@ func paste() -> void:
 		var out = _edit(s, func(w: CubeWorld): return w.paste(s, clip))
 		sel = (out as Dictionary).duplicate()
 		sel["model"] = model
+	if clip.has("ents") and not clip.has("cubes") and target.get("hit", false) and target.get("entity") == null:
+		var ts: Dictionary = target["sel"]                 # (lights and other entities alone: on the middle of the face aimed at)
+		var fxf := _frame(ts.get("model"))
+		var g := CubeWorld.metres(ts["p"])
+		var o: int = ts["orient"]
+		var mid := Vector3(ts["o"]) * CubeWorld.TICK + Vector3.ONE * g * 0.5
+		mid += Vector3(CubeWorld.orient_step(o)) * (g * 0.5 + LightNode.HANDLE * 0.5)
+		dest = fxf * mid
 	if clip.has("ents"):
 		var objs: Array = editor._paste(clip["ents"], dest - (clip["origin"] as Vector3), true)
 		for o in objs:
@@ -1005,6 +1025,7 @@ static func _on_cube(t: Dictionary) -> bool:
 
 # ------------------------------------------------------------------------------------------------ moving the selection
 var _selmove := {}                       ## right-drag: {"start_sel", "start" cell, "moved"}
+var _light_face := 3                     ## the face of a selected light's handle box that was grabbed
 
 
 ## Right-drag: the selection box follows the crosshair across its face's plane (its cubes stay where they are).
@@ -1148,20 +1169,29 @@ func _update_ent_drag() -> void:
 	var dir := -cam.global_basis.z
 	var vertical := Input.is_key_pressed(KEY_SHIFT)
 	var start: Vector3 = _ent_drag["start"]
-	var plane := Plane(Vector3.UP, float(_ent_drag["plane_y"]))
-	if vertical:
-		var n := Vector3(dir.x, 0, dir.z).normalized()
-		plane = Plane(n, n.dot(start))
-	var hit = plane.intersects_ray(from, dir)
-	if hit == null:
-		return
-	var delta: Vector3 = (hit as Vector3) - Vector3(start.x, float(_ent_drag["plane_y"]) if not vertical else start.y, start.z)
-	if not vertical:
-		delta.y = 0.0
+	var delta: Vector3
+	if _ent_drag.has("plane"):                           # a light: across the grabbed face's plane, off the grid
+		var lp: Plane = _ent_drag["plane"]
+		var lh = lp.intersects_ray(from, dir)
+		if lh == null:
+			return
+		delta = (lh as Vector3) - start
+		delta -= lp.normal * lp.normal.dot(delta)
 	else:
-		delta = Vector3(0, delta.y, 0)
-	if entsnap:
-		delta = delta.snapped(Vector3.ONE * CubeWorld.metres(grid_p))
+		var plane := Plane(Vector3.UP, float(_ent_drag["plane_y"]))
+		if vertical:
+			var n := Vector3(dir.x, 0, dir.z).normalized()
+			plane = Plane(n, n.dot(start))
+		var hit = plane.intersects_ray(from, dir)
+		if hit == null:
+			return
+		delta = (hit as Vector3) - start
+		if not vertical:
+			delta.y = 0.0
+		else:
+			delta = Vector3(0, delta.y, 0)
+		if entsnap:
+			delta = delta.snapped(Vector3.ONE * CubeWorld.metres(grid_p))
 	for o in ent_sel:
 		var before: Dictionary = _ent_drag["before"].get(o, {})
 		if before.is_empty():
@@ -1588,7 +1618,7 @@ func _build_light_panel() -> void:
 	col.color_changed.connect(func(c): _light_set("color", c.to_html(false)))
 	box.add_child(_light_row("Color", col))
 	_light_fields["color"] = col
-	for spec in [["energy", "Brightness", 0.0, 20.0, 0.1], ["range", "Reach (m)", 0.5, 200.0, 0.5],
+	for spec in [["energy", "Brightness", 0.0, 20.0, 0.1], ["range", "Reach (m)", 0.5, 2000.0, 0.5],
 			["angle", "Spot width (°)", 5.0, 170.0, 1.0], ["length", "Strip length (m)", 0.5, 40.0, 0.5]]:
 		var sl := HSlider.new()
 		sl.min_value = spec[2]
@@ -1596,6 +1626,7 @@ func _build_light_panel() -> void:
 		sl.step = spec[4]
 		sl.custom_minimum_size = Vector2(190, 0)
 		sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		sl.exp_edit = spec[0] == "range"                 # (0.5 to 2,000 m: fine steps at the short end)
 		sl.value_changed.connect(func(v): _light_set(String(spec[0]), v, false))
 		sl.drag_started.connect(_light_drag_start)
 		sl.drag_ended.connect(func(_c): _light_commit())
@@ -1607,6 +1638,63 @@ func _build_light_panel() -> void:
 	eff.item_selected.connect(func(i): _light_set("effect", LightNode.EFFECTS[i]))
 	box.add_child(_light_row("Effect", eff))
 	_light_fields["effect"] = eff
+	var cyc := VBoxContainer.new()                       # color cycles: pulse flows through these, flicker jumps between them
+	cyc.add_theme_constant_override("separation", 4)
+	box.add_child(cyc)
+	_light_fields["cycle"] = cyc
+	var crow := HBoxContainer.new()
+	cyc.add_child(crow)
+	var cl := Label.new()
+	cl.text = "More colors"
+	cl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	crow.add_child(cl)
+	var add := Button.new()
+	add.text = "+"
+	add.tooltip_text = "Add a color to the cycle"
+	add.focus_mode = Control.FOCUS_NONE
+	add.pressed.connect(func():
+		var o := _light_now()
+		if o == null:
+			return
+		var cs: Array = (LightNode.spec(o.data)["colors"] as Array).duplicate()
+		cs.append(Color.from_hsv(randf(), 0.8, 1.0).to_html(false))
+		_light_set("colors", cs)
+		_refresh_light_panel())
+	crow.add_child(add)
+	var rem := Button.new()
+	rem.text = "−"
+	rem.tooltip_text = "Take the last color off"
+	rem.focus_mode = Control.FOCUS_NONE
+	rem.pressed.connect(func():
+		var o := _light_now()
+		if o == null:
+			return
+		var cs: Array = (LightNode.spec(o.data)["colors"] as Array).duplicate()
+		if not cs.is_empty():
+			cs.pop_back()
+			_light_set("colors", cs)
+			_refresh_light_panel())
+	crow.add_child(rem)
+	var swatches := HFlowContainer.new()
+	cyc.add_child(swatches)
+	_light_fields["swatches"] = swatches
+	var sp := HSlider.new()
+	sp.min_value = 0.05
+	sp.max_value = 10.0
+	sp.step = 0.05
+	sp.exp_edit = true
+	sp.custom_minimum_size = Vector2(190, 0)
+	sp.value_changed.connect(func(v): _light_set("speed", v, false))
+	sp.drag_started.connect(_light_drag_start)
+	sp.drag_ended.connect(func(_c): _light_commit())
+	cyc.add_child(_light_row("Seconds per color", sp))
+	_light_fields["speed"] = sp
+	var rnd := CheckButton.new()
+	rnd.text = "Random order (flicker)"
+	rnd.focus_mode = Control.FOCUS_NONE
+	rnd.toggled.connect(func(on): _light_set("random", on))
+	cyc.add_child(rnd)
+	_light_fields["random"] = rnd
 	var sh := CheckButton.new()
 	sh.text = "Cast shadows"
 	sh.focus_mode = Control.FOCUS_NONE
@@ -1661,6 +1749,28 @@ func _refresh_light_panel() -> void:
 	for k in ["energy", "range", "angle", "length"]:
 		(_light_fields[k] as HSlider).value = float(d[k])
 	(_light_fields["effect"] as OptionButton).select(LightNode.EFFECTS.find(String(d["effect"])))
+	var cycling := String(d["effect"]) in ["pulse", "flicker"]
+	(_light_fields["cycle"] as Control).visible = cycling
+	(_light_fields["speed"] as HSlider).value = float(d["speed"])
+	(_light_fields["random"] as CheckButton).set_pressed_no_signal(bool(d["random"]))
+	(_light_fields["random"] as Control).visible = String(d["effect"]) == "flicker"
+	var sw: HFlowContainer = _light_fields["swatches"]
+	for c in sw.get_children():
+		c.queue_free()
+	var cs: Array = d["colors"]
+	for i in cs.size():
+		var pb := ColorPickerButton.new()
+		pb.custom_minimum_size = Vector2(44, 28)
+		pb.color = Color.html(String(cs[i]))
+		pb.color_changed.connect(func(c):
+			var o2 := _light_now()
+			if o2 == null:
+				return
+			var arr: Array = (LightNode.spec(o2.data)["colors"] as Array).duplicate()
+			if i < arr.size():
+				arr[i] = c.to_html(false)
+				_light_set("colors", arr))
+		sw.add_child(pb)
 	(_light_fields["shadows"] as CheckButton).set_pressed_no_signal(bool(d["shadows"]))
 	(_light_fields["angle"] as Control).get_parent().visible = String(d["kind"]) == "spot"
 	(_light_fields["length"] as Control).get_parent().visible = String(d["kind"]) == "strip"
@@ -1695,7 +1805,7 @@ func _light_set(key: String, value, push := true) -> void:
 	if push:
 		_push_history({"t": "ent", "obj": o, "before": before, "after": o.to_dict()})
 		_light_before = {}
-		if key == "kind":
+		if key in ["kind", "effect"]:
 			_refresh_light_panel()
 
 
@@ -2164,8 +2274,46 @@ func update_target() -> void:
 	var ts := CubeWorld.make_sel(cell, p, orient)
 	ts["model"] = fm
 	var ent_first := ent != null and (hit.is_empty() or (ehit["position"] as Vector3).distance_to(from) <= from.distance_to(hit["position"]) + 0.05)
+	if ent is LightNode:
+		ent_first = false                                # (lights go by their handle box below, not their big pick sphere)
+	var lt := _light_aimed(from, dir)
+	var ent_face := -1
+	if not lt.is_empty() and (hit.is_empty() or float(lt["t"]) <= from.distance_to(hit["position"]) + 0.01):
+		ent = lt["light"]                                # a light in front of the cube: the light alone
+		ent_first = true
+		ent_face = int(lt["face"])
 	target = {"model": fm, "sel": ts, "corner": corner, "hit": hit_any, "point": point, "on_cube": on_cube,
-		"local": lp / CubeWorld.TICK, "entity": ent if ent_first else null, "block": blk}
+		"local": lp / CubeWorld.TICK, "entity": ent if ent_first else null, "block": blk, "ent_face": ent_face}
+
+
+## The nearest light whose handle box the crosshair goes into: {light, t (distance), face (0-5)}, or {}.
+func _light_aimed(from: Vector3, dir: Vector3) -> Dictionary:
+	var best := {}
+	for l in editor.lights_root.get_children():
+		if not l is LightNode or not (l as Node3D).visible:
+			continue
+		var box: AABB = (l as LightNode).handle_box()
+		var t0 := -INF
+		var t1 := INF
+		var axis := -1
+		var miss := false
+		for i in 3:
+			if absf(dir[i]) < 1e-9:
+				if from[i] < box.position[i] or from[i] > box.end[i]:
+					miss = true
+				continue
+			var ta := (box.position[i] - from[i]) / dir[i]
+			var tb := (box.end[i] - from[i]) / dir[i]
+			if minf(ta, tb) > t0:
+				t0 = minf(ta, tb)
+				axis = i
+			t1 = minf(t1, maxf(ta, tb))
+		if miss or t0 > t1 or t1 < 0.0 or axis < 0:
+			continue
+		var t := maxf(t0, 0.0)
+		if best.is_empty() or t < float(best["t"]):
+			best = {"light": l, "t": t, "face": axis * 2 + (0 if dir[axis] > 0.0 else 1)}
+	return best
 
 
 ## Walk the line of sight through a cube object's grid (cells of grid power p) and return the first cell with
@@ -2332,7 +2480,9 @@ func _draw() -> void:
 	if not target.is_empty():
 		var ts: Dictionary = target["sel"]
 		var xf := _frame(ts.get("model"))
-		if target.get("entity") != null and _drag == "":
+		if target.get("entity") is LightNode and _drag == "":
+			_light_handle(target["entity"], int(target.get("ent_face", -1)), 0.6)
+		elif target.get("entity") != null and _drag == "":
 			for seg in (target["entity"] as Node3D).outline_lines():
 				for i in range(0, seg.size() - 1):
 					_line(seg[i], seg[i + 1], Color(1.0, 0.6, 0.2, 0.6))
@@ -2389,6 +2539,9 @@ func _draw() -> void:
 		if not corners.is_empty():
 			_corner_grid(xf)
 	for e in ent_sel:
+		if is_instance_valid(e) and e is LightNode:
+			_light_handle(e, _light_face, 1.0)
+			continue
 		if is_instance_valid(e):
 			for seg in (e as Node3D).outline_lines():
 				for i in range(0, seg.size() - 1):
@@ -2405,6 +2558,29 @@ func _draw() -> void:
 				_im.surface_add_vertex(f[i])
 		_im.surface_end()
 	_fills.clear()
+
+
+## A light's handle: its box in blue, the face aimed at (or grabbed) in orange.
+func _light_handle(l: LightNode, face: int, alpha: float) -> void:
+	var b := l.handle_box()
+	_box(Transform3D.IDENTITY, b.position, b.end, Color(0.25, 0.62, 1.0, alpha))
+	if face < 0:
+		return
+	var ax := face >> 1
+	var lo := b.position
+	var hi := b.end
+	var plane := hi[ax] if face & 1 else lo[ax]
+	var a := (ax + 1) % 3
+	var c := (ax + 2) % 3
+	var pts := []
+	for ab in [[0, 0], [1, 0], [1, 1], [0, 1]]:
+		var v := Vector3.ZERO
+		v[ax] = plane
+		v[a] = hi[a] if ab[0] else lo[a]
+		v[c] = hi[c] if ab[1] else lo[c]
+		pts.append(v)
+	for i in 4:
+		_line(pts[i], pts[(i + 1) % 4], Color(1.0, 0.55, 0.1, alpha))
 
 
 ## Sauerbraten's red box: the selection's origin, the corner a paste starts from - always the same corner (its

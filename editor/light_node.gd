@@ -12,6 +12,9 @@ const DEFAULTS := {
 	"angle": 40.0, "yaw": 0.0, "pitch": -60.0, "shadows": true,
 	"effect": "none",                    ## EFFECTS: none, flicker, candle, pulse, strobe, fluorescent
 	"length": 4.0,                       ## strip: meters long (along its local x axis)
+	"colors": [],                        ## more colors to cycle through (pulse: flows through them; flicker: jumps)
+	"speed": 1.0,                        ## seconds per color of the cycle (flicker: a fifth of that per jump)
+	"random": false,                     ## flicker: jump between the colors in any order
 }
 const EFFECTS := ["none", "flicker", "candle", "pulse", "strobe", "fluorescent"]
 const EFFECT_LABELS := ["Steady", "Flicker (fire)", "Candle", "Slow pulse", "Strobe", "Fluorescent buzz"]
@@ -50,7 +53,18 @@ static func spec(d: Dictionary) -> Dictionary:
 		s["kind"] = "point"
 	if not s["effect"] in EFFECTS:
 		s["effect"] = "none"
+	if not s["colors"] is Array:
+		s["colors"] = []
+	s["speed"] = clampf(float(s["speed"]), 0.05, 30.0)
 	return s
+
+
+## The colors the light cycles through: its own, then the extra ones.
+static func palette(s: Dictionary) -> Array:
+	var out := [Color.html(String(s["color"]))]
+	for c in (s["colors"] as Array):
+		out.append(Color.html(String(c)))
+	return out
 
 
 ## How many lights a strip spreads its light over (one per 2.5 m, up to 4).
@@ -106,7 +120,57 @@ static func make_rig(s: Dictionary) -> Node3D:
 		lights.append(l)
 	if s["effect"] != "none":
 		rig.add_child(_effect_player(s, lights))
+	if s["effect"] in ["pulse", "flicker"] and not (s["colors"] as Array).is_empty():
+		rig.add_child(_color_player(s, lights))
 	return rig
+
+
+## Color cycles (0.19.4): pulse flows through the light's colors, flicker jumps between them (in order, or at random),
+## `speed` seconds a color. Its own looping animation, so it keeps its own pace beside the brightness effect.
+static func _color_player(s: Dictionary, lights: Array) -> AnimationPlayer:
+	var cols := palette(s)
+	var speed := float(s["speed"])
+	var keys := []                       # [time, color]
+	var length: float
+	var flow := String(s["effect"]) == "pulse"
+	if flow:
+		length = speed * cols.size()
+		for i in cols.size():
+			keys.append([speed * i, cols[i]])
+		keys.append([length, cols[0]])
+	else:
+		var step := speed * 0.2
+		var n := maxi(cols.size() * 4, 12)
+		length = step * n
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 11
+		var last := -1
+		for i in n:
+			var pick := i % cols.size()
+			if bool(s["random"]) and cols.size() > 1:
+				pick = rng.randi_range(0, cols.size() - 1)
+				if pick == last:
+					pick = (pick + 1) % cols.size()
+			last = pick
+			keys.append([step * i, cols[pick]])
+		keys.append([length, keys[0][1]])
+	var anim := Animation.new()
+	anim.length = length
+	anim.loop_mode = Animation.LOOP_LINEAR
+	for l in lights:
+		var t := anim.add_track(Animation.TYPE_VALUE)
+		anim.track_set_path(t, NodePath("%s:light_color" % (l as Node).name))
+		anim.track_set_interpolation_type(t, Animation.INTERPOLATION_LINEAR if flow else Animation.INTERPOLATION_NEAREST)
+		anim.value_track_set_update_mode(t, Animation.UPDATE_CONTINUOUS if flow else Animation.UPDATE_DISCRETE)
+		for k in keys:
+			anim.track_insert_key(t, minf(k[0], length), k[1])
+	var lib := AnimationLibrary.new()
+	lib.add_animation("colors", anim)
+	var ap := AnimationPlayer.new()
+	ap.name = "Colors"
+	ap.add_animation_library("", lib)
+	ap.autoplay = "colors"
+	return ap
 
 
 ## The effect: the lights' brightness over time, looped, as an Animation (plays by itself, also in SurfsUp).
@@ -199,6 +263,23 @@ func _ready() -> void:
 	rebuild()
 
 
+## In build mode a light is an invisible handle: its bulb hides and build mode draws a box around it instead.
+static var hide_bulbs := false
+const HANDLE := 1.0                       ## the handle box's size, meters (the bulb's size)
+
+
+static func show_bulbs(root: Node, on: bool) -> void:
+	hide_bulbs = not on
+	for l in root.get_children():
+		if l is LightNode:
+			(l as LightNode)._bulb.visible = on
+
+
+## The handle box around the light, world space.
+func handle_box() -> AABB:
+	return AABB(global_position - Vector3.ONE * HANDLE * 0.5, Vector3.ONE * HANDLE)
+
+
 func label() -> String:
 	return {"spot": "Spot light", "strip": "Light strip"}.get(data["kind"], "Light")
 
@@ -216,6 +297,7 @@ func rebuild() -> void:
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_color = Color.html(s["color"]).lightened(0.3)
 	_bulb.material_override = m
+	_bulb.visible = not hide_bulbs
 
 
 func set_selected(_on: bool) -> void:

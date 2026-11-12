@@ -2777,7 +2777,60 @@ func chunk_arrays(ck: Vector3i, outline := false, lines_too := false, threads :=
 		var f: Array = flats[sk]
 		for pk in f[3]:
 			_flat_quads([f[0], f[1], f[2], pk.x, pk.y, pk.z], f[3][pk], groups, col)
+	if smooth_light:
+		_smooth_normals(groups)
 	return {"groups": groups, "col": col, "lines": lines}
+
+
+static var smooth_light := true           ## (tests compare with it off)
+const LERP_ANGLE := 44.0                 ## Sauerbraten's lerpangle: faces closer than this share smoothed normals
+
+
+## Soft light across sloped faces (0.19.4), as Sauerbraten's lerpangle: where faces meet at less than 44 degrees, the
+## corner they share gets the average of their normals, so light rolls across a slope instead of stepping at every
+## triangle; sharper edges (a cube's 90 degree corners) stay crisp. Tangents follow the new normals.
+static func _smooth_normals(groups: Dictionary) -> void:
+	var lim := cos(deg_to_rad(LERP_ANGLE))
+	var at := {}                                         # corner (snapped) -> the face normals that meet there
+	for key in groups:
+		var g: Array = groups[key]
+		var vs: PackedVector3Array = g[0]
+		var ns: PackedVector3Array = g[1]
+		for i in vs.size():
+			var kp := vs[i].snapped(Vector3.ONE * 0.002)
+			var here = at.get(kp)
+			if here == null:
+				at[kp] = [ns[i]]
+			elif not (here as Array).has(ns[i]):
+				(here as Array).append(ns[i])
+	for key in groups:
+		var g: Array = groups[key]
+		var vs: PackedVector3Array = g[0]
+		var ns: PackedVector3Array = g[1]
+		var tg: PackedFloat32Array = g[2]
+		var changed := false
+		for i in vs.size():
+			var here: Array = at[vs[i].snapped(Vector3.ONE * 0.002)]
+			if here.size() < 2:
+				continue
+			var n := ns[i]
+			var sum := Vector3.ZERO
+			for m in here:
+				if n.dot(m) >= lim:
+					sum += m
+			var nn := sum.normalized()
+			if nn.is_equal_approx(n) or nn == Vector3.ZERO:
+				continue
+			ns[i] = nn
+			var t := Vector3(tg[i * 4], tg[i * 4 + 1], tg[i * 4 + 2])
+			t = (t - nn * nn.dot(t)).normalized()
+			tg[i * 4] = t.x
+			tg[i * 4 + 1] = t.y
+			tg[i * 4 + 2] = t.z
+			changed = true
+		if changed:
+			g[1] = ns
+			g[2] = tg
 
 
 ## chunk_arrays' result as meshes [mesh, collision triangles, lines mesh] (main thread: materials, the renderer).

@@ -3073,7 +3073,7 @@ func _build_light_props(props: VBoxContainer) -> void:
 	_add_row(_light_props, "Color", cp)
 	_fields["light_color"] = cp
 	_add_slider(_light_props, "light_energy", "Brightness", 0.0, 16.0, 0.1)
-	_add_slider(_light_props, "light_range", "Reach (m)", 1.0, 400.0, 1.0)
+	_add_slider(_light_props, "light_range", "Reach (m)", 1.0, 2000.0, 1.0)
 	var strip := VBoxContainer.new()
 	_light_props.add_child(strip)
 	_fields["light_strip_box"] = strip
