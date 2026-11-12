@@ -8,7 +8,7 @@ extends Control
 signal apply_requested(design: Dictionary, name: String)
 signal new_ramp_requested(design: Dictionary, name: String)
 
-const PREVIEW_SPINE := [Vector3(-45, 18, 0), Vector3(0, 12, 12), Vector3(45, 6, 0)]
+const PREVIEW_SPINE := [Vector3(-45, 18, 0), Vector3(0, 12, 0), Vector3(45, 6, 0)]   ## (straight: G1)
 const THUMB_SIZE := Vector2i(192, 108)
 const STAND_ANGLE := 45.57                              ## Source: flatter than this, players stand instead of surfing
 ## Face shapes offered as a starting point: [label, points along the face (see RampShape.PROFILE_DEFAULTS)]

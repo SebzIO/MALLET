@@ -598,6 +598,17 @@ func _build_props(props: VBoxContainer) -> void:
 	_freeform_box.add_child(ff_note)
 	_add_slider(_freeform_box, "angle_right", "Right face angle (°)", 10.0, 89.0, 0.5)
 	_add_slider(_freeform_box, "face_length_right", "Right face length (m)", 2.0, 60.0, 0.25)
+	var pathb := OptionButton.new()                      # the spine's path (0.19.6)
+	pathb.add_item("Straight, rounded at the points")
+	pathb.add_item("Smooth curve through the points")
+	pathb.focus_mode = Control.FOCUS_NONE
+	pathb.item_selected.connect(func(i): _edit_prop("path", "corners" if i == 0 else "smooth"))
+	_add_row(_ramp_props, "Path", pathb)
+	_fields["path"] = pathb
+	_add_slider(_ramp_props, "corner", "Corner rounding", 0.02, 0.5, 0.01)
+	_add_slider(_ramp_props, "ramp_pitch", "Pitch (°)", -90.0, 90.0, 0.5)
+	_add_slider(_ramp_props, "ramp_yaw", "Yaw (°)", -180.0, 180.0, 0.5)
+	_add_slider(_ramp_props, "roll", "Roll (°)", -45.0, 45.0, 0.5)
 	var look := OptionButton.new()
 	for k in Look.LOOK_ORDER:
 		look.add_item(Look.RAMP_LOOKS[k][0])
@@ -1412,8 +1423,11 @@ func _refresh_props() -> void:
 		_freeform_box.visible = r.freeform
 		_fields["angle_label"].text = "Left face angle (°)" if r.freeform else "Slope angle (°)"
 		_fields["face_length_label"].text = "Left face length (m)" if r.freeform else "Face length (m)"
-		for key in ["angle", "face_length", "base_depth", "detail", "angle_right", "face_length_right"]:
+		for key in ["angle", "face_length", "base_depth", "detail", "angle_right", "face_length_right", "corner", "roll"]:
 			_set_field(key, r.get(key))
+		_set_field("ramp_pitch", r.turn.x)
+		_set_field("ramp_yaw", r.turn.y)
+		(_fields["path"] as OptionButton).select(0 if r.path == "corners" else 1)
 		_fields["color"].color = r.color
 		_fields["look"].select(Look.LOOK_ORDER.find(r.look))
 		_fields["color_label"].text = "Color (%s)" % Look.RAMP_LOOKS[r.look][2]
@@ -4364,7 +4378,7 @@ func _pick_object(pane: ViewPane, mouse: Vector2, through_to_selected := false) 
 	var best: Node3D = null
 	var best_d := PICK_PIXELS
 	for ramp in ramps_root.get_children():
-		var path := RampShape.sample_path(ramp.points, 4.0)
+		var path := RampShape.sample_path(ramp.points, 4.0, ramp.corner if ramp.path == "corners" else -1.0)
 		for i in range(1, path.size()):
 			if pane.camera.is_position_behind(path[i]) or pane.camera.is_position_behind(path[i - 1]):
 				continue
@@ -4524,7 +4538,7 @@ func _insert_point_at_mouse(pane: ViewPane, mouse: Vector2) -> void:
 	if not hit:
 		return
 	var ramp := selected as RampNode
-	var best := RampShape.nearest_on_path(ramp.points, hit.position)
+	var best := RampShape.nearest_on_path(ramp.points, hit.position, ramp.corner if ramp.path == "corners" else -1.0)
 	if best["span"] < ramp.lock_index():
 		_set_status("That part of the ramp is locked: unlock it to add points there.")
 		return
@@ -5274,6 +5288,11 @@ func _edit_prop(key: String, value) -> void:
 			r.shader = value
 			r.shader_params = {}
 			r._update_material()
+			return
+		if key in ["ramp_pitch", "ramp_yaw"]:            # (turn the whole ramp around its middle)
+			r.turn_to(value if key == "ramp_pitch" else r.turn.x, value if key == "ramp_yaw" else r.turn.y)
+			r.rebuild()
+			_refresh_info()
 			return
 		if key.begins_with("tex_") and key != "tex_scale":  # (a texture setting: turn, shift, scroll, see-through)
 			var t := r.tex.duplicate()

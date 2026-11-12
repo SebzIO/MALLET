@@ -36,6 +36,10 @@ const DEFAULTS := {
 	"seam_tangent_lock": true,     ## the editable section leaves its seam along the locked section's tangent
 	"profile": {},                 ## a custom cross-section (ramp creator): see profile_spec(). {} = straight faces
 	"ends": {},                    ## shaped ends (ramp creator): see end_spec(). {} = square ends
+	"path": "smooth",              ## "smooth": a curve through the points (maps before 0.19.6); "corners": straight
+	                               ## between the points, rounded only near each one (new ramps)
+	"corner": 0.25,                ## "corners": how much of the shorter neighboring stretch each rounding takes (0-0.5)
+	"roll": 0.0,                   ## the cross-section banked around the spine, degrees (+ = towards the right)
 }
 ## A face's custom shape: points [t, n] between the ridge and the edge, t = 0..1 along the face, n = how far out of
 ## the face (+, away from the ramp's body) or into it (-), both as fractions of the face length, so the shape
@@ -67,8 +71,11 @@ static func spec(d: Dictionary) -> Dictionary:
 	for k in DEFAULTS:
 		if d.has(k):
 			s[k] = d[k]
-	for k in ["base_depth", "angle", "face_length", "angle_right", "face_length_right", "detail"]:
+	for k in ["base_depth", "angle", "face_length", "angle_right", "face_length_right", "detail", "corner", "roll"]:
 		s[k] = float(s[k])
+	if not s["path"] in ["smooth", "corners"]:
+		s["path"] = "smooth"
+	s["corner"] = clampf(s["corner"], 0.02, 0.5)
 	s["solid"] = bool(s["solid"])
 	s["freeform"] = bool(s["freeform"])
 	s["seam_tangent_lock"] = bool(s["seam_tangent_lock"])
@@ -193,10 +200,21 @@ static func _eval(points: PackedVector3Array, i: int, t: float, ghosts := []) ->
 ## `ghosts` = [before the first point, after the last point] (null = mirror). `start_tangent`, if given, bends
 ## the first SEAM_BLEND meters so the spine leaves its first point exactly along it (a smooth seam).
 ## Returns {"pos": PackedVector3Array, "tan": PackedVector3Array, "dist": PackedFloat32Array, "length": float}.
-static func stations(points: PackedVector3Array, spacing: float, ghosts := [], start_tangent := Vector3.ZERO) -> Dictionary:
+static func stations(points: PackedVector3Array, spacing: float, ghosts := [], start_tangent := Vector3.ZERO,
+		corner := -1.0) -> Dictionary:
+	if corner > 0.0 and points.size() >= 2:
+		var cp := _corner_path(points, spacing * 0.25, corner)
+		if start_tangent == Vector3.ZERO:
+			return _resample(cp["pos"], cp["tan"], spacing)
 	if start_tangent == Vector3.ZERO or points.size() < 2:
 		return _stations_raw(points, spacing, ghosts)
-	var fine := _stations_raw(points, spacing * 0.25, ghosts)
+	var fine := _stations_raw(points, spacing * 0.25, ghosts) if corner <= 0.0 else _corner_path(points, spacing * 0.25, corner)
+	if not fine.has("dist"):
+		var cum := PackedFloat32Array([0.0])
+		var fp: PackedVector3Array = fine["pos"]
+		for i in range(1, fp.size()):
+			cum.append(cum[i - 1] + fp[i].distance_to(fp[i - 1]))
+		fine["dist"] = cum
 	var pos: PackedVector3Array = fine["pos"]
 	var tan: PackedVector3Array = fine["tan"]
 	var dist: PackedFloat32Array = fine["dist"]
@@ -212,6 +230,53 @@ static func stations(points: PackedVector3Array, spacing: float, ghosts := [], s
 		pos[i] += corr * dist[i] * (1.0 - u) * (1.0 - u)
 		tan[i] = (tan[i] + corr * (1.0 - u) * (1.0 - 3.0 * u)).normalized()
 	return _resample(pos, tan, spacing)
+
+
+## The "corners" path (0.19.6): straight from point to point, with each inner point's corner rounded by a curve
+## that starts and ends `corner` of the shorter neighboring stretch away from it (a quadratic Bezier with the point
+## as its control: it leaves and joins the straight lines along them). Dense points `step` meters apart, with
+## tangents. The ramp keeps the lines you set instead of sagging under them and flaring up at the end.
+static func _corner_path(points: PackedVector3Array, step: float, corner: float) -> Dictionary:
+	var pos := PackedVector3Array()
+	var tan := PackedVector3Array()
+	var n := points.size()
+	var a := []                                          # where each corner's rounding starts and ends
+	var b := []
+	for i in n:
+		if i == 0 or i == n - 1:
+			a.append(points[i])
+			b.append(points[i])
+			continue
+		var dp := points[i] - points[i - 1]
+		var dn := points[i + 1] - points[i]
+		var r := corner * minf(dp.length(), dn.length())
+		a.append(points[i] - dp.normalized() * r)
+		b.append(points[i] + dn.normalized() * r)
+	for i in n:
+		if i > 0:                                        # the straight from the last corner's end to this one's start
+			var p0: Vector3 = b[i - 1]
+			var p1: Vector3 = a[i]
+			var d := p1 - p0
+			var m := maxi(1, ceili(d.length() / maxf(step, 0.01)))
+			var t := d.normalized() if d.length() > 1e-6 else (points[i] - points[i - 1]).normalized()
+			for k in range(1, m + 1) if not pos.is_empty() else range(0, m + 1):
+				pos.append(p0.lerp(p1, float(k) / m))
+				tan.append(t)
+		if i > 0 and i < n - 1:                          # the rounding at this point
+			var c0: Vector3 = a[i]
+			var c1: Vector3 = points[i]
+			var c2: Vector3 = b[i]
+			var arc := c0.distance_to(c1) + c1.distance_to(c2)
+			var m := maxi(4, ceili(arc / maxf(step, 0.01)))
+			for k in range(1, m + 1):
+				var t := float(k) / m
+				pos.append(c0 * (1.0 - t) * (1.0 - t) + c1 * 2.0 * t * (1.0 - t) + c2 * t * t)
+				var dv := (c1 - c0) * 2.0 * (1.0 - t) + (c2 - c1) * 2.0 * t
+				tan.append(dv.normalized() if dv.length() > 1e-6 else (c2 - c0).normalized())
+	if pos.is_empty():
+		pos.append(points[0])
+		tan.append((points[n - 1] - points[0]).normalized())
+	return {"pos": pos, "tan": tan}
 
 
 ## Even arc-length stations along a dense polyline (positions and tangents interpolated between its points).
@@ -337,7 +402,8 @@ static func spine(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 		if sub.size() < 2:
 			continue
 		var ghosts := [points[sec["from"] - 1] if sec["from"] > 0 else null, sec["end_ghost"]]
-		var st := stations(sub, spacing, ghosts, prev_tan if k > 0 and sec["tangent_lock"] else Vector3.ZERO)
+		var st := stations(sub, spacing, ghosts, prev_tan if k > 0 and sec["tangent_lock"] else Vector3.ZERO,
+			float(s["corner"]) if s["path"] == "corners" else -1.0)
 		var v: Array = sec["values"]
 		for i in st["pos"].size():
 			if k > 0 and i == 0:
@@ -360,13 +426,28 @@ static func spine(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 
 
 ## Points along the spine about `spacing` meters apart.
-static func sample_path(points: PackedVector3Array, spacing: float) -> PackedVector3Array:
-	return stations(points, spacing)["pos"]
+static func sample_path(points: PackedVector3Array, spacing: float, corner := -1.0) -> PackedVector3Array:
+	return stations(points, spacing, [], Vector3.ZERO, corner)["pos"]
 
 
 ## Point on the smooth path nearest `target`, and the index of the control-point span it lies in.
-static func nearest_on_path(points: PackedVector3Array, target: Vector3) -> Dictionary:
+static func nearest_on_path(points: PackedVector3Array, target: Vector3, corner := -1.0) -> Dictionary:
 	var best := {"span": 0, "point": points[0], "distance": INF}
+	if corner > 0.0:                                     # (the corners path: its dense points, the span by nearest point)
+		for q in _corner_path(points, 0.5, corner)["pos"]:
+			var dd := (q as Vector3).distance_to(target)
+			if dd < best["distance"]:
+				best = {"span": 0, "point": q, "distance": dd}
+		var bp: Vector3 = best["point"]
+		var span := 0
+		var bd := INF
+		for i in points.size() - 1:
+			var cp := Geometry3D.get_closest_point_to_segment(bp, points[i], points[i + 1])
+			if cp.distance_to(bp) < bd:
+				bd = cp.distance_to(bp)
+				span = i
+		best["span"] = span
+		return best
 	for i in points.size() - 1:
 		for s in 41:
 			var q := _eval(points, i, s / 40.0)
@@ -560,11 +641,25 @@ static func frames(st: Dictionary, s: Dictionary) -> Array:
 		if rights[i] == Vector3.ZERO:
 			rights[i] = fallback
 		fallback = rights[i]
+	var roll := deg_to_rad(float(s.get("roll", 0.0)))
 	for i in n:
 		var r := rights[i]
-		var up := Vector3.UP if s["slice"] != "perpendicular" else r.cross(tan[i]).normalized()
+		var perp := r.cross(tan[i]).normalized()
+		var up := Vector3.UP if s["slice"] != "perpendicular" else perp
+		if s["slice"] != "perpendicular" and perp.length() > 1e-4:
+			# a vertical slice can't hold a steep drop (straight down, it collapses to nothing): from 40 to 75 degrees
+			# the cross-section turns to stand square to the spine, so the ramp keeps its shape around the spine.
+			# Under 40 degrees nothing changes (surf ramps ride as they always have).
+			var pitch := rad_to_deg(asin(clampf(absf(tan[i].y), 0.0, 1.0)))
+			var w := smoothstep(40.0, 75.0, pitch)
+			if w > 0.0:
+				up = Vector3.UP.lerp(perp, w).normalized() # (right stays level: square to both, so the frame holds)
 		if up.length() < 1e-4:
 			up = Vector3.UP
+		if roll != 0.0:                                  # (banked around the spine)
+			var axis := tan[i].normalized()
+			r = r.rotated(axis, roll)
+			up = up.rotated(axis, roll)
 		rights[i] = r
 		ups[i] = up
 	return [rights, ups]

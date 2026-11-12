@@ -3,6 +3,20 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.6 preview — 2026-11-11: Ramps that follow your lines (pre-1.0 batch 7)
+
+- **New ramps run straight from point to point**, rounded only near each point (Path: "Straight, rounded at the
+  points", with a Corner rounding setting). The smooth curve sagged under the lines you set and flared up at the end;
+  it's still there as "Smooth curve through the points", and ramps in maps made before keep it, so nothing you've
+  built changes shape.
+- **Steep drops keep their shape**: from 40 to 75 degrees the cross-section turns to stand square to the spine, so a
+  point dragged right under the one before it makes a bend that follows the spine instead of flattening. Ramps under
+  40 degrees are exactly as before (surf speed on the reference ramp is unchanged).
+- **Pitch, Yaw and Roll** for a selected ramp (sliders and boxes): pitch and yaw turn the whole ramp around its
+  middle, roll banks its cross-section around the spine.
+- The ramp creator starts with a straight ramp (it started curved).
+- New test: ramp_path_test.
+
 ## 0.19.5 preview — 2026-11-11: The 2D editor (pre-1.0 batch 6)
 
 - A selected object behind another one is still the one you grab and drag; a click where no selected object is picks

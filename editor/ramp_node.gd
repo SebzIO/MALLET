@@ -23,6 +23,10 @@ var base_depth := 0.0                ## solid only: how far the flat bottom sits
 var profile := {}                    ## custom cross-section from the ramp creator ({} = straight faces; RampShape.profile_spec)
 var ends := {}                       ## shaped ends from the ramp creator ({} = square; {"start": .., "end": ..})
 var design := ""                     ## the ramp prefab it was made from ("" = none; just a name, for the panel)
+var path := "corners"                ## "smooth" curve or "corners" (straight, rounded near each point); new ramps: corners
+var corner := 0.25                   ## "corners": how much of the shorter stretch each rounding takes
+var roll := 0.0                      ## the cross-section banked around the spine, degrees
+var turn := Vector2.ZERO             ## how far it has been turned with the Pitch / Yaw controls (x pitch, y yaw), degrees
 ## Edge-to-edge width and ridge height of a symmetric V ramp. Setting either keeps the other and recomputes
 ## the angle and face length.
 var width: float:
@@ -79,6 +83,29 @@ func shape_spec() -> Dictionary:
 ## The texture's turn, shift, scroll and see-through (Look.RAMP_TEX_DEFAULTS keys; empty = plain).
 var tex := {}
 var _textured: ArrayMesh = null
+
+
+## Turn the whole ramp around its middle: yaw around straight up, pitch around the level line square to its run.
+## The ramp remembers how far it has been turned, so the controls show it.
+func turn_to(pitch_deg: float, yaw_deg: float) -> void:
+	if points.is_empty():
+		return
+	var mid := Vector3.ZERO
+	for p in points:
+		mid += p
+	mid /= float(points.size())
+	var run := points[points.size() - 1] - points[0]
+	run.y = 0.0
+	var side := run.normalized().cross(Vector3.UP).normalized() if run.length() > 1e-3 else Vector3.RIGHT
+	var dp := deg_to_rad(pitch_deg - turn.x)
+	var dy := deg_to_rad(yaw_deg - turn.y)
+	var pts := points
+	for i in pts.size():
+		var v := pts[i] - mid
+		v = v.rotated(side, dp).rotated(Vector3.UP, dy)
+		pts[i] = mid + v
+	points = pts
+	turn = Vector2(pitch_deg, yaw_deg)
 
 
 func rebuild() -> void:
@@ -171,7 +198,8 @@ func to_dict() -> Dictionary:
 		"frozen": frozen.duplicate(true), "seam_tangent_lock": seam_tangent_lock,
 		"solid": solid, "base_depth": base_depth, "color": color.to_html(false), "look": look, "texture": texture,
 		"tex_scale": tex_scale, "material": material, "shader": shader, "shader_params": shader_params.duplicate(true),
-		"profile": profile.duplicate(true), "ends": ends.duplicate(true), "design": design, "tex": tex.duplicate()}
+		"profile": profile.duplicate(true), "ends": ends.duplicate(true), "design": design, "tex": tex.duplicate(),
+		"path": path, "corner": corner, "roll": roll, "turn": [turn.x, turn.y]}
 
 
 func from_dict(data: Dictionary) -> void:
@@ -187,6 +215,8 @@ func from_dict(data: Dictionary) -> void:
 	profile = sp["profile"] if RampShape.custom_profile(sp) else {}
 	ends = sp["ends"] if RampShape.custom_ends(sp) else {}
 	design = String(data.get("design", ""))
+	var tv = data.get("turn", [0.0, 0.0])
+	turn = Vector2(float(tv[0]), float(tv[1])) if tv is Array and (tv as Array).size() >= 2 else Vector2.ZERO
 	tex = (data.get("tex", {}) as Dictionary).duplicate() if data.get("tex") is Dictionary else {}
 	color = Color.html(data.get("color", DEFAULT_COLOR.to_html(false)))
 	look = data.get("look", "color")
