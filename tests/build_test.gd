@@ -138,12 +138,13 @@ func _run() -> void:
 		if (n >> 1) & 1 and CubeWorld.corner(w.leaves[lk][0], n).y == 0:
 			lows += 1
 	check("Q + wheel: the corner you aim at went down (a slope)", lows == 1)
-	# that cube's top is pushed in now: aiming at it still lands on the cell's own top, as if it were full
+	# that cube's top is pushed in now: aiming at it picks its cell's top face, where the crosshair meets the real
+	# (pushed-in) surface - never the air in front of it (0.19.2: picking always goes by the real geometry)
 	look(Vector3(0.5, 20, -1.5), Vector3(0.5, 0, -1.5))
 	await frames(3)
 	var tl: Vector3 = (bm.target["local"] as Vector3) * CubeWorld.TICK
-	check("a pushed-in cube still counts as a full block when you aim at it", bm.target["on_cube"] and bm.target["sel"]["orient"] == 3
-		and absf(tl.y) < 0.05 and bm.target["sel"]["o"] == Vector3i(0, -32, -32), "(aim at y %.2f, cell %s)" % [tl.y, bm.target["sel"]["o"]])
+	check("a pushed-in cube: aiming at it picks its cell's top, on the real surface", bm.target["on_cube"] and bm.target["sel"]["orient"] == 3
+		and tl.y < -0.05 and bm.target["sel"]["o"] == Vector3i(0, -32, -32), "(aim at y %.2f, cell %s)" % [tl.y, bm.target["sel"]["o"]])
 	click(MOUSE_BUTTON_MIDDLE, true)
 	await frames(1)
 	click(MOUSE_BUTTON_MIDDLE, false)

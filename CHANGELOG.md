@@ -3,6 +3,23 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.19.2 preview — 2026-11-11: Selecting as in Sauerbraten (pre-1.0 batch 3)
+
+- The selected face is drawn as its whole square, however much of the geometry in it is pushed in, and outlines sit
+  right on the blocks (no gap at small grid sizes: they used to float 1 cm off the face).
+- The red box is Sauerbraten's origin marker: one small box at the selection's lowest corner, the same size whatever
+  you select (it was the paste box, as big as what you copied).
+- Picking always goes by the real geometry: aiming at pushed-in faces picks those cubes, never the air in front of
+  them. Holding Ctrl for this is gone (it's how it always works now).
+- A big grid over smaller cubes shows the one grid cell, never the small cubes' faces.
+- Right-pressing a face of the selection turns it to that face, then a drag moves it across that face's plane only.
+  Any face of a selection can be right-clicked, even where it holds only air.
+- The bottom bar shows how many blocks are selected.
+- A paste is the whole copied box: the air in what you copied is air where you paste it, so what was there doesn't
+  show through its holes (as in Sauerbraten).
+- A kill zone placed from the T menu fills the selection exactly.
+- New test: selection_test.
+
 ## 0.19.1 preview — 2026-11-11: Play mode as in SurfsUp (pre-1.0 batch 2)
 
 - No sprint in play mode, as in SurfsUp (Shift does nothing there; build mode keeps Shift to fly fast). You leave

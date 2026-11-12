@@ -2416,7 +2416,11 @@ func paste(sel: Dictionary, clip: Dictionary) -> Dictionary:
 	if clip.is_empty():
 		return sel
 	var o: Vector3i = sel["o"]
-	for item in clip["cubes"]:
+	var g0 := size_of(sel["p"])
+	var cs0: Vector3i = clip["s"]
+	for c in box_cells(make_sel(o, sel["p"], 3, Vector3i(maxi(cs0.x / g0, 1), maxi(cs0.y / g0, 1), maxi(cs0.z / g0, 1)))):
+		_clear_cell(c, sel["p"])                         # (the copy's air is air here too, as in Sauerbraten: what was
+	for item in clip["cubes"]:                           #  there doesn't show through its holes)
 		for piece in _split_to(item[0], item[1], sel["p"]):
 			var k: Vector4i = piece[0]
 			set_cell(Vector3i(k.x, k.y, k.z) + o, k.w, piece[1][0], piece[1][1], _blend_of(piece[1]), _cut_of(piece[1]))

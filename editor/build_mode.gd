@@ -27,7 +27,7 @@ const HELP := [
 	["F + wheel", "push / pull the face 1/8 at a time"],
 	["Q + wheel", "push / pull the corner you aim at"],
 	["Middle drag + wheel", "select corners of cubes, then shape them"],
-	["G + wheel", "grid size"], ["Ctrl (hold)", "aim at the cube itself (passthrough)"],
+	["G + wheel", "grid size"],
 	["Y + wheel  /  Y", "change texture  /  pick up the one you aim at"],
 	["O / P + wheel", "shift the texture across / up"],
 	["F2  /  F3", "texture menu  /  texture settings"], ["0", "texture all faces on / off"],
@@ -368,7 +368,11 @@ func _mouse_button(e: InputEventMouseButton) -> void:
 				_drag = ""
 		MOUSE_BUTTON_RIGHT:
 			if e.pressed and not target.is_empty():
-				if not sel.is_empty() and sel.get("model") != null and _in_sel(target["sel"]):
+				var face := _sel_face_aimed()
+				if not sel.is_empty() and sel.get("model") != null and face >= 0:
+					if face != int(sel["orient"]):       # (the face you look at becomes the selected one, then it moves
+						sel["orient"] = face             #  across that face's plane only)
+						say("Selection turned to face %s" % CubeWorld.ORIENT_SLOTS[face])
 					_drag = "selmove"                    # Sauerbraten: right-drag inside the selection moves the box
 					_selmove = {"start_sel": sel.duplicate(), "start": _plane_cell(sel), "moved": false}
 				else:
@@ -1022,8 +1026,7 @@ func _end_selmove(shift: bool) -> void:
 	_drag = ""
 	var s0: Dictionary = _selmove["start_sel"]
 	if not _selmove["moved"]:
-		sel = s0
-		_right_click()
+		sel = s0                                         # (a click: it was turned to the face you clicked, if another)
 		return
 	if shift:
 		var to := sel.duplicate()
@@ -1044,6 +1047,45 @@ func _start_cut() -> void:
 	m.world.begin()
 	_drag = "cut"
 	_cut = {"model": m, "applied": Vector3i.ZERO, "start": _plane_cell(sel)}
+
+
+## Which face of the selection's box the crosshair goes in through (0-5), or -1 when it misses the box or something
+## solid is in front of it. Air in the selection counts: any face of it can be right-clicked.
+func _sel_face_aimed() -> int:
+	if sel.is_empty() or sel.get("model") == null:
+		return -1
+	var xf := _frame(sel.get("model"))
+	var inv := xf.affine_inverse()
+	var from := inv * cam.global_position
+	var dir := (inv.basis * -cam.global_basis.z).normalized()
+	var lo := Vector3(sel["o"]) * CubeWorld.TICK
+	var hi := lo + Vector3(sel["s"]) * CubeWorld.metres(sel["p"])
+	var t0 := -INF
+	var t1 := INF
+	var axis := -1
+	for i in 3:
+		if absf(dir[i]) < 1e-9:
+			if from[i] < lo[i] or from[i] > hi[i]:
+				return -1
+			continue
+		var ta := (lo[i] - from[i]) / dir[i]
+		var tb := (hi[i] - from[i]) / dir[i]
+		if minf(ta, tb) > t0:
+			t0 = minf(ta, tb)
+			axis = i
+		t1 = minf(t1, maxf(ta, tb))
+	if t0 > t1 or t0 < 0.0 or axis < 0:
+		return _sel_face_inside() if t0 <= t1 and t1 > 0.0 and _in_sel(target["sel"]) else -1
+	if target.get("hit", false):                         # (something solid nearer than the box: that's what you clicked)
+		var hit_t := (inv * (target["point"] as Vector3)).distance_to(from)
+		if hit_t < t0 - 0.02 and not _in_sel(target["sel"]):
+			return -1
+	return axis * 2 + (0 if dir[axis] > 0.0 else 1)
+
+
+## Inside the selection's box: the face you're aiming at is the one the target is on.
+func _sel_face_inside() -> int:
+	return int(target["sel"]["orient"])
 
 
 ## The cell (in the selection's object) where the crosshair crosses the selection's face plane.
@@ -1252,6 +1294,13 @@ func _place(id: int) -> void:
 			editor.entities_root.add_child(e)
 			e.position = at + (Vector3.UP * e.size.y * 0.5 if e.is_volume() else Vector3.ZERO)
 			e.yaw = rad_to_deg(yaw)
+			if kind == "kill" and not sel.is_empty():      # a kill zone fills the selection, exactly
+				var sxf := _frame(sel.get("model"))
+				var slo := Vector3(sel["o"]) * CubeWorld.TICK
+				var ssz := Vector3(sel["s"]) * CubeWorld.metres(sel["p"])
+				e.position = sxf * (slo + ssz * 0.5)
+				e.size = ssz
+				e.yaw = rad_to_deg(sxf.basis.get_euler().y)
 			e.rebuild()
 			o = e
 		108:
@@ -1850,7 +1899,9 @@ func _process(delta: float) -> void:
 	var size_txt := ""
 	if not sel.is_empty():
 		var s: Vector3i = sel["s"]
-		size_txt = "  ·  selection %d x %d x %d%s" % [s.x, s.y, s.z, " (corners)" if not corners.is_empty() else ""]
+		var n := s.x * s.y * s.z
+		size_txt = "  ·  %d block%s selected (%d x %d x %d)%s" % [n, "" if n == 1 else "s", s.x, s.y, s.z,
+			" (corners)" if not corners.is_empty() else ""]
 	if not ent_sel.is_empty():
 		size_txt += "  ·  %s selected" % (ent_sel[0].label() if ent_sel.size() == 1 else "%d entities" % ent_sel.size())
 	if not sel.is_empty() and (sel["s"] as Vector3i) == Vector3i.ONE and ent_sel.is_empty():
@@ -1923,11 +1974,6 @@ func update_target() -> void:
 		var n := (inv.basis * (hit["normal"] as Vector3)).normalized()
 		orient = CubeWorld.orient_of(n)
 		var behind := (lp - n * 0.01) / CubeWorld.TICK
-		if hm != null and Input.is_key_pressed(KEY_CTRL):        # passthrough: the cube itself, at its own size
-			var lk = hm.world.leaf_at(behind)
-			if lk != null:
-				p = lk.w
-				g = CubeWorld.size_of(p)
 		cell = Vector3i(floori(behind.x / g) * g, floori(behind.y / g) * g, floori(behind.z / g) * g)
 		var local := (lp / CubeWorld.TICK - Vector3(cell)) / float(g) * 8.0
 		var best := INF
@@ -1949,7 +1995,9 @@ func update_target() -> void:
 	# line of sight, on the face you look into it through - even where its own faces have been pushed in
 	var on_cube := hm != null
 	var hit_any := not hit.is_empty()
-	if not (hm != null and Input.is_key_pressed(KEY_CTRL)):
+	# (the crosshair on real cube geometry: that face, always - the cell walk below took a pushed-in cube's cell as a
+	#  whole block and picked the air in front of its pushed faces; it's for aiming at open air, to build out of it)
+	if hm == null:
 		# every cube object along the line of sight, nearest first: a hole in one of them isn't a wall in front of
 		# the next one (out in the open, only the object being edited is a candidate, so building in air still works)
 		var found := {}
@@ -2162,6 +2210,11 @@ func _draw() -> void:
 		elif target["hit"]:
 			if not _face_selected(ts):                      # looked at, not selected: a thin white line
 				_face_outline(xf, ts, Color(1, 1, 1, 0.55))
+			var tm = ts.get("model")
+			if tm != null and is_instance_valid(tm) and _holds_smaller(tm, ts):   # (a big grid over small cubes: the cell)
+				var tg := CubeWorld.metres(ts["p"])
+				var tlo := Vector3(ts["o"]) * CubeWorld.TICK
+				_box(xf, tlo, tlo + Vector3.ONE * tg, Color(0.25, 0.62, 1.0, 0.5))
 		else:
 			_face_rect(xf, ts, Color(1, 1, 1, 0.35))
 		if Input.is_key_pressed(KEY_Q) or _drag == "corners":
@@ -2189,12 +2242,6 @@ func _draw() -> void:
 				var a0 := TAU * i / 24.0
 				var a1 := TAU * (i + 1) / 24.0
 				_line(pc + Vector3(cos(a0), 0.02, sin(a0)) * blend_radius, pc + Vector3(cos(a1), 0.02, sin(a1)) * blend_radius, Color(1, 0.4, 0.9))
-	if clip.has("cubes") and _drag != "select":      # where V will paste: a red box (Sauerbraten's paste highlight)
-		var ps := _paste_dest()
-		if not ps.is_empty():
-			var pxf := _frame(ps.get("model"))
-			var plo := Vector3(ps["o"]) * CubeWorld.TICK
-			_box(pxf, plo, plo + Vector3(clip["s"]) * CubeWorld.TICK, Color(1.0, 0.25, 0.2, 0.9))
 	if not sel.is_empty():
 		var xf := _frame(sel.get("model"))
 		var g := CubeWorld.metres(sel["p"])
@@ -2208,7 +2255,8 @@ func _draw() -> void:
 			layer["o"] = (sel["o"] as Vector3i) + CubeWorld.orient_step(sel["orient"]) * CubeWorld.size_of(sel["p"]) * (s[d] - 1)
 		s[d] = 1
 		layer["s"] = s
-		_face_outline(xf, layer, Color(1, 1, 1, 1.0), true)   # the selected face: white, and only that face
+		_face_rect(xf, layer, Color(1, 1, 1, 1.0), Color(0, 0, 0, 0), true)   # the selected face: white, its whole square
+		_origin_marker(xf, lo)
 		if not corners.is_empty():
 			_corner_grid(xf)
 	for e in ent_sel:
@@ -2228,6 +2276,20 @@ func _draw() -> void:
 				_im.surface_add_vertex(f[i])
 		_im.surface_end()
 	_fills.clear()
+
+
+## Sauerbraten's red box: the selection's origin, the corner a paste starts from - always the same corner (its
+## lowest x, y and z), always the same small size (a quarter of the grid), however big the selection is.
+func _origin_marker(xf: Transform3D, lo: Vector3) -> void:
+	var r := CubeWorld.metres(grid_p) * 0.125
+	_box(xf, lo - Vector3.ONE * r, lo + Vector3.ONE * r, Color(1.0, 0.2, 0.15, 1.0))
+
+
+## Does this grid cell hold cubes smaller than itself?
+func _holds_smaller(m: CubeModelNode, s: Dictionary) -> bool:
+	var p: int = s["p"]
+	var o: Vector3i = s["o"]
+	return not m.world.leaves.has(Vector4i(o.x, o.y, o.z, p)) and m.world.cubes_in_cell(o, p) > 0
 
 
 const TRUE_FACE_MAX := 8                  ## a cell with more small cubes than this is highlighted as its plain square
@@ -2314,10 +2376,13 @@ func _face_pushes() -> int:
 
 
 func _line(a: Vector3, b: Vector3, c: Color) -> void:
+	# (a hair towards the camera, so a line on a face isn't hidden in it: along the view ray it stays on the same
+	#  pixel, so it sits right on the block - a fixed 1 cm lift off the face left a gap at small grid sizes)
+	var eye := cam.global_position if cam != null and is_instance_valid(cam) else a
 	_im.surface_set_color(c)
-	_im.surface_add_vertex(a)
+	_im.surface_add_vertex(a + (eye - a) * 0.004)
 	_im.surface_set_color(c)
-	_im.surface_add_vertex(b)
+	_im.surface_add_vertex(b + (eye - b) * 0.004)
 
 
 func _box(xf: Transform3D, lo: Vector3, hi: Vector3, c: Color) -> void:
@@ -2344,11 +2409,11 @@ func _true_face(xf: Transform3D, s: Dictionary, c: Color, inset := 0.0) -> bool:
 	var keys := w.leaves_in(s["o"], Vector3i(g, g, g))
 	if keys.is_empty():
 		return false
-	var lift := Vector3(CubeWorld.orient_step(o)) * 0.01   # (just off the face, so it isn't hidden in it)
+	var lift := Vector3.ZERO                             # (_line keeps it from hiding in the face)
 	var drew := false
 	for k in keys:
-		if k.w > p:
-			return false
+		if k.w != p:
+			return false                                 # (smaller cubes inside: the cell's square, as in Sauerbraten)
 		var v: Array = w.leaves[k]
 		var origin := Vector3(k.x, k.y, k.z) * CubeWorld.TICK
 		var unit := CubeWorld.metres(k.w) / 8.0
@@ -2393,7 +2458,6 @@ func _face_rect(xf: Transform3D, s: Dictionary, c: Color, fill := Color(0, 0, 0,
 	var lo := Vector3(s["o"]) * CubeWorld.TICK
 	var hi := lo + Vector3(s["s"]) * g
 	var plane := hi[d] if o & 1 else lo[d]
-	plane += 0.01 if o & 1 else -0.01
 	var a := (d + 1) % 3
 	var b := (d + 2) % 3
 	var pts := []
