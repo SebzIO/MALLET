@@ -34,6 +34,23 @@ func item_of(o) -> TreeItem:
 	return null
 
 
+## A real left click on a row's button (column 1 the eye, 2 the padlock), through the window like a mouse.
+func left_click(tree: Tree, item: TreeItem, col: int) -> void:
+	var r := tree.get_item_area_rect(item, col)
+	var at := tree.get_global_transform_with_canvas() * (r.position + r.size * 0.5)
+	for down in [true, false]:
+		var m := InputEventMouseButton.new()
+		m.button_index = MOUSE_BUTTON_LEFT
+		m.pressed = down
+		m.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
+		m.position = at
+		m.global_position = at
+		Input.warp_mouse(at)
+		Input.parse_input_event(m)
+		Input.flush_buffered_events()
+		await process_frame
+
+
 func _run() -> void:
 	ed = load("res://editor/main.tscn").instantiate()
 	root.add_child(ed)
@@ -51,8 +68,22 @@ func _run() -> void:
 	# the padlock in the Outliner
 	var it := item_of(ramp)
 	check("the Outliner has a padlock column", it != null and it.get_button_count(2) == 1)
-	ed.outliner._button_clicked(it, 2, 1, MOUSE_BUTTON_LEFT)
-	check("clicking it locks the ramp", ed.is_locked(ramp) and ramp.get_meta("locked", false))
+	await frames(2)
+	await left_click(ed.outliner.tree, it, 2)
+	check("a real left click on the padlock locks the ramp", ed.is_locked(ramp) and ramp.get_meta("locked", false))
+	ed.outliner.refresh(true)
+	await frames(1)
+	await left_click(ed.outliner.tree, item_of(ramp), 2)
+	check("...and another unlocks it", not ed.is_locked(ramp))
+	ed.outliner.refresh(true)
+	await frames(1)
+	await left_click(ed.outliner.tree, item_of(ramp), 1)
+	check("(the eye still works with a left click)", not ramp.visible)
+	ed.outliner.set_hidden([ramp], false)
+	ed.outliner.refresh(true)
+	await frames(1)
+	await left_click(ed.outliner.tree, item_of(ramp), 2)
+	check("locked again by a left click", ed.is_locked(ramp))
 	# picking
 	var top: ViewPane = null
 	for p in ed.panes:

@@ -3,6 +3,12 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.24.1 preview — 2026-11-12: The padlock takes a left click (fix)
+
+- Fixed: the Outliner's padlock only reacted to a right click. The Outliner handles left clicks itself (selecting,
+  dragging) and only let the eye's column through to its buttons; now the padlock's does too. The test clicks it
+  with a real left click now.
+
 ## 0.24.0 preview — 2026-11-12: Locking
 
 - **Lock things so they stay put**: every object in the Outliner has a **padlock** next to its eye (right-click >

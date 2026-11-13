@@ -387,8 +387,8 @@ func _tree_input(ev: InputEvent) -> void:
 			_anchor = null
 			tree.accept_event()
 			return
-		if tree.get_column_at_position(ev.position) == 1 or _on_arrow(item, ev.position.x):
-			return                                       # the eye button / the fold arrow: the tree's own
+		if tree.get_column_at_position(ev.position) in [1, 2] or _on_arrow(item, ev.position.x):
+			return                                       # the eye / the padlock / the fold arrow: the tree's own
 		if ev.double_click:
 			_select_items([item])
 			_anchor = item
