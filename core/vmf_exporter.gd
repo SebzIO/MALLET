@@ -143,12 +143,16 @@ func build(map: Dictionary, opts := {}) -> String:
 		var rd: Dictionary = map["ramps"][ri]
 		ri += 1
 		var rmat := RAMP_MATERIAL
+		var fit := Vector2.ZERO                          # (a "fit across a ramp" material: texture px, meters along)
 		if rd.get("look", "") == "material" and MaterialLibrary.has(rd.get("material", "")):
 			rmat = _mat_name(rd["material"])
 			used_materials[rd["material"]] = true
+			if MaterialLibrary.ramp_fit(rd["material"]):
+				fit = Vector2(MaterialLibrary.texture_px(rd["material"]),
+					MaterialLibrary.world_size(rd["material"]) * maxf(float(rd.get("tex_scale", 20.0)) / 20.0, 0.05))
 		elif rd.get("look", "") == "shader":
 			rmat = _shader_material(rd.get("shader", ""), rd.get("shader_params", {}), RAMP_MATERIAL)
-		var rb := _ramp_brushes(geo, rmat)
+		var rb := _ramp_brushes(geo, rmat, fit)
 		if not rb.is_empty():
 			details.append("entity
 {
@@ -404,7 +408,9 @@ func build(map: Dictionary, opts := {}) -> String:
 # ------------------------------------------------------------------------------------------------ ramps
 ## Brushes for one ramp: between consecutive cross-sections (at least MIN_SEGMENT apart, seams kept), one convex
 ## hull per convex piece of the profile.
-func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL) -> PackedStringArray:
+## `fit` (texture px, meters along; zero = off): the riding faces' textures span the riding surface once across,
+## as in the editor (MaterialLibrary.ramp_fit), instead of Hammer's world-aligned default.
+func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL, fit := Vector2.ZERO) -> PackedStringArray:
 	var out := PackedStringArray()
 	var rings: Array = geo["rings"]
 	var ridge: PackedVector3Array = geo["ridge"]
@@ -439,7 +445,7 @@ func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL) -> PackedStringAr
 				pts.append(src(b[k]))
 			var sides := _hull(pts)
 			if sides.size() >= 4:
-				out.append(_solid(sides, material))
+				out.append(_solid(sides, material, _fit_axes(sides, a, b, geo["profile"], fit) if fit.x > 0.0 else []))
 	for poly in geo.get("closures", []):                 # closed ends: a slab 0.3 m thick across the end
 		var pv: PackedVector3Array = poly
 		if pv.size() < 3:
@@ -452,6 +458,46 @@ func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL) -> PackedStringAr
 		var sides := _hull(pts)
 		if sides.size() >= 4:
 			out.append(_solid(sides, material))
+	return out
+
+
+## Texture axes for the sides of one ramp piece that lie on a riding face: u across from 0 (one edge) to 1 (the
+## other), ridge in between, exactly like RampShape's UVs; v one repeat every fit.y meters along. Other sides keep
+## the default.
+func _fit_axes(sides: Array, a: PackedVector3Array, b: PackedVector3Array, prof: Dictionary, fit: Vector2) -> Array:
+	var pp: PackedVector2Array = prof["pts"]
+	var pc := pp.size()
+	var perim := PackedFloat32Array([0.0])
+	for k in pc:
+		perim.append(perim[k] + pp[k].distance_to(pp[(k + 1) % pc]))
+	var r0: int = prof["ride"][0]
+	var r1: int = prof["ride"][1]
+	var ride_len := maxf(perim[r1] - perim[r0], 0.01)
+	var px := fit.x
+	var out := []
+	for sd in sides:
+		var nrm: Vector3 = (sd[2] - sd[0]).cross(sd[1] - sd[0]).normalized()
+		var ax: Array = _axes(nrm)
+		for k in range(r0, r1):
+			var a0 := src(a[k])
+			var a1 := src(a[k + 1])
+			var b0 := src(b[k])
+			var en := (a1 - a0).cross(b0 - a0).normalized()
+			if absf(en.dot(nrm)) < 0.999 or absf(nrm.dot(sd[0] - a0)) > 1.0:
+				continue
+			var len_e := a0.distance_to(a1)
+			var du := (perim[k + 1] - perim[k]) / ride_len
+			if len_e < 0.01 or du <= 0.0:
+				break
+			var dir := (a1 - a0) / len_e
+			var su := len_e / (px * du)
+			var shift := px * (perim[k] - perim[r0]) / ride_len - a0.dot(dir) / su
+			var along := (b0 - a0) - dir * (b0 - a0).dot(dir)
+			along = along.normalized() if along.length() > 0.001 else nrm.cross(dir).normalized()
+			var sv := fit.y * U / px
+			ax = ["[%f %f %f %f] %f" % [dir.x, dir.y, dir.z, shift, su], "[%f %f %f 0] %f" % [along.x, along.y, along.z, sv]]
+			break
+		out.append(ax)
 	return out
 
 

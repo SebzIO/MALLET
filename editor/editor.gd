@@ -1726,6 +1726,7 @@ func _load_dict(data: Dictionary) -> void:
 	_gen_source = null
 	play.finish_speed = 0.0                  # another map's finish speed would mislead
 	UserShaders.add_embedded(data.get("shaders", {}))
+	_install_own_materials(data.get("own_materials"))
 	test_version = int(data.get("test_version", 0))
 	tester_runs = (data.get("tester_runs", []) as Array).duplicate(true) if data.get("tester_runs") is Array else []
 	environment = Look.default_environment()
@@ -3566,6 +3567,14 @@ func _open_picker(cb: Callable) -> void:
 		own.tooltip_text = "Use any PNG / JPG / WebP as a material. It joins 'Your images' in this library."
 		own.pressed.connect(func(): _picker.hide(); _own_image_dialog().popup_centered_ratio(0.6))
 		row.add_child(own)
+		var maker := Button.new()
+		maker.text = "Make / edit a material…"
+		maker.focus_mode = Control.FOCUS_NONE
+		maker.tooltip_text = "The material maker: start from any material (or a plain color) and add layers on top -
+lines, shapes, text, images, painting, color changes. Right-click a material here to start from it."
+		maker.pressed.connect(func(): _picker.hide(); open_material_maker("", _picker_cb))
+		row.add_child(maker)
+		_fields["picker_maker"] = maker
 		var search := LineEdit.new()                     # type to narrow a big library down
 		search.placeholder_text = "Search materials (brick, metal, glow...)"
 		search.clear_button_enabled = true
@@ -3607,6 +3616,9 @@ func _open_picker(cb: Callable) -> void:
 					" - glows" if (e.get("maps", {}) as Dictionary).has("glow") else "", ((" - by " + e["credit"]) + ((" from a photo by " + e["photo"]) if e.has("photo") else "")) if e.has("credit") else ""]
 				var id: String = e["id"]
 				b.pressed.connect(func(): _picker.hide(); _picker_cb.call(id))
+				b.gui_input.connect(_picker_thumb_input.bind(id))
+				b.tooltip_text += "
+Right-click: %s in the material maker" % ("change it" if MaterialLibrary.is_made(id) else "start a material from it")
 				grid.add_child(b)
 				_fields["pick_" + id] = b
 				items.append([b, ("%s %s %s %s %s" % [e["name"], e["id"], cat, e.get("surface", ""),
@@ -3680,6 +3692,95 @@ func _own_image_dialog() -> FileDialog:
 		_ui_root.add_child(d)
 		_fields["own_image_dialog"] = d
 	return _fields["own_image_dialog"]
+
+
+func _picker_thumb_input(e: InputEvent, id: String) -> void:
+	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT:
+		_picker.hide()
+		open_material_maker(id, _picker_cb)
+
+
+# ------------------------------------------------------------------------------------------- the material maker
+var material_maker: MaterialMakerDialog
+var _maker_cb := Callable()
+
+
+## The material maker, starting from `id` (one of your made materials opens to be changed; "" = a plain color).
+## `done` gets the saved material's id (where the picker was opened from: that object takes it).
+func open_material_maker(id: String, done := Callable()) -> MaterialMakerDialog:
+	if material_maker == null:
+		material_maker = MaterialMakerDialog.new()
+		material_maker.editor = self
+		material_maker.visible = false
+		material_maker.saved.connect(_material_saved)
+		_ui_root.add_child(material_maker)
+	_maker_cb = done
+	material_maker.open_from(id)
+	material_maker.popup_centered_clamped(Vector2i(1100, 680), 0.96)
+	return material_maker
+
+
+## A material was saved: everything using it is drawn again (it may have been saved over), the picker shows it,
+## co-editors get it, and the object the picker was opened for takes it.
+func _material_saved(id: String) -> void:
+	refresh_material(id)
+	if relay != null and relay.is_open() and session_role in ["maker", "editor"]:
+		var pkg := MaterialLibrary.package(id)
+		if not pkg.is_empty():
+			_co_seq += 1
+			_co_send_msg({"t": "edit", "seq": _co_seq, "op": {"act": "mats", "mats": {id: pkg}}})
+	if _maker_cb.is_valid():
+		_maker_cb.call(id)
+	_set_status("Saved the material %s." % MaterialLibrary.display_name(id))
+
+
+## Draw again everything that may use a material that changed.
+func refresh_material(id: String) -> void:
+	MaterialLibrary.forget(id)
+	CubeWorld._materials.clear()
+	Look._ramp_mats.clear()
+	if _picker:
+		_picker.queue_free()                            # rebuilt next time with it in
+		_picker = null
+	for r in ramps_root.get_children():
+		r.rebuild()
+	_rebuild_blocks()
+	for cm in cube_models_root.get_children():
+		cm.rebuild_all()
+
+
+## Your own materials (images you added, ones you made) that a map uses, packed to travel with it.
+func _own_materials(d: Dictionary) -> Dictionary:
+	var out := {}
+	for id in MaterialLibrary.own_used_in(JSON.stringify(d)):
+		var pkg := MaterialLibrary.package(id)
+		if not pkg.is_empty():
+			out[id] = pkg
+	return out
+
+
+## A map's (or a co-editor's) own materials: put the ones missing here (or newer) into the library. True if any.
+func _install_own_materials(mats) -> bool:
+	if not mats is Dictionary:
+		return false
+	var any := false
+	for id in mats:
+		if mats[id] is Dictionary and MaterialLibrary.install(mats[id]):
+			any = true
+	if any:
+		CubeWorld._materials.clear()
+		Look._ramp_mats.clear()
+		if _picker:
+			_picker.queue_free()
+			_picker = null
+	return any
+
+
+func _co_mats(op: Dictionary) -> void:
+	if _install_own_materials(op.get("mats")):
+		for id in op["mats"]:
+			refresh_material(String(id))
+		_set_status("A co-editor's material arrived.")
 
 
 ## Add an image file to the library as a material and use it where the picker was opened from.
@@ -5423,6 +5524,9 @@ func save_map(path: String) -> void:
 		_set_status("Could not save %s" % path)
 		return
 	var d := _map_dict()
+	var own := _own_materials(d)
+	if not own.is_empty():
+		d["own_materials"] = own                         # (your materials: the map looks the same on any PC)
 	d["made_with"] = MalletVersion.full()
 	if not best_ghost.is_empty():
 		d["ghost"] = best_ghost                          # the best run travels with the map (editor only)
@@ -6468,7 +6572,11 @@ func _co_send_state(to: String) -> void:
 	if relay == null or not relay.is_open() or to == "":
 		return
 	relay.send({"t": "names", "to": to, "names": _co_all_names()})   # (before the map: the newcomer takes our names)
-	var text := JSON.stringify(_map_dict())
+	var sd := _map_dict()
+	var own := _own_materials(sd)
+	if not own.is_empty():
+		sd["own_materials"] = own
+	var text := JSON.stringify(sd)
 	var parts := []
 	var i := 0
 	while i < text.length():
@@ -6656,6 +6764,7 @@ func _co_apply(m: Dictionary) -> void:
 		"part": _co_part(op, m)
 		"cubes": _co_cubes(op, who, m)
 		"need": _co_need(op)
+		"mats": _co_mats(op)
 		_: _co_edit(op, who)
 
 

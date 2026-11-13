@@ -190,20 +190,116 @@ static func material(id: String, tint := Color.WHITE) -> StandardMaterial3D:
 	return m
 
 
-## Remove one of your own image materials again.
+## Remove one of your own materials again (an image you added, or one you made).
 static func remove_user(id: String) -> void:
-	if not id.begins_with("user_") or not FileAccess.file_exists(USER_DIR + "library.json"):
+	if not is_own(id):
 		return
-	var data = JSON.parse_string(FileAccess.get_file_as_string(USER_DIR + "library.json"))
-	if not data is Dictionary:
-		return
-	var list: Array = data.get("materials", []).filter(func(e): return e["id"] != id)
-	var f := FileAccess.open(USER_DIR + "library.json", FileAccess.WRITE)
-	f.store_string(JSON.stringify({"materials": list}, "  "))
-	f.close()
-	for file in ["color.jpg", "preview.jpg"]:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(USER_DIR + id + "/" + file))
+	_write_user_list(_user_list().filter(func(e): return e["id"] != id))
+	var dir := USER_DIR + id + "/"
+	for file in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(dir + file))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(USER_DIR + id))
+	forget(id)
+
+
+## Yours: an image you added ("user_...") or a material you made in the material maker ("made_...").
+static func is_own(id: String) -> bool:
+	return id.begins_with("user_") or id.begins_with("made_")
+
+
+## Made in the material maker (it has a recipe you can open again).
+static func is_made(id: String) -> bool:
+	return id.begins_with("made_") and entry(id).has("recipe")
+
+
+## On a ramp, one repeat spans the whole riding surface across (left edge 0, ridge in the middle, right edge 1)
+## instead of repeating every `size` meters, so a line drawn into the texture lands on the ridge.
+static func ramp_fit(id: String) -> bool:
+	return bool(entry(id).get("ramp_fit", false))
+
+
+## Drop everything built from one material (after it was saved again), so it is read fresh.
+static func forget(id: String) -> void:
 	_entries.clear()
 	_by_id.clear()
 	_previews.erase(id)
+	for cache in [_textures, _materials]:
+		for k in cache.keys():
+			if String(k).begins_with(id + "/") or String(k).begins_with(id + "|"):
+				cache.erase(k)
+
+
+static func _user_list() -> Array:
+	if FileAccess.file_exists(USER_DIR + "library.json"):
+		var data = JSON.parse_string(FileAccess.get_file_as_string(USER_DIR + "library.json"))
+		if data is Dictionary and data.get("materials") is Array:
+			return data["materials"]
+	return []
+
+
+static func _write_user_list(list: Array) -> void:
+	DirAccess.make_dir_recursive_absolute(USER_DIR)
+	var clean := []
+	for e in list:
+		var c: Dictionary = (e as Dictionary).duplicate(true)
+		c.erase("dir")
+		clean.append(c)
+	var f := FileAccess.open(USER_DIR + "library.json", FileAccess.WRITE)
+	f.store_string(JSON.stringify({"materials": clean}, "  "))
+	f.close()
+
+
+## Add or replace one entry of your own library (its files are already in USER_DIR/<id>/).
+static func put_user_entry(e: Dictionary) -> void:
+	var list := _user_list().filter(func(x): return x["id"] != e["id"])
+	list.append(e)
+	_write_user_list(list)
+	forget(String(e["id"]))
+
+
+## One of your materials with its files, to travel inside a map (or to a co-editor): {entry, files: {name: base64}}.
+static func package(id: String) -> Dictionary:
+	if not is_own(id) or not has(id):
+		return {}
+	var e: Dictionary = entry(id).duplicate(true)
+	var dir := String(e["dir"])
+	e.erase("dir")
+	var files := {}
+	for file in DirAccess.get_files_at(dir):
+		files[file] = Marshalls.raw_to_base64(FileAccess.get_file_as_bytes(dir + file))
+	return {"entry": e, "files": files}
+
+
+## Put a packaged material into your library: when you don't have it, or theirs is newer (saved later). True if
+## it was installed.
+static func install(pkg: Dictionary) -> bool:
+	var e = pkg.get("entry")
+	var files = pkg.get("files")
+	if not e is Dictionary or not files is Dictionary or not is_own(String(e.get("id", ""))):
+		return false
+	var id := String(e["id"])
+	if id.validate_filename() != id:
+		return false
+	if has(id) and float(entry(id).get("stamp", 0.0)) >= float(e.get("stamp", 0.0)):
+		return false
+	var dir := USER_DIR + id + "/"
+	DirAccess.make_dir_recursive_absolute(dir)
+	for file in files:
+		var name := String(file)
+		if name.validate_filename() != name:
+			continue
+		var f := FileAccess.open(dir + name, FileAccess.WRITE)
+		if f:
+			f.store_buffer(Marshalls.base64_to_raw(String(files[file])))
+			f.close()
+	put_user_entry(e)
+	return true
+
+
+## Which of your own materials a map uses (by id, anywhere in its text).
+static func own_used_in(map_text: String) -> Array:
+	var out := []
+	for e in entries():
+		if is_own(String(e["id"])) and map_text.contains('"%s"' % e["id"]):
+			out.append(String(e["id"]))
+	return out

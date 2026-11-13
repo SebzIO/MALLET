@@ -210,7 +210,7 @@ static func ramp_textured(mesh: ArrayMesh, look: String, color: Color, texture_p
 		base = MaterialLibrary.material(material_id, Color.WHITE)
 		albedo = base.albedo_texture
 		var size := MaterialLibrary.world_size(material_id) * maxf(texture_scale / 20.0, 0.05)
-		sx = face_length / size
+		sx = 1.0 if MaterialLibrary.ramp_fit(material_id) else face_length / size
 		sy = 20.0 / size
 	else:
 		albedo = image_texture(texture_path)
@@ -262,7 +262,7 @@ static func ramp_material(look: String, color: Color, texture_path := "", textur
 		var key := "%s|%s|%s|%s" % [material_id, color.to_html(), size, face_length]
 		if not _ramp_mats.has(key):
 			var m: StandardMaterial3D = MaterialLibrary.material(material_id, color).duplicate()
-			m.uv1_scale = Vector3(face_length / size, 20.0 / size, 1.0)
+			m.uv1_scale = Vector3(1.0 if MaterialLibrary.ramp_fit(material_id) else face_length / size, 20.0 / size, 1.0)
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 			_ramp_mats[key] = m
 		return _ramp_mats[key]

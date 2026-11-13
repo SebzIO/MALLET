@@ -107,11 +107,12 @@ Work on one map together, live. Uses the same relay on the user's VPS as live pl
 
 ## 0.21.0: Material maker (added 2026-11-12)
 Make your own textures and materials, or change existing ones, inside MALLET.
-- [ ] Start from any library texture (or a plain color), stack layers on it: color / brightness / hue changes,
-      stripes and edge lines (a band along one edge is a line along a ramp's spine), shapes, text, images, and a
-      freehand paint layer. Every layer stays editable.
-- [ ] Saved to your own materials library (every map can use it) and copied into each map that uses it (opens the same
-      on another PC, exports with it); works on ramps, cubes and blocks, and in the SurfsUp and CS:S exports.
+- [x] Start from any library texture (or a plain color), stack layers on it: color / brightness / hue changes,
+      stripes and lines, shapes, text, images, and a freehand paint layer. Every layer stays editable (0.21.0).
+- [x] "Fit across a ramp": the texture spans the riding surface once, so a stripe in the middle is a line on the
+      ridge; SurfsUp and CS:S exports line it up too (0.21.0).
+- [x] Saved to your own materials library ("Made by you") and copied into each map that uses it (opens the same on
+      another PC, reaches co-editors); works on ramps, cubes and blocks, and in both exports (0.21.0).
 
 ## 0.18.0 → 1.0.0: Release candidate
 - [x] **Geometry menu** (0.18.0) and its fixes (0.18.1-0.18.5): nine shapes cut from octree cells, one flat cut face

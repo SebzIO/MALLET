@@ -3,6 +3,24 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.21.0 preview — 2026-11-12: The material maker
+
+- **Make your own materials, or change existing ones**: in the material picker, **Make / edit a material…** (or
+  right-click any material to start from it). Start from a library material or a plain color and stack layers on
+  top: **color changes** (hue, saturation, brightness, contrast), **fills**, **stripes / lines**, **rectangles**,
+  **ellipses**, **text**, **images** of your own and a **paint** layer you draw on with a brush (eraser, Shift+drag
+  for a straight line, Ctrl+Z). Every layer has a color, opacity and blend (mix, add, multiply, subtract), can be
+  moved, hidden, copied or deleted, and stays editable. Shapes wrap at the edges, so the texture still tiles; a
+  tiled 2 x 2 view shows it repeating.
+- **A line on a ramp's ridge**: **+ Ridge line** adds a black stripe down the middle and turns on **Fit across a
+  ramp**: on ramps the picture then spans the riding surface once from edge to edge, so the middle is the ridge
+  (the **Ramp guide** shows where). The SurfsUp and CS:S exports line it up the same way.
+- Saved materials join **Made by you** in the picker and keep the starting material's surface detail (normal,
+  roughness, metal and glow maps). **Save** changes one of yours everywhere it's used; **Save as new** keeps both.
+- **Your materials travel with your maps**: a saved map carries the ones it uses (your added images too), and opening
+  it on another PC puts them in that library. Co-editors get a material as soon as it's saved.
+- New test: material_maker_test.
+
 ## 0.20.0 preview — 2026-11-12: Practice tools in play mode
 
 - **Turn binds**: hold the left mouse button to turn left, the right one to turn right, at a steady speed (View >
