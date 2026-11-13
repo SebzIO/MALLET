@@ -15,6 +15,8 @@ const DEFAULTS := {
 	"relay_url": "wss://relay.sebz.xyz/ws",  ## the playtest relay (Export > Playtest session; local: ws://127.0.0.1:8787/ws)
 	"player_name": "Maker",              ## the name testers see on their runs and in the playtest panel
 	"playtest_minimized": false,         ## the playtest panel is collapsed to its title row
+	"turn_speed": 210.0,                 ## play mode turn binds (hold left / right mouse): degrees a second, Source's cl_yawspeed
+	"play_triggers": false,              ## play mode shows the zones, teleports, boosters and kill zones (T)
 }
 
 static var _cfg: ConfigFile = null

@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.20.0 preview — 2026-11-12: Practice tools in play mode
+
+- **Turn binds**: hold the left mouse button to turn left, the right one to turn right, at a steady speed (View >
+  Mouse sensitivity: 210 degrees a second to start, Source's cl_yawspeed default).
+- **Q / E**: save your position (with your speed and where you look) and go back to it.
+- **2-9**: go to that stage's plate; **1** restarts, like R.
+- **N**: noclip - fly through everything (W A S D, Space up, Ctrl down, Shift faster).
+- **T**: show or hide the zones, teleports, boosters and kill zones. They're hidden in play mode now, as in the game.
+- Loading a position, a stage jump or noclip make the run **practice**: the timer says PRACTICE and a finish doesn't
+  count towards your best time, ghost or tester data. R starts a real run again.
+- New test: practice_test.
+
 ## 0.19.9 preview — 2026-11-11: Teleports that just move you on
 
 - **Teleport destinations** (Add > Teleport destination, or T > Platforms & zones in build mode): a spot where the

@@ -54,6 +54,15 @@ var _attempt_start := 0.0               ## when it began (unix seconds)
 var attempt_no := 0                     ## which attempt this is (live messages are labeled with it)
 var _live_t := 0.0                      ## (live position timer)
 
+## Practice tools (0.20.0): saved position (Q / E), noclip (N), go to a stage (2-9). Any of them makes the run
+## practice: the timer says so, and nothing counts towards the best time, the ghost or tester data until R.
+var practice := false
+var noclip := false
+var show_triggers := false
+var trigger_nodes: Array = []           ## the map's zones / teleports / boosters (the editor's EntityNodes), shown with T
+var _saved := {}                        ## {at: Transform3D, velocity, pitch}
+const NOCLIP_SPEED := 30.0              ## m/s flying through things (Shift: 3x)
+
 var _hud := CanvasLayer.new()
 var _hud_box: VBoxContainer
 var _hud_cross: Label
@@ -125,6 +134,11 @@ func start(at: Transform3D, start_box = AABB(), finish_box = AABB(), kill_y := -
 	_place()
 	active = true
 	top_speed = 0.0
+	practice = false
+	noclip = false
+	_saved = {}
+	show_triggers = bool(Settings.value("play_triggers"))
+	_apply_triggers()
 	_hud.visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -147,6 +161,10 @@ func stop() -> void:
 	_end_attempt("quit")
 	active = false
 	_hud.visible = false
+	for e in trigger_nodes:                              # (the editor shows every zone again)
+		if is_instance_valid(e):
+			e.visible = true
+			e.rebuild()
 	player.queue_free()
 	player = null
 	if _ghost_node:
@@ -165,6 +183,9 @@ func respawn() -> void:
 ## The attempt so far, as tester data: outcome "finish" / "restart" / "quit", time, splits, deaths, finish and top
 ## speed (u/s) and the route at 10 per second ([x, y, z, speed u/s] each). Only attempts that left the start count.
 func _end_attempt(outcome: String) -> void:
+	if practice:
+		run_state = Run.WAITING
+		return                                           # (practice isn't a run anyone timed)
 	if run_state == Run.WAITING or (run_state == Run.FINISHED and outcome != "finish"):
 		return                                           # (not started yet, or already recorded as a finish)
 	var route := []
@@ -190,6 +211,9 @@ func _place() -> void:
 	_attempt_top = 0.0
 	_attempt_start = Time.get_unix_time_from_system()
 	attempt_no += 1
+	practice = false
+	if noclip:
+		_set_noclip(false)
 	_checkpoint = spawn
 	_put(spawn, Vector3.ZERO)
 
@@ -218,6 +242,9 @@ func _put(at: Transform3D, velocity: Vector3) -> void:
 
 func _physics_process(delta: float) -> void:
 	if not active:
+		return
+	if noclip:
+		_fly(delta)
 		return
 	if player.global_position.y < _kill_y:
 		_to_checkpoint()
@@ -285,6 +312,10 @@ func _physics_process(delta: float) -> void:
 				if not missing.is_empty():
 					missing.sort()
 					_flash_message("Finish blocked: reach stage %d first" % missing[0])
+					return
+				if practice:
+					run_state = Run.FINISHED
+					_flash_message("Finished (practice: not timed - R for a real run)")
 					return
 				run_state = Run.FINISHED
 				finish_speed = Vector2(player.velocity.x, player.velocity.z).length() * UNITS_PER_METRE
@@ -446,6 +477,7 @@ static func format_time(t: float) -> String:
 func _process(_delta: float) -> void:
 	if not active:
 		return
+	_turn_binds(_delta)
 	var h := Vector2(player.velocity.x, player.velocity.z).length() * UNITS_PER_METRE
 	top_speed = max(top_speed, h)
 	_live_t += _delta
@@ -457,7 +489,7 @@ func _process(_delta: float) -> void:
 	_speed_label.text = "%d" % roundi(h)
 	match run_state:
 		Run.WAITING: _time_label.text = "leave the start zone to begin" if not _start_boxes.is_empty() else ""
-		Run.RUNNING: _time_label.text = format_time(run_time)
+		Run.RUNNING: _time_label.text = format_time(run_time) if not practice else "PRACTICE"
 		Run.FINISHED: _time_label.text = "FINISHED  %s%s" % [format_time(run_time),
 			"   (best!)" if is_equal_approx(run_time, best_time) else "   " + _last_delta]
 	_time_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5) if run_state == Run.FINISHED else Color.WHITE)
@@ -470,13 +502,101 @@ func _process(_delta: float) -> void:
 		var cur: int = _reached.max() if not _reached.is_empty() else 1
 		stage = "   ·   stage %d / %d" % [cur, _stages.size() + 1]
 	var fin := "   ·   finish %d u/s" % roundi(finish_speed) if finish_speed > 0.0 else ""
-	_info_label.text = "top %d u/s%s%s%s   ·   R restart   ·   Backspace checkpoint%s   ·   Esc editor" % [roundi(top_speed), fin, stage, best,
+	_info_label.text = "top %d u/s%s%s%s   ·   R restart   ·   Backspace checkpoint   ·   Q / E save / load   ·   N noclip   ·   T triggers   ·   2-9 stages%s   ·   Esc editor" % [roundi(top_speed), fin, stage, best,
 		("   ·   G ghost " + ("on" if show_ghost else "off")) if not ghost.is_empty() else ""]
 	# center the HUD for the window, once its text is set (anchors don't apply under a CanvasLayer)
 	var vp := get_viewport().get_visible_rect().size
 	_hud_box.reset_size()
 	_hud_box.position = Vector2((vp.x - _hud_box.size.x) * 0.5, vp.y - _hud_box.size.y - 24)
 	_hud_cross.position = (vp - _hud_cross.size) * 0.5
+
+
+# ------------------------------------------------------------------------------------------------ practice tools
+## Hold the left mouse button to turn left, the right one to turn right, at Settings turn_speed (Source's turn binds).
+func _turn_binds(delta: float) -> void:
+	if player == null or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		return
+	var dir := 0.0
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		dir += 1.0
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		dir -= 1.0
+	if dir != 0.0:
+		player._set_yaw(player.rotation.y + deg_to_rad(float(Settings.value("turn_speed"))) * dir * delta)
+
+
+## Q: remember where you are, how fast you're going and where you look.
+func save_position() -> void:
+	_saved = {"at": Transform3D(Basis(Vector3.UP, player.rotation.y), player.global_position), "velocity": player.velocity,
+		"pitch": player.camera_rig.pitch if player.camera_rig else 0.0}
+	_flash_message("Position saved (E: back to it)")
+
+
+## E: back to the saved position, with its speed and view. The run is practice from here.
+func load_position() -> void:
+	if _saved.is_empty():
+		_flash_message("No position saved yet (Q saves one)")
+		return
+	practice = true
+	if run_state == Run.WAITING:
+		run_state = Run.RUNNING                          # (underway: the start platform's speed cap doesn't apply)
+	_put(_saved["at"], _saved["velocity"])
+	if player.camera_rig:
+		player.camera_rig.pitch = float(_saved["pitch"])
+
+
+## 2-9: to that stage's plate (practice). 1 is the start (a real run, like R).
+func go_to_stage(n: int) -> void:
+	var plate: EntityNode = _stages.get(n)
+	if plate == null:
+		_flash_message("There is no stage %d" % n)
+		return
+	practice = true
+	if run_state == Run.WAITING:
+		run_state = Run.RUNNING
+	_checkpoint = plate.spawn_transform()
+	if not n in _reached:
+		_reached.append(n)
+	_put(_checkpoint, Vector3.ZERO)
+	_flash_message("Stage %d (practice)" % n)
+
+
+## N: fly through everything (WASD, Space up, Ctrl down, Shift faster). The run is practice from here.
+func _set_noclip(on: bool) -> void:
+	noclip = on
+	if player == null:
+		return
+	player.set_physics_process(not on)
+	player.velocity = Vector3.ZERO
+	if on:
+		practice = true
+	_flash_message("Noclip %s" % ("on" if on else "off"))
+
+
+func _fly(delta: float) -> void:
+	var cam: Camera3D = player.camera_rig.camera if player.camera_rig else null
+	var b := cam.global_basis if cam else player.global_basis
+	var move := Vector3.ZERO
+	if Input.is_physical_key_pressed(KEY_W): move -= b.z
+	if Input.is_physical_key_pressed(KEY_S): move += b.z
+	if Input.is_physical_key_pressed(KEY_A): move -= b.x
+	if Input.is_physical_key_pressed(KEY_D): move += b.x
+	if Input.is_physical_key_pressed(KEY_SPACE): move += Vector3.UP
+	if Input.is_physical_key_pressed(KEY_CTRL): move -= Vector3.UP
+	if move.length() > 0.0:
+		player.global_position += move.normalized() * NOCLIP_SPEED * (3.0 if Input.is_physical_key_pressed(KEY_SHIFT) else 1.0) * delta
+
+
+## T: the map's zones, teleports, boosters and kill zones shown or hidden (hidden, as in the game, by default).
+func _apply_triggers() -> void:
+	for e in trigger_nodes:
+		if not is_instance_valid(e):
+			continue
+		if e.is_volume():
+			e.visible = show_triggers
+		else:
+			e._zone_mesh.visible = show_triggers
+			e._flat_arrow.visible = show_triggers and e.kind in ["start", "stage"]
 
 
 ## Returns true if the event was a play-mode control.
@@ -487,6 +607,28 @@ func handle_input(event: InputEvent) -> bool:
 		if event.keycode == KEY_ESCAPE:
 			stop()
 			return true
+		match event.keycode:
+			KEY_Q:
+				save_position()
+				return true
+			KEY_E:
+				load_position()
+				return true
+			KEY_N:
+				_set_noclip(not noclip)
+				return true
+			KEY_T:
+				show_triggers = not show_triggers
+				Settings.set_value("play_triggers", show_triggers)
+				_apply_triggers()
+				_flash_message("Triggers %s" % ("shown" if show_triggers else "hidden"))
+				return true
+			KEY_1:
+				respawn()
+				return true
+			KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9:
+				go_to_stage(event.keycode - KEY_0)
+				return true
 		if event.keycode == KEY_R:
 			respawn()
 			return true

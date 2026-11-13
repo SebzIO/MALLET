@@ -2589,7 +2589,8 @@ func _open_mouse_settings() -> void:
 		box.add_theme_constant_override("separation", 6)
 		_mouse_dialog.add_child(box)
 		for spec in [["editor_mouse", "Editor 3D view (orbit / fly with the right mouse button)", 0.1, 5.0, 0.05, "x"],
-				["play_mouse", "Mouse sensitivity, in Source's numbers (1.2 = CS:S 1.2). Build mode and play mode\nboth use it.", 0.1, 20.0, 0.05, ""]]:
+				["play_mouse", "Mouse sensitivity, in Source's numbers (1.2 = CS:S 1.2). Build mode and play mode\nboth use it.", 0.1, 20.0, 0.05, ""],
+				["turn_speed", "Turn binds in play mode (hold the left / right mouse button to turn): degrees a second,\nlike Source's cl_yawspeed (210 is its default).", 10.0, 720.0, 5.0, "°/s"]]:
 			var l := Label.new()
 			l.text = spec[1]
 			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -2625,7 +2626,7 @@ func _open_mouse_settings() -> void:
 		var reset := Button.new()
 		reset.text = "Back to the defaults"
 		reset.pressed.connect(func():
-			for k in ["editor_mouse", "play_mouse"]:
+			for k in ["editor_mouse", "play_mouse", "turn_speed"]:
 				var pair: Array = _fields["mouse_" + k]
 				(pair[0] as HSlider).value = Settings.DEFAULTS[k]
 			(_fields["mouse_invert_y"] as CheckButton).button_pressed = false)
@@ -5517,6 +5518,7 @@ func _play_from(at: Transform3D, start: EntityNode = null, finish: EntityNode = 
 			starts.append(e.zone_aabb())
 		elif e.kind == "finish":
 			finishes.append(e.zone_aabb())
+	play.trigger_nodes = entities_root.get_children()   # (T shows / hides them while playing)
 	play.start(at, starts, finishes, kill_floor_y(), volumes, stages, best_ghost, stage_boxes)
 
 

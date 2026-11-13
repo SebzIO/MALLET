@@ -101,6 +101,18 @@ Work on one map together, live. Uses the same relay on the user's VPS as live pl
       owner's saved file stays the one true copy.
 - [ ] The goal: working together feels seamless, as if both people were at the same computer.
 
+## 0.20.0: Practice tools (added 2026-11-12)
+- [x] Turn binds (hold left / right mouse, cl_yawspeed 210 by default), Q / E save / load position, 1-9 restart / go to
+      a stage, N noclip, T show the triggers; practice runs don't count (0.20.0).
+
+## 0.21.0: Material maker (added 2026-11-12)
+Make your own textures and materials, or change existing ones, inside MALLET.
+- [ ] Start from any library texture (or a plain color), stack layers on it: color / brightness / hue changes,
+      stripes and edge lines (a band along one edge is a line along a ramp's spine), shapes, text, images, and a
+      freehand paint layer. Every layer stays editable.
+- [ ] Saved to your own materials library (every map can use it) and copied into each map that uses it (opens the same
+      on another PC, exports with it); works on ramps, cubes and blocks, and in the SurfsUp and CS:S exports.
+
 ## 0.18.0 → 1.0.0: Release candidate
 - [x] **Geometry menu** (0.18.0) and its fixes (0.18.1-0.18.5): nine shapes cut from octree cells, one flat cut face
       per cell, whole cones and cylinders, sliders that keep up, a typed value that sticks, and a preview built on a
