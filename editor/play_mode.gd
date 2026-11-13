@@ -240,6 +240,28 @@ func _put(at: Transform3D, velocity: Vector3) -> void:
 	_prev_feet = null
 
 
+const HULL_HALF := 0.4065                ## half the player's width (SUCC width 0.813 m)
+const HULL_HEIGHT := 1.829               ## the player's standing height (SUCC stand_height)
+
+
+## Will this tick's move bring the player's body into volume `v`, with nothing solid in between?
+func _will_touch(v: EntityNode, delta: float) -> bool:
+	var step := player.velocity * delta
+	if step.length_squared() < 1e-8:
+		return false
+	var feet := player.global_position
+	var t := v.hull_entry(feet, feet + step, HULL_HALF, HULL_HEIGHT)
+	if t < 0.0:
+		return false
+	if t <= 0.0001:
+		return true
+	var from := feet + Vector3(0, HULL_HEIGHT * 0.5, 0)
+	var q := PhysicsRayQueryParameters3D.create(from, from + step * t)
+	q.collision_mask = player.collision_mask
+	q.exclude = [player.get_rid()]
+	return player.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
 func _physics_process(delta: float) -> void:
 	if not active:
 		return
@@ -259,8 +281,13 @@ func _physics_process(delta: float) -> void:
 			_to_checkpoint()
 			return
 		if v.kind in ["booster", "teleport"]:
-			var entered: bool = inside and not _inside.get(v, false)
-			_inside[v] = inside
+			# Touching it this tick: the body is in it now, or this tick's move (still at full speed - this runs
+			# before the player moves) would carry the body into it with nothing solid on the way. Checking only
+			# where the player stood missed thin teleports against a wall at speed: the move hit the wall first,
+			# the velocity went to zero, and the teleport then sent the player on standing still (0.24.2).
+			var touch: bool = inside or _will_touch(v, delta)
+			var entered: bool = touch and not _inside.get(v, false)
+			_inside[v] = touch
 			if entered and v.kind == "booster":
 				_boost(v)                        # once per entry, like a trigger
 			if entered and v.kind == "teleport" and v.to_dest:

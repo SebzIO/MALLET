@@ -3,6 +3,16 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.24.2 preview — 2026-11-13: Teleports at speed (fix)
+
+- Fixed: going through a thin teleport whose box runs into a wall at high speed (about 2000+ u/s, depending on the
+  gap) sent you on standing still. Play mode checked the teleport where you stood *before* each tick's move; at speed
+  the move hit the wall first and zeroed your velocity, and the teleport then carried that zero over. Now this tick's
+  move counts: your body (not just its middle) touching the teleport on the way sends you on at full speed. A
+  teleport behind a wall still can't be reached through it. Boosters get the same check, so a thin one is felt at
+  any speed.
+- New test: tp_speed_test (a 3 m teleport into a wall, 1000-6000 u/s; the old code stopped you from 2600 u/s).
+
 ## 0.24.1 preview — 2026-11-12: The padlock takes a left click (fix)
 
 - Fixed: the Outliner's padlock only reacted to a right click. The Outliner handles left clicks itself (selecting,

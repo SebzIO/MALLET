@@ -263,6 +263,36 @@ func contains(p: Vector3) -> bool:
 	return absf(l.x) <= size.x / 2 and absf(l.y) <= size.y / 2 and absf(l.z) <= size.z / 2
 
 
+## How far along a move from feet `a` to feet `b` (0..1) the player's body - a box `half_w` to each side and
+## `height` tall from the feet - first touches this volume; -1 if it doesn't. A move this tick that would carry
+## the player through a thin teleport (and into the wall behind it) still counts (0.24.2).
+func hull_entry(a: Vector3, b: Vector3, half_w: float, height: float) -> float:
+	var inv := global_transform.affine_inverse()
+	var la := inv * a
+	var d := inv * b - la
+	var h := size * 0.5
+	var lo := Vector3(-h.x - half_w, -h.y - height, -h.z - half_w)
+	var hi := Vector3(h.x + half_w, h.y, h.z + half_w)
+	var t0 := 0.0
+	var t1 := 1.0
+	for i in 3:
+		if absf(d[i]) < 1e-9:
+			if la[i] < lo[i] or la[i] > hi[i]:
+				return -1.0
+			continue
+		var ta := (lo[i] - la[i]) / d[i]
+		var tb := (hi[i] - la[i]) / d[i]
+		if ta > tb:
+			var sw := ta
+			ta = tb
+			tb = sw
+		t0 = maxf(t0, ta)
+		t1 = minf(t1, tb)
+		if t0 > t1:
+			return -1.0
+	return t0
+
+
 ## Where (and facing which way) the player spawns on a start platform.
 func spawn_transform() -> Transform3D:
 	# stand towards the back of the platform (local +Z), facing forward (local -Z)
