@@ -84,6 +84,33 @@ func _run() -> void:
 	var bm: BuildMode = ed.build
 	bm.fill_looks["glass"] = "frosted"
 	check("the T menu's look choice goes into the fill", CubeWorld.mat_name("glass", bm.fill_looks["glass"]) == "glass:frosted")
+	# F3: every setting can be typed, motion sliders land on 0, Stop moving
+	var cmn := CubeModelNode.new()
+	bm.models.add_child(cmn)
+	cmn.world.begin()
+	cmn.world.set_cell(Vector3i.ZERO, 0, CubeWorld.FULL, CubeWorld.blank_tex("Bricks104"))
+	cmn.world.commit()
+	var fsel := CubeWorld.make_sel(Vector3i.ZERO, 0, 3)
+	fsel["model"] = cmn
+	bm.sel = fsel
+	bm._open_tex_panel()
+	var top := func() -> Dictionary: return CubeWorld.parse_slot(cmn.world.leaves[cmn.world.leaves.keys()[0]][1][3])
+	var typed := true
+	for k in ["s", "u", "v", "su", "sv", "sp", "sw", "a"]:
+		typed = typed and bm._tex_fields.has(k + "_num") and bm._tex_fields[k + "_num"] is SpinBox
+	check("F3: every setting has a box to type a value in", typed)
+	(bm._tex_fields["sp_num"] as SpinBox).value = 1000.0
+	check("...a typed spin goes past the slider (1000 degrees a second)", is_equal_approx(float(top.call()["sp"]), 1000.0), str(top.call()))
+	(bm._tex_fields["sp"] as HSlider).value = 3.0
+	check("...the spin slider lands on 0 near the middle (no spin)", float(top.call()["sp"]) == 0.0, str(top.call()))
+	(bm._tex_fields["sw"] as HSlider).value = 200.0
+	(bm._tex_fields["su_num"] as SpinBox).value = 0.5
+	bm.stop_texture_motion()
+	var still: Dictionary = top.call()
+	check("...Stop moving sets scroll, spin and swirl back to 0", still["su"] == 0.0 and still["sw"] == 0.0 and still["sp"] == 0.0
+		and not "|" in cmn.world.leaves[cmn.world.leaves.keys()[0]][1][3], str(still))
+	check("...and the slider and box show it", (bm._tex_fields["sw"] as HSlider).value == 0.0 and (bm._tex_fields["sw_num"] as SpinBox).value == 0.0)
+	bm._close_tex_panel()
 	ed.build.stop()
 	# the map's reflections
 	check("the map's Reflections setting turns on screen-space reflections",

@@ -1,4 +1,4 @@
-MALLET 0.23.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
+MALLET 0.23.1 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
 ===================================================================================================================
 
 START HERE
@@ -10,16 +10,15 @@ START HERE
   everything else: ramps, zones, build mode, materials, playing, testing with others and exporting.
 - Everything new, version by version: docs\CHANGELOG.html (Help > What's new).
 
+NEW IN 0.23.1
+- Fixed: textures that kept spinning (F3's spin slider couldn't reach 0). F3 has Stop moving, and every setting
+  has a box to type a value in.
+
 NEW IN 0.23.0
 - Material maker > Finish: brightness and light of its own with no limit, glossiness and reflectiveness up to a
   mirror. Gamma in Adjust colors. Map panel > Reflections of the map.
 - Textures can spin and swirl (ramp texture settings, F3 in build mode).
 - Every pool of water, lava or glass can have its own look (build mode T menu > Fill > Their look).
-
-NEW IN 0.22.0
-- The guide (docs\GUIDE.html), a Help menu, and a fifth template: Cube Park, built in build mode, with a teleport
-  that keeps your speed.
-- Fixed: the Geometry menu's triangular prism ignored its Length.
 
 NEW IN 0.21.0
 - Make your own materials or change existing ones: material picker > Make / edit a material (or right-click a

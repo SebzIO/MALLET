@@ -2016,22 +2016,65 @@ func _build_tex_panel() -> void:
 		pb.pressed.connect(func(): place_texture(fit))
 		place.add_child(pb)
 		_tex_fields["place_fit" if fit else "place_centre"] = pb
-	for spec in [["s", "Scale", 0.05, 8.0, 0.01], ["u", "Shift across", 0.0, 1.0, 0.01], ["v", "Shift up", 0.0, 1.0, 0.01],
-			["su", "Scroll across (per second)", -2.0, 2.0, 0.05], ["sv", "Scroll up (per second)", -2.0, 2.0, 0.05],
-			["sp", "Spin (degrees a second; Fit to selection spins the face as one)", -360.0, 360.0, 1.0],
-			["sw", "Swirl (spiral: twists the middle, degrees)", -720.0, 720.0, 5.0],
-			["a", "See-through (1 = solid)", 0.05, 1.0, 0.05]]:
+	for spec in [["s", "Scale", 0.05, 8.0, 0.01, "Repeats are this many times their usual size."],
+			["u", "Shift across", 0.0, 1.0, 0.01, "Slide the texture across, in repeats."],
+			["v", "Shift up", 0.0, 1.0, 0.01, "Slide the texture up, in repeats."],
+			["su", "Scroll across", -2.0, 2.0, 0.05, "Repeats a second it moves across (0 = still)."],
+			["sv", "Scroll up", -2.0, 2.0, 0.05, "Repeats a second it moves up (0 = still)."],
+			["sp", "Spin", -360.0, 360.0, 1.0, "Degrees a second each repeat turns around its middle (0 = still).
+Fit to selection makes one repeat cover the face, so the face spins as one."],
+			["sw", "Swirl", -720.0, 720.0, 5.0, "Twists each repeat's middle into a spiral, in degrees (0 = none)."],
+			["a", "See-through", 0.05, 1.0, 0.05, "1 = solid, lower = see-through."]]:
+		var row := HBoxContainer.new()
+		box.add_child(row)
 		var l := Label.new()
 		l.text = spec[1]
-		box.add_child(l)
+		l.custom_minimum_size.x = 104
+		l.tooltip_text = spec[5]
+		l.mouse_filter = Control.MOUSE_FILTER_PASS
+		row.add_child(l)
 		var sl := HSlider.new()
 		sl.min_value = spec[2]
 		sl.max_value = spec[3]
 		sl.step = spec[4]
+		sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		sl.tooltip_text = spec[5]
 		var key: String = spec[0]
-		sl.value_changed.connect(func(v): _tex_param(key, v))
-		box.add_child(sl)
+		var num := SpinBox.new()                       # (type a value: every setting, any number where it makes sense)
+		num.min_value = spec[2]
+		num.max_value = spec[3]
+		num.step = 0.0001 if key in ["s", "u", "v", "su", "sv"] else (0.01 if key == "a" else 0.1)
+		num.allow_greater = key in ["s", "u", "v", "su", "sv", "sp", "sw"]
+		num.allow_lesser = key in ["u", "v", "su", "sv", "sp", "sw"]
+		num.custom_minimum_size.x = 92
+		num.select_all_on_focus = true
+		sl.value_changed.connect(func(v: float):
+			if _tex_updating:
+				return
+			v = _snap_zero(key, v)
+			_tex_updating = true
+			sl.set_value_no_signal(v)
+			num.set_value_no_signal(v)
+			_tex_updating = false
+			_tex_param(key, v))
+		num.value_changed.connect(func(v: float):
+			if _tex_updating:
+				return
+			_tex_updating = true
+			sl.set_value_no_signal(v)
+			_tex_updating = false
+			_tex_param(key, v))
+		row.add_child(sl)
+		row.add_child(num)
 		_tex_fields[key] = sl
+		_tex_fields[key + "_num"] = num
+	var stop := Button.new()
+	stop.text = "Stop moving (scroll, spin, swirl to 0)"
+	stop.focus_mode = Control.FOCUS_NONE
+	stop.pressed.connect(stop_texture_motion)
+	box.add_child(stop)
+	_tex_fields["stop"] = stop
 	var rot := OptionButton.new()
 	for t in ["Not turned", "Turned 90°", "Turned 180°", "Turned 270°", "Flipped across", "Flipped up"]:
 		rot.add_item(t)
@@ -2102,11 +2145,33 @@ func _refresh_tex_panel() -> void:
 	var d := CubeWorld.parse_slot(_slot_here())
 	(_tex_fields["head"] as Label).text = "Texture: %s%s" % [_tex_name(d["id"]), ("   (layer: %s)" % _tex_name(d["l"])) if d["l"] != "" else ""]
 	for k in ["s", "u", "v", "su", "sv", "sp", "sw", "a"]:
-		(_tex_fields[k] as HSlider).value = float(d[k])
+		(_tex_fields[k] as HSlider).set_value_no_signal(float(d[k]))
+		(_tex_fields[k + "_num"] as SpinBox).set_value_no_signal(float(d[k]))
 	(_tex_fields["r"] as OptionButton).select(int(d["r"]))
 	(_tex_fields["c"] as ColorPickerButton).color = Color.html(d["c"])
 	(_tex_fields["all"] as CheckButton).set_pressed_no_signal(all_faces)
 	_tex_updating = false
+
+
+## Motion sliders land on 0 near their middle: a short slider over -360..360 skipped straight past it.
+static func _snap_zero(key: String, v: float) -> float:
+	var near := {"su": 0.06, "sv": 0.06, "sp": 8.0, "sw": 15.0}
+	return 0.0 if near.has(key) and absf(v) < float(near[key]) else v
+
+
+## F3's Stop moving: scroll, spin and swirl back to 0 on the selected faces.
+func stop_texture_motion() -> void:
+	var s := op_sel()
+	if s.is_empty():
+		return
+	_edit(s, func(w: CubeWorld):
+		w.set_slot_param(s, all_faces, func(d: Dictionary) -> Dictionary:
+			for k in ["su", "sv", "sp", "sw"]:
+				d[k] = 0.0
+			return d)
+		return s)
+	_refresh_tex_panel()
+	say("The texture stands still")
 
 
 func _tex_param(key: String, value) -> void:

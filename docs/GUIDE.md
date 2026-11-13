@@ -170,7 +170,8 @@ If Counter-Strike: Source is installed, its textures appear too. **+ Your own im
 **Moving textures**: a ramp's texture settings (and F3 in build mode) can **scroll** across and along, **spin**
 (degrees a second) and **swirl** (twist the middle into a spiral). Each repeat turns around its own middle: use
 **Fit to selection** in F3, or a material that fits across a ramp, to turn a whole face as one. Every number box takes
-any value you type.
+any value you type, and **Stop moving** in F3 sets scroll, spin and swirl back to 0. (A face keeps its texture
+settings when you change its texture, so a spinning face goes on spinning with the new one.)
 
 **The map's look** (the panel with nothing selected): the sky (MALLET's own, or your sky shader), sun, fog, Reflections
 of the map, and the usual look of build mode's water, lava and glass. Any fill can have its own look instead: in build

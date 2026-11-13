@@ -3,6 +3,16 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.23.1 preview — 2026-11-12: Spin back to 0, type any value (fixes)
+
+- Fixed: the **Spin** slider in build mode's texture settings (F3) couldn't land on 0 - over -360 to 360 a short
+  slider jumped from about -3 to +3 - so a face kept turning, and so did every texture put on it afterwards (a
+  face keeps its texture settings when its texture changes). The scroll, spin and swirl sliders now land on 0 near
+  their middle, on ramps too, and F3 has **Stop moving** (scroll, spin and swirl back to 0).
+- **Every F3 setting has a box to type a value in** (scale, shift, scroll, spin, swirl, see-through); scale, shift,
+  scroll, spin and swirl take any number. Each setting sits on one row with its slider, so the panel fits on a
+  768-pixel-tall screen again; hover a name for what it does.
+
 ## 0.23.0 preview — 2026-11-12: Shine, spin and a look for every pool
 
 - **A material's finish** (material maker > Finish, with a turning ball that shows it): **Brightness x** and **Light of

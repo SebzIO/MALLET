@@ -1234,12 +1234,17 @@ func _add_slider(parent: Container, key: String, label: String, lo: float, hi: f
 	box.max_value = hi
 	box.step = step
 	box.custom_minimum_size = Vector2(86, 0)
-	s.value_changed.connect(func(v): if not _updating_ui: box.set_value_no_signal(v); _edit_prop(key, v))
+	s.value_changed.connect(func(v): if not _updating_ui: v = _snap_zero(key, v); s.set_value_no_signal(v); box.set_value_no_signal(v); _edit_prop(key, v))
 	box.value_changed.connect(func(v): if not _updating_ui: s.set_value_no_signal(v); _edit_prop(key, v))
 	row.add_child(s)
 	row.add_child(box)
 	_add_row(parent, label, row)
 	_fields[key] = [s, box]
+
+
+## A ramp's motion sliders land on 0 near their middle (BuildMode._snap_zero, the same for F3).
+static func _snap_zero(key: String, v: float) -> float:
+	return BuildMode._snap_zero(key.trim_prefix("tex_"), v) if key in ["tex_su", "tex_sv", "tex_sp", "tex_sw"] else v
 
 
 func _set_field(key: String, v: float) -> void:
