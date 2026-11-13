@@ -1657,6 +1657,8 @@ func _refresh_info() -> void:
 			"destination": "Where a teleport set to \"A destination\" sends the player: their feet land at the bottom of this box, looking along the arrow. Give it the teleport's number.",
 		}
 		_info.text = "Position: (%.0f, %.0f, %.0f)\n%s" % [e.position.x, e.position.y, e.position.z, about.get(e.kind, "")]
+		if e.risk != "":
+			_info.text += "\n\n⚠ May be missed at speed. " + e.risk
 
 
 func _set_status(t: String) -> void:
@@ -4230,8 +4232,12 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 		if t == "" or cam.is_position_behind(e.global_position):
 			continue
 		var s := cam.unproject_position(e.global_position + Vector3(0, 4, 0))
+		var tc: Color = EntityNode.KINDS[e.kind]["color"].lightened(0.35)
+		if e.risk != "":
+			t = "⚠ " + t + "  may be missed at speed"
+			tc = Color(1.0, 0.45, 0.35)
 		ov.draw_string_outline(font, s + Vector2(-30, -6), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color(0, 0, 0, 0.85))
-		ov.draw_string(font, s + Vector2(-30, -6), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, EntityNode.KINDS[e.kind]["color"].lightened(0.35))
+		ov.draw_string(font, s + Vector2(-30, -6), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, tc)
 	for r in ramps_root.get_children():                  # too-tight bends, on every ramp
 		for line in r.fold_lines:
 			for i in range(1, line.size()):
@@ -4381,7 +4387,41 @@ func _speed_reference(r: RampNode) -> Array:
 	return best
 
 
+## Teleports SurfsUp may miss at speed (0.24.3): thin (under SAFE_TP_DEPTH across in some direction) and their box
+## touching solid geometry. A fast player's move into that wall can stop them before the teleport fires - MALLET's
+## play mode catches it since 0.24.2, SurfsUp's own zones may not. Returns the teleports at risk.
+const SAFE_TP_DEPTH := 6.0
+
+
+func check_teleports() -> Array:
+	var out := []
+	var space := get_world_3d().direct_space_state
+	for e in entities_root.get_children():
+		if not e is EntityNode or e.kind != "teleport":
+			continue
+		var why := ""
+		var depth := minf(e.size.x, e.size.z)
+		if depth < SAFE_TP_DEPTH:
+			var q := PhysicsShapeQueryParameters3D.new()
+			var bs := BoxShape3D.new()
+			bs.size = e.size + Vector3(0.2, 0.2, 0.2)          # (touching counts)
+			q.shape = bs
+			q.transform = e.global_transform
+			q.collision_mask = 1                                # (solid: ramps, blocks, cubes, platforms)
+			if not space.intersect_shape(q, 1).is_empty():
+				why = ("It is %.1f m deep and its box touches solid geometry: in SurfsUp a fast player (2000+ u/s) can hit "
+					+ "the wall before the teleport fires and arrive standing still. Make it %d m deep or more, or move it off the wall. "
+					+ "(MALLET's play mode catches it either way.)") % [depth, int(SAFE_TP_DEPTH)]
+		if why != e.risk:
+			e.risk = why
+			e._update_material()
+		if why != "":
+			out.append(e)
+	return out
+
+
 func _update_arcs() -> void:
+	check_teleports()
 	_arcs.clear()
 	var targets: Array = ramps_root.get_children() if show_all_arcs else ([selected] if selected is RampNode else [])
 	if _gen_source and is_instance_valid(_gen_source) and not _gen_source in targets:
@@ -7360,6 +7400,13 @@ They're Valve's textures: leave this off and those surfaces get a similar MALLET
 	css_note.add_theme_color_override("font_color", Color(0.72, 0.76, 0.84))
 	box.add_child(css_note)
 	_fields["export_css_note"] = css_note
+	var tp_note := Label.new()
+	tp_note.autowrap_mode = TextServer.AUTOWRAP_WORD
+	tp_note.add_theme_font_size_override("font_size", 12)
+	tp_note.add_theme_color_override("font_color", Color(1.0, 0.6, 0.45))
+	tp_note.custom_minimum_size.x = 520
+	box.add_child(tp_note)
+	_fields["export_tp_note"] = tp_note
 	var note := Label.new()
 	note.text = "If SurfsUp is running and you are replacing a map you already loaded, restart SurfsUp before loading it again."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -7539,6 +7586,12 @@ func _export_clicked() -> void:
 	_fields["export_css"].visible = n_css > 0
 	_fields["export_css_note"].visible = n_css > 0
 	_fields["export_css_note"].text = ("This map uses %d CS:S material%s. They're Valve's textures, copied from your CS:S " 		+ "install when this is on; off, those surfaces get a similar MALLET material.") % [n_css, "" if n_css == 1 else "s"]
+	var risky := check_teleports()
+	_fields["export_tp_note"].visible = not risky.is_empty()
+	_fields["export_tp_note"].text = ("⚠ %s may be missed at high speed in SurfsUp: %s thin and touching a wall, so a fast player can "
+		+ "hit the wall first and arrive standing still. Make %s %d m deep or more, or move %s off the wall (they're red in the views).") % [
+		"1 teleport" if risky.size() == 1 else "%d teleports" % risky.size(), "it's" if risky.size() == 1 else "they're",
+		"it" if risky.size() == 1 else "them", int(SAFE_TP_DEPTH), "it" if risky.size() == 1 else "them"]
 	_export_dialog.size = Vector2i(560, 0)                # (a window never shrinks on its own: fit it to what shows now)
 	_export_dialog.popup_centered()
 	_export_name.grab_focus()

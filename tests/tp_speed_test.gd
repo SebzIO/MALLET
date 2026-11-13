@@ -37,6 +37,26 @@ func _run() -> void:
 		"blocks": [{"shape": "box", "position": [0.0, 80.0, -101.8], "size": [40.0, 40.0, 4.0]},   # (its face 1.3 m into the teleport)
 			{"shape": "box", "position": [-200.0, 80.0, -101.0], "size": [40.0, 40.0, 4.0]}]})
 	await process_frame
+	# the editor's warning (0.24.3): thin and touching solid geometry
+	for i in 3:
+		await physics_frame
+	var risky: Array = ed.check_teleports()
+	var tp1: EntityNode = ed.entities_root.get_child(1)
+	var tp2: EntityNode = ed.entities_root.get_child(3)
+	check("the editor flags a thin teleport that runs into a wall", tp1 in risky and tp1.risk != "", tp1.risk.left(60))
+	check("...but not one clear of the wall", not tp2 in risky)
+	ed._select(tp1)
+	ed._refresh_info()
+	check("...and says why in its info panel", String(ed._info.text).contains("May be missed at speed"))
+	ed._select(null)
+	tp1.from_dict(tp1.to_dict().merged({"size": [20.0, 24.0, 8.0]}, true))
+	for i in 3:
+		await physics_frame
+	check("...nor one made deep enough", not tp1 in ed.check_teleports())
+	tp1.from_dict(tp1.to_dict().merged({"size": [20.0, 24.0, 3.0]}, true))
+	for i in 3:
+		await physics_frame
+	ed.check_teleports()
 	ed._play_clicked()
 	for i in 5:
 		await physics_frame

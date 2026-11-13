@@ -24,6 +24,7 @@ var strength := 1000.0                  ## booster: speed in u/s (SurfsUp units,
 var pitch := 20.0                       ## booster: degrees above horizontal the push points
 var mode := 0                           ## booster: 0 = add to the player's speed, 1 = set it
 var number := 2                         ## stage plate: its stage number; teleport: the stage it sends you to
+var risk := ""                          ## teleport: why it may be missed at speed in SurfsUp ("" = fine; editor.check_teleports)
 var keep_speed := true                  ## teleport: keep the player's velocity (else they stop on the plate)
 var to_dest := false                    ## teleport: goes to destination `number`, not a stage (no stage reached, the
                                         ## respawn stays where it was)
@@ -214,7 +215,7 @@ func set_selected(on: bool) -> void:
 
 
 func _update_material() -> void:
-	var c: Color = KINDS[kind]["color"]
+	var c: Color = KINDS[kind]["color"] if risk == "" else Color(1.0, 0.25, 0.2)   # (at risk: red)
 	_mat.albedo_color = Color(c.r, c.g, c.b, 0.28) if is_volume() else c
 	_mat.emission_enabled = false              # selection is shown with an outline
 

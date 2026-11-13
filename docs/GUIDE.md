@@ -102,6 +102,9 @@ All in the **Add** menu (or their key).
 | Stage plate | T | A checkpoint: reaching it makes it the player's respawn and records a split. Give each a number. |
 | Teleport | Y | Sends players to a stage plate, or to a **teleport destination**, with the same number. |
 | Teleport destination | | Where a teleport set to "A destination" sends players: they keep their speed and look along the arrow, but no stage is reached. |
+
+A teleport that turns **red** with "⚠ may be missed at speed" is thin and touches a wall: in SurfsUp a fast player can
+hit the wall before it fires. Make it 6 m deep or more, or move it off the wall.
 | Kill zone | K | Touching it sends the player back to their respawn. |
 | Booster | J | Pushes players along its arrow: adds to their speed, or sets it. |
 

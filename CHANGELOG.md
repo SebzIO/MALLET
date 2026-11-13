@@ -3,6 +3,13 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.24.3 preview — 2026-11-13: A warning for teleports SurfsUp may miss
+
+- A teleport that is thin (under 6 m across in some direction) and whose box touches solid geometry is flagged: it
+  turns red, its tag in every view reads "⚠ ... may be missed at speed", its info panel says why, and the SurfsUp
+  export window lists it. In SurfsUp a fast player (2000+ u/s) can hit that wall before the teleport fires and arrive
+  standing still; MALLET's play mode catches it since 0.24.2. Make it 6 m deep or more, or move it off the wall.
+
 ## 0.24.2 preview — 2026-11-13: Teleports at speed (fix)
 
 - Fixed: going through a thin teleport whose box runs into a wall at high speed (about 2000+ u/s, depending on the

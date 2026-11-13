@@ -1,4 +1,4 @@
-MALLET 0.24.2 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
+MALLET 0.24.3 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
 ===================================================================================================================
 
 START HERE
@@ -9,6 +9,9 @@ START HERE
   welcome screen). It takes you from an empty map to one your friends can play in ten minutes, then covers
   everything else: ramps, zones, build mode, materials, playing, testing with others and exporting.
 - Everything new, version by version: docs\CHANGELOG.html (Help > What's new).
+
+NEW IN 0.24.3
+- Teleports SurfsUp may miss at speed (thin, touching a wall) turn red with a warning.
 
 NEW IN 0.24.2
 - Fixed: a fast run through a thin teleport next to a wall stopped you dead at the destination.
