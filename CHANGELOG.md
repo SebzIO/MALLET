@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.23.3 preview — 2026-11-12: Particle areas (fixes)
+
+- Fixed: changing a particle effect (Sparks to Rain...) put its area back to the new effect's own and dropped your
+  own color. Now only the effect changes; the area you made and your color stay.
+- Particle effects have **side squares** like zones and blocks: drag one in any view to stretch or shrink the area
+  from that side (the opposite side stays put; snap applies; 0.1 m at the smallest).
+- New test: particle_area_test.
+
 ## 0.23.2 preview — 2026-11-12: Typing boxes behave (fixes)
 
 - Fixed: clicking off a box you were typing in (a booster's "Push angle above horizontal", and every box like it)

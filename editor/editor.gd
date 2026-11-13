@@ -4181,7 +4181,7 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			ov.draw_circle(s, HANDLE_RADIUS, col)
 			if selected.is_locked_point(i):
 				_draw_padlock(ov, s + Vector2(0, -HANDLE_RADIUS - 12), Color(1.0, 0.62, 0.15))
-	elif selected is BlockNode or selected is EntityNode:
+	elif selected is BlockNode or selected is EntityNode or selected is ParticleNode:
 		for fh in selected.face_handles():
 			if cam.is_position_behind(fh[0]):
 				continue
@@ -4344,7 +4344,7 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and event.alt_pressed:
 		_paint_face(pane, event.position)
 		return true
-	if (selected is BlockNode or selected is EntityNode) and selection().size() == 1 and event is InputEventMouseButton \
+	if (selected is BlockNode or selected is EntityNode or selected is ParticleNode) and selection().size() == 1 and event is InputEventMouseButton \
 			and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		var f := _pick_face(pane, event.position)
 		if f >= 0:
@@ -4619,6 +4619,16 @@ func _drag_to(mouse: Vector2, vertical: bool) -> void:
 		_drag_moved = true
 	if _drag != Drag.OBJECT or not _text_surface.is_empty():
 		selected.from_dict(_drag_origin)                 # (shapes and text on faces start over from the drag's start)
+	if _drag == Drag.FACE and selected is ParticleNode:  # (a particle effect's area: stretched by a side)
+		var pfh: Array = selected.face_handles()[_face]
+		var pamount: float = (hit - _drag_start_hit).dot(pfh[1])
+		if snap_enabled:
+			pamount = snappedf(pamount, snap_step)
+		selected.from_dict(ParticleNode.resized(_drag_origin, pfh[2], pfh[3], pamount))
+		var pa: Array = selected.data["area"]
+		_set_status("Area %.2f x %.2f x %.2f m" % [pa[0], pa[1], pa[2]])
+		_refresh_props()
+		return
 	if _drag == Drag.FACE and selected is EntityNode:   # (a zone, kill zone, booster, platform: stretched by a side)
 		var efh: Array = selected.face_handles()[_face]
 		var eamount: float = (hit - _drag_start_hit).dot(efh[1])
@@ -5296,9 +5306,7 @@ func _edit_prop(key: String, value) -> void:
 		var area: Array = (pd["area"] as Array).duplicate()
 		match key:
 			"fx_preset":
-				pd["preset"] = value
-				pd["area"] = (ParticleNode.PRESETS[value]["area"] as Array).duplicate()
-				pd["color"] = ""
+				pd["preset"] = value                     # (only the effect: the area you made and your own color stay)
 			"fx_own_color": pd["color"] = ParticleNode.PRESETS[pd["preset"]]["colors"][1].substr(0, 6) if value else ""
 			"fx_color": pd["color"] = (value as Color).to_html(false)
 			"fx_amount": pd["amount"] = value

@@ -215,6 +215,42 @@ func center() -> Vector3:
 	return global_position
 
 
+const MIN_AREA := 0.1                    ## meters: the smallest an area side can be dragged to
+
+
+## Squares on the area's six sides to stretch or shrink it in the views, like a zone's or a block's (0.23.3):
+## [world point, outward normal, axis, sign].
+func face_handles() -> Array:
+	var a: Array = spec(data)["area"]
+	var h := Vector3(a[0], a[1], a[2]) * 0.5
+	var xf := global_transform
+	var out := []
+	for axis in 3:
+		for sgn in [-1.0, 1.0]:
+			var local := Vector3.ZERO
+			local[axis] = h[axis] * sgn
+			var n := Vector3.ZERO
+			n[axis] = sgn
+			out.append([xf * local, (xf.basis * n).normalized(), axis, sgn])
+	return out
+
+
+## `d` with one side of the area moved `amount` meters along its outward normal; the opposite side stays put.
+static func resized(d: Dictionary, axis: int, sgn: float, amount: float) -> Dictionary:
+	var out := d.duplicate(true)
+	var a: Array = (d.get("area", DEFAULTS["area"]) as Array).duplicate()
+	var new_len := maxf(float(a[axis]) + amount, MIN_AREA)
+	var grow := new_len - float(a[axis])
+	a[axis] = new_len
+	var shift := Vector3.ZERO
+	shift[axis] = grow * 0.5 * sgn
+	var p: Array = d.get("position", [0.0, 0.0, 0.0])
+	var pos := Vector3(p[0], p[1], p[2]) + Basis(Vector3.UP, deg_to_rad(float(d.get("yaw", 0.0)))) * shift
+	out["area"] = a
+	out["position"] = [pos.x, pos.y, pos.z]
+	return out
+
+
 func translate_by(delta: Vector3) -> void:
 	var p: Array = data["position"]
 	data["position"] = [p[0] + delta.x, p[1] + delta.y, p[2] + delta.z]

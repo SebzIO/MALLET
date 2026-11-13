@@ -69,8 +69,9 @@ func _run() -> void:
 	ed._add_particles("fire")
 	var pn: ParticleNode = ed.selected
 	check("adding particles selects a fire effect", pn != null and pn.data["preset"] == "fire" and ed._particle_props.visible)
+	var fire_area: Array = (pn.data["area"] as Array).duplicate()
 	ed._edit_prop("fx_preset", "snow")
-	check("...switching it to snow takes snow's area", pn.data["preset"] == "snow" and pn.data["area"][0] == 20.0)
+	check("...switching it to snow keeps the area (only the effect changes)", pn.data["preset"] == "snow" and pn.data["area"] == fire_area)
 	ed._edit_prop("fx_amount", 2.0)
 	ed._edit_prop("fx_own_color", true)
 	ed._edit_prop("fx_color", Color(1, 0, 0))
