@@ -196,6 +196,7 @@ const BLOCK_LOOKS := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "
 
 
 func _ready() -> void:
+	FieldGuard.install(get_tree())                      # (typing boxes: a click elsewhere takes the value; numbers only)
 	if get_tree().current_scene == self:
 		Migrate.from_surfforge()                         # first start after the rename: bring SurfForge's settings along
 	# The editor draws handles, outlines and arcs from objects' true positions, so the 3D view must not be

@@ -3,6 +3,15 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.23.2 preview — 2026-11-12: Typing boxes behave (fixes)
+
+- Fixed: clicking off a box you were typing in (a booster's "Push angle above horizontal", and every box like it)
+  left you typing in it. Now a click anywhere else ends the typing and takes the value you typed (a value that
+  isn't a number goes back to what it was). Everywhere: the side panel, build mode's panels, the material maker.
+- Number boxes only take numbers: letters never get in (a comma becomes a point). Text boxes - names, search, a
+  sign's words - still take anything.
+- New test: field_guard_test.
+
 ## 0.23.1 preview — 2026-11-12: Spin back to 0, type any value (fixes)
 
 - Fixed: the **Spin** slider in build mode's texture settings (F3) couldn't land on 0 - over -360 to 360 a short
