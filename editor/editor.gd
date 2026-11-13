@@ -4361,6 +4361,38 @@ func _lock_changed() -> void:
 	_map_changed()
 
 
+# ------------------------------------------------------------------------------------------------ ramp alignment (0.27.3)
+const ALIGNED_COLOR := Color(0.35, 1.0, 0.45, 0.95)
+const ALIGN_TOLERANCE_DEG := 0.05
+
+
+## A ramp point pair's line seen in a view: its two ends in that view's plane (top: X / Z, front: Z / Y, side:
+## X / Y; the 3D view: from above, X / Z).
+static func view_coords(p: Vector3, pane: ViewPane) -> Vector2:
+	if pane == null or not pane.is_ortho():
+		return Vector2(p.x, p.z)
+	var b := pane.camera.global_basis
+	return Vector2(p.dot(b.x), p.dot(b.y))
+
+
+## Does a line run at an exact 45° step (level, upright or diagonal) in this plane? Points sharing an X or a Z are
+## level or upright here, so they count.
+static func is_aligned(a: Vector2, b: Vector2) -> bool:
+	var d := b - a
+	if d.length() < 0.001:
+		return false
+	var r := fposmod(rad_to_deg(atan2(d.y, d.x)), 45.0)
+	return r < ALIGN_TOLERANCE_DEG or r > 45.0 - ALIGN_TOLERANCE_DEG
+
+
+## For each pair of neighboring ramp points (i, i + 1): is their line aligned in this view?
+static func aligned_pairs(pts: PackedVector3Array, pane: ViewPane) -> Array:
+	var out := []
+	for i in range(1, pts.size()):
+		out.append(is_aligned(view_coords(pts[i - 1], pane), view_coords(pts[i], pane)))
+	return out
+
+
 func _with_group(o: Node3D) -> Dictionary:
 	var d: Dictionary = o.to_dict()
 	for key in ["group", "name", "folder", "hidden", "locked"]:
@@ -4633,6 +4665,8 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 		_draw_lines(cam, ov, selected.outline_frozen, Color(0.62, 0.64, 0.7, 0.9), 2.0)
 	if selected is RampNode:
 		var pts: PackedVector3Array = selected.points
+		var aligned := aligned_pairs(pts, pane)               # (0.27.3: lines at exact 45° steps in this view)
+		var green_pt := {}
 		for i in pts.size():
 			if cam.is_position_behind(pts[i]):
 				continue
@@ -4640,13 +4674,20 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			if pane.kind == ViewPane.Kind.PERSPECTIVE and not cam.is_position_behind(Vector3(pts[i].x, 0, pts[i].z)):
 				ov.draw_line(s, cam.unproject_position(Vector3(pts[i].x, 0, pts[i].z)), Color(1, 0.85, 0.15, 0.25), 1.0)
 			if i > 0 and not cam.is_position_behind(pts[i - 1]):
-				ov.draw_line(cam.unproject_position(pts[i - 1]), s, Color(1, 0.85, 0.15, 0.35), 1.0)
+				if aligned[i - 1]:
+					ov.draw_line(cam.unproject_position(pts[i - 1]), s, ALIGNED_COLOR, 2.0)
+					green_pt[i - 1] = true
+					green_pt[i] = true
+				else:
+					ov.draw_line(cam.unproject_position(pts[i - 1]), s, Color(1, 0.85, 0.15, 0.35), 1.0)
 		for i in pts.size():
 			if cam.is_position_behind(pts[i]):
 				continue
 			var s := cam.unproject_position(pts[i])
 			var frozen_pt: bool = i <= selected.lock_index()
 			var col := Color(1.0, 0.35, 0.1) if i == selected_point else (Color(0.6, 0.62, 0.68) if frozen_pt else Color(1.0, 0.85, 0.15))
+			if green_pt.has(i):                           # (on an aligned line: a green ring)
+				ov.draw_arc(s, HANDLE_RADIUS + 4.0, 0.0, TAU, 24, ALIGNED_COLOR, 2.5)
 			ov.draw_circle(s, HANDLE_RADIUS + 1.5, Color(0, 0, 0, 0.7))
 			ov.draw_circle(s, HANDLE_RADIUS, col)
 			if selected.is_locked_point(i):

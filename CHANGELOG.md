@@ -3,6 +3,14 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.27.3 preview — 2026-11-13: Ramp point alignment (work order 2, batch 4)
+
+- The line between two neighboring points of the selected ramp turns **green** when it runs at an exact 45° step in
+  that view (level, upright or diagonal - so also when the points share an X or a Z), and both its points get a
+  green ring. Each view checks its own plane (top: X / Z, front: Z / Y, side: X / Y; the 3D view from above), and it
+  follows the points live as you drag them. Snap to grid makes it easy to land on.
+- New test: ramp_align_test.
+
 ## 0.27.2 preview — 2026-11-13: Build mode's light and texture settings in the side panel (work order 2, batch 3)
 
 - A selected light's side panel has everything build mode's F4 has: the **color cycle** (more colors with + / -, each
