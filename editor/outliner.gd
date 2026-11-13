@@ -3,8 +3,9 @@ extends VBoxContainer
 ## The Outliner: every object in the map in one list - ramps, platforms, zones, blocks, text, lights, props and cube
 ## objects - with names you choose, in folders you make (folders can hold folders). Click an object to select it;
 ## click a folder to select everything in it (then drag it in any view to move the lot). Drag items onto a folder to
-## file them, double-click to rename, the eye hides things in the editor views. Names and folders save with the map
-## (and come along in copy / paste and prefabs).
+## file them, double-click to rename, the eye hides things in the editor views, the padlock locks them (0.24.0: a
+## locked object can't be moved, edited or deleted, or picked in the views; a locked folder locks everything in it).
+## Names, folders and locks save with the map (and come along in copy / paste and prefabs).
 
 const KIND_COLORS := {"RampNode": Color(0.35, 0.6, 1.0), "EntityNode": Color(0.35, 0.85, 0.45), "BlockNode": Color(0.65, 0.68, 0.72),
 	"TextNode": Color(0.95, 0.95, 0.95), "LightNode": Color(1.0, 0.85, 0.3), "ParticleNode": Color(1.0, 0.5, 0.8), "PropNode": Color(1.0, 0.55, 0.25),
@@ -21,6 +22,9 @@ var _syncing := false
 var _icons := {}
 var _eye: Texture2D
 var _eye_off: Texture2D
+var _lock_on: Texture2D
+var _lock_off: Texture2D
+var _lock_folder: Texture2D              ## locked because its folder is
 var _menu_item: TreeItem
 var _anchor: TreeItem                    ## where a Shift-click range starts (the last plain or Ctrl click)
 var _pending_single: TreeItem            ## pressed on an already-selected item: becomes the only one on release (no drag)
@@ -50,11 +54,13 @@ func _ready() -> void:
 	filter.text_changed.connect(func(_t): refresh(true))
 	add_child(filter)
 	tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tree.columns = 2
+	tree.columns = 3
 	tree.hide_root = true
 	tree.select_mode = Tree.SELECT_MULTI
 	tree.set_column_expand(1, false)
 	tree.set_column_custom_minimum_width(1, 28)
+	tree.set_column_expand(2, false)
+	tree.set_column_custom_minimum_width(2, 28)
 	tree.allow_rmb_select = true
 	tree.drop_mode_flags = Tree.DROP_MODE_ON_ITEM | Tree.DROP_MODE_INBETWEEN
 	tree.multi_selected.connect(func(_i, _c, _s): _tree_selection_changed.call_deferred())
@@ -66,7 +72,7 @@ func _ready() -> void:
 	tree.set_drag_forwarding(_get_drag, _can_drop, _drop)
 	add_child(tree)
 	var tip := Label.new()
-	tip.text = "Click: select  ·  folder: select all in it  ·  drag onto a folder to file  ·  double-click: rename  ·  right-click: more"
+	tip.text = "Click: select  ·  folder: select all in it  ·  drag onto a folder to file  ·  double-click: rename  ·  padlock: lock  ·  right-click: more"
 	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tip.add_theme_font_size_override("font_size", 11)
 	tip.add_theme_color_override("font_color", Color(0.6, 0.64, 0.7))
@@ -75,6 +81,9 @@ func _ready() -> void:
 	add_child(_menu)
 	_eye = _make_eye(true)
 	_eye_off = _make_eye(false)
+	_lock_on = _make_lock(true, Color(1.0, 0.72, 0.25))
+	_lock_off = _make_lock(false, Color(0.45, 0.47, 0.52))
+	_lock_folder = _make_lock(true, Color(0.7, 0.55, 0.3))
 
 
 func _process(_delta: float) -> void:
@@ -179,6 +188,63 @@ func delete_folder(id: String) -> void:
 	refresh(true)
 
 
+# ------------------------------------------------------------------------------------------------ locks
+## Locked: by its own padlock, or because a folder it is in (at any depth) is locked.
+func is_locked(o: Node) -> bool:
+	return bool(o.get_meta("locked", false)) or folder_locked(String(o.get_meta("folder", "")))
+
+
+## A folder is locked by its own padlock or by a folder above it.
+func folder_locked(id: String) -> bool:
+	var guard := 0
+	while id != "" and guard < 64:
+		guard += 1
+		var f := folder(id)
+		if f.is_empty():
+			return false
+		if bool(f.get("locked", false)):
+			return true
+		id = String(f.get("parent", ""))
+	return false
+
+
+func set_locked(objs: Array, on: bool) -> void:
+	for o in objs:
+		if on:
+			o.set_meta("locked", true)
+		elif o.has_meta("locked"):
+			o.remove_meta("locked")
+		editor._co_touch(o)
+	editor._lock_changed()
+	refresh(true)
+
+
+func set_folder_locked(id: String, on: bool) -> void:
+	var f := folder(id)
+	if f.is_empty():
+		return
+	if on:
+		f["locked"] = true
+	else:
+		f.erase("locked")
+	editor._co_send_folders()
+	editor._lock_changed()
+	refresh(true)
+
+
+static func _make_lock(closed: bool, c: Color) -> Texture2D:
+	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	img.fill_rect(Rect2i(3, 8, 10, 7), c)                # the body
+	img.fill_rect(Rect2i(7, 10, 2, 3), Color(0.1, 0.1, 0.12, 1.0))   # the keyhole
+	var lift := 0 if closed else 2                       # (open: the shackle lifted, its left leg out)
+	img.fill_rect(Rect2i(5, 2 - lift + 2, 6, 2), c)      # the shackle's top
+	img.fill_rect(Rect2i(10, 4 - lift + 2, 2, 4 + lift - 2), c)   # its right leg
+	if closed:
+		img.fill_rect(Rect2i(4, 4, 2, 4), c)             # its left leg, into the body
+	return ImageTexture.create_from_image(img)
+
+
 func set_hidden(objs: Array, hidden: bool) -> void:
 	for o in objs:
 		o.visible = not hidden
@@ -198,7 +264,7 @@ func refresh(force := false) -> void:
 	var objs: Array = editor._all_objects()
 	var sig := PackedStringArray([filter.text, str(folders)])
 	for o in objs:
-		sig.append("%d|%s|%s|%s" % [o.get_instance_id(), name_of(o), o.get_meta("folder", ""), o.visible])
+		sig.append("%d|%s|%s|%s|%s" % [o.get_instance_id(), name_of(o), o.get_meta("folder", ""), o.visible, o.get_meta("locked", false)])
 	var s := "\n".join(sig)
 	if s == _signature and not force:
 		return
@@ -225,6 +291,10 @@ func refresh(force := false) -> void:
 			var inside := objects_in(f["id"])
 			var all_hidden := not inside.is_empty() and inside.all(func(o): return not o.visible)
 			it.add_button(1, _eye_off if all_hidden else _eye, 0, false, "Show / hide everything in it")
+			var own_lock := bool(f.get("locked", false))
+			var above := folder_locked(String(f.get("parent", "")))
+			it.add_button(2, _lock_on if own_lock else (_lock_folder if above else _lock_off), 1, false,
+				"Unlock this folder" if own_lock else ("Locked by a folder it is in" if above else "Lock everything in this folder"))
 			items[f["id"]] = it
 			pending.erase(f)
 	var q := filter.text.strip_edges().to_lower()
@@ -240,8 +310,14 @@ func refresh(force := false) -> void:
 		it.set_metadata(0, {"object": o})
 		it.set_tooltip_text(0, "%s%s" % [o.label() if o.has_method("label") else "", " (in a group)" if o.has_meta("group") else ""])
 		it.add_button(1, _eye if o.visible else _eye_off, 0, false, "Show / hide in the editor views")
+		var own := bool(o.get_meta("locked", false))
+		var by_folder := folder_locked(fid)
+		it.add_button(2, _lock_on if own else (_lock_folder if by_folder else _lock_off), 1, false,
+			"Unlock it" if own else ("Locked by its folder (unlock the folder)" if by_folder else "Lock it: it can't be moved, edited or deleted"))
 		if not o.visible:
 			it.set_custom_color(0, Color(0.55, 0.57, 0.62))
+		elif own or by_folder:
+			it.set_custom_color(0, Color(1.0, 0.82, 0.55))
 	_syncing = false
 	sync_selection()
 
@@ -467,9 +543,23 @@ func rename(meta: Dictionary, new_name: String) -> void:
 	refresh.call_deferred(true)
 
 
-func _button_clicked(item: TreeItem, _col: int, _id: int, _mb: int) -> void:
+func _button_clicked(item: TreeItem, col: int, _id: int, _mb: int) -> void:
 	var meta = item.get_metadata(0)
 	editor._checkpoint()
+	if col == 2:                                         # the padlock
+		if meta.has("object"):
+			var o: Node3D = meta["object"]
+			if not bool(o.get_meta("locked", false)) and folder_locked(String(o.get_meta("folder", ""))):
+				editor._set_status("It's locked by its folder: unlock the folder (its padlock) to change it.")
+				return
+			set_locked([o], not bool(o.get_meta("locked", false)))
+		elif meta.has("folder"):
+			var fid: String = meta["folder"]
+			if not bool(folder(fid).get("locked", false)) and folder_locked(String(folder(fid).get("parent", ""))):
+				editor._set_status("A folder it is in is locked: unlock that one.")
+				return
+			set_folder_locked(fid, not bool(folder(fid).get("locked", false)))
+		return
 	if meta.has("object"):
 		var o: Node3D = meta["object"]
 		set_hidden([o], o.visible)
@@ -562,6 +652,9 @@ func _open_menu(at_mouse := Vector2(-1, -1)) -> void:
 	_menu.add_item("Hide", 4)
 	_menu.add_item("Show", 5)
 	_menu.add_item("Show everything", 6)
+	_menu.add_separator()
+	_menu.add_item("Lock", 10)
+	_menu.add_item("Unlock", 11)
 	if not editor.selection().is_empty():
 		_menu.add_separator()
 		_menu.add_item("Duplicate (Ctrl+D)", 8)
@@ -611,6 +704,14 @@ func _menu_pressed(id: int) -> void:
 				delete_folder((it.get_metadata(0) as Dictionary)["folder"])
 		8: editor._duplicate_clicked()
 		9: editor._delete_clicked()
+		10, 11:
+			editor._checkpoint()
+			var it := tree.get_selected()
+			var meta = it.get_metadata(0) if it else null
+			if meta is Dictionary and meta.has("folder") and objs.is_empty():
+				set_folder_locked(meta["folder"], id == 10)
+			else:
+				set_locked(objs, id == 10)
 
 
 # ------------------------------------------------------------------------------------------------ icons

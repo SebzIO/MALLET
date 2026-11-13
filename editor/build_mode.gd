@@ -396,6 +396,8 @@ func _left_down(shift: bool, ctrl: bool) -> void:
 		return
 	if blend_mode > 0:
 		var m = target["model"]
+		if m != null and _refuse_locked(m):
+			return
 		if m != null and target["hit"]:
 			_drag = "paint"
 			(m as CubeModelNode).world.begin()
@@ -404,6 +406,8 @@ func _left_down(shift: bool, ctrl: bool) -> void:
 		return
 	if target.get("entity") != null:
 		var ent: Node3D = target["entity"]
+		if _refuse_locked(ent):
+			return
 		if ctrl:
 			if ent in ent_sel:
 				ent_sel.erase(ent)
@@ -571,6 +575,14 @@ func _toggle(what: String) -> void:
 
 
 ## The selection, or if there's none the face under the crosshair.
+## Locked in the Outliner (0.24.0): build mode leaves it alone and says so. True = stop.
+func _refuse_locked(o) -> bool:
+	if editor == null or not editor.has_method("is_locked") or not editor.is_locked(o):
+		return false
+	say("%s is locked: unlock it in the Outliner (the padlock) to change it" % editor.outliner.name_of(o))
+	return true
+
+
 func op_sel() -> Dictionary:
 	if not sel.is_empty():
 		return sel
@@ -683,6 +695,8 @@ func wheel(dir: int) -> void:
 ## Run an edit on a selection's cube object (making a new object if it's the first cube): one undo step.
 func _edit(s: Dictionary, fn: Callable):
 	var m: CubeModelNode = s.get("model")
+	if m != null and is_instance_valid(m) and _refuse_locked(m):
+		return null
 	var created := false
 	if m == null or not is_instance_valid(m) or not m.is_inside_tree():
 		m = CubeModelNode.new()
@@ -856,6 +870,8 @@ func paste() -> void:
 	var dest: Vector3 = _frame(s.get("model")) * (Vector3(s["o"]) * CubeWorld.TICK)
 	if clip.has("cubes"):
 		var out = _edit(s, func(w: CubeWorld): return w.paste(s, clip))
+		if out == null:
+			return                                       # (pasting into a locked object: refused)
 		sel = (out as Dictionary).duplicate()
 		sel["model"] = model
 	if clip.has("ents") and not clip.has("cubes") and target.get("hit", false) and target.get("entity") == null:
@@ -1074,6 +1090,8 @@ func _end_selmove(shift: bool) -> void:
 # ------------------------------------------------------------------------------------------------ moving cubes (editcut)
 func _start_cut() -> void:
 	var m: CubeModelNode = sel["model"]
+	if _refuse_locked(m):
+		return
 	m.world.begin()
 	_drag = "cut"
 	_cut = {"model": m, "applied": Vector3i.ZERO, "start": _plane_cell(sel)}

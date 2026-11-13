@@ -122,6 +122,10 @@ Make your own textures and materials, or change existing ones, inside MALLET.
 - [x] Spin and swirl texture motion on ramps and cube faces (CS:S: spin) (0.23.0).
 - [x] Water / lava / glass looks per fill ("water:pool" cells), the map's look as the default (0.23.0).
 
+## 0.24.0: Locking (added 2026-11-12)
+- [x] Lock objects and folders in the Outliner: no moving, editing, deleting or picking in the views; build mode
+      respects it; saved, undoable, synced (0.24.0).
+
 ## 0.18.0 → 1.0.0: Release candidate
 - [x] **Geometry menu** (0.18.0) and its fixes (0.18.1-0.18.5): nine shapes cut from octree cells, one flat cut face
       per cell, whole cones and cylinders, sliders that keep up, a typed value that sticks, and a preview built on a

@@ -1,4 +1,4 @@
-MALLET 0.23.3 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
+MALLET 0.24.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
 ===================================================================================================================
 
 START HERE
@@ -9,6 +9,9 @@ START HERE
   welcome screen). It takes you from an empty map to one your friends can play in ten minutes, then covers
   everything else: ramps, zones, build mode, materials, playing, testing with others and exporting.
 - Everything new, version by version: docs\CHANGELOG.html (Help > What's new).
+
+NEW IN 0.24.0
+- Lock objects and folders with the Outliner's padlock: locked things can't be moved, edited or deleted.
 
 NEW IN 0.23.3
 - Particle effects keep their area when you change the effect, and have side squares to resize them.

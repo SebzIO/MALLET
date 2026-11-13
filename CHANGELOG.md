@@ -3,6 +3,20 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.24.0 preview — 2026-11-12: Locking
+
+- **Lock things so they stay put**: every object in the Outliner has a **padlock** next to its eye (right-click >
+  Lock / Unlock does the same for a selection). A locked object can't be moved, edited or deleted: it can't be
+  dragged, nudged with the arrows, turned, extended or bent, its panel and handles are off, and clicks in the views
+  go straight through it (box select and Select all leave it out too). In build mode its cubes can't be changed and
+  a locked light or zone can't be grabbed.
+- **Lock a folder** and everything in it is locked, folders inside it too.
+- Selected in the Outliner, a locked object is outlined in amber and the side panel says it's locked, with
+  **Unlock** (which also unlocks the folder that locks it). It can still be copied (the copy isn't locked), hidden,
+  renamed and filed.
+- Locks save with the map, undo like any change, and reach co-editors.
+- New test: lock_objects_test.
+
 ## 0.23.3 preview — 2026-11-12: Particle areas (fixes)
 
 - Fixed: changing a particle effect (Sparks to Rain...) put its area back to the new effect's own and dropped your

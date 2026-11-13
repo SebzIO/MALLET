@@ -404,7 +404,7 @@ func _build_ui_main() -> void:
 	_menu(bar, "Edit ▾", [
 		["Copy", KEY_MASK_CTRL | KEY_C, _copy], ["Paste", KEY_MASK_CTRL | KEY_V, _paste_clicked],
 		["Duplicate", KEY_MASK_CTRL | KEY_D, _duplicate_clicked], ["Delete", KEY_DELETE, _delete_clicked], [],
-		["Select all", KEY_MASK_CTRL | KEY_A, func(): _set_selection(_all_objects())],
+		["Select all", KEY_MASK_CTRL | KEY_A, func(): _set_selection(_all_objects().filter(func(o): return not is_locked(o)))],
 		["Group", KEY_MASK_CTRL | KEY_G, _group], ["Ungroup", KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_G, _ungroup],
 		["Save selection as prefab\u2026", KEY_NONE, _save_prefab_clicked], [],
 		["Extend ramp", KEY_NONE, _extend_clicked], ["Add bend to ramp", KEY_NONE, _bend_clicked],
@@ -490,6 +490,7 @@ func _build_ui_main() -> void:
 	props.add_theme_constant_override("separation", 8)
 	margin.add_child(props)
 	_build_props(props)
+	_build_lock_cover()
 
 	# the Outliner, on the left: every object by name, in folders
 	_outliner_panel = PanelContainer.new()
@@ -1256,6 +1257,7 @@ func _set_field(key: String, v: float) -> void:
 func _refresh_props() -> void:
 	if outliner.is_inside_tree():
 		outliner.sync_selection.call_deferred()
+	_update_lock_cover()
 	_gen_props.visible = _gen_ramp != null
 	if _gen_ramp:
 		_map_props.visible = false
@@ -1872,7 +1874,7 @@ func _restore_dict(data: Dictionary) -> void:
 			var o: Node3D
 			if not spare.is_empty():
 				o = spare.pop_front()
-				for key in ["group", "name", "folder", "hidden"]:
+				for key in ["group", "name", "folder", "hidden", "locked"]:
 					if o.has_meta(key) and not d.has(key):
 						o.remove_meta(key)
 				if not d.get("hidden", false):
@@ -2680,7 +2682,7 @@ func _toggle_fullscreen() -> void:
 
 ## L: lock the selected point, or unlock it if it already is a lock.
 func _lock_toggle() -> void:
-	if not selected is RampNode:
+	if not selected is RampNode or _deny_locked():
 		return
 	if selected_point >= 0 and selected.is_locked_point(selected_point):
 		_unlock_clicked()
@@ -2945,7 +2947,7 @@ func block_to_cube(b: BlockNode) -> Dictionary:
 	m.world.begin()
 	m.world.set_cell(Vector3i.ZERO, p, CubeWorld.FULL.duplicate(), tex)
 	m.world.commit()
-	for key in ["group", "name", "folder", "hidden"]:   # (keeps its place in the Outliner)
+	for key in ["group", "name", "folder", "hidden", "locked"]:   # (keeps its place in the Outliner)
 		if b.has_meta(key):
 			m.set_meta(key, b.get_meta(key))
 	if bool(b.get_meta("hidden", false)):
@@ -3840,6 +3842,8 @@ func _paint_face(pane: ViewPane, mouse: Vector2) -> void:
 	if hit.is_empty() or not hit.collider.has_meta("block"):
 		_set_status("Alt+click a block's face to paint it with the last material you picked.")
 		return
+	if _deny_locked([hit.collider.get_meta("block")]):
+		return
 	if _paint == "":
 		_set_status("Pick a material first (select a block, then Material), then Alt+click faces to paint them.")
 		return
@@ -3889,6 +3893,8 @@ func _finish_marquee() -> void:
 		return
 	var hits := []
 	for o in _all_objects():
+		if is_locked(o):
+			continue
 		var c: Vector3 = o.center()
 		if not pane.camera.is_position_behind(c) and r.has_point(pane.camera.unproject_position(c)):
 			for m in _group_of(o):
@@ -3902,9 +3908,108 @@ func _finish_marquee() -> void:
 	_set_status("%d selected" % cur.size())
 
 
+# ------------------------------------------------------------------------------------------------ locks (0.24.0)
+## Locked in the Outliner (its own padlock or a folder's): it can't be moved, edited or deleted, or picked in the
+## views. It can still be selected in the Outliner, copied, hidden, renamed and filed.
+func is_locked(o) -> bool:
+	return o != null and is_instance_valid(o) and outliner != null and outliner.is_locked(o)
+
+
+## True (and says so) when any of `objs` (default: the selection) is locked: the caller stops.
+func _deny_locked(objs = null) -> bool:
+	var list: Array = selection() if objs == null else objs
+	for o in list:
+		if is_locked(o):
+			_set_status("%s is locked: unlock it in the Outliner (the padlock) to change it." % outliner.name_of(o))
+			return true
+	return false
+
+
+var _lock_cover: Control
+
+
+## Over the side panel while something locked is selected: what it is, and an Unlock button.
+func _build_lock_cover() -> void:
+	_lock_cover = Control.new()
+	_lock_cover.visible = false
+	_lock_cover.mouse_filter = Control.MOUSE_FILTER_STOP
+	_props_panel.add_child(_lock_cover)
+	var dim := ColorRect.new()
+	dim.color = Color(0.09, 0.1, 0.12, 0.95)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_lock_cover.add_child(dim)
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	box.offset_top = 70
+	box.offset_left = 20
+	box.offset_right = -20
+	box.add_theme_constant_override("separation", 10)
+	_lock_cover.add_child(box)
+	var t := Label.new()
+	t.text = "Locked"
+	t.add_theme_font_size_override("font_size", 22)
+	t.add_theme_color_override("font_color", Color(1.0, 0.75, 0.3))
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(t)
+	var why := Label.new()
+	why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	why.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	why.custom_minimum_size.x = 260
+	box.add_child(why)
+	_fields["lock_why"] = why
+	var b := Button.new()
+	b.text = "Unlock"
+	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(unlock_selection)
+	box.add_child(b)
+	_fields["lock_unlock"] = b
+
+
+func _update_lock_cover() -> void:
+	if _lock_cover == null:
+		return
+	var locked := selection().filter(func(o): return is_locked(o))
+	_lock_cover.visible = not locked.is_empty()
+	if locked.is_empty():
+		return
+	var by_folder := locked.any(func(o): return not bool(o.get_meta("locked", false)))
+	(_fields["lock_why"] as Label).text = ("%s can't be moved, edited or deleted%s." % [
+		outliner.name_of(locked[0]) if locked.size() == 1 else "%d of the selected objects" % locked.size(),
+		" (its folder is locked)" if by_folder else ""]) + "\nYou can still copy it, hide it and rename it."
+	(_fields["lock_unlock"] as Button).text = "Unlock the folder" if by_folder and locked.all(func(o): return not bool(o.get_meta("locked", false))) else "Unlock"
+
+
+## The cover's Unlock: the selected objects' own locks, and any folder that locks them.
+func unlock_selection() -> void:
+	_checkpoint()
+	var objs := selection().filter(func(o): return is_locked(o))
+	outliner.set_locked(objs, false)
+	for o in objs:
+		var fid := String(o.get_meta("folder", ""))
+		var guard := 0
+		while fid != "" and guard < 64:
+			guard += 1
+			var f: Dictionary = outliner.folder(fid)
+			if f.is_empty():
+				break
+			if bool(f.get("locked", false)):
+				outliner.set_folder_locked(fid, false)
+			fid = String(f.get("parent", ""))
+	_set_status("Unlocked.")
+
+
+## A lock was set or taken off: a drag in progress stops, the panel shows it.
+func _lock_changed() -> void:
+	if _drag != Drag.NONE and _deny_locked():
+		_drag = Drag.NONE
+	_update_lock_cover()
+	_map_changed()
+
+
 func _with_group(o: Node3D) -> Dictionary:
 	var d: Dictionary = o.to_dict()
-	for key in ["group", "name", "folder", "hidden"]:
+	for key in ["group", "name", "folder", "hidden", "locked"]:
 		if o.has_meta(key):
 			d[key] = o.get_meta(key)
 	return d
@@ -3920,6 +4025,10 @@ func _take_group(o: Node3D, d: Dictionary) -> void:
 	if d.get("hidden", false):
 		o.set_meta("hidden", true)
 		o.visible = false
+	if d.get("locked", false):
+		o.set_meta("locked", true)
+	elif o.has_meta("locked"):
+		o.remove_meta("locked")
 
 
 ## Ctrl+G: the selected objects become one group (clicking any of them selects them all).
@@ -4048,7 +4157,7 @@ func _paste(data: Dictionary, offset: Vector3, quiet := false) -> Array:
 ## Reverse a ramp's direction of travel without moving any of it: the points run the other way, and what was
 ## the left face is now the right face (half ramps and Freeform faces swap sides to stay where they are).
 func _flip_clicked() -> void:
-	if not selected is RampNode:
+	if not selected is RampNode or _deny_locked():
 		return
 	var r := selected as RampNode
 	if not r.frozen.is_empty():
@@ -4159,6 +4268,9 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			_draw_lines(cam, ov, o.outline if o is RampNode else o.outline_lines(), Color(0.55, 0.85, 1.0, 0.7), 1.5)
 	var lines: Array[PackedVector3Array] = selected.outline if selected is RampNode else selected.outline_lines()
 	_draw_lines(cam, ov, lines, Color(0.3, 0.75, 1.0, 0.95), 2.0)   # selection outline (keeps the real color visible)
+	if is_locked(selected):                        # locked: an amber outline and no handles (nothing to drag)
+		_draw_lines(cam, ov, lines, Color(1.0, 0.7, 0.25, 0.95), 2.0)
+		return
 	if selected is RampNode:                       # the locked part: muted
 		_draw_lines(cam, ov, selected.outline_frozen, Color(0.62, 0.64, 0.7, 0.9), 2.0)
 	if selected is RampNode:
@@ -4466,7 +4578,7 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_G when ctrl:
 			if e.shift_pressed: _ungroup()
 			else: _group()
-		KEY_A when ctrl: _set_selection(_all_objects())
+		KEY_A when ctrl: _set_selection(_all_objects().filter(func(o): return not is_locked(o)))
 		KEY_N: _add_ramp_clicked()
 		KEY_O when e.shift_pressed:                      # Shift+O: draw blocks (O is a block; D is for flying)
 			if _draw_mode or _hovered_pane() == null or _hovered_pane().is_ortho():
@@ -4536,7 +4648,7 @@ func _pick_object(pane: ViewPane, mouse: Vector2, through_to_selected := false) 
 				break
 		if obj == null:
 			break                                        # not an object: try the ramp ridges below
-		if obj.is_visible_in_tree():
+		if obj.is_visible_in_tree() and not is_locked(obj):   # (locked: clicks go through it)
 			if not through_to_selected or obj in sel_now:
 				return obj
 			if first == null:
@@ -4548,6 +4660,8 @@ func _pick_object(pane: ViewPane, mouse: Vector2, through_to_selected := false) 
 	var best: Node3D = null
 	var best_d := PICK_PIXELS
 	for ramp in ramps_root.get_children():
+		if is_locked(ramp) or not ramp.is_visible_in_tree():
+			continue
 		var path := RampShape.sample_path(ramp.points, 4.0, ramp.corner if ramp.path == "corners" else -1.0)
 		for i in range(1, path.size()):
 			if pane.camera.is_position_behind(path[i]) or pane.camera.is_position_behind(path[i - 1]):
@@ -4562,6 +4676,8 @@ func _pick_object(pane: ViewPane, mouse: Vector2, through_to_selected := false) 
 
 
 func _begin_drag(pane: ViewPane, kind: int, mouse: Vector2, vertical: bool, point := -1) -> void:
+	if _deny_locked():
+		return
 	_drag = kind
 	_drag_pane = pane
 	_drag_moved = false
@@ -4711,7 +4827,7 @@ func _end_drag() -> void:
 
 ## Double-click on the selected ramp: add a control point on the path where you clicked.
 func _insert_point_at_mouse(pane: ViewPane, mouse: Vector2) -> void:
-	if _pick_object(pane, mouse) != selected:
+	if _pick_object(pane, mouse) != selected or _deny_locked():
 		return
 	var r := pane.ray(mouse)
 	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(r[0], r[0] + r[1] * 20000.0))
@@ -4732,7 +4848,7 @@ func _insert_point_at_mouse(pane: ViewPane, mouse: Vector2) -> void:
 
 
 func _nudge(key: int) -> void:
-	if selected == null:
+	if selected == null or _deny_locked():
 		return
 	var step := snap_step if snap_enabled else 1.0
 	var d := Vector3.ZERO
@@ -4762,7 +4878,7 @@ func _nudge(key: int) -> void:
 
 
 func _rotate_selected(deg: float) -> void:
-	if selected == null:
+	if selected == null or _deny_locked():
 		return
 	_checkpoint("rotate")
 	var objs := selection()
@@ -4811,7 +4927,7 @@ func _add_ramp_clicked() -> void:
 ## Open the ramp creator, loaded with the selected ramp's design (or the last one worked on).
 func _open_ramp_creator() -> void:
 	ramp_creator.env = environment.duplicate(true)
-	ramp_creator.has_target = selected is RampNode
+	ramp_creator.has_target = selected is RampNode and not is_locked(selected)   # (a locked ramp: design a new one)
 	ramp_creator.target_locked = selected is RampNode and not (selected as RampNode).frozen.is_empty()
 	if selected is RampNode:
 		ramp_creator.set_design((selected as RampNode).to_dict(), (selected as RampNode).design)
@@ -5118,7 +5234,7 @@ func _add_entity(kind: String, zone_only := false) -> void:
 
 
 func _extend_clicked() -> void:
-	if not selected is RampNode:
+	if not selected is RampNode or _deny_locked():
 		return
 	_checkpoint()
 	var r := selected as RampNode
@@ -5133,7 +5249,7 @@ func _extend_clicked() -> void:
 
 
 func _bend_clicked() -> void:
-	if not selected is RampNode:
+	if not selected is RampNode or _deny_locked():
 		return
 	_checkpoint()
 	var r := selected as RampNode
@@ -5201,7 +5317,7 @@ func _duplicate_clicked() -> void:
 
 
 func _delete_clicked() -> void:
-	if selected == null:
+	if selected == null or _deny_locked():
 		return
 	if selected is RampNode and selected_point >= 0 and selected_point <= selected.lock_index():
 		_set_status("Point %d is locked: unlock it before deleting it." % selected_point)
@@ -5293,6 +5409,9 @@ func frame_course(cam: OrbitCamera, aspect: float) -> void:
 
 
 func _edit_prop(key: String, value) -> void:
+	if selected != null and not _updating_ui and _deny_locked():
+		_refresh_props()                                 # (the control goes back to what the object has)
+		return
 	_map_changed()
 	if key.begins_with("env_"):
 		_edit_env(key.substr(4), value)
@@ -6578,7 +6697,7 @@ func _co_track(o) -> void:
 func _co_cube_props(o: CubeModelNode) -> Dictionary:
 	var d := {"position": [snappedf(o.position.x, 0.001), snappedf(o.position.y, 0.001), snappedf(o.position.z, 0.001)],
 		"yaw": snappedf(o.yaw, 0.001)}
-	for key in ["group", "name", "folder", "hidden"]:
+	for key in ["group", "name", "folder", "hidden", "locked"]:
 		if o.has_meta(key):
 			d[key] = o.get_meta(key)
 	return d

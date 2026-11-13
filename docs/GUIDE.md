@@ -53,6 +53,11 @@ own settings (sky, sun, fog) when nothing is.
 Page Up / Page Down nudge the selection by the grid step. **Snap to grid** (top bar) makes points land on the grid.
 Ctrl+Z / Ctrl+Y undo and redo; Ctrl+S saves (`.mallet` files).
 
+**Locking.** Click the padlock next to anything in the Outliner (or right-click > Lock) to lock it: it can't be moved,
+edited or deleted, and clicks in the views go straight through it to what's behind. Lock a folder and everything in
+it is locked. A locked object can still be selected in the Outliner (the side panel says it's locked and has an
+Unlock button), copied, hidden, renamed and filed. In build mode a locked cube object can't be changed either.
+
 ## 2. A first map in ten minutes
 
 1. Pick **Blank** on the welcome screen. You get a start platform (green) and a finish (blue).
