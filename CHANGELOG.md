@@ -3,6 +3,13 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.27.1 preview — 2026-11-13: Side panel sections (work order 2, batch 2)
+
+- The side panel is split into titled sections for the map and for every kind of object: Position; for a ramp
+  Direction and sections, Shape, Path and turning, Look; for a block Shape and size, Material, Look, Liquid; for a
+  light Kind and effect, Brightness and reach; for the map Sky, Build mode water / lava / glass, Sun and light, Fog and
+  reflections; and the same for zones, teleports, boosters, cube objects, text, props and particles.
+
 ## 0.27.0 preview — 2026-11-13: New menus (work order 2, batch 1)
 
 - The toolbar is grouped: **File** | Add, Edit, View | Undo, Redo | Build, Play | **Playtest** | **Options**, Help.

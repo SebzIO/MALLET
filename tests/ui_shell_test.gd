@@ -72,6 +72,20 @@ func _run() -> void:
 			order.append((c as Button).text.get_slice(" ", 0))
 	var want := ["File", "Add", "Edit", "View", "Undo", "Redo", "Build", "▶", "Playtest", "Options", "Help"]
 	check("the toolbar's order", order.slice(0, want.size()) == want, str(order))
+	# ---- the side panel's titled sections (0.27.1)
+	var titles := func(box: Node) -> Array:
+		return box.find_children("*", "VBoxContainer", true, false).filter(func(c): return c.has_meta("section")).map(func(c): return c.get_meta("section"))
+	var want_sections := {"_ramp_props": ["Shape", "Path and turning", "Look"], "_light_props": ["Kind and effect", "Brightness and reach"],
+		"_block_props": ["Shape and size", "Material", "Look", "Liquid"], "_map_props": ["Sky", "Sun and light", "Fog and reflections"],
+		"_particle_props": ["Effect", "Area"], "_text_props": ["Text", "Size and facing", "Look"], "_entity_props": ["Size and facing"],
+		"_cube_panel": ["Cube object"], "_prop_props": ["Model"]}
+	var missing_sections := []
+	for k in want_sections:
+		var got: Array = titles.call(ed.get(k))
+		for t in want_sections[k]:
+			if not t in got:
+				missing_sections.append("%s: %s" % [k, t])
+	check("every side panel is split into titled sections", missing_sections.is_empty(), str(missing_sections))
 	ed._set_playtest_panel(true)
 	await process_frame
 	check("View > Playtest panel shows it", ed._playtest_panel.visible)

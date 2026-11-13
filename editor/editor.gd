@@ -524,6 +524,24 @@ func _build_ui_main() -> void:
 	_build_css_dialog()
 
 
+## A titled section of the side panel (0.27.1): a little room above, the title, a thin line under it.
+func _section(parent: Container, title: String) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	var gap := Control.new()
+	gap.custom_minimum_size.y = 6
+	box.add_child(gap)
+	var l := Label.new()
+	l.text = title
+	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_color_override("font_color", Color(0.55, 0.78, 1.0))
+	box.add_child(l)
+	box.add_child(HSeparator.new())
+	box.set_meta("section", title)
+	parent.add_child(box)
+	return box
+
+
 func _build_props(props: VBoxContainer) -> void:
 	var head := Label.new()
 	head.add_theme_font_size_override("font_size", 20)
@@ -534,6 +552,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_ramp_props = VBoxContainer.new()
 	_ramp_props.add_theme_constant_override("separation", 6)
 	props.add_child(_ramp_props)
+	_section(_ramp_props, "Direction and sections")
 	var flip := Button.new()
 	flip.text = "⇄  Flip direction"
 	flip.focus_mode = Control.FOCUS_NONE
@@ -542,6 +561,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_ramp_props.add_child(flip)
 	_fields["flip"] = flip
 	_build_lock_props()
+	_section(_ramp_props, "Shape")
 	var shape := OptionButton.new()
 	shape.add_item("V ramp (surf either side)")
 	shape.add_item("Half ramp (surf the left side)")
@@ -613,6 +633,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_freeform_box.add_child(ff_note)
 	_add_slider(_freeform_box, "angle_right", "Right face angle (°)", 10.0, 89.0, 0.5)
 	_add_slider(_freeform_box, "face_length_right", "Right face length (m)", 2.0, 60.0, 0.25)
+	_section(_ramp_props, "Path and turning")
 	var pathb := OptionButton.new()                      # the spine's path (0.19.6)
 	pathb.add_item("Straight, rounded at the points")
 	pathb.add_item("Smooth curve through the points")
@@ -624,6 +645,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_add_slider(_ramp_props, "ramp_pitch", "Pitch (°)", -90.0, 90.0, 0.5)
 	_add_slider(_ramp_props, "ramp_yaw", "Yaw (°)", -180.0, 180.0, 0.5)
 	_add_slider(_ramp_props, "roll", "Roll (°)", -45.0, 45.0, 0.5)
+	_section(_ramp_props, "Look")
 	var look := OptionButton.new()
 	for k in Look.LOOK_ORDER:
 		look.add_item(Look.RAMP_LOOKS[k][0])
@@ -686,6 +708,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_cube_panel = VBoxContainer.new()
 	_cube_panel.visible = false
 	props.add_child(_cube_panel)
+	_section(_cube_panel, "Cube object")
 	var eb := Button.new()
 	eb.text = "Edit its cubes in build mode (E)"
 	eb.focus_mode = Control.FOCUS_NONE
@@ -704,6 +727,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_entity_props = VBoxContainer.new()
 	_entity_props.add_theme_constant_override("separation", 6)
 	props.add_child(_entity_props)
+	_section(_entity_props, "Size and facing")
 	_add_slider(_entity_props, "size_x", "Width (m)", 4.0, 200.0, 1.0)
 	_add_slider(_entity_props, "size_z", "Depth (m)", 4.0, 200.0, 1.0)
 	_add_slider(_entity_props, "size_y", "Height (m)", 2.0, 200.0, 1.0)
@@ -716,6 +740,8 @@ func _build_props(props: VBoxContainer) -> void:
 	goes.add_item("A destination (just moves you on)")
 	goes.focus_mode = Control.FOCUS_NONE
 	goes.item_selected.connect(func(i): _edit_prop("tp_to", i == 1))
+	_section(_stage_props, "Number and target")
+	_stage_props.move_child(_stage_props.get_child(_stage_props.get_child_count() - 1), 0)
 	_add_row(_stage_props, "Goes to", goes)
 	_fields["tp_to"] = goes
 	_add_slider(_stage_props, "number", "Stage number", 1.0, 50.0, 1.0)
@@ -735,6 +761,7 @@ func _build_props(props: VBoxContainer) -> void:
 	_booster_props = VBoxContainer.new()
 	_booster_props.add_theme_constant_override("separation", 6)
 	_entity_props.add_child(_booster_props)
+	_section(_booster_props, "Push")
 	_add_slider(_booster_props, "pitch", "Push angle above horizontal (°)", -89.0, 89.0, 1.0)
 	_add_slider(_booster_props, "strength", "Strength (u/s)", 50.0, 5000.0, 50.0)
 	var mode := OptionButton.new()
@@ -792,6 +819,7 @@ func _build_map_props(props: VBoxContainer) -> void:
 			environment.merge(keep, true)
 			_apply_environment()
 			_refresh_props())
+	_section(_map_props, "Sky")
 	_add_row(_map_props, "Sky preset", preset)
 	_fields["env_preset"] = preset
 	# the sky itself: MALLET's built-in sky (colors, stars, aurora, nebula below) or one of your own sky shaders
@@ -823,6 +851,7 @@ func _build_map_props(props: VBoxContainer) -> void:
 	sky_more.add_theme_constant_override("separation", 6)
 	builtin.add_child(sky_more)
 	_fields["env_sky_more"] = sky_more
+	_section(_map_props, "Build mode water, lava and glass")
 	for spec in [["water_look", "Build mode water", Look.LIQUID_ORDER.filter(func(k): return Look.LIQUIDS[k]["style"] == "water"), Look.LIQUIDS],
 			["lava_look", "Build mode lava", Look.LIQUID_ORDER.filter(func(k): return Look.LIQUIDS[k]["style"] == "lava"), Look.LIQUIDS],
 			["glass_look", "Build mode glass", Look.GLASS_ORDER, Look.GLASS]]:
@@ -840,12 +869,14 @@ func _build_map_props(props: VBoxContainer) -> void:
 		more.add_theme_constant_override("separation", 6)
 		_map_props.add_child(more)
 		_fields["env_" + key + "_more"] = more
+	_section(_map_props, "Sun and light")
 	for spec in [["sun_color", "Sun color"], ["ambient_color", "Shadow fill color"], ["fog_color", "Fog color"]]:
 		_env_color(_map_props, spec[0], spec[1])
 	_add_slider(_map_props, "env_sun_yaw", "Sun direction (°)", -180.0, 180.0, 1.0)
 	_add_slider(_map_props, "env_sun_pitch", "Sun height (°)", 0.0, 90.0, 1.0)
 	_add_slider(_map_props, "env_sun_energy", "Sun brightness", 0.0, 3.0, 0.05)
 	_add_slider(_map_props, "env_ambient_energy", "Shadow fill brightness", 0.0, 3.0, 0.05)
+	_section(_map_props, "Fog and reflections")
 	var fog := CheckButton.new()
 	fog.text = "Fog"
 	fog.focus_mode = Control.FOCUS_NONE
@@ -1510,6 +1541,7 @@ func _refresh_props() -> void:
 		_fields["block_side"].get_parent().get_child(_fields["block_side"].get_index() - 1).visible = not b.is_cutter()
 		_fields["block_uv_box"].visible = not b.is_cutter() and fs["material"] != ""
 		_fields["block_look_box"].visible = not b.is_cutter()
+		(_fields["block_look_section"] as Control).visible = not b.is_cutter()
 		var is_water: bool = b.data.get("water", false)
 		_fields["block_water_box"].visible = is_water
 		_fields["block_water_color"].color = Color.html(b.data.get("water_color", "1f6b8c"))
@@ -2829,6 +2861,7 @@ func _build_prop_props(props: VBoxContainer) -> void:
 	_prop_props.add_theme_constant_override("separation", 6)
 	_prop_props.visible = false
 	props.add_child(_prop_props)
+	_section(_prop_props, "Model")
 	var file := Label.new()
 	file.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	_prop_props.add_child(file)
@@ -2897,6 +2930,7 @@ func _build_block_props(props: VBoxContainer) -> void:
 	_block_props.add_theme_constant_override("separation", 6)
 	_block_props.visible = false
 	props.add_child(_block_props)
+	_fields["block_shape_section"] = _section(_block_props, "Shape and size")
 	var shape := OptionButton.new()
 	for k in BlockShape.SHAPES:
 		shape.add_item(BlockShape.LABELS[k])
@@ -2935,10 +2969,7 @@ func _build_block_props(props: VBoxContainer) -> void:
 	cutter.toggled.connect(func(on): _edit_prop("block_cutter", on))
 	_block_props.add_child(cutter)
 	_fields["block_cutter"] = cutter
-	var mat_head := Label.new()
-	mat_head.text = "Material"
-	mat_head.add_theme_font_size_override("font_size", 15)
-	_block_props.add_child(mat_head)
+	var mat_head := _section(_block_props, "Material")
 	_fields["block_mat_head"] = mat_head
 	var side := OptionButton.new()
 	side.add_item("All sides")
@@ -2963,6 +2994,7 @@ func _build_block_props(props: VBoxContainer) -> void:
 	_add_slider(uv_box, "block_uv_u", "Texture shift across", 0.0, 1.0, 0.01)
 	_add_slider(uv_box, "block_uv_v", "Texture shift up", 0.0, 1.0, 0.01)
 	_add_slider(uv_box, "block_uv_rot", "Texture turn (\u00b0)", -180.0, 180.0, 5.0)
+	_fields["block_look_section"] = _section(_block_props, "Look")
 	var look_box := VBoxContainer.new()
 	_block_props.add_child(look_box)
 	_fields["block_look_box"] = look_box
@@ -2983,6 +3015,7 @@ func _build_block_props(props: VBoxContainer) -> void:
 	var water_box := VBoxContainer.new()
 	_block_props.add_child(water_box)
 	_fields["block_water_box"] = water_box
+	_section(water_box, "Liquid")
 	var lq := OptionButton.new()                          # a liquid preset: water, pool, sea, lake, swamp, river, acid, lava...
 	for k in Look.LIQUID_ORDER:
 		lq.add_item(Look.LIQUIDS[k]["label"])
@@ -3180,6 +3213,7 @@ var _pos_state := {}                                ## what the fields show: {ob
 
 
 func _build_position_box(props: VBoxContainer) -> void:
+	_fields["pos_section"] = _section(props, "Position")
 	_pos_box = GridContainer.new()
 	_pos_box.columns = 2
 	_pos_box.add_theme_constant_override("h_separation", 8)
@@ -3197,6 +3231,8 @@ func _build_position_box(props: VBoxContainer) -> void:
 		_pos_box.add_child(dn)
 		_pos_fields.append(dn)
 	_pos_box.visible = false
+	if _fields.has("pos_section"):
+		(_fields["pos_section"] as Control).visible = false
 
 
 ## The direction field i moves along: world X / Y / Z, or the face's across / up / out for text on a face.
@@ -3233,6 +3269,7 @@ func _move_selection_along(i: int, amount: float) -> void:
 func _refresh_position() -> void:
 	var obj = selected if selected != null and selected.has_method("center") and selected.has_method("translate_by") else null
 	_pos_box.visible = obj != null and _gen_ramp == null
+	(_fields["pos_section"] as Control).visible = _pos_box.visible
 	if obj == null:
 		_pos_state = {}
 		return
@@ -3256,6 +3293,7 @@ func _build_light_props(props: VBoxContainer) -> void:
 	_light_props.add_theme_constant_override("separation", 6)
 	_light_props.visible = false
 	props.add_child(_light_props)
+	_section(_light_props, "Kind and effect")
 	var preset := OptionButton.new()                     # a starting point: torch, neon strip, alarm...
 	preset.add_item("Pick a preset…")
 	for k in LightNode.PRESET_ORDER:
@@ -3287,6 +3325,8 @@ func _build_light_props(props: VBoxContainer) -> void:
 	cp.color_changed.connect(func(c): _edit_prop("light_color", c))
 	_add_row(_light_props, "Color", cp)
 	_fields["light_color"] = cp
+	_section(_light_props, "Brightness and reach")
+	_light_props.move_child(_light_props.get_child(_light_props.get_child_count() - 1), _light_props.get_child_count() - 3)
 	_add_slider(_light_props, "light_energy", "Brightness", 0.0, 16.0, 0.1)
 	_add_slider(_light_props, "light_range", "Reach (m)", 1.0, 2000.0, 1.0)
 	var strip := VBoxContainer.new()
@@ -3314,6 +3354,7 @@ func _build_particle_props(props: VBoxContainer) -> void:
 	_particle_props.add_theme_constant_override("separation", 6)
 	_particle_props.visible = false
 	props.add_child(_particle_props)
+	_section(_particle_props, "Effect")
 	var preset := OptionButton.new()
 	for k in ParticleNode.PRESET_ORDER:
 		preset.add_item(ParticleNode.PRESETS[k]["label"])
@@ -3335,6 +3376,7 @@ func _build_particle_props(props: VBoxContainer) -> void:
 	_add_slider(_particle_props, "fx_amount", "Amount (x the preset)", 0.1, 5.0, 0.1)
 	_add_slider(_particle_props, "fx_size", "Size (x)", 0.2, 5.0, 0.1)
 	_add_slider(_particle_props, "fx_speed", "Speed (x)", 0.1, 4.0, 0.1)
+	_section(_particle_props, "Area")
 	_add_slider(_particle_props, "fx_area_x", "Area width (m)", 0.1, 200.0, 0.1)
 	_add_slider(_particle_props, "fx_area_y", "Area height (m)", 0.1, 100.0, 0.1)
 	_add_slider(_particle_props, "fx_area_z", "Area depth (m)", 0.1, 200.0, 0.1)
@@ -3479,6 +3521,7 @@ func _build_text_props(props: VBoxContainer) -> void:
 	_text_props.add_theme_constant_override("separation", 6)
 	_text_props.visible = false
 	props.add_child(_text_props)
+	_section(_text_props, "Text")
 	var te := TextEdit.new()                             # multi-line: Enter starts a new line
 	te.placeholder_text = "Type your text (Enter for a new line)"
 	te.custom_minimum_size = Vector2(0, 74)
@@ -3517,6 +3560,7 @@ func _build_text_props(props: VBoxContainer) -> void:
 	align.item_selected.connect(func(i): _edit_prop("text_align", ["left", "center", "right"][i]))
 	_add_row(_text_props, "Align", align)
 	_fields["text_align"] = align
+	_section(_text_props, "Size and facing")
 	_add_slider(_text_props, "text_height", "Text size (letter height, m)", 0.25, 100.0, 0.25)
 	_add_slider(_text_props, "text_depth", "Depth (m)", 0.05, 20.0, 0.05)
 	_add_slider(_text_props, "text_yaw", "Facing (\u00b0)", -180.0, 180.0, 5.0)
@@ -3528,6 +3572,7 @@ func _build_text_props(props: VBoxContainer) -> void:
 	solid.toggled.connect(func(on): _edit_prop("text_solid", on))
 	_text_props.add_child(solid)
 	_fields["text_solid"] = solid
+	_section(_text_props, "Look")
 	var look := VBoxContainer.new()
 	_text_props.add_child(look)
 	_fields["text_look_box"] = look
