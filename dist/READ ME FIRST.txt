@@ -1,0 +1,36 @@
+MALLET 0.22.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
+===================================================================================================================
+
+START HERE
+- Unzip the whole folder somewhere (keep MALLET.exe, MALLET.pck and the "materials" folder together) and
+  double-click MALLET.exe. Windows may say "Windows protected your PC" (the program isn't signed): click
+  "More info", then "Run anyway".
+- The guide: docs\GUIDE.html (or Help > The MALLET guide inside MALLET, or "New here? Read the guide" on the
+  welcome screen). It takes you from an empty map to one your friends can play in ten minutes, then covers
+  everything else: ramps, zones, build mode, materials, playing, testing with others and exporting.
+- Everything new, version by version: docs\CHANGELOG.html (Help > What's new).
+
+NEW IN 0.22.0
+- The guide (docs\GUIDE.html), a Help menu, and a fifth template: Cube Park, built in build mode, with a teleport
+  that keeps your speed.
+- Fixed: the Geometry menu's triangular prism ignored its Length.
+
+NEW IN 0.21.0
+- Make your own materials or change existing ones: material picker > Make / edit a material (or right-click a
+  material). "+ Ridge line" puts a line along a ramp's ridge. Your materials travel inside the maps that use them.
+
+NEW IN 0.20.0
+- Play mode practice tools: hold left / right mouse to turn, Q / E save and load your position, 2-9 go to a
+  stage, N noclip, T shows the triggers.
+
+WHAT WE'D LOVE YOU TO TEST
+- Follow the guide's "A first map in ten minutes" from a blank map. Where did you get stuck?
+- Make a material with the material maker and use it on a ramp, then export the map to SurfsUp and CS:S.
+- Co-edit with a friend (guide section 8) and send a friend a test build.
+- Anything that breaks, looks wrong or is confusing: tell whoever sent you MALLET what you did, what you expected
+  and what happened.
+
+GOOD TO KNOW
+- Save with Ctrl+S; maps are .mallet files. Older SurfForge .sfmap maps still open.
+- Export > To SurfsUp needs SurfsUp installed; Export > To Counter-Strike: Source needs CS:S installed.
+- F1 in build mode shows every key on screen.

@@ -3,8 +3,27 @@ extends RefCounted
 ## The one place MALLET's version lives. 0.x = previews: the middle number goes up with each batch of new
 ## features, the last with bug-fix releases. 1.0 is the first release we call complete (the MVP).
 
-const VERSION := "0.21.0"
+const VERSION := "0.22.0"
 const CHANNEL := "preview"
+## One line for the welcome screen: what this version brought.
+const NEWS := "the MALLET guide (Help menu), a Cube Park template, your own materials (in the material picker), practice tools in play mode."
+
+
+## The guide (docs/GUIDE.html next to MALLET.exe; in the project, res://docs/GUIDE.html), or another page in docs.
+static func doc_path(file := "GUIDE.html") -> String:
+	var shipped := OS.get_executable_path().get_base_dir().path_join("docs").path_join(file)
+	if FileAccess.file_exists(shipped):
+		return shipped
+	return ProjectSettings.globalize_path("res://docs/" + file)
+
+
+## Open a page of the docs in the browser. False if it isn't there.
+static func open_doc(file := "GUIDE.html") -> bool:
+	var p := doc_path(file)
+	if not FileAccess.file_exists(p):
+		return false
+	OS.shell_open("file:///" + p.replace("\\", "/"))
+	return true
 
 
 static func full() -> String:

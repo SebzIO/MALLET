@@ -42,6 +42,8 @@ func surface_y(cells: Array, x: float, z: float) -> float:
 
 func _run() -> void:
 	# turning
+	var pr := ShapeGen.generate("prism", {"w": 4.0, "h": 3.0, "l": 12.0}, 0, 1)
+	check("a prism is as long as its Length (it used to stay 4)", pr.has("size") and is_equal_approx((pr["size"] as Vector3).z, 12.0), str(pr.get("size")))
 	var plain := ShapeGen.generate("box", {"w": 4.0, "h": 2.0, "d": 3.0}, 0, 2)
 	var turned := ShapeGen.generate("box", {"w": 4.0, "h": 2.0, "d": 3.0, "yaw": 30.0, "pitch": 10.0}, 0, 3)
 	var a0 := area(plain["cells"])

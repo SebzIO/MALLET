@@ -446,7 +446,7 @@ static func _spec(id: String, vals: Dictionary, grid: float) -> Dictionary:
 		v[p[0]] = maxf(float(vals.get(p[0], p[2])), 0.0)
 	var w := float(v.get("w", 4.0)) * grid
 	var h := float(v.get("h", 2.0)) * grid
-	var d := float(v.get("d", 4.0)) * grid
+	var d := float(v.get("d", v.get("l", 4.0))) * grid   # (the prism calls its depth "Length": l)
 	match id:
 		"box":
 			return {"type": "box", "size": Vector3(w, h, d), "planes": [

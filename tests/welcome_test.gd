@@ -20,7 +20,7 @@ func _run() -> void:
 	var ok := true
 	var paths := WelcomeScreen.template_paths()
 	print("templates: ", paths.size())
-	ok = ok and paths.size() == 4
+	ok = ok and paths.size() == 5
 	ok = ok and not ed.welcome.visible                 # tests don't get greeted
 	ed._new_map_clicked()
 	ok = ok and ed.welcome.visible
@@ -29,7 +29,7 @@ func _run() -> void:
 		var tr: TextureRect = c.get_child(0).get_child(0)
 		thumbs += 1 if tr.texture is CompressedTexture2D else 0   # (the imported texture: raw PNGs are not in an exported build)
 	print("cards with thumbnails: ", thumbs)
-	ok = ok and thumbs == 4
+	ok = ok and thumbs == 5
 	await shot(out + "/welcome.png")
 	var before: int = ed.ramps_root.get_child_count()
 	ed.welcome.template_chosen.emit("res://templates/4_aurora_night.mallet")

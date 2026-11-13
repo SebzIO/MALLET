@@ -238,6 +238,11 @@ func has_unsaved_changes() -> bool:
 	return current_path == "" or _state_text() != _saved_state
 
 
+func _exit_tree() -> void:
+	TextNode.collect_tasks(true)                        # (no finished worker task left for shutdown: see TextNode._tasks)
+	TextShape.release_fonts()
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN and is_inside_tree() and world_env != null:
 		_rescan_shaders()
@@ -427,6 +432,10 @@ func _build_ui_main() -> void:
 	_menu(bar, "Export ▾", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked], [],
 		["Playtest session…", KEY_NONE, _playtest_clicked], [],
 		["Test build for testers…", KEY_NONE, _test_build_clicked], ["Import tester runs…", KEY_NONE, _import_runs_clicked]])
+	_menu(bar, "Help ▾", [["The MALLET guide (opens in your browser)", KEY_NONE, _open_guide],
+		["What's new (every version)", KEY_NONE, func(): MalletVersion.open_doc("CHANGELOG.html")], [],
+		["Build mode keys: press F1 in build mode", KEY_NONE, func(): _set_status("In build mode (E), F1 shows every key on screen.")],
+		["Start a new map (templates)", KEY_NONE, _new_map_clicked]])
 	bar.add_child(VSeparator.new())
 	var snap := CheckButton.new()
 	snap.text = "Snap to grid"
@@ -3692,6 +3701,11 @@ func _own_image_dialog() -> FileDialog:
 		_ui_root.add_child(d)
 		_fields["own_image_dialog"] = d
 	return _fields["own_image_dialog"]
+
+
+func _open_guide() -> void:
+	if not MalletVersion.open_doc():
+		_set_status("The guide isn't here: it should be docs/GUIDE.html next to MALLET.exe.")
 
 
 func _picker_thumb_input(e: InputEvent, id: String) -> void:

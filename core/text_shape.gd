@@ -45,6 +45,12 @@ static func transform_of(s: Dictionary) -> Transform3D:
 	return Transform3D(b, Vector3(p[0], p[1], p[2]))
 
 
+## Let go of the cached fonts when the editor closes, so they are freed while Godot's text server is still up (a
+## static var is only cleared after it). The exit crash itself was TextNode's uncollected worker tasks.
+static func release_fonts() -> void:
+	_fonts.clear()
+
+
 ## An installed font by name, or a font file (.ttf / .otf / .woff).
 static func font(name: String) -> Font:
 	if _fonts.has(name):

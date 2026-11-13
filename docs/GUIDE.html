@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>The MALLET guide</title><style>
+:root { color-scheme: dark; --bg: #1c1f26; --panel: #252a33; --text: #dde2ea; --dim: #9aa3b2; --accent: #6cb6ff; --line: #3a404c; }
+body { background: var(--bg); color: var(--text); font: 16px/1.55 "Segoe UI", system-ui, sans-serif; margin: 0; }
+main { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+h1 { font-size: 34px; margin: 0 0 12px; }
+h2 { font-size: 24px; margin: 40px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+h3 { font-size: 19px; margin: 24px 0 8px; }
+a { color: var(--accent); }
+code { background: var(--panel); padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
+li { margin: 4px 0; }
+</style></head><body><main>
+<h1 id="the-mallet-guide">The MALLET guide</h1>
+<p>MALLET (Mapping And Level Layout Editor Tool) makes surf maps for <b>SurfsUp</b> and <b>Counter-Strike: Source</b>. This guide takes you from an empty map to one your friends can play, then covers everything else MALLET can do. Every key is listed at the end.</p>
+<ul><li><a href="#1-start">1. Start</a></li><li><a href="#2-a-first-map-in-ten-minutes">2. A first map in ten minutes</a></li><li><a href="#3-ramps">3. Ramps</a></li><li><a href="#4-platforms-stages-and-zones">4. Platforms, stages and zones</a></li><li><a href="#5-playing-your-map">5. Playing your map</a></li><li><a href="#6-build-mode-building-with-cubes">6. Build mode: building with cubes</a></li><li><a href="#7-how-it-looks">7. How it looks: materials, the material maker, sky, lights</a></li><li><a href="#8-working-with-others">8. Working with others: testers and co-editing</a></li><li><a href="#9-exporting">9. Exporting</a></li><li><a href="#10-keys">10. Keys</a></li><li><a href="#11-good-to-know">11. Good to know</a></li></ul>
+<hr>
+<h2 id="1-start">1. Start</h2>
+<p>Unzip the whole MALLET folder somewhere and keep <code>MALLET.exe</code>, <code>MALLET.pck</code> and the <code>materials</code> folder together. Double-click <code>MALLET.exe</code>. Windows may say "Windows protected your PC" because the program isn't signed: click <b>More info</b>, then <b>Run anyway</b>.</p>
+<p>The <b>welcome screen</b> offers ready-made maps. Each one is a complete map you can play straight away (P):</p>
+<table>
+<tr><th>Template</th><th>What it shows you</th></tr>
+<tr><td>Blank</td><td>Just a start and a finish.</td></tr>
+<tr><td>First Surf</td><td>Five ramps in a big U: a classic surf to take apart.</td></tr>
+<tr><td>Three Stages</td><td>Stages joined by teleports; falling off sends you back to your stage.</td></tr>
+<tr><td>Aurora Night</td><td>Glowing ramps at night and a booster across a big gap.</td></tr>
+</table>
+<p><b>The window.</b> The middle is four views: <b>Top</b>, <b>Front</b>, <b>Side</b> (flat, 2D) and <b>3D</b>. Space makes the view under the mouse fill the window (Space again: back to four). On the left, the <b>Outliner</b> lists everything in the map, in folders if you like. On the right, the <b>panel</b> shows the settings of whatever is selected, or the map's own settings (sky, sun, fog) when nothing is.</p>
+<p><b>Moving around.</b></p>
+<table>
+<tr><th></th><th>2D views</th><th>3D view</th></tr>
+<tr><td>Look around</td><td></td><td>right mouse drag (orbit)</td></tr>
+<tr><td>Fly</td><td></td><td>hold right mouse + W A S D, Q / E down / up, Shift faster</td></tr>
+<tr><td>Pan</td><td>middle mouse drag</td><td>middle mouse drag</td></tr>
+<tr><td>Zoom</td><td>mouse wheel</td><td>mouse wheel</td></tr>
+<tr><td>Frame the selection</td><td>F</td><td>F</td></tr>
+</table>
+<p><b>Selecting and moving.</b> Click an object to select it (Ctrl+click adds or removes one; drag on empty space in a 2D view to box-select); drag it to move it (Shift while dragging: up and down). Arrow keys and Page Up / Page Down nudge the selection by the grid step. <b>Snap to grid</b> (top bar) makes points land on the grid. Ctrl+Z / Ctrl+Y undo and redo; Ctrl+S saves (<code>.mallet</code> files).</p>
+<h2 id="2-a-first-map-in-ten-minutes">2. A first map in ten minutes</h2>
+<ol><li>Pick <b>Blank</b> on the welcome screen. You get a start platform (green) and a finish (blue).</li><li>Press <b>N</b> for a ramp. It appears in front of the camera. Drag its round points in the Top view to aim it, and in the Front or Side view to drop it downhill.</li><li>Watch the <b>jump arc</b> (the dotted line off the end of the ramp): it is where a player at your map's speed would fly. Move the next ramp, or the finish, under it.</li><li>Press <b>N</b> again for the next ramp, or select a ramp and use <b>Edit &gt; Extend ramp</b> to carry it on.</li><li>Press <b>P</b> to play from the start. Surf it. <b>Esc</b> brings you back.</li><li><b>Ctrl+S</b> to save, then <b>Export &gt; To SurfsUp…</b> and type a name. In SurfsUp, open the console (~) and type <code>map &lt;name&gt;</code>.</li></ol>
+<h2 id="3-ramps">3. Ramps</h2>
+<p>Select a ramp to see its settings in the panel.</p>
+<ul><li><b>Shape</b>: a V ramp (surf either side) or a half ramp (one side only); <b>angle</b> and <b>face length</b> for how steep and how wide; <b>Solid</b> gives it a flat bottom, <b>Hollow</b> leaves it open underneath.</li><li><b>Path</b>: <i>Straight, rounded at the points</i> (new ramps: straight runs with a round corner at each point) or <i>Smooth curve through the points</i> (older maps).</li><li><b>Points</b>: drag them. Click a point and press <b>L</b> to lock it so its section keeps its own settings. <b>Edit &gt; Add bend to ramp</b> adds a point in the middle.</li><li><b>Pitch, yaw and roll</b> turn the whole ramp; roll banks it.</li><li><b>Look</b>: a color, a built-in look (ceramic, grid, neon...), an image of yours, a <b>material</b> from the library, or your own shader. The texture settings turn, shift, scroll it or make it see-through.</li></ul>
+<p><b>Generate a ramp shape (R)</b> builds whole runs (curves, spirals, zig-zags) from a few numbers.</p>
+<p><b>The ramp creator</b> (Add menu, or the button in a ramp's panel) shapes a ramp's cross-section: drag points on its faces, give it a flat top, and shape each end (tapered, rounded, flared, cut diagonally, a lip that launches riders up, or closed). Orange marks parts too flat to surf. Save designs as <b>ramp prefabs</b> (<code>.malletramp</code> files) to reuse and share; eleven come with MALLET.</p>
+<h2 id="4-platforms-stages-and-zones">4. Platforms, stages and zones</h2>
+<p>All in the <b>Add</b> menu (or their key).</p>
+<table>
+<tr><th>Thing</th><th>Key</th><th>What it does</th></tr>
+<tr><td>Start platform</td><td>B</td><td>Where runs begin. Players can't leave it faster than 400 u/s.</td></tr>
+<tr><td>Finish platform</td><td>M</td><td>Landing in it finishes the run.</td></tr>
+<tr><td>Stage plate</td><td>T</td><td>A checkpoint: reaching it makes it the player's respawn and records a split. Give each a number.</td></tr>
+<tr><td>Teleport</td><td>Y</td><td>Sends players to a stage plate, or to a <b>teleport destination</b>, with the same number.</td></tr>
+<tr><td>Teleport destination</td><td></td><td>Where a teleport set to "A destination" sends players: they keep their speed and look along the arrow, but no stage is reached.</td></tr>
+<tr><td>Kill zone</td><td>K</td><td>Touching it sends the player back to their respawn.</td></tr>
+<tr><td>Booster</td><td>J</td><td>Pushes players along its arrow: adds to their speed, or sets it.</td></tr>
+</table>
+<p>Built your own start or finish out of ramps or cubes? <b>Start / Finish / Stage zone (on your own platform)</b> adds just the zone box. Zones can be stretched by the small squares on their sides.</p>
+<h2 id="5-playing-your-map">5. Playing your map</h2>
+<ul><li><b>P</b> plays from the start. In build mode, <b>Ctrl+P</b> plays from where you are.</li><li><b>R</b> restarts, <b>Backspace</b> goes back to your last stage, <b>Esc</b> returns to the editor.</li><li>Your best run is kept with the map as a <b>ghost</b>; View &gt; Best run path draws it.</li></ul>
+<p><b>Practice tools</b> (they make the run <i>practice</i>: the timer says PRACTICE and the finish doesn't count):</p>
+<table>
+<tr><th>Key</th><th></th></tr>
+<tr><td>hold left / right mouse</td><td>turn left / right at a steady speed (turn binds; speed in View &gt; Mouse sensitivity)</td></tr>
+<tr><td>Q / E</td><td>save your position (with speed and view) / go back to it</td></tr>
+<tr><td>2-9</td><td>go to that stage (1 restarts, like R)</td></tr>
+<tr><td>N</td><td>noclip: fly through everything (W A S D, Space up, Ctrl down, Shift faster)</td></tr>
+<tr><td>T</td><td>show or hide the zones, teleports, boosters and kill zones</td></tr>
+</table>
+<h2 id="6-build-mode-building-with-cubes">6. Build mode: building with cubes</h2>
+<p>Press <b>E</b> (or <b>Build</b> in the top bar). You fly in first person and build with cubes, the way Cube 2: Sauerbraten's editor works. <b>F1</b> shows every key on screen. Each build is a <b>cube object</b>: back in the editor you can move, turn and copy it like anything else (<b>N</b> in build mode starts a new one).</p>
+<p>The basics:</p>
+<ul><li>Aim at a face and roll the <b>mouse wheel</b>: cubes come out of it (or go back in).</li><li><b>G + wheel</b> changes the grid (the cube size). <b>F + wheel</b> pushes a face in 1/8 at a time; <b>Q + wheel</b> one corner. Middle drag selects corners to shape.</li><li><b>Left drag</b> selects faces; <b>right click</b> extends the selection; <b>right drag</b> moves the selection box (with Shift: leaves a copy). <b>C / V</b> copy and paste, <b>Delete</b> deletes, <b>Z / I</b> undo and redo.</li><li><b>Y + wheel</b> changes texture, <b>Y</b> picks up the one you aim at, <b>F2</b> opens the texture menu, <b>F3</b> the texture settings (scale, turn, shift, fit to the selection, presets).</li><li><b>H</b> (or hold Alt) is the heightmap: shape hills with the wheel; <b>B + wheel</b> sets the brush. <b>Shift+H</b> is an experimental heightmap that adds random shapes.</li><li><b>T</b> opens the menu for materials (water, lava, glass, clip, death...), fills, replace, and placing kill zones.</li><li><b>Tab</b> places lights, platforms and zones; <b>1-4 + wheel</b> changes their settings. <b>F4</b> is the light panel.</li><li><b>F6</b> is the geometry menu: spheres, cylinders, cones, ramps, stairs, quarter pipes, halfpipes and more, sized and turned with sliders, saved as presets.</li></ul>
+<h2 id="7-how-it-looks">7. How it looks</h2>
+<p><b>Materials.</b> A ramp's or block's Look can be a <b>material</b>: hundreds of real textures (concrete, metal, wood, glowing signs...) in the material picker, with a search box. In build mode the texture menu is the same library. If Counter-Strike: Source is installed, its textures appear too. <b>+ Your own image…</b> adds any PNG / JPG / WebP.</p>
+<p><b>The material maker</b> makes your own materials or changes existing ones. In the material picker click <b>Make / edit a material…</b>, or right-click any material to start from it.</p>
+<ul><li>Start from a material (or a plain color), then stack <b>layers</b>: color changes (hue, saturation, brightness, contrast), fills, stripes and lines, rectangles, ellipses, text, images and painting.</li><li>Every layer has a color, opacity and blend (mix, add, multiply, subtract). Move, hide, copy or delete layers any time; nothing is final until you save, and even then you can open it again.</li><li><b>Paint</b>: add a Paint layer, then drag on the picture. Shift+drag paints a straight line, Ctrl+Z undoes a stroke.</li><li><b>A line along a ramp's ridge</b>: click <b>+ Ridge line</b>. It turns on <b>Fit across a ramp</b>: on ramps the picture spans the riding surface once from edge to edge, so the middle is the ridge (the <b>Ramp guide</b> shows it). Lines at the very left and right run along the ramp's edges.</li><li>Saved materials appear under <b>Made by you</b>. <b>Save</b> changes it everywhere it's used; <b>Save as new</b> keeps both.</li><li>Your materials (and images you added) travel inside the maps that use them, so a map opens the same on a friend's PC.</li></ul>
+<p><b>The map's look</b> (the panel with nothing selected): the sky (MALLET's own, or your sky shader), sun, fog, and the colors of build mode's water, lava and glass.</p>
+<p><b>Lights</b> (U, or Tab in build mode): point lights, spot lights and light strips (neon, tubes), with presets (torch, campfire, alarm, party...), effects (flicker, pulse, strobe) and color cycles. <b>Particles</b>: fire, smoke, sparks, snow, rain, mist and more. <b>Text</b> (X) puts signs on surfaces. <b>Props</b> (I) are glTF models. <b>Water</b> (H) is a water block with presets.</p>
+<p><b>Your own shaders</b>: View &gt; Your shaders folder… Put Godot <code>.gdshader</code> files there: sky shaders show up under the map's Sky, surface shaders in a Look ("Your own shader"). See <code>docs/SHADERS.md</code>.</p>
+<h2 id="8-working-with-others">8. Working with others</h2>
+<p><b>Test builds.</b> Export &gt; Test build for testers… makes a zip you can send to anyone: a test program with no editor that drops them on your map and records every attempt (time, splits, falls, route) in a "tester runs" folder. Get that folder back and use Export &gt; Import tester runs…; View &gt; Testers' paths draws their routes.</p>
+<p><b>Live playtesting.</b> Export &gt; Playtest session… (leave the code empty) opens a session. Test builds made while it is open report live: the <b>Playtest panel</b> shows who is on, where they are, their attempts and times, and the 3D view shows each tester as a dot with a trail.</p>
+<p><b>Co-editing.</b> Start a session the same way, then <b>Copy invite</b> on the Playtest panel and send it. The other person opens Export &gt; Playtest session…, ticks <b>Join as a co-editor</b> and clicks <b>Paste invite</b>. From then on both copies of the map change together: every edit, build mode cubes, materials, the map's sky. You see each other's camera, mouse and selection. Undo only takes back your own work. The map's owner can remove someone.</p>
+<h2 id="9-exporting">9. Exporting</h2>
+<ul><li><b>Export &gt; To SurfsUp…</b> puts the map into SurfsUp's Maps folder (SurfsUp must be installed). Everything goes in: ramps, cubes, materials (yours too), lights, zones, teleports.</li><li><b>Export &gt; To Counter-Strike: Source…</b> writes a <code>.vmf</code> and can compile it into a playable <code>.bsp</code> (CS:S must be installed). Quick compile is for testing, Final compile for the real thing. The map's own sky can become the skybox. Note: CS:S teleports stop the player; MALLET warns you where that matters.</li></ul>
+<p>Both exports check the map first and tell you about anything missing (no finish, a teleport with nowhere to go...).</p>
+<h2 id="10-keys">10. Keys</h2>
+<p><b>Editor</b></p>
+<table>
+<tr><th>Key</th><th></th><th>Key</th><th></th></tr>
+<tr><td>N</td><td>ramp</td><td>Ctrl+Z / Ctrl+Y</td><td>undo / redo</td></tr>
+<tr><td>R</td><td>generate a ramp shape</td><td>Ctrl+S / Ctrl+O</td><td>save / open</td></tr>
+<tr><td>O / Shift+O</td><td>block / draw blocks</td><td>Ctrl+C / Ctrl+V / Ctrl+D</td><td>copy / paste / duplicate</td></tr>
+<tr><td>B / M / T</td><td>start / finish / stage</td><td>Delete</td><td>delete</td></tr>
+<tr><td>Y / K / J</td><td>teleport / kill zone / booster</td><td>Ctrl+A</td><td>select all</td></tr>
+<tr><td>U / H / I / X</td><td>light / water / prop / text</td><td>Ctrl+G / Ctrl+Shift+G</td><td>group / ungroup</td></tr>
+<tr><td>L</td><td>lock the selected ramp point</td><td>[ / ]</td><td>turn 15 degrees</td></tr>
+<tr><td>P</td><td>play</td><td>arrows, Page Up / Down</td><td>nudge</td></tr>
+<tr><td>E</td><td>build mode</td><td>F / Space / F11</td><td>frame / one view / fullscreen</td></tr>
+</table>
+<p><b>Build mode</b>: F1 shows them all on screen. The main ones are in section 6.</p>
+<p><b>Play mode</b>: R restart, Backspace last stage, Esc editor, hold left / right mouse to turn, Q / E save / load position, 2-9 stages, N noclip, T triggers.</p>
+<h2 id="11-good-to-know">11. Good to know</h2>
+<ul><li>Mouse sensitivity uses Source's numbers, so your CS:S sensitivity feels the same (View &gt; Mouse sensitivity).</li><li>With nothing selected, the panel tells you how heavy the map is (lights, particles, cubes).</li><li>Maps are plain <code>.mallet</code> files: back them up like any document. Older SurfForge <code>.sfmap</code> maps still open.</li><li>Something broke or felt wrong? Tell whoever sent you MALLET: what you did, what you expected, what happened.</li></ul>
+</main></body></html>

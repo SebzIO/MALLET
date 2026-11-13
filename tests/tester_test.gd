@@ -107,6 +107,15 @@ func _run() -> void:
 	check("...importing the same file again adds nothing", ed2.import_runs(PackedStringArray([runs_path(dir)])) == 0)
 	check("...the summary counts testers, attempts, finishes and falls", Tester.summary(ed2.tester_runs).begins_with("1 tester(s), 4 attempt(s), 1 finished, 1 fall"),
 		Tester.summary(ed2.tester_runs))
+	var made := [{"tester": "Ana", "attempts": [
+		{"outcome": "finish", "splits": [[2, 10.0], [3, 21.5]], "deaths": []},
+		{"outcome": "fall", "splits": [[2, 9.0]], "deaths": []},
+		{"outcome": "quit", "splits": [], "deaths": []}]},
+		{"tester": "Bo", "attempts": [{"outcome": "fall", "splits": [[2, 8.5]], "deaths": []}]}]
+	var rep := Tester.stage_report(made)
+	check("stage report: each stage's reach and best split, and where unfinished runs ended",
+		rep.contains("Stage 2: reached in 3 of 4 attempt(s), best split") and rep.contains("by Bo")
+		and rep.contains("Stage 3: reached in 1 of 4") and rep.contains("1 before stage 2, 2 on stage 2"), rep)
 	var md: Dictionary = ed2._map_dict()
 	ed2._load_dict(JSON.parse_string(JSON.stringify(md)))
 	check("imported runs are saved with the map", ed2.tester_runs.size() == 1 and ed2.tester_runs[0]["tester"] == "Sam")

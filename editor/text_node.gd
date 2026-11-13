@@ -73,6 +73,10 @@ func pieces_pending() -> bool:
 
 var _working := false
 var _wanted := {}
+## Worker tasks started and not yet collected. A finished task Godot was never asked about keeps its function (and
+## this script's code) until shutdown, and freeing it then, after the scripts are gone, crashed every quit after a
+## text sign was made (signal 11). Collected on the main thread as each one reports back, and at exit.
+static var _tasks: Array[int] = []
 
 
 func _request_pieces(s: Dictionary) -> void:
@@ -82,12 +86,21 @@ func _request_pieces(s: Dictionary) -> void:
 	_working = true
 	var sd: Dictionary = _wanted
 	var me: WeakRef = weakref(self)
-	WorkerThreadPool.add_task(func():
+	_tasks.append(WorkerThreadPool.add_task(func():
 		var polys := TextShape.unit_polygons(sd)
-		TextNode._pieces_done.call_deferred(me, sd, polys))
+		TextNode._pieces_done.call_deferred(me, sd, polys)))
+
+
+## Collect the worker tasks that have finished (or, with `all`, wait for every one: when MALLET closes).
+static func collect_tasks(all := false) -> void:
+	for t in _tasks.duplicate():
+		if all or WorkerThreadPool.is_task_completed(t):
+			WorkerThreadPool.wait_for_task_completion(t)
+			_tasks.erase(t)
 
 
 static func _pieces_done(me: WeakRef, sd: Dictionary, polys: Array) -> void:
+	collect_tasks()
 	TextShape.store_unit_polygons(sd, polys)
 	var node: TextNode = me.get_ref()
 	if node == null:

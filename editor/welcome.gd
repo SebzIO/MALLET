@@ -7,6 +7,8 @@ signal template_chosen(path: String)
 signal open_requested
 
 const TEMPLATE_DIR := "res://templates/"
+const CARD_W := 300                         ## a template card's width (three a row)
+const THUMB := Vector2(284, 124)
 
 var _grid: GridContainer
 var _close: Button
@@ -27,13 +29,13 @@ func _ready() -> void:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.11, 0.12, 0.15)
 	sb.set_corner_radius_all(10)
-	sb.set_content_margin_all(24)
+	sb.set_content_margin_all(18)
 	sb.border_color = Color(0.25, 0.28, 0.35)
 	sb.set_border_width_all(1)
 	panel.add_theme_stylebox_override("panel", sb)
 	center.add_child(panel)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
+	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
 
 	var title := Label.new()
@@ -44,11 +46,17 @@ func _ready() -> void:
 	sub.text = "Pick a starting point. Every template is a complete map you can play straight away (P) and export to SurfsUp."
 	sub.add_theme_color_override("font_color", Color(0.7, 0.74, 0.8))
 	box.add_child(sub)
+	var news := Label.new()
+	news.text = "New in %s: %s" % [MalletVersion.VERSION, MalletVersion.NEWS]
+	news.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	news.custom_minimum_size.x = CARD_W * 3 + 32
+	news.add_theme_color_override("font_color", Color(0.55, 0.8, 1.0))
+	box.add_child(news)
 
 	_grid = GridContainer.new()
-	_grid.columns = 2
+	_grid.columns = 3
 	_grid.add_theme_constant_override("h_separation", 16)
-	_grid.add_theme_constant_override("v_separation", 16)
+	_grid.add_theme_constant_override("v_separation", 12)
 	box.add_child(_grid)
 	for path in template_paths():
 		_grid.add_child(_card(path))
@@ -60,6 +68,11 @@ func _ready() -> void:
 	open.text = "  Open existing map…  "
 	open.pressed.connect(func(): open_requested.emit())
 	row.add_child(open)
+	var guide := Button.new()
+	guide.text = "  New here? Read the guide  "
+	guide.tooltip_text = "The MALLET guide: a first map in ten minutes, then everything else (opens in your browser)."
+	guide.pressed.connect(func(): MalletVersion.open_doc())
+	row.add_child(guide)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
@@ -91,7 +104,7 @@ static func template_info(path: String) -> Dictionary:
 func _card(path: String) -> Button:
 	var info := template_info(path)
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(384, 0)
+	b.custom_minimum_size = Vector2(CARD_W, 0)
 	b.tooltip_text = info["description"]
 	var v := VBoxContainer.new()
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -103,7 +116,7 @@ func _card(path: String) -> Button:
 	v.add_theme_constant_override("separation", 6)
 	b.add_child(v)
 	var thumb := TextureRect.new()
-	thumb.custom_minimum_size = Vector2(368, 207)
+	thumb.custom_minimum_size = THUMB
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -114,18 +127,19 @@ func _card(path: String) -> Button:
 	v.add_child(thumb)
 	var t := Label.new()
 	t.text = info["title"]
-	t.add_theme_font_size_override("font_size", 18)
+	t.add_theme_font_size_override("font_size", 17)
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(t)
 	var d := Label.new()
 	d.text = info["description"]
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	d.custom_minimum_size = Vector2(368, 0)
+	d.custom_minimum_size = Vector2(THUMB.x, 0)
+	d.add_theme_font_size_override("font_size", 13)
 	d.add_theme_color_override("font_color", Color(0.7, 0.74, 0.8))
 	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(d)
 	# the button's own size must hold the card contents (children of a Button don't size it)
-	b.custom_minimum_size = Vector2(384, 207 + 16 + 6 * 2 + 26 + 72)
+	b.custom_minimum_size = Vector2(CARD_W, THUMB.y + 16 + 6 * 2 + 24 + 74)
 	b.pressed.connect(func(): template_chosen.emit(path))
 	return b
 

@@ -3,6 +3,22 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.22.0 preview — 2026-11-12: The guide (1.0 checklist)
+
+- **The MALLET guide**: a first map in ten minutes, then ramps, zones, playing and practice, build mode, materials and
+  the material maker, testing with others, exporting, and every key. It opens in your browser from the new **Help**
+  menu (also: What's new, every version) and from **New here? Read the guide** on the welcome screen. It ships as
+  `docs/GUIDE.html`; READ ME FIRST is short again and points to it.
+- **A fifth template, Cube Park**: built in build mode from the Geometry menu, two V ramps of cubes joined by a
+  teleport to a destination that keeps your speed. The welcome screen shows three templates a row and says what's
+  new.
+- **Playtest summary**: for each stage, how many attempts reached it and the best split (by whom), and where the
+  runs that didn't finish ended - where people give up or keep falling.
+- Fixed: **closing MALLET could crash** once a text sign had been made (its letters are worked out on a worker
+  thread, and the finished task was never collected; Godot freed it after the scripts at shutdown). The three tests
+  that crashed on exit (handling, text, world) were this and now exit cleanly.
+- Fixed: the Geometry menu's **triangular prism ignored its Length** and was always 4 cells long.
+
 ## 0.21.0 preview — 2026-11-12: The material maker
 
 - **Make your own materials, or change existing ones**: in the material picker, **Make / edit a material…** (or

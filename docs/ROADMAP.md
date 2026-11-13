@@ -79,11 +79,13 @@ Plan in detail: [PLAYTEST.md](PLAYTEST.md), parts 1–2.
 
 ## 0.16.0: Live playtesting
 [PLAYTEST.md](PLAYTEST.md), parts 3–4.
-- [ ] Relay server on the user's VPS (Debian 12 + Docker, domain sebz.xyz, TLS through Nginx Proxy Manager: the
+- [x] Relay server on the user's VPS (Debian 12 + Docker, domain sebz.xyz, TLS through Nginx Proxy Manager: the
       relay runs as a Docker container behind it, e.g. a subdomain): testers and the map maker both connect
-      out to it; session codes; per-session secret; untrusted-input checks; runs kept until collected.
-- [ ] **Playtest panel**: who's on, live ghosts with names, every route drawn by speed, death / fall markers,
-      per-stage times, where people quit; saved with the map.
+      out to it; session codes; per-session secret; untrusted-input checks; runs kept until collected. (Live at
+      wss://relay.sebz.xyz/ws since 0.16; a rebuild for kick / map_version is still open.)
+- [x] **Playtest panel**: who's on, live ghosts with names, every route drawn by speed, death / fall markers,
+      per-stage times, where people quit; saved with the map. (Stage reach, best splits and where unfinished runs
+      end were added to the summary in 0.22.0.)
 - [ ] Load test with many testers at once.
 
 ## 0.17.0: Live co-editing (added 2026-11-08, required for 1.0)
@@ -136,8 +138,10 @@ Make your own textures and materials, or change existing ones, inside MALLET.
       tool's grid offset) in 0.17.9, U10's decal half (text 1 mm off the surface, brushes too) in 0.17.10 - batch D
       done; E folding (U6, fold back and fold across axes) in 0.17.11 - batch E done. F co-editor avatars in 0.17.12 - batch F done. Next: G, one kind of
       solid (needs the user's decision).
-- [ ] Welcome screen, templates and tutorial updated for everything above; docs written for map makers.
-- [ ] Full regression clean (fix or explain the three tests that crash on exit), every export checked in SurfsUp
+- [x] Welcome screen, templates and tutorial updated for everything above; docs written for map makers (0.22.0:
+      docs/GUIDE.md -> GUIDE.html, Help menu, a fifth template "Cube Park", a short READ ME FIRST in dist/).
+- [ ] Full regression clean (done in 0.22.0: the three exit crashes were TextNode's uncollected worker tasks, fixed;
+      every test passes and exits cleanly), every export checked in SurfsUp
       and CS:S by the user.
 - [ ] Testers use a release candidate (0.18.x) with no new features, only fixes.
 - [ ] The user declares **1.0.0**.

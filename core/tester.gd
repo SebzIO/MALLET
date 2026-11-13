@@ -110,7 +110,50 @@ static func summary(sessions: Array) -> String:
 	var t := "%d tester(s), %d attempt(s), %d finished, %d fall(s) / death(s), %d quit mid-run." % [testers.size(), n, fins.size(), deaths, quits]
 	if not fins.is_empty():
 		t += "\nFastest: %s by %s." % [PlayMode.format_time(fins[0][0]), fins[0][1]]
+	var stages := stage_report(sessions)
+	if stages != "":
+		t += "\n" + stages
 	return t
+
+
+## Per stage: how many attempts reached it and the best split (by whom); then where the runs that didn't finish
+## ended (the last stage they reached: where people give up or keep falling). "" for a map without stages.
+static func stage_report(sessions: Array) -> String:
+	var reached := {}                                    # stage -> attempts that reached it
+	var best := {}                                       # stage -> [time, tester]
+	var ended := {}                                      # last stage reached (1 = still before stage 2) -> count
+	var n := 0
+	for s in sessions:
+		for a in s.get("attempts", []):
+			n += 1
+			var last := 1
+			for sp in a.get("splits", []):
+				if not sp is Array or (sp as Array).size() < 2:
+					continue
+				var st := int(sp[0])
+				var tm := float(sp[1])
+				reached[st] = int(reached.get(st, 0)) + 1
+				if not best.has(st) or tm < float(best[st][0]):
+					best[st] = [tm, String(s.get("tester", "?"))]
+				last = maxi(last, st)
+			if String(a.get("outcome", "")) != "finish":
+				ended[last] = int(ended.get(last, 0)) + 1
+	if reached.is_empty():
+		return ""
+	var keys: Array = reached.keys()
+	keys.sort()
+	var lines := PackedStringArray()
+	for st in keys:
+		lines.append("Stage %d: reached in %d of %d attempt(s), best split %s by %s." % [st, reached[st], n,
+			PlayMode.format_time(best[st][0]), best[st][1]])
+	if not ended.is_empty():
+		var ek: Array = ended.keys()
+		ek.sort()
+		var parts := PackedStringArray()
+		for st in ek:
+			parts.append("%d before stage 2" % ended[st] if st == 1 else "%d on stage %d" % [ended[st], st])
+		lines.append("Runs that didn't finish ended: " + ", ".join(parts) + ".")
+	return "\n".join(lines)
 
 
 ## Make a test build: the MALLET program (`exe`, with its .pck), renamed, plus the map, tester.cfg, the materials

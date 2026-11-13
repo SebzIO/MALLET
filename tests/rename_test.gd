@@ -36,7 +36,7 @@ func _run() -> void:
 	check("the project is called MALLET", ProjectSettings.get_setting("application/config/name") == "MALLET")
 	ed._set_title("x.mallet")
 	check("the window title says MALLET", get_root().title.begins_with("MALLET"), "(%s)" % get_root().title)
-	check("the welcome screen finds the four .mallet templates", WelcomeScreen.template_paths().size() == 4)
+	check("the welcome screen finds the five .mallet templates", WelcomeScreen.template_paths().size() == 5)
 	check("the starter prefabs are .malletprefab files", Prefabs.list().filter(func(p): return p["builtin"] and String(p["path"]).ends_with(".malletprefab")).size() == 7)
 
 	# ---- an old SurfForge map: opens, and Save turns it into a .mallet
