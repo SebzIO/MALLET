@@ -264,7 +264,9 @@ func refresh(force := false) -> void:
 	var objs: Array = editor._all_objects()
 	var sig := PackedStringArray([filter.text, str(folders)])
 	for o in objs:
-		sig.append("%d|%s|%s|%s|%s" % [o.get_instance_id(), name_of(o), o.get_meta("folder", ""), o.visible, o.get_meta("locked", false)])
+		# (the given name, not name_of: working out "Light 37" counts the others, and every frame that grew with the
+		#  square of the objects - 8.5 ms a frame on a map with 230 of them. The order of ids covers the numbering.)
+		sig.append("%d|%s|%s|%s|%s" % [o.get_instance_id(), o.get_meta("name", ""), o.get_meta("folder", ""), o.visible, o.get_meta("locked", false)])
 	var s := "\n".join(sig)
 	if s == _signature and not force:
 		return

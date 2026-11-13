@@ -19,6 +19,15 @@ static var outline_mode := false         ## build mode's "7": draw every cube's 
 var world := CubeWorld.new()
 var yaw := 0.0                           ## degrees
 var _chunks := {}                        ## Vector3i -> [MeshInstance3D, StaticBody3D, CollisionShape3D, MeshInstance3D outline]
+## Batching (0.24.4): a big cube object is thousands of small chunk meshes - one draw each, per material, per view
+## and per shadow pass (the tester's map: 4,200 draws from one object, 110,000 a frame in the four views). Once a
+## REGION_M region has gone MERGE_AFTER_S without an edit, its chunks' meshes are drawn as one mesh per material and
+## the small ones hidden; an edit there shows the small ones again at once (so editing stays as quick as before).
+## Collision and picking always use the small chunks.
+const REGION_M := 64.0
+const MERGE_AFTER_MS := 600
+const MERGE_BUDGET_MS := 4.0
+var _regions := {}                       ## Vector3i -> {"chunks": {ck: true}, "mi": MeshInstance3D, "merged": bool, "at": msec}
 var _selected := false
 
 
@@ -28,6 +37,8 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_poll_background()
+	if world.dirty.is_empty() and _bg_keys.is_empty() and _bg_ready.is_empty():
+		_merge_idle_regions()
 	if world.dirty.is_empty() or _bg_keys.size() > 0 or not _bg_ready.is_empty():
 		return
 	var n := 0
@@ -148,6 +159,7 @@ func _apply_chunk(ck: Vector3i, got: Array) -> void:
 				if n is MeshInstance3D or n is StaticBody3D:
 					n.queue_free()
 			_chunks.erase(ck)
+		_region_changed(ck, false)
 		return
 	if not _chunks.has(ck):
 		var mi := MeshInstance3D.new()
@@ -172,6 +184,128 @@ func _apply_chunk(ck: Vector3i, got: Array) -> void:
 	(parts[2] as CollisionShape3D).disabled = col.is_empty()
 	(parts[3] as MeshInstance3D).mesh = got[2]
 	(parts[3] as MeshInstance3D).visible = outline_mode
+	_region_changed(ck, true)
+
+
+# ------------------------------------------------------------------------------------------------ batching
+static func region_of(ck: Vector3i) -> Vector3i:
+	var c := CubeWorld.chunk_center(ck) * CubeWorld.TICK
+	return Vector3i(floori(c.x / REGION_M), floori(c.y / REGION_M), floori(c.z / REGION_M))
+
+
+## A chunk in this region was redrawn (or removed): show the region's small meshes again until it settles.
+func _region_changed(ck: Vector3i, present: bool) -> void:
+	var rk := region_of(ck)
+	var r: Dictionary = _regions.get(rk, {})
+	if r.is_empty():
+		r = {"chunks": {}, "mi": null, "merged": false, "at": 0}
+		_regions[rk] = r
+	if present:
+		r["chunks"][ck] = true
+	else:
+		(r["chunks"] as Dictionary).erase(ck)
+	r["at"] = Time.get_ticks_msec()
+	if r["merged"]:
+		_unmerge(r)
+
+
+func _unmerge(r: Dictionary) -> void:
+	r["merged"] = false
+	if r["mi"] != null and is_instance_valid(r["mi"]):
+		(r["mi"] as MeshInstance3D).visible = false
+	for ck in r["chunks"]:
+		if _chunks.has(ck):
+			(_chunks[ck][0] as MeshInstance3D).visible = true
+
+
+## Merge the regions that have settled, a few milliseconds' worth a frame.
+func _merge_idle_regions() -> void:
+	var now := Time.get_ticks_msec()
+	var t0 := Time.get_ticks_usec()
+	for rk in _regions:
+		var r: Dictionary = _regions[rk]
+		if r["merged"] or now - int(r["at"]) < MERGE_AFTER_MS:
+			continue
+		_merge(r)
+		if (Time.get_ticks_usec() - t0) / 1000.0 > MERGE_BUDGET_MS:
+			return
+
+
+## Everything merged that can be, now (opening a map for play, tests).
+func merge_all() -> void:
+	for rk in _regions:
+		if not _regions[rk]["merged"]:
+			_merge(_regions[rk])
+
+
+## The region's chunk meshes as one mesh, one surface per material (same arrays: they're concatenated).
+func _merge(r: Dictionary) -> void:
+	r["merged"] = true
+	var mis := []
+	for ck in r["chunks"]:
+		if _chunks.has(ck) and (_chunks[ck][0] as MeshInstance3D).mesh != null:
+			mis.append(_chunks[ck][0])
+	if mis.size() < 2:
+		for mi in mis:
+			(mi as MeshInstance3D).visible = true          # (nothing to gain: the one small mesh is drawn as it is)
+		if r["mi"] != null and is_instance_valid(r["mi"]):
+			(r["mi"] as MeshInstance3D).visible = false
+		return
+	var meshes := []
+	for mi in mis:
+		meshes.append((mi as MeshInstance3D).mesh)
+	var merged := merge_meshes(meshes)
+	var mi2: MeshInstance3D = r["mi"]
+	if mi2 == null or not is_instance_valid(mi2):
+		mi2 = MeshInstance3D.new()
+		add_child(mi2)
+		r["mi"] = mi2
+	mi2.mesh = merged
+	mi2.visible = true
+	for mi in mis:
+		(mi as MeshInstance3D).visible = false
+
+
+## Chunk meshes as one mesh, one surface per material (their arrays concatenated: chunk meshes aren't indexed).
+## The editor's batching and the SurfsUp export both use it.
+static func merge_meshes(meshes: Array) -> ArrayMesh:
+	var groups := {}                                     # material + which arrays -> [material, arrays]
+	for mesh in meshes:
+		var m := mesh as ArrayMesh
+		if m == null:
+			continue
+		for s in m.get_surface_count():
+			var arr := m.surface_get_arrays(s)
+			var mat := m.surface_get_material(s)
+			var sig := ""
+			for i in Mesh.ARRAY_MAX:
+				sig += "1" if arr[i] != null and arr[i].size() > 0 else "0"   # (every array here is a packed array)
+			var key := "%d|%s" % [mat.get_instance_id() if mat else 0, sig]
+			if not groups.has(key):
+				var acc := []
+				acc.resize(Mesh.ARRAY_MAX)
+				for i in Mesh.ARRAY_MAX:
+					acc[i] = arr[i].duplicate() if sig[i] == "1" else null
+				groups[key] = [mat, acc]
+			else:
+				var acc: Array = groups[key][1]
+				for i in Mesh.ARRAY_MAX:
+					if sig[i] == "1":
+						acc[i].append_array(arr[i])
+	var merged := ArrayMesh.new()
+	for key in groups:
+		merged.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, groups[key][1])
+		merged.surface_set_material(merged.get_surface_count() - 1, groups[key][0])
+	return merged
+
+
+## Draws this object makes now (each surface of each mesh shown).
+func draw_count() -> int:
+	var n := 0
+	for c in get_children():
+		if c is MeshInstance3D and c.visible and c.mesh:
+			n += c.mesh.get_surface_count()
+	return n
 
 
 func set_outline(on: bool) -> void:

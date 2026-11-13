@@ -3,6 +3,33 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.25.0 preview — 2026-11-13: Performance
+
+Measured on a tester's map (3 cube objects, 30,000 cubes, 34 shadowed lights), frame times with vsync off:
+
+| | before | now |
+| --- | --- | --- |
+| the four views | 101 ms (10 fps) | 10 ms (96 fps) |
+| one 3D view | 58 ms (17 fps) | 6 ms (162 fps) |
+| build mode (E) | 27 ms (37 fps) | 3.6 ms (276 fps) |
+| play mode, the busiest spot | 31 ms (32 fps) | 5-6 ms (160-200 fps) |
+| draw calls, four views | 111,000 | 3,900 |
+
+With 150 more shadowed, pulsing lights the four views still run at 73 fps and play mode at 130-160 fps.
+
+- **Cube objects draw in far fewer pieces.** A big cube object was thousands of small meshes, each drawn on its own,
+  in every view and every shadow. Once a 64 m region of it hasn't been edited for a moment, its pieces are drawn as
+  one mesh per material; editing there shows the small pieces again at once, so edits are as quick as before. (The
+  biggest object in the tester's map: 4,203 draws -> 245.) The **SurfsUp export** draws cube objects the same way, so
+  players get the speed-up too; collision is unchanged.
+- **Shadows only near the camera.** A shadowed light redraws its shadows whenever anything moves (or it pulses) in
+  its reach - a 2000 m light redrew the whole map every frame, in each of the four views. Now a light draws shadows
+  while the camera is within 60 m of it and still lights everything beyond. The flat views (top, front, side) draw
+  no light shadows at all. Exported maps get this too.
+- **The Outliner** checked for changes in a way that grew with the square of the objects: 8.5 ms a frame with 230
+  of them, now 0.6 ms.
+- New test: batching_test. The measuring script is tools/perf_probe.gd.
+
 ## 0.24.3 preview — 2026-11-13: A warning for teleports SurfsUp may miss
 
 - A teleport that is thin (under 6 m across in some direction) and whose box touches solid geometry is flagged: it

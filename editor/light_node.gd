@@ -241,7 +241,18 @@ static func make_light(s: Dictionary) -> Light3D:
 	l.light_color = Color.html(s["color"])
 	l.light_energy = float(s["energy"])
 	l.shadow_enabled = bool(s["shadows"])
+	if l.shadow_enabled:
+		# Shadows only near the camera (0.24.4): a shadowed light redraws its shadows whenever anything moves (or it
+		# pulses) in its reach - a 2000 m light redrew the whole map every frame, in each of the editor's four views.
+		# Far off, the light still shines; its shadow fades out between SHADOW_NEAR and SHADOW_NEAR + SHADOW_FADE.
+		l.distance_fade_enabled = true
+		l.distance_fade_begin = 100000.0                 # (the light itself never fades)
+		l.distance_fade_length = 10.0
+		l.distance_fade_shadow = SHADOW_NEAR
 	return l
+
+
+const SHADOW_NEAR := 60.0                ## meters from the camera to a light within which it draws shadows
 
 
 func _ready() -> void:

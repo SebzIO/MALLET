@@ -126,6 +126,10 @@ Make your own textures and materials, or change existing ones, inside MALLET.
 - [x] Lock objects and folders in the Outliner: no moving, editing, deleting or picking in the views; build mode
       respects it; saved, undoable, synced (0.24.0).
 
+## 0.25.0: Performance (added 2026-11-13)
+- [x] Cube objects batched per 64 m region (editor and SurfsUp export), shadows near the camera only, no light
+      shadows in the flat views, the Outliner's change check linear (0.25.0).
+
 ## 0.18.0 → 1.0.0: Release candidate
 - [x] **Geometry menu** (0.18.0) and its fixes (0.18.1-0.18.5): nine shapes cut from octree cells, one flat cut face
       per cell, whole cones and cylinders, sliders that keep up, a typed value that sticks, and a preview built on a

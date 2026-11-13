@@ -46,6 +46,7 @@ func _init(k: int, ed: Node) -> void:
 		camera.near = 0.05
 		camera.far = FAR * 2.0
 		camera.cull_mask = 1                                # hide the 3D ground grid (layer 2)
+		viewport.positional_shadow_atlas_size = 0           # (no light shadows in the flat views: lights still shine)
 		var env := Environment.new()                         # flat backdrop instead of the sky
 		env.background_mode = Environment.BG_COLOR
 		env.background_color = Color(0.13, 0.14, 0.16)

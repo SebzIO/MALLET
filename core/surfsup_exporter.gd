@@ -378,15 +378,16 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 			obj.transform = cxf
 			_add(root, cube_root, obj)
 			var ci := 0
+			var by_region := {}                          # 64 m region -> its chunks' meshes, drawn as one (0.24.4)
 			for ck in cw.render_chunks():
 				var got := cw.chunk_mesh(ck)
 				var body := StaticBody3D.new()
 				body.name = "Chunk%d" % ci
 				_add(root, obj, body)
-				var cmi := MeshInstance3D.new()
-				cmi.name = "Mesh"
-				cmi.mesh = got[0]
-				_add(root, body, cmi)
+				var rk := CubeModelNode.region_of(ck)
+				if not by_region.has(rk):
+					by_region[rk] = []
+				by_region[rk].append(got[0])
 				var pn := 0
 				for k in cw.chunk_cubes(ck):
 					if cw.cube_in_mat(k, "noclip"):
@@ -399,6 +400,13 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 					_add(root, body, ccs)
 					pn += 1
 				ci += 1
+			var ri := 0
+			for rk in by_region:                         # (one mesh per region and material: a few draws, not thousands)
+				var rmi := MeshInstance3D.new()
+				rmi.name = "Region%d" % ri
+				rmi.mesh = CubeModelNode.merge_meshes(by_region[rk])
+				_add(root, obj, rmi)
+				ri += 1
 			var boxes := cw.material_boxes()
 			var walls := StaticBody3D.new()
 			walls.name = "Walls"
