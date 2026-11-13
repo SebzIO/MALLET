@@ -354,6 +354,7 @@ func _build_ui() -> void:
 	_ui_root.add_child(_playtest_panel)
 	_playtest_panel.leave_requested.connect(_leave_playtest)
 	_playtest_panel.copy_requested.connect(_copy_playtest_code)
+	_playtest_panel.close_requested.connect(func(): _set_playtest_panel(false))
 	_playtest_panel.remove_requested.connect(_remove_from_session)
 	_playtest_panel.refresh("", "No playtest session", {}, {}, [])
 
@@ -381,9 +382,11 @@ func _build_ui_main() -> void:
 	ver.add_theme_color_override("font_color", Color(0.6, 0.64, 0.7))
 	ver.tooltip_text = MalletVersion.full()
 	bar.add_child(ver)
-	for spec in [["New", _new_map_clicked], ["Open…", _open_clicked], ["Save", _save_clicked], ["|", null],
-			["Undo", undo], ["Redo", redo], ["|", null]]:
-		_bar_item(bar, spec)
+	# File | Add, Edit, View | Undo, Redo | Build, Play | Playtest | Options, Help (0.27.0)
+	_menu(bar, "File ▾", [["New", KEY_NONE, _new_map_clicked], ["Open…", KEY_MASK_CTRL | KEY_O, _open_clicked],
+		["Save", KEY_MASK_CTRL | KEY_S, _save_clicked], [],
+		["Export", KEY_NONE, null, "", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked]]]])
+	bar.add_child(_gap())
 	# Add: everything you can put in a map, each with its key
 	_menu(bar, "Add ▾", [
 		["Ramp", KEY_N, _add_ramp_clicked], ["Generate a ramp shape…", KEY_R, _generate_clicked],
@@ -411,28 +414,28 @@ func _build_ui_main() -> void:
 		["Turn left 15°", KEY_BRACKETLEFT, func(): _rotate_selected(-15.0)],
 		["Turn right 15°", KEY_BRACKETRIGHT, func(): _rotate_selected(15.0)]])
 	_menu(bar, "View ▾", [
-		["Frame selection", KEY_F, _frame_clicked], ["Fullscreen", KEY_F11, _toggle_fullscreen],
-		["Mouse sensitivity…", KEY_NONE, _open_mouse_settings], ["Your shaders folder…", KEY_NONE, _open_shaders_folder], [],
+		["Frame selection", KEY_F, _frame_clicked], [],
 		["Jump arcs: all ramps", KEY_NONE, func(): show_all_arcs = not show_all_arcs; _sync_view_menu(); _map_changed(), "arcs"],
 		["Direction arrows", KEY_NONE, func(): show_direction = not show_direction; _sync_view_menu(), "arrows"],
 		["Best run path", KEY_NONE, func(): show_ghost_path = not show_ghost_path; _sync_view_menu(), "ghost"],
 		["Testers' paths", KEY_NONE, func(): show_tester_paths = not show_tester_paths; _sync_view_menu(), "paths"],
 		["Co-editors", KEY_NONE, func(): show_co_editors = not show_co_editors; _sync_view_menu(), "cores"],
 		["Ground grid (3D view)", KEY_NONE, _toggle_ground_grid, "groundgrid"],
-		["Outliner (names, folders)", KEY_NONE, func(): _outliner_panel.visible = not _outliner_panel.visible; _sync_view_menu(), "outliner"]])
-	bar.add_child(VSeparator.new())
-	_bar_item(bar, ["▶ Play (P)", _play_clicked])
+		["Outliner (names, folders)", KEY_NONE, func(): _outliner_panel.visible = not _outliner_panel.visible; _sync_view_menu(), "outliner"],
+		["Playtest panel", KEY_NONE, func(): _set_playtest_panel(not _playtest_panel.visible), "playtest"]])
+	bar.add_child(_gap())
+	_bar_item(bar, ["Undo", undo])
+	_bar_item(bar, ["Redo", redo])
+	bar.add_child(_gap())
 	_bar_item(bar, ["Build (E)", _build_clicked])
-	var pt := CheckButton.new()                        # (the playtest panel's own button: it is not an export)
-	pt.text = "Playtest panel"
-	pt.focus_mode = Control.FOCUS_NONE
-	pt.tooltip_text = "Who is on the session, their runs, and the invite. Start one in Export > Playtest session."
-	pt.toggled.connect(_set_playtest_panel)
-	bar.add_child(pt)
-	_fields["playtest_button"] = pt
-	_menu(bar, "Export ▾", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked], [],
-		["Playtest session…", KEY_NONE, _playtest_clicked], [],
+	_bar_item(bar, ["▶ Play (P)", _play_clicked])
+	bar.add_child(_gap())
+	_menu(bar, "Playtest ▾", [["Playtest session…", KEY_NONE, _playtest_clicked], ["Copy invite", KEY_NONE, _copy_playtest_code],
+		["Leave the session", KEY_NONE, _leave_playtest], [],
 		["Test build for testers…", KEY_NONE, _test_build_clicked], ["Import tester runs…", KEY_NONE, _import_runs_clicked]])
+	bar.add_child(_gap())
+	_menu(bar, "Options ▾", [["Fullscreen", KEY_F11, _toggle_fullscreen], ["Mouse sensitivity…", KEY_NONE, _open_mouse_settings],
+		["Your shaders folder…", KEY_NONE, _open_shaders_folder]])
 	_menu(bar, "Help ▾", [["The MALLET guide (opens in your browser)", KEY_NONE, _open_guide],
 		["What's new (every version)", KEY_NONE, func(): MalletVersion.open_doc("CHANGELOG.html")], [],
 		["Build mode keys: press F1 in build mode", KEY_NONE, func(): _set_status("In build mode (E), F1 shows every key on screen.")],
@@ -2635,6 +2638,12 @@ func _menu(bar: Container, title: String, items: Array) -> MenuButton:
 			pm.add_separator()
 			continue
 		var id := actions.size()
+		if it.size() > 4:                                # [label, key, null, "", [items]]: a submenu that opens beside it
+			var sub := _submenu(it[4])
+			pm.add_submenu_node_item(it[0], sub, id)
+			_fields["menu_" + String(it[0]).get_slice(" ", 0)] = sub
+			actions[id] = func(): pass
+			continue
 		if it.size() > 3:
 			pm.add_check_item(it[0], id)
 			_fields["menu_" + it[3]] = [pm, pm.get_item_index(id)]
@@ -2649,6 +2658,30 @@ func _menu(bar: Container, title: String, items: Array) -> MenuButton:
 	return mb
 
 
+## A menu that opens beside its item when the item is hovered (File > Export ▸).
+func _submenu(items: Array) -> PopupMenu:
+	var sub := PopupMenu.new()
+	var acts := {}
+	for it in items:
+		if it.is_empty():
+			sub.add_separator()
+			continue
+		var id := acts.size()
+		sub.add_item(it[0], id)
+		if it[1] != KEY_NONE:
+			sub.set_item_accelerator(sub.get_item_index(id), it[1])
+		acts[id] = it[2]
+	sub.id_pressed.connect(func(id): acts[id].call())
+	return sub
+
+
+## A short gap between groups of toolbar buttons.
+func _gap() -> Control:
+	var g := Control.new()
+	g.custom_minimum_size = Vector2(14, 0)
+	return g
+
+
 ## Tick the View and Add menus' check items to match the current settings.
 func _sync_view_menu() -> void:
 	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["paths", show_tester_paths], ["cores", show_co_editors], ["draw", _draw_mode],
@@ -2658,8 +2691,6 @@ func _sync_view_menu() -> void:
 		if _fields.has("menu_" + pair[0]):
 			var m: Array = _fields["menu_" + pair[0]]
 			(m[0] as PopupMenu).set_item_checked(m[1], pair[1])
-	if _fields.has("playtest_button"):
-		(_fields["playtest_button"] as CheckButton).set_pressed_no_signal(_playtest_panel != null and _playtest_panel.visible)
 	_redraw_overlays()
 
 
@@ -2713,7 +2744,7 @@ func _set_title(map_name: String) -> void:
 var _mouse_dialog: AcceptDialog
 
 
-## View > Mouse sensitivity: how fast the mouse turns the view in the editor's 3D view, in build mode and in play
+## Options > Mouse sensitivity: how fast the mouse turns the view in the editor's 3D view, in build mode and in play
 ## mode (that one uses the same numbers as SurfsUp and CS:S), and inverted up / down. Saved for next time.
 func _open_mouse_settings() -> void:
 	if _mouse_dialog == null:
@@ -6082,7 +6113,7 @@ func _tester_menu() -> void:
 	d.popup_centered()
 
 
-## Export > Test build: MALLET itself + this map, zipped for testers (Tester.make_build).
+## Playtest > Test build: MALLET itself + this map, zipped for testers (Tester.make_build).
 func _test_build_clicked() -> void:
 	var name := current_path.get_file().get_basename() if current_path != "" else "mymap"
 	var out_dir := OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS).path_join("MALLET exports/test builds")
@@ -6099,7 +6130,7 @@ func _test_build_clicked() -> void:
 		return
 	_map_changed()
 	_show_message("Test build ready", ("Made %s (version %d of this map).\n\nSend the zip to your testers. They unzip it and start \"Play %s.exe\"; "
-		+ "their runs are saved in a \"%s\" folder next to it. Ask them to send that folder back, then use Export > Import tester runs."
+		+ "their runs are saved in a \"%s\" folder next to it. Ask them to send that folder back, then use Playtest > Import tester runs."
 		+ ("\n\nWhile the playtest session %s is open, this build also sends their runs here as they play." % live.get("session", "") if not live.is_empty() else "")) % [
 		res["zip"], test_version, name, Tester.RUNS_DIR])
 	OS.shell_open(out_dir)
@@ -6143,7 +6174,7 @@ func import_runs(paths: PackedStringArray) -> int:
 
 
 # ================================================================================================= playtest session
-## Export > Playtest session: start one (no code) or join one you made. Testers' live positions and runs arrive
+## Playtest > Playtest session: start one (no code) or join one you made. Testers' live positions and runs arrive
 ## here while they play; test builds made from now on carry the session.
 func _playtest_clicked() -> void:
 	if _playtest_dialog == null:
@@ -6275,8 +6306,8 @@ func _playtest_opened(_welcome: Dictionary) -> void:
 		return
 	relay.send({"t": "collect"})                       # (runs made while the editor was closed)
 	_set_status("Playtest session %s is open: testers' runs arrive here." % relay.session)
-	_show_message("Playtest session", ("Session code: %s\n\nTest builds made now (Export > Test build for testers…) send their runs here while they play.\n"
-		+ "The panel (Export > Playtest panel) shows who is on and how they are doing.\n"
+	_show_message("Playtest session", ("Session code: %s\n\nTest builds made now (Playtest > Test build for testers…) send their runs here while they play.\n"
+		+ "The panel (View > Playtest panel) shows who is on and how they are doing.\n"
 		+ "To co-edit, another MALLET joins with this code and secret and \"Join as a co-editor\" ticked.") % relay.session)
 
 
@@ -6502,7 +6533,7 @@ func parse_invite(text: String) -> Dictionary:
 func _paste_invite() -> void:
 	var got := parse_invite(DisplayServer.clipboard_get())
 	if String(got["code"]) == "":
-		_set_status("No invite on the clipboard: on the maker's MALLET, Export > Playtest panel > Copy invite.")
+		_set_status("No invite on the clipboard: on the maker's MALLET, Playtest > Copy invite.")
 		return
 	if String(got["url"]) != "":
 		_playtest_inputs["address"].text = String(got["url"])

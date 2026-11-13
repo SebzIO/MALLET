@@ -143,7 +143,7 @@ func start(at: Transform3D, start_box = AABB(), finish_box = AABB(), kill_y := -
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
-## Your mouse sensitivity (View > Mouse sensitivity): Source-style, so the number you use in SurfsUp / CS:S works.
+## Your mouse sensitivity (Options > Mouse sensitivity): Source-style, so the number you use in SurfsUp / CS:S works.
 func apply_mouse_settings() -> void:
 	if player == null or player.config == null:
 		return

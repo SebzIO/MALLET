@@ -12,7 +12,7 @@ const DEFAULTS := {
 	"invert_y": false,                   ## mouse forward looks down (everywhere)
 	"ground_grid": true,                 ## the editor's 3D view shows the ground grid plane
 	"fly_speed": 60.0,                   ## editor 3D view: right mouse + WASD speed (m/s), set with right mouse + wheel
-	"relay_url": "wss://relay.sebz.xyz/ws",  ## the playtest relay (Export > Playtest session; local: ws://127.0.0.1:8787/ws)
+	"relay_url": "wss://relay.sebz.xyz/ws",  ## the playtest relay (Playtest > Playtest session; local: ws://127.0.0.1:8787/ws)
 	"player_name": "Maker",              ## the name testers see on their runs and in the playtest panel
 	"playtest_minimized": false,         ## the playtest panel is collapsed to its title row
 	"turn_speed": 210.0,                 ## play mode turn binds (hold left / right mouse): degrees a second, Source's cl_yawspeed

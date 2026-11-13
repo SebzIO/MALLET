@@ -1,4 +1,4 @@
-MALLET 0.26.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
+MALLET 0.27.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
 ===================================================================================================================
 
 START HERE
@@ -9,6 +9,10 @@ START HERE
   welcome screen). It takes you from an empty map to one your friends can play in ten minutes, then covers
   everything else: ramps, zones, build mode, materials, playing, testing with others and exporting.
 - Everything new, version by version: docs\CHANGELOG.html (Help > What's new).
+
+NEW IN 0.27.0 (MENUS)
+- New File, Playtest and Options menus: File > Export > To SurfsUp / CS:S, Playtest > session / test builds,
+  Options > fullscreen / mouse sensitivity / shaders folder. The playtest panel is in View.
 
 NEW IN 0.26.0 (EVERY SHADER SETTING)
 - Aurora colors (Map panel, and the Aurora look's second color); water, lava and glass show all their settings.
@@ -56,5 +60,5 @@ WHAT WE'D LOVE YOU TO TEST
 
 GOOD TO KNOW
 - Save with Ctrl+S; maps are .mallet files. Older SurfForge .sfmap maps still open.
-- Export > To SurfsUp needs SurfsUp installed; Export > To Counter-Strike: Source needs CS:S installed.
+- File > Export > To SurfsUp needs SurfsUp installed; File > Export > To Counter-Strike: Source needs CS:S installed.
 - F1 in build mode shows every key on screen.

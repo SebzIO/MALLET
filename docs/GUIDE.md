@@ -67,7 +67,7 @@ Unlock button), copied, hidden, renamed and filed. In build mode a locked cube o
    fly. Move the next ramp, or the finish, under it.
 4. Press **N** again for the next ramp, or select a ramp and use **Edit > Extend ramp** to carry it on.
 5. Press **P** to play from the start. Surf it. **Esc** brings you back.
-6. **Ctrl+S** to save, then **Export > To SurfsUp…** and type a name. In SurfsUp, open the console (~) and type
+6. **Ctrl+S** to save, then **File > Export > To SurfsUp…** and type a name. In SurfsUp, open the console (~) and type
    `map <name>`.
 
 ## 3. Ramps
@@ -121,7 +121,7 @@ the zone box. Zones can be stretched by the small squares on their sides.
 
 | Key | |
 | --- | --- |
-| hold left / right mouse | turn left / right at a steady speed (turn binds; speed in View > Mouse sensitivity) |
+| hold left / right mouse | turn left / right at a steady speed (turn binds; speed in Options > Mouse sensitivity) |
 | Q / E | save your position (with speed and view) / go back to it |
 | 2-9 | go to that stage (1 restarts, like R) |
 | N | noclip: fly through everything (W A S D, Space up, Ctrl down, Shift faster) |
@@ -191,29 +191,29 @@ mode's **T** menu, Fill tab, pick the look under "Their look" before you fill, s
 sparks, snow, rain, mist and more. **Text** (X) puts signs on surfaces. **Props** (I) are glTF models.
 **Water** (H) is a water block with presets.
 
-**Your own shaders**: View > Your shaders folder… Put Godot `.gdshader` files there: sky shaders show up under the
+**Your own shaders**: Options > Your shaders folder… Put Godot `.gdshader` files there: sky shaders show up under the
 map's Sky, surface shaders in a Look ("Your own shader"). See `docs/SHADERS.md`.
 
 ## 8. Working with others
 
-**Test builds.** Export > Test build for testers… makes a zip you can send to anyone: a test program with no editor
+**Test builds.** Playtest > Test build for testers… makes a zip you can send to anyone: a test program with no editor
 that drops them on your map and records every attempt (time, splits, falls, route) in a "tester runs" folder. Get that
-folder back and use Export > Import tester runs…; View > Testers' paths draws their routes.
+folder back and use Playtest > Import tester runs…; View > Testers' paths draws their routes.
 
-**Live playtesting.** Export > Playtest session… (leave the code empty) opens a session. Test builds made while it is
-open report live: the **Playtest panel** shows who is on, where they are, their attempts and times, and the 3D view
+**Live playtesting.** Playtest > Playtest session… (leave the code empty) opens a session. Test builds made while it is
+open report live: the **Playtest panel** (View > Playtest panel) shows who is on, where they are, their attempts and times, and the 3D view
 shows each tester as a dot with a trail.
 
-**Co-editing.** Start a session the same way, then **Copy invite** on the Playtest panel and send it. The other
-person opens Export > Playtest session…, ticks **Join as a co-editor** and clicks **Paste invite**. From then on both
+**Co-editing.** Start a session the same way, then **Playtest > Copy invite** (or Copy invite on the Playtest panel) and send it. The other
+person opens Playtest > Playtest session…, ticks **Join as a co-editor** and clicks **Paste invite**. From then on both
 copies of the map change together: every edit, build mode cubes, materials, the map's sky. You see each other's
 camera, mouse and selection. Undo only takes back your own work. The map's owner can remove someone.
 
 ## 9. Exporting
 
-- **Export > To SurfsUp…** puts the map into SurfsUp's Maps folder (SurfsUp must be installed). Everything goes in:
+- **File > Export > To SurfsUp…** puts the map into SurfsUp's Maps folder (SurfsUp must be installed). Everything goes in:
   ramps, cubes, materials (yours too), lights, zones, teleports.
-- **Export > To Counter-Strike: Source…** writes a `.vmf` and can compile it into a playable `.bsp` (CS:S must be
+- **File > Export > To Counter-Strike: Source…** writes a `.vmf` and can compile it into a playable `.bsp` (CS:S must be
   installed). Quick compile is for testing, Final compile for the real thing. The map's own sky can become the
   skybox. Note: CS:S teleports stop the player; MALLET warns you where that matters.
 
@@ -242,7 +242,7 @@ position, 2-9 stages, N noclip, T triggers.
 
 ## 11. Good to know
 
-- Mouse sensitivity uses Source's numbers, so your CS:S sensitivity feels the same (View > Mouse sensitivity).
+- Mouse sensitivity uses Source's numbers, so your CS:S sensitivity feels the same (Options > Mouse sensitivity).
 - With nothing selected, the panel tells you how heavy the map is (lights, particles, cubes).
 - Lights with shadows draw them only while you're within 60 m of the light (it still lights everything farther
   away), and the flat views show no light shadows: that keeps big maps with many lights smooth.

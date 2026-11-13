@@ -1,12 +1,13 @@
 class_name PlaytestPanel
 extends PanelContainer
-## The playtest panel (its own toolbar button; Export > Playtest session starts one): who is on the relay session
+## The playtest panel (View > Playtest panel; Playtest > Playtest session starts one): who is on the relay session
 ## right now, where they are in the run, and what their runs look like. It sits in the top right corner of the window
 ## and never takes a click meant for the views unless you are clicking its buttons. The - in its title row collapses
 ## it to that row, and it stays collapsed next time.
 
 signal leave_requested
 signal copy_requested
+signal close_requested
 signal remove_requested(id: String)
 
 const WIDTH := 430
@@ -40,7 +41,15 @@ func _ready() -> void:
 	_min.focus_mode = Control.FOCUS_NONE
 	_min.custom_minimum_size = Vector2(34, 0)
 	_min.pressed.connect(func(): set_minimized(not minimized))
+	_min.tooltip_text = "Minimize: just this title row (the session stays open)"
 	head.add_child(_min)
+	var close := Button.new()
+	close.text = "×"
+	close.focus_mode = Control.FOCUS_NONE
+	close.custom_minimum_size = Vector2(34, 0)
+	close.tooltip_text = "Close the panel (View > Playtest panel brings it back; the session stays open)"
+	close.pressed.connect(func(): close_requested.emit())
+	head.add_child(close)
 	_body = VBoxContainer.new()
 	_body.add_theme_constant_override("separation", 6)
 	box.add_child(_body)

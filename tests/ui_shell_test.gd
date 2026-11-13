@@ -46,18 +46,40 @@ func _run() -> void:
 	check("menu rows are roomier than the default", pm.get_theme_constant("v_separation") >= 4)
 	b.queue_free()
 
-	# ---- the playtest panel: its own button at the top, and gone from Export
-	check("the playtest panel has its own toolbar button", ed._fields.has("playtest_button"))
-	var names := []
-	var export_menu: PopupMenu = (ed._fields["menu_Export"] as MenuButton).get_popup()
-	for i in export_menu.item_count:
-		names.append(export_menu.get_item_text(i))
-	check("Export still starts a session", names.has("Playtest session…"), str(names))
-	check("the panel is not in the Export menu any more", not names.has("Playtest panel"))
-	var pb: CheckButton = ed._fields["playtest_button"]
-	pb.button_pressed = true
+	# ---- the menus (0.27.0): File | Add, Edit, View | Undo, Redo | Build, Play | Playtest | Options, Help
+	var items := func(key: String) -> Array:
+		var out := []
+		var m = ed._fields[key]
+		var p: PopupMenu = m.get_popup() if m is MenuButton else m
+		for i in p.item_count:
+			out.append(p.get_item_text(i))
+		return out
+	var file_items: Array = items.call("menu_File")
+	check("File has New, Open, Save and Export", "New" in file_items and "Open…" in file_items and "Save" in file_items and "Export" in file_items, str(file_items))
+	var export_items: Array = items.call("menu_Export")
+	check("...Export opens beside it with To SurfsUp and To CS:S", export_items == ["To SurfsUp…", "To Counter-Strike: Source…"], str(export_items))
+	var pt_items: Array = items.call("menu_Playtest")
+	check("Playtest has the session, test builds and tester runs", "Playtest session…" in pt_items and "Test build for testers…" in pt_items
+		and "Import tester runs…" in pt_items, str(pt_items))
+	var opt_items: Array = items.call("menu_Options")
+	var view_items: Array = items.call("menu_View")
+	check("Options has fullscreen, mouse sensitivity and the shaders folder (not View)", "Fullscreen" in opt_items
+		and "Mouse sensitivity…" in opt_items and "Your shaders folder…" in opt_items and not "Fullscreen" in view_items, str(opt_items))
+	check("the playtest panel is in View, its toolbar button gone", "Playtest panel" in view_items and not ed._fields.has("playtest_button"))
+	var order := []
+	for c in (ed._fields["menu_File"] as Control).get_parent().get_children():
+		if c is Button and (c as Button).text != "":
+			order.append((c as Button).text.get_slice(" ", 0))
+	var want := ["File", "Add", "Edit", "View", "Undo", "Redo", "Build", "▶", "Playtest", "Options", "Help"]
+	check("the toolbar's order", order.slice(0, want.size()) == want, str(order))
+	ed._set_playtest_panel(true)
 	await process_frame
-	check("its button shows the panel", ed._playtest_panel.visible and pb.button_pressed)
+	check("View > Playtest panel shows it", ed._playtest_panel.visible)
+	ed._playtest_panel.close_requested.emit()
+	await process_frame
+	check("its close button hides it", not ed._playtest_panel.visible)
+	ed._set_playtest_panel(true)
+	await process_frame
 
 	# ---- minimize / expand, remembered
 	var panel = ed._playtest_panel
@@ -70,9 +92,9 @@ func _run() -> void:
 	panel.set_minimized(false)
 	await process_frame
 	check("expanding brings the list back", not panel.minimized and panel._body.visible and panel.size.y > 120, str(panel.size))
-	pb.button_pressed = false
+	ed._set_playtest_panel(false)
 	await process_frame
-	check("the button hides it again", not panel.visible and not pb.button_pressed and not bool(Settings.value("playtest_minimized")))
+	check("View > Playtest panel hides it again", not panel.visible and not bool(Settings.value("playtest_minimized")))
 
 	# ---- the F2 texture picker: wide enough that nothing scrolls sideways
 	ed._open_picker(func(_id): pass)

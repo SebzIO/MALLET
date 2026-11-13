@@ -5,7 +5,7 @@ once, and MALLET turns its settings into sliders and color pickers, so anyone ca
 
 ## Where the files go
 
-**View > Your shaders folder…** (or the **Folder…** button next to a shader list) opens the folder. On Windows it's
+**Options > Your shaders folder…** (or the **Folder…** button next to a shader list) opens the folder. On Windows it's
 `%APPDATA%\Godot\app_userdata\MALLET\shaders`. The first time it opens, it already holds two commented examples:
 
 - `example_sky.gdshader`: a gradient sky with drifting clouds and a sun.
@@ -67,7 +67,7 @@ color in the Color above. Nothing turns white and nothing crashes. Files with a 
 - **Saved maps** carry the code of the shaders they use, so a map you send someone looks the same on their computer
   (the shader shows as "only in this map" there). If you delete a shader file, the open map keeps its copy.
 - **SurfsUp**: the shader goes inside the map, like MALLET's built-in looks (no scripts, which SurfsUp doesn't allow).
-- **Counter-Strike: Source** can't run shaders. Export > To Counter-Strike: Source offers **This map's sky (made into
+- **Counter-Strike: Source** can't run shaders. File > Export > To Counter-Strike: Source offers **This map's sky (made into
   a skybox)**, picked automatically when you use your own sky: MALLET renders the sky into Source's six skybox images
   and packs them into the map. A surface shader exports as its first chosen image, otherwise its first color.
 - Prefabs don't carry shader code: a prefab that uses your shader needs the file on the computer it's used on.

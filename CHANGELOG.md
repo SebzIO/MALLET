@@ -3,6 +3,17 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.27.0 preview — 2026-11-13: New menus (work order 2, batch 1)
+
+- The toolbar is grouped: **File** | Add, Edit, View | Undo, Redo | Build, Play | **Playtest** | **Options**, Help.
+- **File**: New, Open, Save, and **Export**, which opens a menu beside it on hover (To SurfsUp, To Counter-Strike:
+  Source), as in most programs.
+- **Playtest**: Playtest session, Copy invite, Leave the session, Test build for testers, Import tester runs (they
+  were under Export).
+- **Options**: Fullscreen (F11), Mouse sensitivity, Your shaders folder (they were under View).
+- The playtest panel is shown and hidden from **View > Playtest panel** (the toolbar button is gone), and the panel
+  has a close button next to its minimize button.
+
 ## 0.26.0 preview — 2026-11-13: Every shader setting
 
 - **The aurora's colors**: the Map panel has Aurora color 1 and 2 (and the nebula's color and the sun's size), and

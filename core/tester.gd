@@ -3,7 +3,7 @@ extends RefCounted
 ## Test builds (docs/PLAYTEST.md parts 1-2). A test build is MALLET itself, renamed, next to the map and a tester.cfg:
 ## started that way it skips the editor, asks the tester's name and consent once, and goes straight into play mode.
 ## Every attempt (outcome, time, splits, deaths, speeds, route) is written to a runs file next to it, which the map
-## maker brings back with Export > Import tester runs. Nothing is sent anywhere.
+## maker brings back with Playtest > Import tester runs. Nothing is sent anywhere.
 
 const CONFIG := "tester.cfg"
 const MAP_FILE := "map.mallet"
