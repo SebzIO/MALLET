@@ -3,6 +3,16 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.27.2 preview — 2026-11-13: Build mode's light and texture settings in the side panel (work order 2, batch 3)
+
+- A selected light's side panel has everything build mode's F4 has: the **color cycle** (more colors with + / -, each
+  a color picker, seconds per color, random order) and **your presets** (apply, delete, save - the same presets as
+  F4's).
+- A selected cube object's side panel has **texture settings** like F3 for all its faces: scale, shift, scroll, spin,
+  swirl, see-through, turn, color and Stop moving. Each face keeps its own texture; only the setting you touch
+  changes. Undo works.
+- New test: side_panel_test.
+
 ## 0.27.1 preview — 2026-11-13: Side panel sections (work order 2, batch 2)
 
 - The side panel is split into titled sections for the map and for every kind of object: Position; for a ramp

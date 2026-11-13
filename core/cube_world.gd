@@ -1908,6 +1908,33 @@ func set_texture(sel: Dictionary, id: String, all_faces := false) -> void:
 
 
 ## Change texture settings of the selected faces: `fn` gets the slot dictionary and returns it changed.
+## Every face of every cube in the object through `fn` (a slot string -> a slot string): the editor's side panel
+## texture settings for a whole cube object (0.27.2). Call between begin() and commit().
+func edit_all_slots(fn: Callable) -> void:
+	for k in leaves.keys():
+		var v: Array = leaves[k]
+		var t: PackedStringArray = (v[1] as PackedStringArray).duplicate()
+		for o in 6:
+			t[o] = fn.call(t[o])
+		if t != v[1]:
+			_put(k, _v(v[0], t, _blend_of(v), _cut_of(v)))
+
+
+## A slot the object's faces use, to show in the side panel ("" when it has no cubes): the most common one.
+func common_slot() -> String:
+	var count := {}
+	for k in leaves:
+		for s in (leaves[k][1] as PackedStringArray):
+			count[s] = int(count.get(s, 0)) + 1
+	var best := ""
+	var n := -1
+	for s in count:
+		if int(count[s]) > n:
+			n = int(count[s])
+			best = s
+	return best
+
+
 func set_slot_param(sel: Dictionary, all_faces: bool, fn: Callable) -> void:
 	_edit_slots(sel, all_faces, func(slot: String) -> String: return make_slot(fn.call(parse_slot(slot).duplicate())))
 

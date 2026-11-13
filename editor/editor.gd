@@ -524,6 +524,105 @@ func _build_ui_main() -> void:
 	_build_css_dialog()
 
 
+## The light's extra cycle colors as color pickers (the first color is the light's Color above).
+func _fill_light_swatches(ln: LightNode) -> void:
+	var sw: HFlowContainer = _fields["light_swatches"]
+	for c in sw.get_children():
+		sw.remove_child(c)
+		c.queue_free()
+	var cs: Array = LightNode.spec(ln.data)["colors"]
+	for i in cs.size():
+		var cp := ColorPickerButton.new()
+		cp.custom_minimum_size = Vector2(44, 26)
+		cp.color = Color.html(String(cs[i]))
+		var idx := i
+		cp.color_changed.connect(func(c: Color):
+			var now: Array = (LightNode.spec((selected as LightNode).data)["colors"] as Array).duplicate()
+			if idx < now.size():
+				now[idx] = c.to_html(false)
+				_edit_prop("light_colors", now))
+		sw.add_child(cp)
+
+
+func _light_color_add(dir: int) -> void:
+	if not selected is LightNode:
+		return
+	var cs: Array = (LightNode.spec((selected as LightNode).data)["colors"] as Array).duplicate()
+	if dir > 0:
+		cs.append(Color.from_hsv(randf(), 0.8, 1.0).to_html(false))
+	elif not cs.is_empty():
+		cs.pop_back()
+	_edit_prop("light_colors", cs)
+
+
+func _light_preset_now() -> Dictionary:
+	if not selected is LightNode:
+		return {}
+	var d: Dictionary = LightNode.spec((selected as LightNode).data).duplicate(true)
+	for k in ["position", "yaw", "pitch", "roll", "name", "group", "folder", "hidden", "locked"]:
+		d.erase(k)
+	return d
+
+
+## Your saved presets of one kind (Presets: shared with build mode's panels): pick one and Apply, Delete it, or
+## name the current settings and Save them.
+func _presets_row(kind: String, now: Callable, apply: Callable) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	var row := HBoxContainer.new()
+	col.add_child(row)
+	var pick := OptionButton.new()
+	pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pick.focus_mode = Control.FOCUS_NONE
+	row.add_child(pick)
+	var refill := func():
+		pick.clear()
+		var names := Presets.all(kind).keys()
+		pick.disabled = names.is_empty()
+		if names.is_empty():
+			pick.add_item("(no presets yet)")
+		for n in names:
+			pick.add_item(String(n))
+	refill.call()
+	var use := Button.new()
+	use.text = "Apply"
+	use.focus_mode = Control.FOCUS_NONE
+	use.pressed.connect(func():
+		if not pick.disabled:
+			apply.call(Presets.all(kind).get(pick.get_item_text(pick.selected), {})))
+	row.add_child(use)
+	var del := Button.new()
+	del.text = "Delete"
+	del.focus_mode = Control.FOCUS_NONE
+	del.pressed.connect(func():
+		if not pick.disabled:
+			Presets.remove(kind, pick.get_item_text(pick.selected))
+			refill.call())
+	row.add_child(del)
+	var row2 := HBoxContainer.new()
+	col.add_child(row2)
+	var name_box := LineEdit.new()
+	name_box.placeholder_text = "Preset name"
+	name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row2.add_child(name_box)
+	var save := Button.new()
+	save.text = "Save preset"
+	save.focus_mode = Control.FOCUS_NONE
+	save.pressed.connect(func():
+		var n := name_box.text.strip_edges()
+		var d: Dictionary = now.call()
+		if n == "" or d.is_empty():
+			_set_status("Name the preset first.")
+			return
+		Presets.save(kind, n, d)
+		name_box.text = ""
+		refill.call()
+		_set_status("Saved the preset \"%s\"." % n))
+	row2.add_child(save)
+	col.set_meta("refill", refill)
+	return col
+
+
 ## A titled section of the side panel (0.27.1): a little room above, the title, a thin line under it.
 func _section(parent: Container, title: String) -> Control:
 	var box := VBoxContainer.new()
@@ -723,6 +822,34 @@ func _build_props(props: VBoxContainer) -> void:
 		var deg: float = t[1]
 		b.pressed.connect(func(): _rotate_selected(deg))
 		tb.add_child(b)
+	# (0.27.2) build mode's F3 texture settings, here for all of the object's faces (each keeps its own texture)
+	_section(_cube_panel, "Texture settings (all its faces)")
+	for spec in [["s", "Scale", 0.05, 8.0, 0.01], ["u", "Shift across", 0.0, 1.0, 0.01], ["v", "Shift up", 0.0, 1.0, 0.01],
+			["su", "Scroll across (per second)", -2.0, 2.0, 0.05], ["sv", "Scroll up (per second)", -2.0, 2.0, 0.05],
+			["sp", "Spin (degrees a second)", -360.0, 360.0, 1.0], ["sw", "Swirl (spiral, degrees)", -720.0, 720.0, 5.0],
+			["a", "See-through (1 = solid)", 0.05, 1.0, 0.05]]:
+		_add_slider(_cube_panel, "cube_tex_" + spec[0], spec[1], spec[2], spec[3], spec[4])
+		if spec[0] in ["s", "u", "v", "su", "sv", "sp", "sw"]:
+			(_fields["cube_tex_" + spec[0]][1] as SpinBox).allow_greater = true
+			if spec[0] != "s":
+				(_fields["cube_tex_" + spec[0]][1] as SpinBox).allow_lesser = true
+	var cturn := OptionButton.new()
+	for t in ["Not turned", "Turned 90°", "Turned 180°", "Turned 270°", "Flipped across", "Flipped up"]:
+		cturn.add_item(t)
+	cturn.focus_mode = Control.FOCUS_NONE
+	cturn.item_selected.connect(func(i): _edit_prop("cube_tex_r", i))
+	_add_row(_cube_panel, "Turn", cturn)
+	_fields["cube_tex_r"] = cturn
+	var ccol := ColorPickerButton.new()
+	ccol.custom_minimum_size = Vector2(0, 26)
+	ccol.color_changed.connect(func(c): _edit_prop("cube_tex_c", c.to_html(false)))
+	_add_row(_cube_panel, "Color", ccol)
+	_fields["cube_tex_c"] = ccol
+	var cstop := Button.new()
+	cstop.text = "Stop moving (scroll, spin, swirl to 0)"
+	cstop.focus_mode = Control.FOCUS_NONE
+	cstop.pressed.connect(func(): _edit_prop("cube_tex_stop", true))
+	_cube_panel.add_child(cstop)
 
 	_entity_props = VBoxContainer.new()
 	_entity_props.add_theme_constant_override("separation", 6)
@@ -1417,6 +1544,11 @@ func _refresh_props() -> void:
 	_cube_panel.visible = selected is CubeModelNode
 	if selected is CubeModelNode:
 		_fields["head"].text = String(selected.get_meta("name", "Cube object"))
+		var cd := CubeWorld.parse_slot((selected as CubeModelNode).world.common_slot())
+		for k in ["s", "u", "v", "su", "sv", "sp", "sw", "a"]:
+			_set_field("cube_tex_" + k, float(cd[k]))
+		(_fields["cube_tex_r"] as OptionButton).select(int(cd["r"]))
+		(_fields["cube_tex_c"] as ColorPickerButton).color = Color.html(cd["c"])
 		_updating_ui = false
 		_refresh_info()
 		return
@@ -1454,6 +1586,10 @@ func _refresh_props() -> void:
 		_set_field("light_length", float(ln.data.get("length", 4.0)))
 		_set_field("light_strip_yaw", float(ln.data["yaw"]))
 		_fields["light_preset"].select(0)
+		_fill_light_swatches(ln)
+		(_fields["light_presets"].get_meta("refill") as Callable).call()   # (saved in build mode too)
+		_set_field("light_speed", float(LightNode.spec(ln.data)["speed"]))
+		_fields["light_random"].set_pressed_no_signal(bool(LightNode.spec(ln.data)["random"]))
 		_updating_ui = false
 		_refresh_info()
 		return
@@ -3346,6 +3482,41 @@ func _build_light_props(props: VBoxContainer) -> void:
 	sh.toggled.connect(func(on): _edit_prop("light_shadows", on))
 	_light_props.add_child(sh)
 	_fields["light_shadows"] = sh
+	# (0.27.2) everything build mode's F4 has: the color cycle and your own light presets
+	_section(_light_props, "Color cycle")
+	var crow := HBoxContainer.new()
+	_light_props.add_child(crow)
+	var cl := Label.new()
+	cl.text = "More colors (pulse flows through them, flicker jumps)"
+	cl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	crow.add_child(cl)
+	var add_c := Button.new()
+	add_c.text = "+"
+	add_c.tooltip_text = "Add a color to the cycle"
+	add_c.focus_mode = Control.FOCUS_NONE
+	add_c.pressed.connect(_light_color_add.bind(1))
+	crow.add_child(add_c)
+	var rem_c := Button.new()
+	rem_c.text = "−"
+	rem_c.tooltip_text = "Take the last color off"
+	rem_c.focus_mode = Control.FOCUS_NONE
+	rem_c.pressed.connect(_light_color_add.bind(-1))
+	crow.add_child(rem_c)
+	var sw := HFlowContainer.new()
+	_light_props.add_child(sw)
+	_fields["light_swatches"] = sw
+	_add_slider(_light_props, "light_speed", "Seconds per color", 0.05, 10.0, 0.05)
+	var rnd := CheckButton.new()
+	rnd.text = "Random order (flicker)"
+	rnd.focus_mode = Control.FOCUS_NONE
+	rnd.toggled.connect(func(on): _edit_prop("light_random", on))
+	_light_props.add_child(rnd)
+	_fields["light_random"] = rnd
+	_section(_light_props, "Your presets")
+	var lpr := _presets_row("light", _light_preset_now, func(p): _edit_prop("light_user_preset", p))
+	_light_props.add_child(lpr)
+	_fields["light_presets"] = lpr
 
 
 ## Particle effects: the preset, its color, how many, how big, how fast, and the area they start in.
@@ -5640,6 +5811,24 @@ func _edit_prop(key: String, value) -> void:
 	if selected == null or _updating_ui:
 		return
 	_checkpoint("prop:%s:%d" % [key, _all_objects().find(selected)])
+	if selected is CubeModelNode and key.begins_with("cube_tex_"):
+		var cm := selected as CubeModelNode
+		var k := key.trim_prefix("cube_tex_")
+		cm.world.begin()
+		cm.world.edit_all_slots(func(slot: String) -> String:
+			var d: Dictionary = CubeWorld.parse_slot(slot).duplicate()
+			if k == "stop":
+				for m in ["su", "sv", "sp", "sw"]:
+					d[m] = 0.0
+			else:
+				d[k] = int(value) if k == "r" else (String(value) if k == "c" else float(value))
+			return CubeWorld.make_slot(d))
+		cm.world.commit()
+		cm.redraw_changed()
+		if k == "stop":
+			_refresh_props()
+		_map_changed()
+		return
 	if selected is ParticleNode:
 		var pn := selected as ParticleNode
 		var pd: Dictionary = pn.data.duplicate(true)
@@ -5675,6 +5864,13 @@ func _edit_prop(key: String, value) -> void:
 			"light_effect": ld["effect"] = value
 			"light_length": ld["length"] = value
 			"light_strip_yaw": ld["yaw"] = value
+			"light_colors": ld["colors"] = value
+			"light_speed": ld["speed"] = value
+			"light_random": ld["random"] = value
+			"light_user_preset":                         # one of your saved light presets (Presets kind "light")
+				for k in value:
+					if not k in ["position", "yaw", "pitch", "roll", "name", "group", "folder", "hidden", "locked"]:
+						ld[k] = value[k]
 			"light_preset":
 				for k in LightNode.PRESETS[value]:
 					if k != "label":
@@ -5682,7 +5878,7 @@ func _edit_prop(key: String, value) -> void:
 				if ld["kind"] == "strip":
 					ld["pitch"] = 0.0                    # (strips lie level)
 		ln.from_dict(ld)
-		if key == "light_kind":
+		if key in ["light_kind", "light_colors", "light_user_preset"]:
 			_refresh_props()
 		_refresh_info()
 		return
