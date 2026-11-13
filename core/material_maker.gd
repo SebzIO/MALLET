@@ -32,7 +32,7 @@ static var _shaders := {}
 static func new_recipe(base := "") -> Dictionary:
 	var r := {"name": "My material", "base": base, "color": "808080", "tint": "ffffff",
 		"size": MaterialLibrary.world_size(base) if base != "" and MaterialLibrary.has(base) else 2.0,
-		"ramp_fit": false, "layers": [], "next": 1}
+		"ramp_fit": false, "finish": MaterialLibrary.FINISH_DEFAULTS.duplicate(), "layers": [], "next": 1}
 	if base != "" and MaterialLibrary.has(base):
 		r["name"] = MaterialLibrary.display_name(base) + " (mine)"
 	return r
@@ -41,7 +41,7 @@ static func new_recipe(base := "") -> Dictionary:
 static func new_layer(type: String) -> Dictionary:
 	var l := {"type": type, "on": true, "opacity": 1.0, "blend": "mix", "color": "000000"}
 	match type:
-		"adjust": l.merge({"hue": 0.0, "sat": 1.0, "bright": 0.0, "contrast": 1.0})
+		"adjust": l.merge({"hue": 0.0, "sat": 1.0, "bright": 0.0, "contrast": 1.0, "gamma": 1.0})
 		"fill": l["opacity"] = 0.5
 		"stripe": l.merge({"dir": "vertical", "pos": 0.5, "width": 0.04, "angle": 0.0, "soft": 0.0})
 		"rect", "ellipse": l.merge({"x": 0.5, "y": 0.5, "w": 0.3, "h": 0.3, "angle": 0.0, "soft": 0.0})
@@ -129,6 +129,7 @@ func _add_layer(l: Dictionary, px: float) -> void:
 			m.shader = _shader("adjust", "mix")
 			for k in ["hue", "sat", "bright", "contrast"]:
 				m.set_shader_parameter(k, float(l.get(k, 0.0)))
+			m.set_shader_parameter("gamma", maxf(float(l.get("gamma", 1.0)), 0.001))
 			m.set_shader_parameter("opacity", opacity)
 			cr.material = m
 			add_child(cr)
@@ -261,6 +262,7 @@ uniform float hue = 0.0;
 uniform float sat = 1.0;
 uniform float bright = 0.0;
 uniform float contrast = 1.0;
+uniform float gamma = 1.0;
 uniform float opacity = 1.0;
 vec3 rgb2hsv(vec3 c) {
 	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -279,6 +281,7 @@ void fragment() {
 	h.x = fract(h.x + hue);
 	h.y = clamp(h.y * sat, 0.0, 1.0);
 	vec3 o = hsv2rgb(h);
+	o = pow(max(o, vec3(0.0)), vec3(gamma));
 	o = clamp((o - 0.5) * contrast + 0.5 + bright, 0.0, 1.0);
 	COLOR = vec4(mix(c, o, opacity), 1.0);
 }
@@ -357,5 +360,6 @@ static func save(r: Dictionary, color: Image, layer_images: Dictionary, id := ""
 			(layer_images[f] as Image).save_png(dir + f)
 	MaterialLibrary.put_user_entry({"id": id, "name": String(r.get("name", id)), "category": CATEGORY,
 		"size": float(r.get("size", 2.0)), "surface": surface, "maps": maps, "recipe": rec,
-		"ramp_fit": bool(r.get("ramp_fit", false)), "stamp": Time.get_unix_time_from_system()})
+		"ramp_fit": bool(r.get("ramp_fit", false)), "finish": (r.get("finish", {}) as Dictionary).duplicate() if r.get("finish") is Dictionary else {},
+		"stamp": Time.get_unix_time_from_system()})
 	return id

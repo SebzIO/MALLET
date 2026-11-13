@@ -148,7 +148,8 @@ static func orient_step(o: int) -> Vector3i:
 ## vcolor, valpha, vlayer), written as "id" or "id|s=2;r=1;u=0.25;..." so faces with equal settings share a mesh
 ## surface. Keys: s scale, r rotate (0-3 quarter turns, 4 flip across, 5 flip up), u / v offset (repeats),
 ## su / sv scroll (repeats a second), c color (hex), a see-through (0-1), l blend layer texture.
-const SLOT_DEFAULTS := {"id": "", "s": 1.0, "r": 0, "u": 0.0, "v": 0.0, "su": 0.0, "sv": 0.0, "c": "ffffff", "a": 1.0, "l": ""}
+const SLOT_DEFAULTS := {"id": "", "s": 1.0, "r": 0, "u": 0.0, "v": 0.0, "su": 0.0, "sv": 0.0, "sp": 0.0, "sw": 0.0,
+	"c": "ffffff", "a": 1.0, "l": ""}                    ## sp spin (degrees a second), sw swirl (degrees): spiral motion
 
 
 static func parse_slot(slot: String) -> Dictionary:
@@ -171,7 +172,7 @@ static func parse_slot(slot: String) -> Dictionary:
 
 static func make_slot(d: Dictionary) -> String:
 	var bits := PackedStringArray()
-	for k in ["s", "r", "u", "v", "su", "sv", "c", "a", "l"]:
+	for k in ["s", "r", "u", "v", "su", "sv", "sp", "sw", "c", "a", "l"]:
 		var v = d.get(k, SLOT_DEFAULTS[k])
 		if v is float:
 			v = snappedf(v, 0.0001)
@@ -217,7 +218,7 @@ static func material_for(slot: String, alpha_mat := false) -> Material:
 	var lib := id != "" and MaterialLibrary.has(id)
 	var tint := Color.html(sl["c"])
 	var alpha := float(sl["a"]) * (0.5 if alpha_mat and float(sl["a"]) >= 1.0 else 1.0)
-	var plain: bool = tint == Color.WHITE and alpha >= 1.0 and float(sl["su"]) == 0.0 and float(sl["sv"]) == 0.0 and sl["l"] == ""
+	var plain: bool = tint == Color.WHITE and alpha >= 1.0 and float(sl["su"]) == 0.0 and float(sl["sv"]) == 0.0 and sl["l"] == "" 		and float(sl["sp"]) == 0.0 and float(sl["sw"]) == 0.0
 	var m: Material
 	if plain:
 		m = MaterialLibrary.material(id, Color.WHITE) if lib else Look.ramp_material("grid", Color.html("9aa3ad"), "", 20.0, "", 10.5, true)
@@ -242,6 +243,10 @@ static func material_for(slot: String, alpha_mat := false) -> Material:
 		sm.set_shader_parameter("tint", tint)
 		sm.set_shader_parameter("alpha", alpha)
 		sm.set_shader_parameter("scroll", Vector2(sl["su"], sl["sv"]))
+		sm.set_shader_parameter("spin", float(sl["sp"]))
+		sm.set_shader_parameter("swirl", float(sl["sw"]))
+		if lib:
+			MaterialLibrary.shader_finish(sm, id)
 		var lid: String = sl["l"]
 		if lid != "" and MaterialLibrary.has(lid):
 			var lm := MaterialLibrary.material(lid, Color.WHITE)
@@ -275,23 +280,40 @@ static func set_mat_looks(env: Dictionary) -> bool:
 	if want == mat_looks:
 		return false
 	mat_looks = want
-	for k in ["mat:water", "mat:lava", "mat:glass"]:
+	for k in ["mat:water", "mat:lava", "mat:glass"]:     # (cells with a look of their own keep it)
 		_materials.erase(k)
 	return true
 
 
+## A material cell's kind: "water", "lava", "glass", "clip"... A cell can name its own look after a colon (0.23.0):
+## "water:pool", "lava:magma", "glass:frosted" (Look.LIQUIDS / Look.GLASS ids); without one it takes the map's.
+static func mat_kind(name: String) -> String:
+	return name.get_slice(":", 0)
+
+
+static func mat_variant(name: String) -> String:
+	return name.get_slice(":", 1) if ":" in name else ""
+
+
+## The material for a kind with a look of its own ("" = the map's), as stored in a cell.
+static func mat_name(kind: String, look: String) -> String:
+	return kind + (":" + look if look != "" and kind in ["water", "lava", "glass"] else "")
+
+
 static func material_look(name: String) -> Material:
-	var key := "mat:" + name
+	var kind := mat_kind(name)
+	var own := mat_variant(name)
+	var key := "mat:" + kind + ((":" + own) if own != "" else "")
 	if _materials.has(key):
 		return _materials[key]
 	var m: Material
-	match name:
+	match kind:
 		"water":
-			m = Look.liquid_material(mat_looks.get("water", "water"))
+			m = Look.liquid_material(own if own != "" else mat_looks.get("water", "water"))
 		"lava":
-			m = Look.liquid_material(mat_looks.get("lava", "lava"))
+			m = Look.liquid_material(own if own != "" else mat_looks.get("lava", "lava"))
 		"glass":
-			m = Look.glass_material(mat_looks.get("glass", "clear"))
+			m = Look.glass_material(own if own != "" else mat_looks.get("glass", "clear"))
 		_:
 			var sm := StandardMaterial3D.new()
 			var c: Color = MAT_COLORS.get(name, Color(1, 1, 1, 0.2))
@@ -2041,7 +2063,7 @@ func hidden_mat_chunks() -> Array:
 	var out := []
 	for ck in _mrender:
 		for k in _mrender[ck]:
-			if not mats[k] in ["water", "lava", "glass"]:
+			if not mat_kind(mats[k]) in ["water", "lava", "glass"]:
 				out.append(ck)
 				break
 	return out
@@ -2050,7 +2072,7 @@ func hidden_mat_chunks() -> Array:
 func material_boxes() -> Dictionary:
 	var out := {}
 	for k in mats:
-		var m: String = mats[k]
+		var m: String = mat_kind(mats[k])               # (by kind: a pool's own look is only how it's drawn)
 		if not out.has(m):
 			out[m] = []
 		out[m].append(AABB(Vector3(k.x, k.y, k.z) * TICK, Vector3.ONE * metres(k.w)))
@@ -2062,7 +2084,7 @@ func cube_in_mat(k: Vector4i, m: String) -> bool:
 	if mats.is_empty():
 		return false
 	var s := float(size_of(k.w))
-	return mat_at(Vector3(k.x, k.y, k.z) + Vector3.ONE * s * 0.5) == m
+	return mat_kind(mat_at(Vector3(k.x, k.y, k.z) + Vector3.ONE * s * 0.5)) == m
 
 
 # ------------------------------------------------------------------------------------------------ heightmap
@@ -3133,13 +3155,14 @@ func _material_surfaces(ck: Vector3i, m: ArrayMesh, col: PackedVector3Array) -> 
 	var by := {}
 	for k in _mrender.get(ck, {}):
 		var name: String = mats[k]
-		var visible_kind := name in ["water", "lava", "glass"]
+		var kind := mat_kind(name)
+		var visible_kind := kind in ["water", "lava", "glass"]
 		var s := float(size_of(k.w))
 		var lo := Vector3(k.x, k.y, k.z) * TICK
 		var hi := lo + Vector3.ONE * s * TICK
 		var sz := size_of(k.w)
 		for o in 6:
-			if name in ["water", "lava"] and o == 2:
+			if kind in ["water", "lava"] and o == 2:
 				continue                                 # (no underside to a pool)
 			var st := orient_step(o) * sz
 			var pieces := []
@@ -3300,7 +3323,7 @@ static func _clip_half(poly: Array[Vector2], p0: Vector2, p1: Vector2) -> Array[
 
 
 func _mat_quad(name: String, quad: Array, o: int, visible_kind: bool, col: PackedVector3Array, by: Dictionary) -> void:
-	if name in ["glass", "clip", "gameclip"]:
+	if mat_kind(name) in ["glass", "clip", "gameclip"]:
 		for i in range(1, quad.size() - 1):
 			col.append_array([quad[0], quad[i], quad[i + 1]])
 	if not visible_kind and not show_mats:

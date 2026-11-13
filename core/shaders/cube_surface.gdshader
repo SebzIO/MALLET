@@ -23,6 +23,16 @@ uniform bool has_rough = false;
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float alpha = 1.0;
 uniform vec2 scroll = vec2(0.0);
+// Spiral motion (0.23.0): each repeat of the texture turns around its own middle at `spin` degrees a second, and
+// `swirl` twists it more the nearer the middle it is (degrees at the middle, fading to none at the repeat's edge),
+// so together they make a turning spiral. "Fit to selection" (one repeat over the whole face) spins the face as one.
+uniform float spin = 0.0;
+uniform float swirl = 0.0;
+// The material's finish (MaterialLibrary.finish): bright x, light of its own, gloss 0-1, reflect (metal) 0-1.
+uniform float bright = 1.0;
+uniform float self_glow = 0.0;
+uniform float gloss = 0.0;
+uniform float reflect = 0.0;
 uniform bool use_layer = false;
 uniform sampler2D layer_tex : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D layer_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -30,9 +40,20 @@ uniform bool layer_has_normal = false;
 
 void fragment() {
 	vec2 uv = UV + scroll * TIME;
-	vec4 c = texture(albedo_tex, uv) * tint;
-	vec3 nm = has_normal ? texture(normal_tex, uv).rgb : vec3(0.5, 0.5, 1.0);
-	float r = has_rough ? texture(rough_tex, uv).r : 0.9;
+	vec2 dx = dFdx(uv);
+	vec2 dy = dFdy(uv);
+	if (spin != 0.0 || swirl != 0.0) {
+		vec2 cell = floor(uv);
+		vec2 p = uv - cell - 0.5;
+		float a = radians(spin) * TIME + radians(swirl) * max(1.0 - length(p) * 2.0, 0.0);
+		float ca = cos(a);
+		float sa = sin(a);
+		p = vec2(ca * p.x - sa * p.y, sa * p.x + ca * p.y);
+		uv = cell + p + 0.5;
+	}
+	vec4 c = textureGrad(albedo_tex, uv, dx, dy) * tint;
+	vec3 nm = has_normal ? textureGrad(normal_tex, uv, dx, dy).rgb : vec3(0.5, 0.5, 1.0);
+	float r = has_rough ? textureGrad(rough_tex, uv, dx, dy).r : 0.9;
 	if (use_layer) {
 		float w = clamp(COLOR.a, 0.0, 1.0);
 		vec4 lc = texture(layer_tex, UV2);
@@ -40,12 +61,16 @@ void fragment() {
 		c = mix(c, lc, w);
 		nm = mix(nm, ln, w);
 	}
-	ALBEDO = c.rgb;
+	ALBEDO = c.rgb * bright;
 	if (has_glow) {
-		EMISSION = texture(glow_tex, uv).rgb * tint.rgb * glow_energy;
+		EMISSION = textureGrad(glow_tex, uv, dx, dy).rgb * tint.rgb * glow_energy * (1.0 + self_glow);
+	} else if (self_glow > 0.0) {
+		EMISSION = c.rgb * self_glow;
 	}
 	NORMAL_MAP = nm;
-	ROUGHNESS = r;
+	ROUGHNESS = r * (1.0 - gloss);
+	METALLIC = reflect;
+	SPECULAR = 0.5 + 0.5 * reflect;
 #ifdef SEE_THROUGH
 	ALPHA = alpha;
 #endif

@@ -386,6 +386,8 @@ func build(map: Dictionary, opts := {}) -> String:
 		"_light": "%d %d %d %d" % [sc.r8, sc.g8, sc.b8, int(260.0 * float(env.get("sun_energy", 1.0)))],
 		"_ambient": "%d %d %d %d" % [ac.r8, ac.g8, ac.b8, int(90.0 * float(env.get("ambient_energy", 0.6)))],
 		"_lightHDR": "-1 -1 -1 1", "_ambientHDR": "-1 -1 -1 1", "SunSpreadAngle": "0"}, Vector3(0, 0, b_hi.z - 64.0)))
+	for p in plates:                                     # (what reflective materials reflect: run buildcubemaps once)
+		entities.append(_point_entity({"classname": "env_cubemap"}, src(p[0]) + Vector3(0, 0, 64)))
 	var aa: int = int(opts.get("airaccelerate", 150))
 	entities.append(_point_entity({"classname": "point_servercommand", "targetname": "sf_servercommand"}, Vector3(0, 0, b_hi.z - 96.0)))
 	entities.append(_point_entity({"classname": "logic_auto", "spawnflags": "1"}, Vector3(0, 0, b_hi.z - 128.0),
@@ -812,7 +814,11 @@ func _slot_material(sl: Dictionary, alpha_mat: bool) -> String:
 	var a := float(sl["a"]) * (0.5 if alpha_mat and float(sl["a"]) >= 1.0 else 1.0)
 	if a < 1.0:
 		params += "\t\"$translucent\" \"1\"\n\t\"$alpha\" \"%.2f\"\n" % a
-	if float(sl["su"]) != 0.0 or float(sl["sv"]) != 0.0:
+	if float(sl["sp"]) != 0.0:                       # spin: Source turns the texture around each repeat's middle
+		params += "\t\"$angle\" \"0\"\n\t\"Proxies\"\n\t{\n\t\t\"LinearRamp\"\n\t\t{\n\t\t\t\"rate\" \"%.2f\"\n" % float(sl["sp"]) \
+			+ "\t\t\t\"initialValue\" \"0\"\n\t\t\t\"resultVar\" \"$angle\"\n\t\t}\n\t\t\"TextureTransform\"\n\t\t{\n" \
+			+ "\t\t\t\"rotateVar\" \"$angle\"\n\t\t\t\"resultVar\" \"$basetexturetransform\"\n\t\t}\n\t}\n"
+	elif float(sl["su"]) != 0.0 or float(sl["sv"]) != 0.0:
 		var su := float(sl["su"])
 		var sv := float(sl["sv"])
 		params += "\t\"Proxies\"\n\t{\n\t\t\"TextureScroll\"\n\t\t{\n\t\t\t\"texturescrollvar\" \"$basetexturetransform\"\n" \
@@ -820,6 +826,8 @@ func _slot_material(sl: Dictionary, alpha_mat: bool) -> String:
 				Vector2(su, sv).length(), rad_to_deg(atan2(sv, su))]
 	if params == "":
 		return _mat_name(sl["id"])
+	if not CssLibrary.is_css(sl["id"]):
+		params += finish_vmt(MaterialLibrary.finish(sl["id"]))   # (the variant keeps the material's finish)
 	if CssLibrary.is_css(sl["id"]):
 		return _css_variant(sl["id"], params)
 	var name := "%s_v%x" % [String(sl["id"]).to_lower(), hash(params) & 0xffffff]
@@ -970,10 +978,14 @@ static func write_materials(ids: Array, root: String) -> Array:
 		var vtf := dir.path_join(name + ".vtf")
 		var vmt := dir.path_join(name + ".vmt")
 		var glow := MaterialLibrary.image(id, "glow")       # glowing parts: the texture's alpha, lit by $selfillum
+		var fin := MaterialLibrary.finish(id)
+		if glow == null and float(fin["glow"]) > 0.0:     # (light of its own, all over: a white mask)
+			glow = Image.create(img.get_width(), img.get_height(), false, Image.FORMAT_RGB8)
+			glow.fill(Color.WHITE)
 		_write_vtf(img, vtf, glow)
 		var f := FileAccess.open(vmt, FileAccess.WRITE)
-		f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"mallet/%s\"\n\t\"$surfaceprop\" \"%s\"\n%s}\n" % [name,
-			MaterialLibrary.entry(id).get("surface", "concrete"), "\t\"$selfillum\" \"1\"\n" if glow else ""])
+		f.store_string("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"mallet/%s\"\n\t\"$surfaceprop\" \"%s\"\n%s%s}\n" % [name,
+			MaterialLibrary.entry(id).get("surface", "concrete"), "\t\"$selfillum\" \"1\"\n" if glow else "", finish_vmt(fin)])
 		f.close()
 		# a self-lit version for glowing blocks (the same texture, shining)
 		var gvmt := dir.path_join(name + "_glow.vmt")
@@ -985,6 +997,20 @@ static func write_materials(ids: Array, root: String) -> Array:
 		out.append(["materials/mallet/%s.vtf" % name, vtf])
 		out.append(["materials/mallet/%s.vmt" % name, vmt])
 	return out
+
+
+## A material's finish in Source's words: brightness as $color, reflections as the map's cubemap (stronger the
+## glossier), so a reflective material shines in CS:S too. ("" for the plain finish.)
+static func finish_vmt(fin: Dictionary) -> String:
+	var t := ""
+	var b := float(fin.get("bright", 1.0))
+	if not is_equal_approx(b, 1.0):
+		t += "\t\"$color\" \"[%.3f %.3f %.3f]\"\n" % [b, b, b]
+	var r := float(fin.get("reflect", 0.0))
+	if r > 0.0:
+		var k := r * (0.35 + 0.65 * float(fin.get("gloss", 0.0)))
+		t += "\t\"$envmap\" \"env_cubemap\"\n\t\"$envmaptint\" \"[%.3f %.3f %.3f]\"\n" % [k, k, k]
+	return t
 
 
 ## A material variant (a library texture with extra settings) or a plain-color material made for the map.

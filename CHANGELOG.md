@@ -3,6 +3,23 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.23.0 preview — 2026-11-12: Shine, spin and a look for every pool
+
+- **A material's finish** (material maker > Finish, with a turning ball that shows it): **Brightness x** and **Light of
+  its own** with no upper limit (type any number), **Glossiness** up to mirror-smooth and **Reflectiveness** up to a
+  perfect mirror. It follows the material everywhere: ramps, blocks, cubes, the SurfsUp export, and CS:S (reflections
+  as the map's cubemap, brightness as $color, its own light as self-illumination; the export now places an
+  env_cubemap at each spawn - run buildcubemaps once).
+- **Gamma** in the material maker's Adjust colors layer (type any number).
+- **Reflections of the map** (Map panel): shiny materials reflect the map itself (screen-space), not only the sky.
+- **Spin and swirl**: a ramp's texture settings and build mode's F3 can turn the texture (degrees a second) and twist
+  its middle into a spiral, on top of scrolling. Each repeat turns around its own middle (Fit to selection turns a
+  whole face as one). CS:S spins it too; it can't swirl. Their number boxes take any value.
+- **A look for every pool**: build mode's T menu, Fill tab, has "Their look" for water, lava and glass. "The map's
+  look" follows the Map panel as before; any other look belongs to that fill, so each pool can differ (water blocks
+  already had their own). It is still water / lava / glass for playing and exporting.
+- New test: finish_test.
+
 ## 0.22.0 preview — 2026-11-12: The guide (1.0 checklist)
 
 - **The MALLET guide**: a first map in ten minutes, then ramps, zones, playing and practice, build mode, materials and

@@ -8,6 +8,10 @@ const DIR := "res://materials/"
 const USER_DIR := "user://materials/"     ## your own images, added from the picker
 const MAX_SIZE := 1024
 const GLOW_ENERGY := 1.6                  ## how bright a material's glow map shines
+## A material's finish (0.23.0, set in the material maker): bright = how much light it gives back (x, no upper
+## limit), glow = light of its own (its picture shining by itself, no upper limit), gloss = 0 as photographed to 1
+## mirror-smooth, reflect = 0 not at all to 1 a perfect mirror (metal). Missing keys are these.
+const FINISH_DEFAULTS := {"bright": 1.0, "glow": 0.0, "gloss": 0.0, "reflect": 0.0}
 
 static var _entries: Array = []
 static var _by_id := {}
@@ -160,6 +164,7 @@ static func material(id: String, tint := Color.WHITE) -> StandardMaterial3D:
 	var key := "%s|%s" % [id, tint.to_html()]
 	if _materials.has(key):
 		return _materials[key]
+	var fin := finish(id)
 	var m := StandardMaterial3D.new()
 	m.resource_name = id
 	m.albedo_color = tint
@@ -185,9 +190,51 @@ static func material(id: String, tint := Color.WHITE) -> StandardMaterial3D:
 		m.emission_texture = gl
 		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY   # (ADD would light the whole face: color + map)
 		m.emission_energy_multiplier = GLOW_ENERGY
+	apply_finish(m, fin, mt != null, gl != null)
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_materials[key] = m
 	return m
+
+
+## Put a finish on a material built from a library entry (`has_metal` / `has_glow`: it has those maps).
+static func apply_finish(m: StandardMaterial3D, fin: Dictionary, has_metal: bool, has_glow: bool) -> void:
+	var b := float(fin["bright"])
+	m.albedo_color = Color(m.albedo_color.r * b, m.albedo_color.g * b, m.albedo_color.b * b, m.albedo_color.a)
+	m.roughness = 1.0 - float(fin["gloss"])             # (it scales the roughness map: 0 = mirror-smooth)
+	if float(fin["reflect"]) > 0.0:
+		if not has_metal:                                # (with a metal map, that map still says which parts are metal)
+			m.metallic = float(fin["reflect"])
+		m.metallic_specular = 0.5 + 0.5 * float(fin["reflect"])
+	if float(fin["glow"]) > 0.0 and not has_glow:       # (light of its own: the picture shines by itself)
+		m.emission_enabled = true
+		m.emission = Color.WHITE
+		m.emission_texture = m.albedo_texture
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		m.emission_energy_multiplier = float(fin["glow"])
+	elif float(fin["glow"]) > 0.0:
+		m.emission_energy_multiplier = GLOW_ENERGY * (1.0 + float(fin["glow"]))
+
+
+## A material's finish (FINISH_DEFAULTS filled in).
+static func finish(id: String) -> Dictionary:
+	var f := FINISH_DEFAULTS.duplicate()
+	var e = entry(id).get("finish") if id != "" else null
+	if e is Dictionary:
+		for k in f:
+			if (e as Dictionary).has(k):
+				f[k] = maxf(float(e[k]), 0.0)
+	f["gloss"] = minf(f["gloss"], 1.0)
+	f["reflect"] = minf(f["reflect"], 1.0)
+	return f
+
+
+## The same finish on one of the surface shaders (cube faces, turned / scrolling ramp textures).
+static func shader_finish(sm: ShaderMaterial, id: String) -> void:
+	var f := finish(id)
+	sm.set_shader_parameter("bright", f["bright"])
+	sm.set_shader_parameter("self_glow", f["glow"])
+	sm.set_shader_parameter("gloss", f["gloss"])
+	sm.set_shader_parameter("reflect", f["reflect"])
 
 
 ## Remove one of your own materials again (an image you added, or one you made).

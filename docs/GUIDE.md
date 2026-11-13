@@ -153,7 +153,12 @@ If Counter-Strike: Source is installed, its textures appear too. **+ Your own im
 - Start from a material (or a plain color), then stack **layers**: color changes (hue, saturation, brightness,
   contrast), fills, stripes and lines, rectangles, ellipses, text, images and painting.
 - Every layer has a color, opacity and blend (mix, add, multiply, subtract). Move, hide, copy or delete layers any
-  time; nothing is final until you save, and even then you can open it again.
+  time; nothing is final until you save, and even then you can open it again. **Adjust colors** also has **gamma**
+  (below 1 lighter, above 1 darker; type any number).
+- **Finish** (the ball next to it shows it in 3D): **Brightness x** (how much light it gives back; type 10 or 100 for
+  more), **Light of its own** (it shines even in the dark; no upper limit), **Glossiness** (1 = mirror-smooth) and
+  **Reflectiveness** (1 = a perfect mirror, like polished chrome). Turn on **Reflections of the map** in the Map panel
+  and shiny materials reflect the map itself, not only the sky.
 - **Paint**: add a Paint layer, then drag on the picture. Shift+drag paints a straight line, Ctrl+Z undoes a stroke.
 - **A line along a ramp's ridge**: click **+ Ridge line**. It turns on **Fit across a ramp**: on ramps the picture
   spans the riding surface once from edge to edge, so the middle is the ridge (the **Ramp guide** shows it). Lines at
@@ -162,8 +167,14 @@ If Counter-Strike: Source is installed, its textures appear too. **+ Your own im
 - Your materials (and images you added) travel inside the maps that use them, so a map opens the same on a friend's
   PC.
 
-**The map's look** (the panel with nothing selected): the sky (MALLET's own, or your sky shader), sun, fog, and the
-colors of build mode's water, lava and glass.
+**Moving textures**: a ramp's texture settings (and F3 in build mode) can **scroll** across and along, **spin**
+(degrees a second) and **swirl** (twist the middle into a spiral). Each repeat turns around its own middle: use
+**Fit to selection** in F3, or a material that fits across a ramp, to turn a whole face as one. Every number box takes
+any value you type.
+
+**The map's look** (the panel with nothing selected): the sky (MALLET's own, or your sky shader), sun, fog, Reflections
+of the map, and the usual look of build mode's water, lava and glass. Any fill can have its own look instead: in build
+mode's **T** menu, Fill tab, pick the look under "Their look" before you fill, so every pool can be different.
 
 **Lights** (U, or Tab in build mode): point lights, spot lights and light strips (neon, tubes), with presets
 (torch, campfire, alarm, party...), effects (flicker, pulse, strobe) and color cycles. **Particles**: fire, smoke,

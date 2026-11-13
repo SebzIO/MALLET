@@ -97,6 +97,8 @@ var _light_panel: PanelContainer             ## F4: the selected light's color, 
 var _light_fields := {}
 var _light_updating := false
 var _light_before := {}
+## The look water / lava / glass gets when filled from the T menu ("" = the map's, from the Map panel).
+var fill_looks := {"water": "", "lava": "", "glass": ""}
 var shapes: ShapeMenu                        ## F6: the geometry menu (spheres, ramps, stairs...)
 var _ent_menu: PanelContainer                ## T: the entity menu (a tab per kind of thing, lights first)
 var _ent_body := VBoxContainer.new()
@@ -1497,6 +1499,28 @@ func _session_page() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(func(): _run_and_close(i))
 		grid.add_child(b)
+	fill.add_child(UiTheme.header("Their look (this fill only)"))
+	var looks := GridContainer.new()
+	looks.columns = 2
+	looks.add_theme_constant_override("h_separation", 6)
+	fill.add_child(looks)
+	for kind in ["water", "lava", "glass"]:
+		var lb := Label.new()
+		lb.text = kind.capitalize()
+		looks.add_child(lb)
+		var ob := OptionButton.new()
+		ob.focus_mode = Control.FOCUS_NONE
+		ob.tooltip_text = "Water, lava or glass you fill from now on looks like this. \"The map's look\" follows the
+Map panel's setting; any other look is this fill's own, so every pool can be different."
+		var ids := [""]
+		ob.add_item("The map's look")
+		var order: Array = Look.GLASS_ORDER if kind == "glass" else Look.LIQUID_ORDER.filter(func(k): return Look.LIQUIDS[k]["style"] == kind)
+		for id in order:
+			ids.append(id)
+			ob.add_item(String((Look.GLASS if kind == "glass" else Look.LIQUIDS)[id]["label"]))
+		ob.select(maxi(ids.find(fill_looks[kind]), 0))
+		ob.item_selected.connect(func(i: int): fill_looks[kind] = ids[i])
+		looks.add_child(ob)
 	for spec in [["Replace the texture you aim at, everywhere", 50], ["…only in the selection", 51],
 			["Reset the selected faces' texture settings", 52], ["Select the entities in the selection", 60],
 			["Go to the selection (J)", 61], ["Start a new cube object (N)", 62]]:
@@ -1564,7 +1588,7 @@ func run_command(id: int) -> void:
 	if id < CubeWorld.MATERIALS.size():
 		if s.is_empty():
 			return
-		var mat: String = CubeWorld.MATERIALS[id]
+		var mat: String = CubeWorld.mat_name(CubeWorld.MATERIALS[id], String(fill_looks.get(CubeWorld.MATERIALS[id], "")))
 		_edit(s, func(w: CubeWorld):
 			w.set_material(s, mat)
 			return s)
@@ -1994,6 +2018,8 @@ func _build_tex_panel() -> void:
 		_tex_fields["place_fit" if fit else "place_centre"] = pb
 	for spec in [["s", "Scale", 0.05, 8.0, 0.01], ["u", "Shift across", 0.0, 1.0, 0.01], ["v", "Shift up", 0.0, 1.0, 0.01],
 			["su", "Scroll across (per second)", -2.0, 2.0, 0.05], ["sv", "Scroll up (per second)", -2.0, 2.0, 0.05],
+			["sp", "Spin (degrees a second; Fit to selection spins the face as one)", -360.0, 360.0, 1.0],
+			["sw", "Swirl (spiral: twists the middle, degrees)", -720.0, 720.0, 5.0],
 			["a", "See-through (1 = solid)", 0.05, 1.0, 0.05]]:
 		var l := Label.new()
 		l.text = spec[1]
@@ -2075,7 +2101,7 @@ func _refresh_tex_panel() -> void:
 	_tex_updating = true
 	var d := CubeWorld.parse_slot(_slot_here())
 	(_tex_fields["head"] as Label).text = "Texture: %s%s" % [_tex_name(d["id"]), ("   (layer: %s)" % _tex_name(d["l"])) if d["l"] != "" else ""]
-	for k in ["s", "u", "v", "su", "sv", "a"]:
+	for k in ["s", "u", "v", "su", "sv", "sp", "sw", "a"]:
 		(_tex_fields[k] as HSlider).value = float(d[k])
 	(_tex_fields["r"] as OptionButton).select(int(d["r"]))
 	(_tex_fields["c"] as ColorPickerButton).color = Color.html(d["c"])

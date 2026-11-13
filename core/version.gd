@@ -3,10 +3,10 @@ extends RefCounted
 ## The one place MALLET's version lives. 0.x = previews: the middle number goes up with each batch of new
 ## features, the last with bug-fix releases. 1.0 is the first release we call complete (the MVP).
 
-const VERSION := "0.22.0"
+const VERSION := "0.23.0"
 const CHANNEL := "preview"
 ## One line for the welcome screen: what this version brought.
-const NEWS := "the MALLET guide (Help menu), a Cube Park template, your own materials (in the material picker), practice tools in play mode."
+const NEWS := "shiny, mirror and glowing materials (material maker > Finish), spinning and swirling textures, a look of its own for every pool of water, lava or glass."
 
 
 ## The guide (docs/GUIDE.html next to MALLET.exe; in the project, res://docs/GUIDE.html), or another page in docs.

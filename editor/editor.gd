@@ -663,6 +663,12 @@ func _build_props(props: VBoxContainer) -> void:
 	_add_slider(_tex_box, "tex_v", "Shift along", 0.0, 1.0, 0.01)
 	_add_slider(_tex_box, "tex_su", "Scroll across (per second)", -2.0, 2.0, 0.05)
 	_add_slider(_tex_box, "tex_sv", "Scroll along (per second)", -2.0, 2.0, 0.05)
+	_add_slider(_tex_box, "tex_sp", "Spin (degrees a second)", -360.0, 360.0, 1.0)
+	_add_slider(_tex_box, "tex_sw", "Swirl (spiral, degrees)", -720.0, 720.0, 5.0)
+	for k in ["tex_su", "tex_sv", "tex_sp", "tex_sw"]:       # (typed in, any number goes)
+		(_fields[k][1] as SpinBox).allow_greater = true
+		(_fields[k][1] as SpinBox).allow_lesser = true
+		(_fields[k][1] as SpinBox).tooltip_text = "Type any number here; the slider shows the usual range."
 	_add_slider(_tex_box, "tex_a", "See-through (1 = solid)", 0.05, 1.0, 0.05)
 	_surface_shader_box(_ramp_props, "")
 
@@ -834,6 +840,14 @@ func _build_map_props(props: VBoxContainer) -> void:
 	_map_props.add_child(fog)
 	_fields["env_fog"] = fog
 	_add_slider(_map_props, "env_fog_density", "Fog thickness", 0.0, 0.01, 0.0001)
+	var refl := CheckButton.new()
+	refl.text = "Reflections of the map"
+	refl.tooltip_text = "Glossy, reflective materials (material maker > Finish) reflect the map itself, not only the sky.
+Screen-space: it shows what is on screen, and costs some speed on big maps."
+	refl.focus_mode = Control.FOCUS_NONE
+	refl.toggled.connect(func(on): _edit_env("reflections", on))
+	_map_props.add_child(refl)
+	_fields["env_reflections"] = refl
 
 	_image_dialog = FileDialog.new()
 	_image_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -1192,6 +1206,7 @@ func _refresh_map_props() -> void:
 	for key in ["sun_yaw", "sun_pitch", "sun_energy", "ambient_energy", "stars", "aurora", "nebula", "fog_density"]:
 		_set_field("env_" + key, float(environment[key]))
 	_fields["env_fog"].button_pressed = bool(environment["fog"])
+	_fields["env_reflections"].set_pressed_no_signal(bool(environment.get("reflections", false)))
 	for key in ["water_look", "lava_look", "glass_look"]:
 		var ob: OptionButton = _fields["env_" + key]
 		ob.select(maxi((ob.get_meta("ids") as Array).find(environment.get(key, {"water_look": "water", "lava_look": "lava", "glass_look": "clear"}[key])), 0))
@@ -1462,7 +1477,7 @@ func _refresh_props() -> void:
 				func(n, v): _edit_prop("shader_param", [n, v]), "a plain color (the Color above)")
 		_set_field("tex_scale", r.tex_scale)
 		(_fields["tex_r"] as OptionButton).select(int(r.tex.get("r", 0)))
-		for k in ["u", "v", "su", "sv", "a"]:
+		for k in ["u", "v", "su", "sv", "sp", "sw", "a"]:
 			_set_field("tex_" + k, float(r.tex.get(k, Look.RAMP_TEX_DEFAULTS[k])))
 	else:
 		var e := selected as EntityNode

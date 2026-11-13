@@ -36,6 +36,9 @@ var _paint_help: Label
 var _save_over: Button
 var _status: Label
 var _file_dialog: FileDialog
+var _finish_fields := {}                      ## key -> [HSlider, SpinBox]
+var _ball_view: SubViewport
+var _ball: MeshInstance3D
 
 const VIEW := 512.0
 
@@ -200,6 +203,7 @@ func _build_right(hb: HBoxContainer) -> void:
 	_fit.tooltip_text = "On ramps, the picture spans the whole riding surface once from edge to edge (the ridge is the\nmiddle, see the Ramp guide), repeating every \"One repeat\" along the ramp. For lines on the ridge\nor along the edges. Blocks and cubes still repeat it every \"One repeat\"."
 	_fit.toggled.connect(func(on: bool): canvas.recipe["ramp_fit"] = on)
 	r3.add_child(_fit)
+	_build_finish(right)
 	right.add_child(HSeparator.new())
 	var lh := HBoxContainer.new()
 	right.add_child(lh)
@@ -262,6 +266,137 @@ func _build_right(hb: HBoxContainer) -> void:
 	bb.add_child(close)
 
 
+## The finish: brightness, light of its own, gloss and reflections, with a turning ball that shows them in 3D.
+func _build_finish(right: VBoxContainer) -> void:
+	right.add_child(HSeparator.new())
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	right.add_child(row)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(grid)
+	for spec in [["bright", "Brightness ×", 0.0, 4.0, 0.01, "How much light it gives back: 1 = as it is. Type any number (10, 100...) for more."],
+			["glow", "Light of its own", 0.0, 8.0, 0.05, "It shines by itself, even in the dark: 0 = not at all. Type any number for more."],
+			["gloss", "Glossiness", 0.0, 1.0, 0.01, "0 = as photographed, 1 = mirror-smooth (sharp reflections)."],
+			["reflect", "Reflectiveness", 0.0, 1.0, 0.01, "0 = none, 1 = a perfect mirror (like polished metal). With glossiness 1 it
+reflects the sky sharply; the Map panel's Reflections setting adds the map itself."]]:
+		var key: String = spec[0]
+		var l := _small_label(spec[1])
+		l.tooltip_text = spec[5]
+		l.mouse_filter = Control.MOUSE_FILTER_PASS
+		grid.add_child(l)
+		var h := HBoxContainer.new()
+		h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var s := HSlider.new()
+		s.min_value = spec[2]
+		s.max_value = spec[3]
+		s.step = spec[4]
+		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		s.tooltip_text = spec[5]
+		var sp := SpinBox.new()
+		sp.min_value = spec[2]
+		sp.max_value = spec[3]
+		sp.step = spec[4]
+		sp.allow_greater = key in ["bright", "glow"]           # (no upper limit on light)
+		sp.custom_minimum_size.x = 84
+		s.value_changed.connect(func(v: float): sp.set_value_no_signal(v); _finish_changed(key, v))
+		sp.value_changed.connect(func(v: float): s.set_value_no_signal(v); _finish_changed(key, v))
+		h.add_child(s)
+		h.add_child(sp)
+		grid.add_child(h)
+		_finish_fields[key] = [s, sp]
+	_ball_view = SubViewport.new()
+	_ball_view.size = Vector2i(132, 132)
+	_ball_view.own_world_3d = true
+	_ball_view.transparent_bg = false
+	_ball_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(_ball_view)
+	var env := WorldEnvironment.new()
+	var e := Environment.new()
+	var sky := Sky.new()
+	var ps := ProceduralSkyMaterial.new()
+	ps.sky_top_color = Color(0.25, 0.45, 0.85)
+	ps.sky_horizon_color = Color(0.8, 0.85, 0.9)
+	ps.ground_bottom_color = Color(0.12, 0.1, 0.08)
+	ps.ground_horizon_color = Color(0.5, 0.45, 0.4)
+	sky.sky_material = ps
+	e.background_mode = Environment.BG_SKY
+	e.sky = sky
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	e.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.environment = e
+	_ball_view.add_child(env)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-40, 35, 0)
+	_ball_view.add_child(sun)
+	var cam := Camera3D.new()
+	cam.position = Vector3(0, 0, 2.6)
+	cam.fov = 40
+	_ball_view.add_child(cam)
+	_ball = MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radial_segments = 48
+	sm.rings = 24
+	_ball.mesh = sm
+	_ball_view.add_child(_ball)
+	var tr := TextureRect.new()
+	tr.texture = _ball_view.get_texture()
+	tr.custom_minimum_size = Vector2(132, 132)
+	tr.tooltip_text = "Your material on a ball, lit by a sun under a blue sky: gloss and reflections show here."
+	row.add_child(tr)
+
+
+func _finish_changed(key: String, v: float) -> void:
+	if not canvas.recipe.get("finish") is Dictionary:
+		canvas.recipe["finish"] = MaterialLibrary.FINISH_DEFAULTS.duplicate()
+	canvas.recipe["finish"][key] = v
+	_update_ball()
+
+
+## The ball's material: the picture as it is now, the starting material's surface detail, and the finish.
+func _update_ball() -> void:
+	if _ball == null:
+		return
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = canvas.get_texture()
+	var base := String(canvas.recipe.get("base", ""))
+	var has_metal := false
+	var has_glow := false
+	if base != "" and MaterialLibrary.has(base):
+		var n := MaterialLibrary.texture(base, "normal")
+		if n:
+			m.normal_enabled = true
+			m.normal_texture = n
+		var r := MaterialLibrary.texture(base, "roughness")
+		if r:
+			m.roughness_texture = r
+		var mt := MaterialLibrary.texture(base, "metal")
+		if mt:
+			m.metallic = 1.0
+			m.metallic_texture = mt
+			has_metal = true
+		var gl := MaterialLibrary.texture(base, "glow")
+		if gl:
+			m.emission_enabled = true
+			m.emission_texture = gl
+			m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+			m.emission_energy_multiplier = MaterialLibrary.GLOW_ENERGY
+			has_glow = true
+	var fin := MaterialLibrary.FINISH_DEFAULTS.duplicate()
+	if canvas.recipe.get("finish") is Dictionary:
+		fin.merge(canvas.recipe["finish"], true)
+	MaterialLibrary.apply_finish(m, fin, has_metal, has_glow)
+	_ball.material_override = m
+
+
+func _process(delta: float) -> void:
+	if visible and _ball:
+		_ball.rotate_y(delta * 0.6)
+
+
 func _small_label(t: String) -> Label:
 	var l := Label.new()
 	l.text = t
@@ -321,7 +456,14 @@ func _refresh_all() -> void:
 	_size.set_value_no_signal(float(r.get("size", 2.0)))
 	_fit.set_pressed_no_signal(bool(r.get("ramp_fit", false)))
 	_save_over.disabled = editing_id == ""
+	var fin := MaterialLibrary.FINISH_DEFAULTS.duplicate()
+	if r.get("finish") is Dictionary:
+		fin.merge(r["finish"], true)
+	for k in _finish_fields:
+		(_finish_fields[k][0] as HSlider).set_value_no_signal(float(fin[k]))
+		(_finish_fields[k][1] as SpinBox).set_value_no_signal(float(fin[k]))
 	canvas.rebuild()
+	_update_ball()
 	_refresh_list()
 	_refresh_props()
 
@@ -459,6 +601,7 @@ func _refresh_props() -> void:
 			_slider_row(l, "sat", "Saturation", 0.0, 2.0, 0.01)
 			_slider_row(l, "bright", "Brightness", -1.0, 1.0, 0.01)
 			_slider_row(l, "contrast", "Contrast", 0.0, 2.0, 0.01)
+			_slider_row(l, "gamma", "Gamma (below 1 lighter, above darker)", 0.05, 4.0, 0.01, true)
 		"stripe":
 			_option_row(l, "dir", "Direction", ["vertical", "horizontal"],
 				"Vertical runs up and down the picture: along a ramp. Horizontal runs across.")
@@ -508,7 +651,7 @@ func _changed(l: Dictionary, key: String, v) -> void:
 	_overlay.queue_redraw()
 
 
-func _slider_row(l: Dictionary, key: String, label: String, lo: float, hi: float, step: float) -> void:
+func _slider_row(l: Dictionary, key: String, label: String, lo: float, hi: float, step: float, unlimited := false) -> void:
 	_props.add_child(_small_label(label))
 	var row := HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -525,6 +668,7 @@ func _slider_row(l: Dictionary, key: String, label: String, lo: float, hi: float
 	sp.step = step
 	sp.value = s.value
 	sp.custom_minimum_size.x = 90
+	sp.allow_greater = unlimited
 	s.value_changed.connect(func(v: float): sp.set_value_no_signal(v); _changed(l, key, v))
 	sp.value_changed.connect(func(v: float): s.set_value_no_signal(v); _changed(l, key, v))
 	row.add_child(s)

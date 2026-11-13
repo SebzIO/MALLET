@@ -116,6 +116,12 @@ Make your own textures and materials, or change existing ones, inside MALLET.
 - [x] Saved to your own materials library ("Made by you") and copied into each map that uses it (opens the same on
       another PC, reaches co-editors); works on ramps, cubes and blocks, and in both exports (0.21.0).
 
+## 0.23.0: Finish, spin, a look per pool (added 2026-11-12)
+- [x] Material finish: brightness and own light without a cap, gloss and reflections up to a mirror; gamma in the
+      adjust layer; the map's screen-space reflections; CS:S cubemap reflections (0.23.0).
+- [x] Spin and swirl texture motion on ramps and cube faces (CS:S: spin) (0.23.0).
+- [x] Water / lava / glass looks per fill ("water:pool" cells), the map's look as the default (0.23.0).
+
 ## 0.18.0 → 1.0.0: Release candidate
 - [x] **Geometry menu** (0.18.0) and its fixes (0.18.1-0.18.5): nine shapes cut from octree cells, one flat cut face
       per cell, whole cones and cylinders, sliders that keep up, a typed value that sticks, and a preview built on a

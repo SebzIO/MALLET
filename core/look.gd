@@ -147,6 +147,8 @@ static func build_environment(env: Dictionary) -> Environment:
 	e.fog_light_color = _c(env, "fog_color")
 	e.fog_density = float(env.get("fog_density", 0.0006))
 	e.fog_sky_affect = 0.4
+	e.ssr_enabled = bool(env.get("reflections", false))   # (glossy, reflective materials show the map itself too)
+	e.ssr_max_steps = 96
 	return e
 
 
@@ -182,8 +184,9 @@ static func image_texture(path: String) -> Texture2D:
 ## `square`: for blocks and cubes (world-meter UVs): the Dev grid as even 1 m squares instead of the ramp layout.
 ## `shader_id` / `shader_params`: look "shader" (your own surface shader; a plain `color` while it doesn't work).
 ## A ramp's texture settings, the same as a cube face's in build mode (0.19.5): r turn / flip (0-5), u / v shift
-## (in repeats), su / sv scroll (repeats a second), a see-through (1 = solid). Missing keys are the defaults.
-const RAMP_TEX_DEFAULTS := {"r": 0, "u": 0.0, "v": 0.0, "su": 0.0, "sv": 0.0, "a": 1.0}
+## (in repeats), su / sv scroll (repeats a second), sp spin (degrees a second) and sw swirl (degrees) for spiral
+## motion (0.23.0), a see-through (1 = solid). Missing keys are the defaults.
+const RAMP_TEX_DEFAULTS := {"r": 0, "u": 0.0, "v": 0.0, "su": 0.0, "sv": 0.0, "sp": 0.0, "sw": 0.0, "a": 1.0}
 
 
 static func ramp_tex_plain(t: Dictionary) -> bool:
@@ -231,6 +234,10 @@ static func ramp_textured(mesh: ArrayMesh, look: String, color: Color, texture_p
 	sm.set_shader_parameter("tint", color if look == "material" else Color.WHITE * color)
 	sm.set_shader_parameter("alpha", a)
 	sm.set_shader_parameter("scroll", Vector2(float(t.get("su", 0.0)), float(t.get("sv", 0.0))))
+	sm.set_shader_parameter("spin", float(t.get("sp", 0.0)))
+	sm.set_shader_parameter("swirl", float(t.get("sw", 0.0)))
+	if look == "material":
+		MaterialLibrary.shader_finish(sm, material_id)
 	var out := ArrayMesh.new()
 	for si in mesh.get_surface_count():
 		var arr := mesh.surface_get_arrays(si)
