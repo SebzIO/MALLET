@@ -816,6 +816,10 @@ func _build_map_props(props: VBoxContainer) -> void:
 	_add_slider(builtin, "env_stars", "Stars", 0.0, 1.0, 0.05)
 	_add_slider(builtin, "env_aurora", "Aurora", 0.0, 1.0, 0.05)
 	_add_slider(builtin, "env_nebula", "Nebula clouds", 0.0, 1.0, 0.05)
+	var sky_more := VBoxContainer.new()                      # aurora colors, nebula color, sun size... (Look.param_uniforms)
+	sky_more.add_theme_constant_override("separation", 6)
+	builtin.add_child(sky_more)
+	_fields["env_sky_more"] = sky_more
 	for spec in [["water_look", "Build mode water", Look.LIQUID_ORDER.filter(func(k): return Look.LIQUIDS[k]["style"] == "water"), Look.LIQUIDS],
 			["lava_look", "Build mode lava", Look.LIQUID_ORDER.filter(func(k): return Look.LIQUIDS[k]["style"] == "lava"), Look.LIQUIDS],
 			["glass_look", "Build mode glass", Look.GLASS_ORDER, Look.GLASS]]:
@@ -829,6 +833,10 @@ func _build_map_props(props: VBoxContainer) -> void:
 		ob.set_meta("ids", ids)
 		_add_row(_map_props, spec[1], ob)
 		_fields["env_" + key] = ob
+		var more := VBoxContainer.new()                      # that liquid's / glass's other settings
+		more.add_theme_constant_override("separation", 6)
+		_map_props.add_child(more)
+		_fields["env_" + key + "_more"] = more
 	for spec in [["sun_color", "Sun color"], ["ambient_color", "Shadow fill color"], ["fog_color", "Fog color"]]:
 		_env_color(_map_props, spec[0], spec[1])
 	_add_slider(_map_props, "env_sun_yaw", "Sun direction (°)", -180.0, 180.0, 1.0)
@@ -953,12 +961,23 @@ func _surface_shader_box(parent: Container, prefix: String) -> void:
 	row.add_child(ob)
 	row.add_child(_shaders_folder_button())
 	_add_row(box, "Shader", row)
+	_fields[prefix + "shader_row"] = row
 	var params := VBoxContainer.new()
 	params.add_theme_constant_override("separation", 6)
 	box.add_child(params)
 	_fields[prefix + "shader_box"] = box
 	_fields[prefix + "shader"] = ob
 	_fields[prefix + "shader_params"] = params
+
+
+func _show_shader_row(prefix: String, on: bool) -> void:
+	var row: Control = _fields.get(prefix + "shader_row")
+	if row == null:
+		return
+	row.visible = on
+	var lab := row.get_parent().get_child(row.get_index() - 1)
+	if lab is Label:
+		(lab as Label).visible = on
 
 
 ## A control for every setting (uniform) of your shader, in `box`. `params` = the current settings; `on_change` gets
@@ -1000,7 +1019,15 @@ func _fill_shader_controls(box: VBoxContainer, id: String, params: Dictionary, o
 		n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		n.add_theme_font_size_override("font_size", 12)
 		box.add_child(n)
-	for u in e["uniforms"]:
+	_param_controls_into(box, e["uniforms"], params, on_change, setters, e.get("skipped", []), "Back to the shader's own values")
+
+
+## Controls for a list of settings (UserShaders' format) into `box`, their setters into `setters`: shared by your own
+## shaders and MALLET's built-in ones (Look.param_uniforms). `skipped` = settings that get no control, each with why
+## (shown, so nothing disappears without a word).
+func _param_controls_into(box: VBoxContainer, uniforms: Array, params: Dictionary, on_change: Callable, setters: Array,
+		skipped: Array, reset_text: String) -> void:
+	for u in uniforms:
 		var name: String = u["name"]
 		var ctl: Control
 		match u["type"]:
@@ -1038,15 +1065,15 @@ func _fill_shader_controls(box: VBoxContainer, id: String, params: Dictionary, o
 				cp.color_changed.connect(func(c): on_change.call(name, UserShaders.encode(u, c)))
 				setters.append(func(p): cp.color = UserShaders.value_of(u, p))
 				ctl = cp
-			"vec2", "vec3", "vec4":
+			"vec2", "vec3", "vec4", "ivec2", "ivec3", "ivec4":
 				var row := HBoxContainer.new()
-				var n: int = {"vec2": 2, "vec3": 3, "vec4": 4}[u["type"]]
+				var n: int = {"vec2": 2, "vec3": 3, "vec4": 4, "ivec2": 2, "ivec3": 3, "ivec4": 4}[u["type"]]
 				var boxes := []
 				for i in n:
 					var sb := SpinBox.new()
 					sb.min_value = -100000.0
 					sb.max_value = 100000.0
-					sb.step = 0.01
+					sb.step = 1.0 if String(u["type"]).begins_with("i") else 0.01
 					sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 					boxes.append(sb)
 					row.add_child(sb)
@@ -1085,14 +1112,42 @@ func _fill_shader_controls(box: VBoxContainer, id: String, params: Dictionary, o
 			var lab: Label = box.get_child(ctl.get_index() - 1)
 			lab.tooltip_text = u["tip"]
 			lab.mouse_filter = Control.MOUSE_FILTER_STOP
-	if not e["uniforms"].is_empty():
+	if not skipped.is_empty():
+		var sk := Label.new()
+		sk.text = "Not shown: " + ", ".join(skipped.map(func(x): return "%s (%s)" % [x["name"], x["why"]]))
+		sk.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		sk.custom_minimum_size.x = 260
+		sk.add_theme_font_size_override("font_size", 12)
+		sk.add_theme_color_override("font_color", Color(0.75, 0.7, 0.55))
+		box.add_child(sk)
+	if not uniforms.is_empty():
 		var reset := Button.new()
-		reset.text = "Back to the shader's own values"
+		reset.text = reset_text
 		reset.focus_mode = Control.FOCUS_NONE
 		reset.pressed.connect(func(): on_change.call("", null); _refresh_props())
 		box.add_child(reset)
 	for f in setters:
 		f.call(params)
+
+
+## Controls for a built-in shader's settings (Look.param_uniforms: the ones without a control of their own), shown
+## from `base` (the material as its preset makes it). Rebuilt only when `owner_key` or the shader changes.
+func _fill_builtin_controls(box: VBoxContainer, file: String, base: Material, params: Dictionary, owner_key: String,
+		on_change: Callable, reset_text := "Back to the preset's values") -> void:
+	var sig := "builtin|%s|%s" % [file, owner_key]
+	if box.get_meta("sig", "") == sig:
+		for f in box.get_meta("setters", []):
+			f.call(params)
+		return
+	box.set_meta("sig", sig)
+	for c in box.get_children():
+		box.remove_child(c)
+		c.queue_free()
+	var setters := []
+	box.set_meta("setters", setters)
+	if file == "":
+		return
+	_param_controls_into(box, Look.param_uniforms(file, base), params, on_change, setters, [], reset_text)
 
 
 var _shader_image_dialog: FileDialog
@@ -1168,11 +1223,30 @@ func _apply_environment() -> void:
 
 
 ## The Map panel's looks for build mode's water / lava / glass cubes (saved with the map's environment).
+## One setting of a built-in shader the map keeps (the sky's aurora colors, build mode water's waves...): `key` is
+## the map's dictionary for it (sky_look, water_params, lava_params, glass_params); ("", null) clears them all.
+func _edit_env_param(key: String, name: String, value) -> void:
+	if _updating_ui:
+		return
+	_checkpoint("env:%s:%s" % [key, name])
+	var d: Dictionary = (environment.get(key, {}) as Dictionary).duplicate(true)
+	if name == "":
+		d.clear()
+	else:
+		d[name] = value
+	environment[key] = d
+	environment["preset"] = "custom"
+	_apply_environment()
+	_apply_mat_looks()
+	_map_changed()
+
+
 func _edit_mat_look(key: String, value: String) -> void:
 	if _updating_ui:
 		return
 	_checkpoint("env:" + key)
 	environment[key] = value
+	environment.erase(key.replace("_look", "_params"))   # (another preset: its settings start fresh)
 	_apply_mat_looks()
 	_map_changed()
 
@@ -1209,6 +1283,17 @@ func _refresh_map_props() -> void:
 		_set_field("env_" + key, float(environment[key]))
 	_fields["env_fog"].button_pressed = bool(environment["fog"])
 	_fields["env_reflections"].set_pressed_no_signal(bool(environment.get("reflections", false)))
+	var sky_base := environment.duplicate()
+	sky_base.erase("sky_look")
+	_fill_builtin_controls(_fields["env_sky_more"], "sky", Look.sky_material(sky_base)[0], environment.get("sky_look", {}), "sky",
+		func(n, v): _edit_env_param("sky_look", n, v), "Back to the sky's defaults")
+	for spec in [["water_look", "water_params", "water"], ["lava_look", "lava_params", "lava"], ["glass_look", "glass_params", "clear"]]:
+		var pid := String(environment.get(spec[0], spec[2]))
+		var file: String = "glass" if spec[0] == "glass_look" else ("lava" if String(Look.LIQUIDS.get(pid, {}).get("style", "")) == "lava" else "water")
+		var base: Material = Look.glass_material(pid) if file == "glass" else Look.liquid_material(pid)
+		var pkey: String = spec[1]
+		_fill_builtin_controls(_fields["env_" + spec[0] + "_more"], file, base, environment.get(pkey, {}), "%s|%s" % [spec[0], pid],
+			func(n, v): _edit_env_param(pkey, n, v))
 	for key in ["water_look", "lava_look", "glass_look"]:
 		var ob: OptionButton = _fields["env_" + key]
 		ob.select(maxi((ob.get_meta("ids") as Array).find(environment.get(key, {"water_look": "water", "lava_look": "lava", "glass_look": "clear"}[key])), 0))
@@ -1388,11 +1473,17 @@ func _refresh_props() -> void:
 		_fields["block_hollow"].set_pressed_no_signal(bool(b.data["hollow"]))
 		_fields["block_cutter"].set_pressed_no_signal(b.is_cutter())
 		_fields["block_look"].select(maxi(BLOCK_LOOKS.find(b.data["look"]), 0))
-		_fields["block_shader_box"].visible = b.data["look"] == "shader"
+		var bfile := Look.look_shader(String(b.data["look"]))
+		_fields["block_shader_box"].visible = b.data["look"] == "shader" or (bfile != "" and not Look.param_uniforms(bfile).is_empty())
+		_show_shader_row("block_", b.data["look"] == "shader")
 		if b.data["look"] == "shader":
 			_fill_shader_choice(_fields["block_shader"], "surface", String(b.data.get("shader", "")))
 			_fill_shader_controls(_fields["block_shader_params"], String(b.data.get("shader", "")), b.data.get("shader_params", {}),
 				"block%d" % b.get_instance_id(), func(n, v): _edit_prop("block_shader_param", [n, v]), "a plain color (the Color above)")
+		elif bfile != "":
+			_fill_builtin_controls(_fields["block_shader_params"], bfile, Look.ramp_material(String(b.data["look"]), Color.html(b.data["color"]), "", 20.0, "", 10.5, true),
+				b.data.get("shader_params", {}), "block%d|%s" % [b.get_instance_id(), b.data["look"]], func(n, v): _edit_prop("block_shader_param", [n, v]),
+				"Back to the look's defaults")
 		_fields["block_color"].color = Color.html(b.data["color"])
 		_fields["block_sides_box"].visible = b.data["shape"] in ["cylinder", "arch", "cone", "sphere"]
 		_fields["block_steps_box"].visible = b.data["shape"] == "stairs"
@@ -1423,6 +1514,11 @@ func _refresh_props() -> void:
 		_set_field("block_glow", float(b.data.get("glow", 0.0)))
 		_fields["block_deadly"].set_pressed_no_signal(bool(b.data.get("deadly", false)))
 		_fields["block_liquid"].select(maxi(Look.LIQUID_ORDER.find(b.data.get("liquid", "water")), 0))
+		if is_water:
+			var lid := String(b.data.get("liquid", "water"))
+			var lfile := "lava" if String(Look.LIQUIDS.get(lid, {}).get("style", "water")) == "lava" else "water"
+			_fill_builtin_controls(_fields["block_liquid_params"], lfile, Look.liquid_material(lid), b.data.get("liquid_params", {}),
+				"liquid%d|%s" % [b.get_instance_id(), lid], func(n, v): _edit_prop("block_liquid_param", [n, v]))
 		if is_water:
 			for k in ["block_mat_head", "block_side", "block_mat", "block_uv_box", "block_cutter", "block_hollow", "block_wall_box"]:
 				(_fields[k] as Control).visible = false
@@ -1478,11 +1574,16 @@ func _refresh_props() -> void:
 		rmb.text = "  " + (MaterialLibrary.display_name(r.material) if r.material != "" else "Choose a material\u2026")
 		rmb.icon = MaterialLibrary.preview(r.material) if r.material != "" else null
 		_fields["tex_name"].text = r.texture.get_file() if r.texture != "" else "No image chosen (PNG / JPG / WebP)"
-		_fields["shader_box"].visible = r.look == "shader"
+		var rfile := Look.look_shader(r.look)
+		_fields["shader_box"].visible = r.look == "shader" or (rfile != "" and not Look.param_uniforms(rfile).is_empty())
+		_show_shader_row("", r.look == "shader")
 		if r.look == "shader":
 			_fill_shader_choice(_fields["shader"], "surface", r.shader)
 			_fill_shader_controls(_fields["shader_params"], r.shader, r.shader_params, "ramp%d" % r.get_instance_id(),
 				func(n, v): _edit_prop("shader_param", [n, v]), "a plain color (the Color above)")
+		elif rfile != "":
+			_fill_builtin_controls(_fields["shader_params"], rfile, Look.ramp_material(r.look, r.color), r.shader_params,
+				"ramp%d|%s" % [r.get_instance_id(), r.look], func(n, v): _edit_prop("shader_param", [n, v]), "Back to the look's defaults")
 		_set_field("tex_scale", r.tex_scale)
 		(_fields["tex_r"] as OptionButton).select(int(r.tex.get("r", 0)))
 		for k in ["u", "v", "su", "sv", "sp", "sw", "a"]:
@@ -2864,6 +2965,10 @@ func _build_block_props(props: VBoxContainer) -> void:
 	_add_row(water_box, "Water color", wc)
 	_fields["block_water_color"] = wc
 	_add_slider(water_box, "block_clarity", "Clarity", 0.0, 1.0, 0.05)
+	var lparams := VBoxContainer.new()                       # the liquid's other settings: waves, foam, flow, crust...
+	lparams.add_theme_constant_override("separation", 6)
+	water_box.add_child(lparams)
+	_fields["block_liquid_params"] = lparams
 	var deadly := CheckButton.new()
 	deadly.text = "Deadly (sends players back - lava, acid)"
 	deadly.focus_mode = Control.FOCUS_NONE
@@ -5547,6 +5652,8 @@ func _edit_prop(key: String, value) -> void:
 			"block_wall": d["wall"] = value
 			"block_cutter": d["cutter"] = value
 			"block_look":
+				if value != d["look"]:
+					d["shader_params"] = {}                  # (another look: its own settings start fresh)
 				d["look"] = value
 				if value == "shader" and String(d.get("shader", "")) == "" and not UserShaders.ids("surface").is_empty():
 					d["shader"] = UserShaders.ids("surface")[0]
@@ -5565,9 +5672,17 @@ func _edit_prop(key: String, value) -> void:
 			"block_water_color": d["water_color"] = (value as Color).to_html(false)
 			"block_clarity": d["clarity"] = value
 			"block_deadly": d["deadly"] = value
+			"block_liquid_param":                        # (one of the liquid shader's other settings)
+				var lq: Dictionary = (d.get("liquid_params", {}) as Dictionary).duplicate(true)
+				if value[0] == "":
+					lq.clear()
+				else:
+					lq[value[0]] = value[1]
+				d["liquid_params"] = lq
 			"block_liquid":                              # a preset sets its look and whether it's deadly
 				var lp: Dictionary = Look.LIQUIDS[value]
 				d["liquid"] = value
+				d["liquid_params"] = {}
 				d["water_color"] = lp["color"]
 				d["clarity"] = float(lp.get("clarity", 0.0))
 				d["deadly"] = bool(lp.get("deadly", false))
@@ -5640,6 +5755,8 @@ func _edit_prop(key: String, value) -> void:
 			r.tex = t
 			r.rebuild()
 			return
+		if key == "look" and value != r.look:
+			r.shader_params = {}                         # (another look: its own settings start fresh)
 		if key == "look" and value == "shader" and r.shader == "" and not UserShaders.ids("surface").is_empty():
 			r.shader = UserShaders.ids("surface")[0]
 		r.set(key, value)

@@ -276,7 +276,8 @@ static var mat_looks := {"water": "water", "lava": "lava", "glass": "clear"}
 
 ## Use these looks (from the map's environment: water_look, lava_look, glass_look). True if anything changed.
 static func set_mat_looks(env: Dictionary) -> bool:
-	var want := {"water": env.get("water_look", "water"), "lava": env.get("lava_look", "lava"), "glass": env.get("glass_look", "clear")}
+	var want := {"water": env.get("water_look", "water"), "lava": env.get("lava_look", "lava"), "glass": env.get("glass_look", "clear"),
+		"water_params": env.get("water_params", {}), "lava_params": env.get("lava_params", {}), "glass_params": env.get("glass_params", {})}
 	if want == mat_looks:
 		return false
 	mat_looks = want
@@ -310,10 +311,17 @@ static func material_look(name: String) -> Material:
 	match kind:
 		"water":
 			m = Look.liquid_material(own if own != "" else mat_looks.get("water", "water"))
+			if own == "":
+				Look.apply_params(m, "lava" if Look.LIQUIDS.get(mat_looks.get("water", "water"), {}).get("style", "") == "lava" else "water",
+					mat_looks.get("water_params", {}))
 		"lava":
 			m = Look.liquid_material(own if own != "" else mat_looks.get("lava", "lava"))
+			if own == "":
+				Look.apply_params(m, "lava", mat_looks.get("lava_params", {}))
 		"glass":
 			m = Look.glass_material(own if own != "" else mat_looks.get("glass", "clear"))
+			if own == "":
+				Look.apply_params(m, "glass", mat_looks.get("glass_params", {}))
 		_:
 			var sm := StandardMaterial3D.new()
 			var c: Color = MAT_COLORS.get(name, Color(1, 1, 1, 0.2))

@@ -140,6 +140,8 @@ func _update_material() -> void:
 	var key := "%s|%s|%s|%s|%s|%s" % [look, color.to_html(), texture, tex_scale, material, face_length]
 	if look == "shader":
 		key += "|%s|%d|%s" % [shader, UserShaders.version(shader), JSON.stringify(shader_params)]
+	elif not shader_params.is_empty():
+		key += "|" + JSON.stringify(shader_params)        # (a built-in look's own settings: the aurora's second color...)
 	if key != _material_key:
 		_material_key = key
 		_mesh_instance.material_override = Look.ramp_material(look, color, texture, tex_scale, material, face_length, false,

@@ -3,6 +3,22 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.26.0 preview — 2026-11-13: Every shader setting
+
+- **The aurora's colors**: the Map panel has Aurora color 1 and 2 (and the nebula's color and the sun's size), and
+  the Aurora ramp / block look has a **Second color** next to its Color.
+- **Every setting of every built-in shader is yours to change.** Water and lava blocks show their liquid's other
+  settings under the preset (water: deep color, waves, foam, flow, refraction, glow; lava: hottest color, crust color,
+  crust amount, glow, flow, blob size); the Map panel shows the same for build mode's water, lava and glass (glass
+  color, clarity, frost, refraction). A preset sets them; change any one; "Back to the preset's values" undoes it.
+- **None can go missing again**: MALLET reads its own shaders' settings the way it reads yours, so a setting added to
+  a built-in shader gets a control without anyone remembering to. Each setting that already has its own control (or
+  is internal, like the picture behind the water) is listed with where or why, and the new test
+  shader_coverage_test fails if a shipped shader has a setting in neither place.
+- **Your own shaders**: whole-number vectors (ivec2 / ivec3 / ivec4) get controls now, and settings MALLET has no
+  control for (a matrix, an array, a cubemap) are listed under the controls as "Not shown", with why.
+- Settings save with the map, undo, reach co-editors and go into the SurfsUp export (and CS:S skyboxes).
+
 ## 0.25.0 preview — 2026-11-13: Performance
 
 Measured on a tester's map (3 cube objects, 30,000 cubes, 34 shadowed lights), frame times with vsync off:

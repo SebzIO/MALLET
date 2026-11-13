@@ -126,6 +126,7 @@ static func _compile(id: String, code: String, path: String, mtime: int) -> Dict
 		return e
 	e["shader"] = s
 	e["uniforms"] = _read_uniforms(s, uniforms, code)
+	e["skipped"] = skipped_uniforms(s, uniforms)
 	e["animated"] = RegEx.create_from_string("\\bTIME\\b").search(_strip_comments(code)) != null
 	return e
 
@@ -179,6 +180,11 @@ static func _read_uniforms(s: Shader, list: Array, code: String) -> Array:
 				c["type"] = {TYPE_VECTOR2: "vec2", TYPE_VECTOR3: "vec3", TYPE_VECTOR4: "vec4"}[int(u["type"])]
 				if def == null:
 					def = {TYPE_VECTOR2: Vector2.ZERO, TYPE_VECTOR3: Vector3.ZERO, TYPE_VECTOR4: Vector4.ZERO}[int(u["type"])]
+				c["default"] = def
+			TYPE_VECTOR2I, TYPE_VECTOR3I, TYPE_VECTOR4I:      # (ivec2 / ivec3 / ivec4: whole numbers)
+				c["type"] = {TYPE_VECTOR2I: "ivec2", TYPE_VECTOR3I: "ivec3", TYPE_VECTOR4I: "ivec4"}[int(u["type"])]
+				if def == null:
+					def = {TYPE_VECTOR2I: Vector2i.ZERO, TYPE_VECTOR3I: Vector3i.ZERO, TYPE_VECTOR4I: Vector4i.ZERO}[int(u["type"])]
 				c["default"] = def
 			TYPE_OBJECT:
 				if String(u["hint_string"]) != "Texture2D":
@@ -254,6 +260,35 @@ static func material(id: String, params: Dictionary) -> ShaderMaterial:
 	return m
 
 
+## Uniforms a shader has that get no control, each with why: [{"name", "why"}]. Shown under the controls, so
+## nothing disappears without a word. (Names starting with "_" are the writer's own choice and aren't listed.)
+static func skipped_uniforms(s: Shader, list: Array) -> Array:
+	var out := []
+	for u in list:
+		var name := String(u["name"])
+		if name.begins_with("_") or name.contains("/"):
+			continue
+		var why := ""
+		match int(u["type"]):
+			TYPE_FLOAT, TYPE_INT, TYPE_BOOL, TYPE_COLOR, TYPE_VECTOR2, TYPE_VECTOR3, TYPE_VECTOR4, TYPE_VECTOR2I, TYPE_VECTOR3I, TYPE_VECTOR4I:
+				continue
+			TYPE_OBJECT:
+				if String(u["hint_string"]) == "Texture2D":
+					continue
+				var kinds := {"TextureLayered": "cubemap or texture array", "Cubemap": "cubemap", "Texture2DArray": "texture array",
+					"Texture3D": "3D texture"}
+				why = "a %s: only 2D images (sampler2D) can be chosen" % kinds.get(String(u["hint_string"]), "texture of another kind")
+			TYPE_BASIS, TYPE_TRANSFORM2D, TYPE_TRANSFORM3D, TYPE_PROJECTION:
+				why = "a matrix: no control for those"
+			TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_VECTOR2_ARRAY, TYPE_PACKED_VECTOR3_ARRAY, \
+					TYPE_PACKED_COLOR_ARRAY, TYPE_ARRAY:
+				why = "an array: no control for those"
+			_:
+				why = "a kind of value MALLET has no control for"
+		out.append({"name": name, "why": why})
+	return out
+
+
 ## A control's value as it's stored in the map (JSON-friendly).
 static func encode(u: Dictionary, v):
 	match u["type"]:
@@ -261,6 +296,9 @@ static func encode(u: Dictionary, v):
 		"vec2": return [v.x, v.y]
 		"vec3": return [v.x, v.y, v.z]
 		"vec4": return [v.x, v.y, v.z, v.w]
+		"ivec2": return [int(v.x), int(v.y)]
+		"ivec3": return [int(v.x), int(v.y), int(v.z)]
+		"ivec4": return [int(v.x), int(v.y), int(v.z), int(v.w)]
 		"int": return int(v)
 		"float": return float(v)
 		"bool": return bool(v)
@@ -274,6 +312,9 @@ static func decode(u: Dictionary, v):
 		"vec2": return Vector2(v[0], v[1]) if v is Array and v.size() >= 2 else null
 		"vec3": return Vector3(v[0], v[1], v[2]) if v is Array and v.size() >= 3 else null
 		"vec4": return Vector4(v[0], v[1], v[2], v[3]) if v is Array and v.size() >= 4 else null
+		"ivec2": return Vector2i(int(v[0]), int(v[1])) if v is Array and v.size() >= 2 else null
+		"ivec3": return Vector3i(int(v[0]), int(v[1]), int(v[2])) if v is Array and v.size() >= 3 else null
+		"ivec4": return Vector4i(int(v[0]), int(v[1]), int(v[2]), int(v[3])) if v is Array and v.size() >= 4 else null
 		"int": return int(v)
 		"float": return float(v)
 		"bool": return bool(v)

@@ -181,8 +181,9 @@ If Counter-Strike: Source is installed, its textures appear too. **+ Your own im
 any value you type, and **Stop moving** in F3 sets scroll, spin and swirl back to 0. (A face keeps its texture
 settings when you change its texture, so a spinning face goes on spinning with the new one.)
 
-**The map's look** (the panel with nothing selected): the sky (MALLET's own, or your sky shader), sun, fog, Reflections
-of the map, and the usual look of build mode's water, lava and glass. Any fill can have its own look instead: in build
+**The map's look** (the panel with nothing selected): the sky (MALLET's own, or your sky shader: colors, stars, the
+aurora and its two colors, nebula clouds, the sun), sun, fog, Reflections of the map, and the usual look of build
+mode's water, lava and glass, each with all its settings under the preset (waves, foam, flow, crust, frost...). Any fill can have its own look instead: in build
 mode's **T** menu, Fill tab, pick the look under "Their look" before you fill, so every pool can be different.
 
 **Lights** (U, or Tab in build mode): point lights, spot lights and light strips (neon, tubes), with presets

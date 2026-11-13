@@ -21,6 +21,7 @@ const DEFAULTS := {
 	"deadly": false,                     ## water only: touching it sends players back (lava, acid)
 	"water_color": "1f6b8c", "clarity": 0.55,
 	"liquid": "water",                   ## water only: a Look.LIQUIDS preset (water, pool, tropical, lake, swamp, river, acid, lava...)
+	"liquid_params": {},                 ## water only: the liquid shader's other settings (waves, foam, flow...: Look.param_uniforms)
 }
 ## The sides of a block, in its own space (front = -Z, the way it faces).
 const SLOTS := ["top", "bottom", "front", "back", "left", "right"]
@@ -346,6 +347,7 @@ static func water_material(s: Dictionary) -> ShaderMaterial:
 		float(s.get("clarity", p.get("clarity", 0.55))))
 	if float(s.get("glow", 0.0)) > 0.0 and p["style"] == "water":
 		mat.set_shader_parameter("glow", float(s["glow"]))
+	Look.apply_params(mat, "lava" if p["style"] == "lava" else "water", s.get("liquid_params", {}))
 	return mat
 
 

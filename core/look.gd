@@ -104,6 +104,84 @@ static func shader(file: String) -> Shader:
 	return _shaders[file]
 
 
+# ------------------------------------------------------------------------------------------------ built-in settings
+## Every setting (uniform) of every shader MALLET ships is editable somewhere (0.25.1). BUILTIN_COVERED lists the ones
+## that have a control of their own (where) or are deliberately internal (why); every other uniform gets a control
+## automatically, read from the shader like your own shaders' (param_uniforms), stored with the object as it is for
+## your own shaders. A uniform added to a shader later is therefore shown without anyone remembering to; the test
+## shader_coverage_test fails if a shader's uniform is in neither place.
+const BUILTIN_COVERED := {
+	"sky": {"top_color": "Map panel: Sky color (top)", "horizon_color": "Map panel: Sky color (horizon)",
+		"ground_color": "Map panel: Below the horizon", "stars": "Map panel: Stars", "aurora": "Map panel: Aurora",
+		"nebula": "Map panel: Nebula clouds"},
+	"water": {"tint": "the water's Color", "clarity": "the water's Clarity",
+		"screen_tex": "internal: the picture behind the water (for refraction)", "depth_tex": "internal: the depth behind the water"},
+	"lava": {"tint": "the lava's Color"},
+	"glass": {"screen_tex": "internal: the picture behind the glass (for refraction)"},
+	"ramp_aurora": {"tint": "the Color (first aurora color)"},
+	"ramp_ceramic": {"tint": "the Color (rim)"},
+	"ramp_grid": {"tint": "the Color", "square": "internal: square cells on blocks and cubes, set by MALLET"},
+	"ramp_nebula": {"tint": "the Color"},
+	"ramp_neon": {"tint": "the Color"},
+	"ramp_steel": {"tint": "the Color"},
+}
+## Shaders whose every setting comes from somewhere else (no controls of their own).
+const BUILTIN_INTERNAL := {
+	"cube_surface": "build mode's texture settings (F3) and the material set all of it",
+	"cube_lines": "outline mode's lines (7 in build mode)",
+}
+## Friendlier names for some settings than the uniform's own ("tint_b" -> "Second color").
+const BUILTIN_LABELS := {
+	"sky": {"aurora_a": "Aurora color 1", "aurora_b": "Aurora color 2", "nebula_color": "Nebula color", "sun_size": "Sun size"},
+	"ramp_aurora": {"tint_b": "Second color"},
+	"water": {"deep_color": "Deep color", "flow": "Flow (m/s, x / z)", "refraction": "Refraction", "glow": "Liquid glow"},
+	"lava": {"hot_color": "Hottest color", "crust_color": "Crust color", "crust": "Crust amount", "flow": "Flow (m/s, x / z)",
+		"scale": "Blob size (bigger = smaller)", "glow": "Lava glow"},
+	"glass": {"tint": "Glass color"},
+}
+static var _param_cache := {}
+
+
+## The settings of built-in shader `file` that get a control (UserShaders' format), the values shown taken from `base`
+## (the material as its preset made it) where it has them.
+static func param_uniforms(file: String, base: Material = null) -> Array:
+	if not _param_cache.has(file):
+		var s := shader(file)
+		var covered: Dictionary = BUILTIN_COVERED.get(file, {})
+		var list := s.get_shader_uniform_list().filter(func(u): return not covered.has(String(u["name"])))
+		var got: Array = UserShaders._read_uniforms(s, list, s.code) if not BUILTIN_INTERNAL.has(file) else []
+		var names: Dictionary = BUILTIN_LABELS.get(file, {})
+		for c in got:
+			if names.has(c["name"]):
+				c["label"] = names[c["name"]]
+		_param_cache[file] = got
+	var out := []
+	for u in _param_cache[file]:
+		var c: Dictionary = (u as Dictionary).duplicate()
+		if base is ShaderMaterial:
+			var v = (base as ShaderMaterial).get_shader_parameter(c["name"])
+			if v != null:
+				c["default"] = Color(v.x, v.y, v.z, 1.0) if c["type"] == "color" and (v is Vector3 or v is Vector4) else v
+		out.append(c)
+	return out
+
+
+## Put stored settings (uniform -> value, as UserShaders.encode makes them) on a built-in shader's material.
+static func apply_params(m: Material, file: String, params) -> void:
+	if not m is ShaderMaterial or not params is Dictionary or (params as Dictionary).is_empty():
+		return
+	for u in param_uniforms(file):
+		if (params as Dictionary).has(u["name"]):
+			var v = UserShaders.decode(u, params[u["name"]])
+			if v != null:
+				(m as ShaderMaterial).set_shader_parameter(u["name"], v)
+
+
+## The shader file behind a built-in ramp / block look ("" for plain looks).
+static func look_shader(look: String) -> String:
+	return String(RAMP_LOOKS.get(look, RAMP_LOOKS["color"])[1]) if look in RAMP_LOOKS else ""
+
+
 static func _c(env: Dictionary, key: String) -> Color:
 	return Color.html(env.get(key, default_environment()[key]))
 
@@ -124,6 +202,7 @@ static func sky_material(env: Dictionary) -> Array:
 	mat.set_shader_parameter("stars", float(env.get("stars", 0.0)))
 	mat.set_shader_parameter("aurora", float(env.get("aurora", 0.0)))
 	mat.set_shader_parameter("nebula", float(env.get("nebula", 0.0)))
+	apply_params(mat, "sky", env.get("sky_look", {}))     # (aurora colors, nebula color, sun size...)
 	return [mat, float(env.get("aurora", 0.0)) > 0.0 or float(env.get("nebula", 0.0)) > 0.0 or float(env.get("stars", 0.0)) > 0.0]
 
 
@@ -259,6 +338,7 @@ static func ramp_textured(mesh: ArrayMesh, look: String, color: Color, texture_p
 
 static func ramp_material(look: String, color: Color, texture_path := "", texture_scale := 20.0, material_id := "",
 		face_length := 10.5, square := false, shader_id := "", shader_params := {}) -> Material:
+	# (a built-in shader look keeps its settings in shader_params too: the aurora's second color...)
 	if look == "shader":
 		var um := UserShaders.material(shader_id, shader_params)
 		if um:
@@ -280,6 +360,7 @@ static func ramp_material(look: String, color: Color, texture_path := "", textur
 		m.set_shader_parameter("tint", color)
 		if look == "grid":
 			m.set_shader_parameter("square", square)
+		apply_params(m, info[1], shader_params)
 		return m
 	var sm := StandardMaterial3D.new()
 	sm.albedo_color = color

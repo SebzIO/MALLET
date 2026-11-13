@@ -1,4 +1,4 @@
-MALLET 0.25.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
+MALLET 0.26.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
 ===================================================================================================================
 
 START HERE
@@ -9,6 +9,10 @@ START HERE
   welcome screen). It takes you from an empty map to one your friends can play in ten minutes, then covers
   everything else: ramps, zones, build mode, materials, playing, testing with others and exporting.
 - Everything new, version by version: docs\CHANGELOG.html (Help > What's new).
+
+NEW IN 0.26.0 (EVERY SHADER SETTING)
+- Aurora colors (Map panel, and the Aurora look's second color); water, lava and glass show all their settings.
+  Every setting in MALLET's shaders, and in yours, has a control or says why not.
 
 NEW IN 0.25.0 (PERFORMANCE)
 - Big maps run many times faster: a tester's map went from 10 to 96 fps in the four views, 32 to 160+ in play mode.

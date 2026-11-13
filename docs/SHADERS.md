@@ -46,10 +46,13 @@ Every `uniform` becomes a control in the panel, named after the uniform (`cloud_
 | `uniform vec3 c : source_color = vec3(1.0);` | a color picker (`vec4`: with see-through) |
 | `uniform bool on = true;` | a switch |
 | `uniform vec2 / vec3 / vec4 v;` (no `source_color`) | number boxes |
+| `uniform ivec2 / ivec3 / ivec4 v;` | number boxes in whole steps |
 | `uniform sampler2D img : source_color;` | Choose image… (the image goes inside the exported map) |
 
 - A comment after the uniform on the same line becomes its tooltip: `uniform float speed = 1.0; // How fast it moves`.
 - A uniform whose name starts with `_` gets no control (for values only you should change).
+- A uniform MALLET has no control for (a matrix, an array, a cubemap or other non-2D texture) is listed under the
+  controls as "Not shown", with why, so nothing goes missing without a word.
 - **Back to the shader's own values** clears the map's settings for that shader.
 
 ## When something's wrong
