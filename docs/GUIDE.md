@@ -76,8 +76,10 @@ Select a ramp to see its settings in the panel.
 
 - **Shape**: a V ramp (surf either side) or a half ramp (one side only); **angle** and **face length** for how steep
   and how wide; **Solid** gives it a flat bottom, **Hollow** leaves it open underneath.
-- **Path**: *Straight, rounded at the points* (new ramps: straight runs with a round corner at each point) or
-  *Smooth curve through the points* (older maps).
+- **Path**: *Even* (new ramps): exactly straight between the points, turning in one even arc at each point;
+  *Straight, rounded at the points* and *Smooth curve through the points* are what older ramps use.
+- **Lines between the points turn green** (and the points get a green ring) when they run at an exact 45° step in that
+  view: level, upright or diagonal, so also when two points share an X or a Z. Snap to grid makes it easy.
 - **Points**: drag them. Click a point and press **L** to lock it so its section keeps its own settings.
   **Edit > Add bend to ramp** adds a point in the middle.
 - **Pitch, yaw and roll** turn the whole ramp; roll banks it.

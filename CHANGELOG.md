@@ -3,6 +3,18 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.28.0 preview — 2026-11-13: Even ramps (work order 2, batch 5)
+
+- **New ramps use an "even" path.** The spine runs exactly along the straight line between two points - points in a
+  line (sharing an X or a Z) give a spine on that line, with no dip or bulge below it - and turns at each point in
+  one circular arc, the same curvature all the way round, tangent to both stretches. Each arc uses at most half of a
+  stretch it shares with the next corner (or a whole end stretch), so arcs never overlap and moving a point only
+  reshapes the corners next to it. Corner rounding sets how much of that room the arcs use.
+- **Ramps already on maps keep their path** ("Straight, rounded at the points" or "Smooth curve"); the Path menu
+  offers all three if you want to switch one.
+- New test: ramp_even_test (a line stays a line, points sharing a Z stay on it from above, the arc's radius is the
+  same everywhere, moving a point leaves the rest alone, old ramps unchanged).
+
 ## 0.27.3 preview — 2026-11-13: Ramp point alignment (work order 2, batch 4)
 
 - The line between two neighboring points of the selected ramp turns **green** when it runs at an exact 45° step in

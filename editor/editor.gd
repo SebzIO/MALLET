@@ -734,10 +734,12 @@ func _build_props(props: VBoxContainer) -> void:
 	_add_slider(_freeform_box, "face_length_right", "Right face length (m)", 2.0, 60.0, 0.25)
 	_section(_ramp_props, "Path and turning")
 	var pathb := OptionButton.new()                      # the spine's path (0.19.6)
-	pathb.add_item("Straight, rounded at the points")
-	pathb.add_item("Smooth curve through the points")
+	pathb.add_item("Even: straight lines, one even arc at each point")
+	pathb.add_item("Straight, rounded at the points (older)")
+	pathb.add_item("Smooth curve through the points (oldest)")
 	pathb.focus_mode = Control.FOCUS_NONE
-	pathb.item_selected.connect(func(i): _edit_prop("path", "corners" if i == 0 else "smooth"))
+	pathb.tooltip_text = "Even (new ramps): the spine runs exactly along the line between two points, and turns at each point\nin one circular arc - the same curvature all the way round. Ramps made before keep the path they had."
+	pathb.item_selected.connect(func(i): _edit_prop("path", ["even", "corners", "smooth"][i]))
 	_add_row(_ramp_props, "Path", pathb)
 	_fields["path"] = pathb
 	_add_slider(_ramp_props, "corner", "Corner rounding", 0.02, 0.5, 0.01)
@@ -1734,7 +1736,7 @@ func _refresh_props() -> void:
 			_set_field(key, r.get(key))
 		_set_field("ramp_pitch", r.turn.x)
 		_set_field("ramp_yaw", r.turn.y)
-		(_fields["path"] as OptionButton).select(0 if r.path == "corners" else 1)
+		(_fields["path"] as OptionButton).select(maxi(["even", "corners", "smooth"].find(r.path), 0))
 		_fields["color"].color = r.color
 		_fields["look"].select(Look.LOOK_ORDER.find(r.look))
 		_fields["color_label"].text = "Color (%s)" % Look.RAMP_LOOKS[r.look][2]
@@ -5095,7 +5097,7 @@ func _pick_object(pane: ViewPane, mouse: Vector2, through_to_selected := false) 
 	for ramp in ramps_root.get_children():
 		if is_locked(ramp) or not ramp.is_visible_in_tree():
 			continue
-		var path := RampShape.sample_path(ramp.points, 4.0, ramp.corner if ramp.path == "corners" else -1.0)
+		var path := RampShape.sample_path(ramp.points, 4.0, RampShape.path_corner(ramp.path, ramp.corner))
 		for i in range(1, path.size()):
 			if pane.camera.is_position_behind(path[i]) or pane.camera.is_position_behind(path[i - 1]):
 				continue
@@ -5267,7 +5269,7 @@ func _insert_point_at_mouse(pane: ViewPane, mouse: Vector2) -> void:
 	if not hit:
 		return
 	var ramp := selected as RampNode
-	var best := RampShape.nearest_on_path(ramp.points, hit.position, ramp.corner if ramp.path == "corners" else -1.0)
+	var best := RampShape.nearest_on_path(ramp.points, hit.position, RampShape.path_corner(ramp.path, ramp.corner))
 	if best["span"] < ramp.lock_index():
 		_set_status("That part of the ramp is locked: unlock it to add points there.")
 		return

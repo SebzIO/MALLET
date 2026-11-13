@@ -23,7 +23,7 @@ var base_depth := 0.0                ## solid only: how far the flat bottom sits
 var profile := {}                    ## custom cross-section from the ramp creator ({} = straight faces; RampShape.profile_spec)
 var ends := {}                       ## shaped ends from the ramp creator ({} = square; {"start": .., "end": ..})
 var design := ""                     ## the ramp prefab it was made from ("" = none; just a name, for the panel)
-var path := "corners"                ## "smooth" curve or "corners" (straight, rounded near each point); new ramps: corners
+var path := "even"                   ## "smooth", "corners" or "even" (RampShape): new ramps are even since 0.28.0
 var corner := 0.25                   ## "corners": how much of the shorter stretch each rounding takes
 var roll := 0.0                      ## the cross-section banked around the spine, degrees
 var turn := Vector2.ZERO             ## how far it has been turned with the Pitch / Yaw controls (x pitch, y yaw), degrees

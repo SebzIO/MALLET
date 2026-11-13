@@ -70,11 +70,13 @@ func _run() -> void:
 	r.rebuild()
 	var up0: Vector3 = (r.geometry["ups"] as PackedVector3Array)[3]
 	check("roll banks the cross-section", absf(rad_to_deg(up0.angle_to(Vector3.UP)) - 20.0) < 1.0, "(%.1f°)" % rad_to_deg(up0.angle_to(Vector3.UP)))
-	# old maps stay smooth, new ramps are corners
+	# old maps stay smooth, new ramps are even (0.28.0)
 	var old := RampNode.new()
 	root.add_child(old)
 	old.from_dict({"points": [[0, 10, 0], [20, 5, 0], [40, 0, 0]]})
 	check("a ramp from an older map keeps its smooth curve", old.path == "smooth")
-	check("a brand-new ramp uses corners", RampNode.new().path == "corners")
+	var fresh := RampNode.new()
+	check("a brand-new ramp uses the even path (0.28.0; corners before)", fresh.path == "even")
+	fresh.free()
 	print("ramp_path_test: ", "PASS" if ok else "FAIL")
 	quit()

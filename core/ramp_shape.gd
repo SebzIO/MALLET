@@ -37,7 +37,8 @@ const DEFAULTS := {
 	"profile": {},                 ## a custom cross-section (ramp creator): see profile_spec(). {} = straight faces
 	"ends": {},                    ## shaped ends (ramp creator): see end_spec(). {} = square ends
 	"path": "smooth",              ## "smooth": a curve through the points (maps before 0.19.6); "corners": straight
-	                               ## between the points, rounded only near each one (new ramps)
+	                               ## between the points, rounded only near each one (0.19.6 - 0.27); "even" (new
+	                               ## ramps since 0.28.0): straight between the points, one circular arc at each
 	"corner": 0.25,                ## "corners": how much of the shorter neighboring stretch each rounding takes (0-0.5)
 	"roll": 0.0,                   ## the cross-section banked around the spine, degrees (+ = towards the right)
 }
@@ -73,7 +74,7 @@ static func spec(d: Dictionary) -> Dictionary:
 			s[k] = d[k]
 	for k in ["base_depth", "angle", "face_length", "angle_right", "face_length_right", "detail", "corner", "roll"]:
 		s[k] = float(s[k])
-	if not s["path"] in ["smooth", "corners"]:
+	if not s["path"] in ["smooth", "corners", "even"]:
 		s["path"] = "smooth"
 	s["corner"] = clampf(s["corner"], 0.02, 0.5)
 	s["solid"] = bool(s["solid"])
@@ -236,7 +237,70 @@ static func stations(points: PackedVector3Array, spacing: float, ghosts := [], s
 ## that starts and ends `corner` of the shorter neighboring stretch away from it (a quadratic Bezier with the point
 ## as its control: it leaves and joins the straight lines along them). Dense points `step` meters apart, with
 ## tangents. The ramp keeps the lines you set instead of sagging under them and flaring up at the end.
+## The `corner` value the path functions take for a ramp's path: -1 smooth, the corner for "corners", and for
+## "even" the corner plus EVEN_TAG (one number carries both, so every caller of stations / sample_path / nearest_on_path
+## works unchanged).
+const EVEN_TAG := 10.0
+
+
+static func path_corner(path: String, corner: float) -> float:
+	match path:
+		"corners": return corner
+		"even": return corner + EVEN_TAG
+	return -1.0
+
+
+## The "even" path (0.28.0): exactly straight between the points, and at each inner point one circular arc (constant
+## curvature: the most even a turn can be) tangent to both stretches. Each arc may use up to `fill` of the room on
+## each side - a whole end stretch, or half of a stretch it shares with the next corner - so arcs never overlap and
+## moving a point only reshapes the corners next to it. Points in a line make a straight spine, exactly on the line.
+static func _even_path(points: PackedVector3Array, step: float, fill: float) -> Dictionary:
+	var n := points.size()
+	var cut := []                                        # how far each corner's arc reaches along both stretches
+	for i in n:
+		if i == 0 or i == n - 1:
+			cut.append(0.0)
+			continue
+		var lp := points[i].distance_to(points[i - 1])
+		var ln := points[i + 1].distance_to(points[i])
+		var room_p := lp if i - 1 == 0 else lp * 0.5
+		var room_n := ln if i + 1 == n - 1 else ln * 0.5
+		var u := (points[i] - points[i - 1]).normalized()
+		var un := (points[i + 1] - points[i]).normalized()
+		cut.append(fill * minf(room_p, room_n) if u.angle_to(un) > 1e-4 else 0.0)
+	var pos := PackedVector3Array([points[0]])
+	var tans := PackedVector3Array()
+	var first := (points[1] - points[0]).normalized() if n > 1 else Vector3.FORWARD
+	tans.append(first)
+	for i in range(1, n):
+		var d := points[i] - points[i - 1]
+		if d.length() < 1e-6:
+			continue
+		var u := d.normalized()
+		var a := points[i - 1] + u * float(cut[i - 1])
+		var b := points[i] - u * float(cut[i])
+		var m := maxi(1, ceili(a.distance_to(b) / maxf(step, 0.01)))
+		for k in range(1, m + 1):                        # the straight, exactly on the line between the points
+			pos.append(a.lerp(b, float(k) / m))
+			tans.append(u)
+		if i < n - 1 and float(cut[i]) > 1e-6:          # the arc around this point
+			var un := (points[i + 1] - points[i]).normalized()
+			var theta := u.angle_to(un)
+			var r := float(cut[i]) / tan(theta * 0.5)
+			var c := points[i] + (un - u).normalized() * (r / cos(theta * 0.5))
+			var axis := u.cross(un).normalized()
+			var v0 := b - c
+			var steps := maxi(4, ceili(r * theta / maxf(step, 0.01)))
+			for k in range(1, steps + 1):
+				var ang := theta * float(k) / steps
+				pos.append(c + v0.rotated(axis, ang))
+				tans.append(u.rotated(axis, ang))
+	return {"pos": pos, "tan": tans}
+
+
 static func _corner_path(points: PackedVector3Array, step: float, corner: float) -> Dictionary:
+	if corner >= EVEN_TAG * 0.5:
+		return _even_path(points, step, clampf((corner - EVEN_TAG) * 2.0, 0.04, 1.0))
 	var pos := PackedVector3Array()
 	var tan := PackedVector3Array()
 	var n := points.size()
@@ -396,7 +460,7 @@ static func spine(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 	var prev_tan := Vector3.ZERO
 	var prev_vals: Array = []
 	var secs := sections(points, s)
-	if s["path"] == "corners" and secs.size() > 1:
+	if s["path"] in ["corners", "even"] and secs.size() > 1:
 		return _corner_spine(points, s, secs, spacing)
 	for k in secs.size():
 		var sec: Dictionary = secs[k]
@@ -405,7 +469,7 @@ static func spine(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 			continue
 		var ghosts := [points[sec["from"] - 1] if sec["from"] > 0 else null, sec["end_ghost"]]
 		var st := stations(sub, spacing, ghosts, prev_tan if k > 0 and sec["tangent_lock"] else Vector3.ZERO,
-			float(s["corner"]) if s["path"] == "corners" else -1.0)
+			path_corner(s["path"], float(s["corner"])))
 		var v: Array = sec["values"]
 		for i in st["pos"].size():
 			if k > 0 and i == 0:
@@ -431,7 +495,7 @@ static func spine(points: PackedVector3Array, s: Dictionary) -> Dictionary:
 ## corner's rounding depends only on its own two stretches, so locking can't move it, and the next section can't
 ## either); the sections only decide the face settings along it, blended in after each seam as for smooth ramps.
 static func _corner_spine(points: PackedVector3Array, s: Dictionary, secs: Array, spacing: float) -> Dictionary:
-	var st := stations(points, spacing, [], Vector3.ZERO, float(s["corner"]))
+	var st := stations(points, spacing, [], Vector3.ZERO, path_corner(s["path"], float(s["corner"])))
 	var pos: PackedVector3Array = st["pos"]
 	var values: Array = []
 	var seams := PackedInt32Array()
