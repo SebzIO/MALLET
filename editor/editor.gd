@@ -163,6 +163,11 @@ var co_cursors := {}                   ## co-editor id -> their last cursor mess
 var _co_build_steps := -1              ## build mode's undo steps when last watched (its cube edits go out)
 var _co_build_model: CubeModelNode = null
 var _co_env := ""                      ## the environment (sky and the rest of the Map panel) as last sent
+var _co_shots := ""                    ## the camera shots as last sent
+var shots: Array = []                  ## camera shots for videos (0.30.0; CameraPath has the format; never exported)
+var shot_panel: ShotPanel              ## the Camera shots strip under the views (View > Camera shots)
+var render_dialog: RenderDialog        ## Render video... (made when first opened)
+var render_mode: ShotRender = null     ## this MALLET is a render started by another one (--mallet-render <job>)
 var _co_names: Array = []              ## names for the objects, from the maker, applied with the map it sent
 var _co_named := false                 ## those names are in use here (a relay older than 0.17.3 doesn't forward them)
 var show_co_editors := true            ## draw co-editors' cameras and selections in the views (View menu)
@@ -198,6 +203,8 @@ const BLOCK_LOOKS := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "
 
 
 func _ready() -> void:
+	if OS.get_cmdline_user_args().has(ShotRender.FLAG):
+		Trail.off = true                                 # (a render: the user's own MALLET keeps its crash trail)
 	gizmo = TransformGizmo.new(self)
 	FieldGuard.install(get_tree())                      # (typing boxes: a click elsewhere takes the value; numbers only)
 	# The editor draws handles, outlines and arcs from objects' true positions, so the 3D view must not be
@@ -248,6 +255,9 @@ func _exit_tree() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN and is_inside_tree() and world_env != null:
 		_rescan_shaders()
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and render_mode != null:
+		get_tree().quit()                               # (a video render's window: nothing of the user's to save here)
+		return
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and not tester.is_empty():
 		get_tree().quit()                               # (a test build: runs are already saved, nothing else to keep)
 		return
@@ -281,6 +291,13 @@ func _ask_save_before_quit() -> void:
 
 ## The welcome screen greets you when MALLET starts (not when a test builds the editor).
 func _show_welcome_if_main() -> void:
+	var rargs := OS.get_cmdline_user_args()
+	if rargs.has(ShotRender.FLAG) and get_tree().current_scene == self:
+		render_mode = ShotRender.new()                   # (a video render: no welcome, it plays a shot and quits)
+		add_child(render_mode)
+		var at := rargs.find(ShotRender.FLAG) + 1
+		render_mode.run(self, rargs[at] if at < rargs.size() else "")
+		return
 	var td := Tester.folder()
 	if td != "" and (get_tree().current_scene == self or OS.get_cmdline_user_args().has("--tester")):
 		_start_tester(td)
@@ -386,7 +403,8 @@ func _build_ui_main() -> void:
 	# File | Add, Edit, View | Undo, Redo | Build, Play | Playtest | Options, Help (0.27.0)
 	_menu(bar, "File ▾", [["New", KEY_NONE, _new_map_clicked], ["Open…", KEY_MASK_CTRL | KEY_O, _open_clicked],
 		["Save", KEY_MASK_CTRL | KEY_S, _save_clicked], [],
-		["Export", KEY_NONE, null, "", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked]]]])
+		["Export", KEY_NONE, null, "", [["To SurfsUp…", KEY_NONE, _export_clicked], ["To Counter-Strike: Source…", KEY_NONE, _css_clicked]]],
+		["Render video…", KEY_NONE, open_render_dialog]])
 	bar.add_child(_gap())
 	# Add: everything you can put in a map, each with its key
 	_menu(bar, "Add ▾", [
@@ -426,7 +444,8 @@ func _build_ui_main() -> void:
 		["Co-editors", KEY_NONE, func(): show_co_editors = not show_co_editors; _sync_view_menu(), "cores"],
 		["Ground grid (3D view)", KEY_NONE, _toggle_ground_grid, "groundgrid"],
 		["Outliner (names, folders)", KEY_NONE, func(): _outliner_panel.visible = not _outliner_panel.visible; _sync_view_menu(), "outliner"],
-		["Playtest panel", KEY_NONE, func(): _set_playtest_panel(not _playtest_panel.visible), "playtest"]])
+		["Playtest panel", KEY_NONE, func(): _set_playtest_panel(not _playtest_panel.visible), "playtest"],
+		["Camera shots (videos)", KEY_NONE, func(): show_shots(not shot_panel.visible), "shots"]])
 	bar.add_child(_gap())
 	_bar_item(bar, ["Undo", undo])
 	_bar_item(bar, ["Redo", redo])
@@ -528,6 +547,13 @@ func _build_ui_main() -> void:
 	om.add_child(outliner)
 	middle.add_child(_outliner_panel)
 	middle.move_child(_outliner_panel, 0)
+
+	shot_panel = ShotPanel.new()                        # Camera shots (View > Camera shots): under the views
+	shot_panel.setup(self)
+	shot_panel.visible = false
+	shot_panel.close_requested.connect(func(): show_shots(false))
+	shot_panel.render_requested.connect(open_render_dialog)
+	root.add_child(shot_panel)
 
 	var status_panel := PanelContainer.new()
 	root.add_child(status_panel)
@@ -2086,6 +2112,8 @@ func _map_dict() -> Dictionary:
 		d["test_version"] = test_version
 	if not tester_runs.is_empty():
 		d["tester_runs"] = tester_runs.duplicate(true)
+	if not shots.is_empty():
+		d["shots"] = shots.duplicate(true)               # (camera shots for videos: editor only, never exported)
 	var used := _used_shaders(environment, rs, bs)
 	if not used.is_empty():
 		d["shaders"] = used                              # (your own shaders' code: the map looks the same anywhere)
@@ -2101,6 +2129,7 @@ func _load_dict(data: Dictionary) -> void:
 	_install_own_materials(data.get("own_materials"))
 	test_version = int(data.get("test_version", 0))
 	tester_runs = (data.get("tester_runs", []) as Array).duplicate(true) if data.get("tester_runs") is Array else []
+	_take_shots(data)
 	environment = Look.default_environment()
 	environment.merge(data.get("environment", {}), true)
 	_apply_environment()
@@ -2164,6 +2193,7 @@ func _restore_dict(data: Dictionary) -> void:
 	UserShaders.add_embedded(data.get("shaders", {}))
 	test_version = int(data.get("test_version", 0))
 	tester_runs = (data.get("tester_runs", []) as Array).duplicate(true) if data.get("tester_runs") is Array else []
+	_take_shots(data)
 	var env := Look.default_environment()
 	env.merge(data.get("environment", {}), true)
 	if env != environment:
@@ -2236,6 +2266,13 @@ func _restore_dict(data: Dictionary) -> void:
 			root.move_child(result[i], i)
 	if blocks_changed:
 		_rebuild_blocks()
+
+
+## The map's camera shots, from a saved map or an undo step (the strip shows them again).
+func _take_shots(data: Dictionary) -> void:
+	shots = (data.get("shots", []) as Array).duplicate(true) if data.get("shots") is Array else []
+	if shot_panel != null:
+		shot_panel.refresh()
 
 
 func _new_map() -> void:
@@ -2921,11 +2958,36 @@ func _sync_view_menu() -> void:
 	for pair in [["arcs", show_all_arcs], ["arrows", show_direction], ["ghost", show_ghost_path], ["paths", show_tester_paths], ["cores", show_co_editors], ["draw", _draw_mode],
 			["groundgrid", _ground_grid != null and _ground_grid.visible],
 			["playtest", _playtest_panel != null and _playtest_panel.visible],
+			["shots", shot_panel != null and shot_panel.visible],
 			["outliner", _outliner_panel != null and _outliner_panel.visible]]:
 		if _fields.has("menu_" + pair[0]):
 			var m: Array = _fields["menu_" + pair[0]]
 			(m[0] as PopupMenu).set_item_checked(m[1], pair[1])
 	_redraw_overlays()
+
+
+## Open or close the Camera shots strip.
+func show_shots(on: bool) -> void:
+	if not on:
+		shot_panel.leave()
+	shot_panel.visible = on
+	if on:
+		shot_panel.refresh()
+		_set_status("Camera shots: fly the 3D view to a spot and press Add key here, then the next spot... Play previews it, Render video makes the file.")
+	_sync_view_menu()
+
+
+## File > Render video...: the render window (output, size, frame rate, which shots, format).
+func open_render_dialog() -> void:
+	if render_dialog == null:
+		render_dialog = RenderDialog.new()
+		render_dialog.setup(self)
+		_ui_root.add_child(render_dialog)
+	if not shots.any(func(sh: Dictionary) -> bool: return (sh.get("keys", []) as Array).size() >= 2):
+		show_shots(true)
+		_set_status("No shot to render yet: make one in the Camera shots strip (two keys or more), then Render video.")
+		return
+	render_dialog.open()
 
 
 func _toggle_ground_grid() -> void:
@@ -2960,6 +3022,9 @@ func clear_best_run() -> void:
 ## Presentation mode (for videos and screenshots): only the 3D view, no toolbar, panel or status line.
 func set_presentation(on: bool) -> void:
 	_fields["toolbar"].visible = not on
+	if on:
+		shot_panel.leave()
+		shot_panel.visible = false
 	_props_panel.visible = not on
 	if _outliner_panel:
 		_outliner_panel.visible = not on
@@ -4672,6 +4737,8 @@ func _stage_plate(n: int) -> EntityNode:
 func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 	if play.active:
 		return
+	if shot_panel != null and shot_panel.visible:
+		shot_panel.draw_overlay(pane, ov)
 	if _marquee_pane == pane:
 		var r := Rect2(_marquee_a, Vector2.ZERO).expand(_marquee_b)
 		ov.draw_rect(r, Color(0.3, 0.75, 1.0, 0.12), true)
@@ -4826,6 +4893,11 @@ func _map_changed() -> void:
 		_co_env = env
 		_co_seq += 1
 		relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "env", "environment": environment.duplicate(true)}})
+	var sh := JSON.stringify(shots)                 # camera shots (small: sent whole)
+	if sh != _co_shots:
+		_co_shots = sh
+		_co_seq += 1
+		relay.send({"t": "edit", "seq": _co_seq, "op": {"act": "shots", "shots": shots.duplicate(true)}})
 
 
 ## Where the speed for a ramp comes from: the start or stage plate the rider most likely set off from - the
@@ -4938,6 +5010,8 @@ func _draw_arcs(pane: ViewPane, ov: Control) -> void:
 func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 	if play.active:
 		return false
+	if shot_panel != null and shot_panel.visible and shot_panel.pane_input(pane, event):
+		return true
 	if _gen_ramp and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_set_status("Generating a ramp: press Create (Enter) to keep it or Cancel (Esc) first.")
@@ -5067,6 +5141,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F: _frame_clicked()
 			KEY_SPACE: _toggle_maximise_hovered()
 		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and shot_panel.playing:
+		shot_panel.stop()
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and _place_on_surface:
 		_place_on_surface = false
@@ -6333,6 +6410,7 @@ func _play_clicked() -> void:
 ## Play from `at` (the start plate, or wherever build mode's P was pressed).
 func _play_from(at: Transform3D, start: EntityNode = null, finish: EntityNode = null) -> void:
 	_release_views()
+	shot_panel.stop()
 	if selected:
 		selected.set_selected(false)
 	_ui.visible = false
@@ -6366,6 +6444,7 @@ func _build_clicked() -> void:
 		return
 	_checkpoint()                                        # one editor undo step takes back a whole build session
 	_release_views()
+	shot_panel.stop()
 	_ui.visible = false
 	var target: CubeModelNode = selected if selected is CubeModelNode else null
 	build.start((panes[0].camera as Camera3D).global_transform, target)
@@ -6915,6 +6994,7 @@ func _leave_playtest() -> void:
 	_co_names.clear()
 	_co_named = false
 	_co_env = ""
+	_co_shots = ""
 	session_role = ""
 	_refresh_playtest()
 
@@ -7181,6 +7261,7 @@ func _co_seed() -> void:
 			_co_last[uid] = (o as Node3D).center()   # (so the first edit says where this copy still has it)
 			_co_track(o)
 	_co_env = JSON.stringify(environment)          # (both copies start from the same map's look)
+	_co_shots = JSON.stringify(shots)
 
 
 ## Objects that appeared or vanished since the last tick (new ones wait in _co_new_now until they have gone out: a
@@ -7518,6 +7599,7 @@ func _co_apply(m: Dictionary) -> void:
 		"del": _co_del(op, who)
 		"folders": _co_folders(op)
 		"env": _co_env_props(op)
+		"shots": _co_shots_op(op)
 		"reset": _co_reset(who)
 		"part": _co_part(op, m)
 		"cubes": _co_cubes(op, who, m)
@@ -7648,6 +7730,18 @@ func _co_env_props(op: Dictionary) -> void:
 	_co_env = JSON.stringify(environment)
 	_map_changed()
 	_co_mute = false
+
+
+## The other editor changed the camera shots: take theirs (no undo step here, nothing sent back).
+func _co_shots_op(op: Dictionary) -> void:
+	var d = op.get("shots")
+	if not d is Array:
+		return
+	_co_mute = true
+	_take_shots({"shots": d})
+	_co_shots = JSON.stringify(shots)
+	_co_mute = false
+	_redraw_overlays()
 
 
 func _co_folders(op: Dictionary) -> void:

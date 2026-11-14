@@ -94,3 +94,14 @@ func _apply() -> void:
 	var dir := Vector3(cos(pitch) * sin(yaw), -sin(pitch), cos(pitch) * cos(yaw))
 	global_position = focus + dir * distance
 	look_at(focus, Vector3.UP)
+
+
+## Put the camera exactly at `xf` with this field of view (a camera shot's key or a moment of its path). Orbiting and
+## flying carry on from here: the focus point is straight ahead at the same distance (a roll lasts until you move).
+func set_view(xf: Transform3D, view_fov: float) -> void:
+	var f := -xf.basis.z.normalized()
+	pitch = asin(clampf(f.y, -1.0, 1.0))
+	yaw = atan2(-f.x, -f.z)
+	focus = xf.origin + f * distance
+	global_transform = xf
+	fov = view_fov

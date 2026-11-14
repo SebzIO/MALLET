@@ -17,6 +17,11 @@ const DEFAULTS := {
 	"playtest_minimized": false,         ## the playtest panel is collapsed to its title row
 	"turn_speed": 210.0,                 ## play mode turn binds (hold left / right mouse): degrees a second, Source's cl_yawspeed
 	"play_triggers": false,              ## play mode shows the zones, teleports, boosters and kill zones (T)
+	"render_dir": "",                    ## Render video: the folder videos go to ("" = Videos/MALLET)
+	"render_size": "1920x1080",          ## Render video: width x height
+	"render_fps": 60,                    ## Render video: frames per second
+	"render_format": "avi",              ## Render video: avi, png or mp4 (mp4 only with ffmpeg)
+	"render_measured": {},               ## Render video: the last long render's speed, for the time estimate
 }
 
 static var _cfg: ConfigFile = null

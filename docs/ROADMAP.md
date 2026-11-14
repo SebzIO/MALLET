@@ -133,6 +133,13 @@ Make your own textures and materials, or change existing ones, inside MALLET.
       shaders folder looked at every 2 s and when a list opens (misnamed / unusable files grayed out with why),
       settings kept per sky (environment "sky_params_by"), play mode hides the ground grid and light bulbs (0.29.1).
 
+## 0.30.0: Camera shots and Render video (added 2026-11-14)
+- [x] Named camera shots saved with the map (never exported): keys from the 3D view, number fields, drag in the
+      views, a smooth path (centripetal Catmull-Rom, quaternion squad, even speed, ease, curve, look-at), Play and a
+      time bar (0.30.0).
+- [x] Render video: a second MALLET under Movie Maker draws each shot at an exact frame rate (AVI, PNG pictures, MP4
+      with the user's own ffmpeg), progress and Cancel, sizes bigger than the screen, in the exported build (0.30.0).
+
 ## 0.18.0 → 1.0.0: Release candidate
 - [x] **Geometry menu** (0.18.0) and its fixes (0.18.1-0.18.5): nine shapes cut from octree cells, one flat cut face
       per cell, whole cones and cylinders, sliders that keep up, a typed value that sticks, and a preview built on a

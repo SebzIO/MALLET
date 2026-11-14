@@ -9,12 +9,13 @@ const PREVIOUS := "user://logs/actions_previous.log"
 const MAX_LINES := 5000                  ## a long session starts the file again (the trail before a crash is what matters)
 
 static var _file: FileAccess
+static var off := false                  ## (a video render started by MALLET: it leaves the user's trail alone)
 static var _lines := 0
 static var _t0 := 0
 
 
 static func note(text: String) -> void:
-	if OS.get_thread_caller_id() != OS.get_main_thread_id():
+	if off or OS.get_thread_caller_id() != OS.get_main_thread_id():
 		return
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null or tree.current_scene == null:

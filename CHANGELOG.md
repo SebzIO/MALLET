@@ -3,6 +3,31 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.30.0 preview — 2026-11-14: Camera shots and Render video
+
+- **Camera shots** (View > Camera shots): a strip under the views where you make named shots from camera keys. **Add
+  key here** takes the 3D view's camera (position, angle, field of view); the number fields fine-tune each key (X Y Z,
+  yaw, pitch, roll, FOV, time to the next key, ease in / out); keys can be reordered, deleted, looked through, set
+  from the view, and dragged in every view, where the path and a small camera per key are drawn.
+- **A smooth path**: centripetal Catmull-Rom through every key (no loops between close keys), rotation by spherical
+  cubic quaternion interpolation (the short way round: no flips), a Curve slider from smooth to straight, timed keys
+  or even speed over the whole shot (arc-length), per-key ease, and a look-at point or object.
+- **Preview**: Play and a time bar in the 3D view, with the video's 16:9 frame drawn over it.
+- **Render video** (File > Render video…): one shot or all, any folder, 720p to 4K (and vertical / square), 24 to
+  120 fps, AVI (Motion JPEG), PNG pictures, or MP4 when your own ffmpeg is found (MALLET doesn't ship it). A second
+  MALLET draws each shot under Godot's Movie Maker, so the timing is exact whatever the machine does; its window is
+  the live preview, the progress bar shows each stage (starting, loading the map, warming up shaders, frame N of M,
+  writing the file) and Cancel stops it. Every frame is exactly the size picked, whatever the screen, taskbar or
+  title bar (older trailer clips came out 1920 x 1061); 4K works on a 1080p screen. The window says plainly that
+  without ffmpeg the video is AVI (or PNG), that bigger sizes and frame rates take longer, and, after a first
+  render of 30 frames or more, about how long the next one will take (measured, not guessed). Works in the exported
+  MALLET.exe.
+- Shots are saved with the map (key `shots`), undoable, synced to co-editors, and never written into either export.
+- New tests: camera_path_test (through every key, no flips, constant speed, ease, tension, look-at), shots_test
+  (keys, fields, drag, undo, save / open, co-editing, both exporters ignore shots), shot_render_test (real renders:
+  AVI and PNG at 320 x 180, 1920 x 1080 with a taskbar on a 1080p screen and 2560 x 1440: exact frame size, rate
+  and count, no marker frame, the speed measured for the estimate, Cancel).
+
 ## 0.29.1 preview — 2026-11-14: Sky fixes from a tester
 
 - **2D skies**: a `shader_type canvas_item;` shader is a sky now. MALLET draws it as a flat 2048 x 1024 picture and

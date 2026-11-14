@@ -13,8 +13,9 @@ key is listed at the end.
 - [7. How it looks: materials, the material maker, sky, lights](#7-how-it-looks)
 - [8. Working with others: testers and co-editing](#8-working-with-others)
 - [9. Exporting](#9-exporting)
-- [10. Keys](#10-keys)
-- [11. Good to know](#11-good-to-know)
+- [10. Videos: camera shots and Render video](#10-videos-camera-shots)
+- [11. Keys](#11-keys)
+- [12. Good to know](#12-good-to-know)
 
 ---
 
@@ -245,7 +246,53 @@ camera, mouse and selection. Undo only takes back your own work. The map's owner
 
 Both exports check the map first and tell you about anything missing (no finish, a teleport with nowhere to go...).
 
-## 10. Keys
+## 10. Videos: camera shots
+
+MALLET can make a video of your map: a camera that glides through it on a path you set, rendered frame by frame at
+an exact frame rate, however fast your computer is. You don't need a screen recorder.
+
+**Make a shot.** View > **Camera shots (videos)** opens the strip under the views. Fly the 3D view (right mouse +
+W A S D) to where the video should start and press **+ Add key here**: that key is the camera exactly as you see
+it (position, angle, field of view). Fly to the next spot and add another key, and so on. The path between the keys
+is drawn in every view, with a small camera at each key (the orange one is selected) and a pink camera where the
+time bar is. A map can have several shots (**New shot**, **Copy**, the list at the top left); each one becomes its
+own video.
+
+**Shape it.**
+- Drag a key's dot in any view to move it (in the 3D view, hold Shift as you press to move it up and down).
+- The number fields fine-tune the selected key: **X Y Z**, **Yaw** (left / right), **Pitch** (up / down), **Roll**
+  (tilts the picture), **FOV** (smaller zooms in), **Time** to the next key, and **Ease in / Ease out** (0 to 1: how
+  much the camera slows down arriving at or leaving this key). Drag a field left / right, or click it to type.
+- **Set from view** moves the selected key to where the 3D view is; **Look through** shows the view from it;
+  ▲ ▼ change the order; **Delete** removes it.
+- **Speed**: *Timed keys* uses each key's Time; *Even speed* keeps one speed along the whole path and makes the
+  shot last **Length** seconds (ease still slows it at a key).
+- **Curve**: left is a smooth curve through the keys, right is straight lines from key to key. The camera always
+  passes exactly through every key and turns the short way round (no sudden spins).
+- **Look at**: keep the camera aimed at a point (drag the pink cross, or **To view center**) or at an object (select
+  it, then **Use the selected object**). The keys then set only position, roll and field of view.
+
+**Preview.** **▶ Play** plays the shot in the 3D view (Esc stops); drag the time bar to scrub through it. The bright
+frame in the 3D view is what fits in the video (16:9).
+
+**Render.** File > **Render video…** (or Render video… on the strip): pick the shot or all of them, the folder, the
+size (up to 4K, also bigger than your screen), the frame rate and the file type, then **Render**. MALLET opens a
+second window that draws the video (that window is the preview: let it run); the progress bar shows each stage
+(loading the map, warming up shaders, frame N of M, writing the file) and **Cancel** stops it. You can keep working
+meanwhile; the render uses the map as it was when you pressed Render, saved or not.
+- The video is always exactly the size you picked, whatever your screen, its taskbar or the window's title bar
+  (4K on a 1080p screen too).
+- A bigger size and a higher frame rate take longer, since every frame is drawn in full. After your first render
+  of a second or so, the window shows about how long the next one will take, measured on your computer.
+- **AVI** (Motion JPEG): plays in VLC and goes straight into DaVinci Resolve, Premiere and Shotcut.
+- **PNG pictures**: one file per frame in a folder per shot, the sharpest; editors import them as an image sequence.
+- Without ffmpeg your videos are **AVI** (or PNG pictures). **MP4** appears in the list only when MALLET finds your own **ffmpeg** (on your PATH, or `ffmpeg.exe` next to
+  `MALLET.exe`). MALLET doesn't ship ffmpeg: get it from ffmpeg.org if you want MP4s.
+
+Shots are saved with the map and travel with it in a co-editing session; undo works on them. They are never
+exported: SurfsUp and CS:S maps don't change.
+
+## 11. Keys
 
 **Editor**
 
@@ -267,7 +314,7 @@ Both exports check the map first and tell you about anything missing (no finish,
 **Play mode**: R restart, Backspace last stage, Esc editor, hold left / right mouse to turn, Q / E save / load
 position, 2-9 stages, N noclip, T triggers.
 
-## 11. Good to know
+## 12. Good to know
 
 - Mouse sensitivity uses Source's numbers, so your CS:S sensitivity feels the same (Options > Mouse sensitivity).
 - With nothing selected, the panel tells you how heavy the map is (lights, particles, cubes).

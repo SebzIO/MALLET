@@ -1,4 +1,4 @@
-MALLET 0.29.1 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
+MALLET 0.30.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
 ===================================================================================================================
 
 START HERE
@@ -10,6 +10,11 @@ START HERE
   everything else: ramps, zones, build mode, materials, playing, testing with others and exporting.
 - Everything new, version by version: docs\CHANGELOG.html (Help > What's new).
 
+NEW IN 0.30.0 (CAMERA SHOTS AND VIDEOS)
+- Make videos of your map without a screen recorder: View > Camera shots, fly the 3D view to a spot and press
+  "Add key here", then the next spot... The camera glides smoothly through your keys (Play previews it). File >
+  Render video makes an AVI (or PNG pictures; MP4 if you have ffmpeg) at exactly the size you pick, up to 4K.
+
 NEW IN 0.29.1 (SKY FIXES)
 - 2D sky shaders (shader_type canvas_item;) work as skies; a shader saved into your shaders folder shows up within
   a couple of seconds; each sky keeps its own settings; play mode hides the editor's ground grid.
@@ -17,52 +22,6 @@ NEW IN 0.29.1 (SKY FIXES)
 NEW IN 0.29.0 (GIZMOS)
 - The selected object has Move / Rotate / Scale handles: arrows, rings and cubes in X red, Y green, Z blue. Pick the
   mode on the top bar or with 1 / 2 / 3 (W switches). Every drag is one undo step.
-
-NEW IN 0.28.0 (EVEN RAMPS)
-- New ramps run exactly straight between their points and turn in one even arc at each; ramps already on maps keep
-  their shape. The selected ramp's lines turn green at exact 45° steps; the side panel has titled sections, the
-  light and cube object panels have build mode's F4 / F3 settings.
-
-NEW IN 0.27.0 (MENUS)
-- New File, Playtest and Options menus: File > Export > To SurfsUp / CS:S, Playtest > session / test builds,
-  Options > fullscreen / mouse sensitivity / shaders folder. The playtest panel is in View.
-
-NEW IN 0.26.0 (EVERY SHADER SETTING)
-- Aurora colors (Map panel, and the Aurora look's second color); water, lava and glass show all their settings.
-  Every setting in MALLET's shaders, and in yours, has a control or says why not.
-
-NEW IN 0.25.0 (PERFORMANCE)
-- Big maps run many times faster: a tester's map went from 10 to 96 fps in the four views, 32 to 160+ in play mode.
-  Cube objects draw in far fewer pieces (in SurfsUp too), and lights draw shadows only near the camera.
-
-NEW IN 0.24.3
-- Teleports SurfsUp may miss at speed (thin, touching a wall) turn red with a warning.
-
-NEW IN 0.24.2
-- Fixed: a fast run through a thin teleport next to a wall stopped you dead at the destination.
-
-NEW IN 0.24.0
-- Lock objects and folders with the Outliner's padlock: locked things can't be moved, edited or deleted.
-
-NEW IN 0.23.3
-- Particle effects keep their area when you change the effect, and have side squares to resize them.
-
-NEW IN 0.23.2
-- Clicking off a box you are typing in takes the value; number boxes only take numbers.
-
-NEW IN 0.23.1
-- Fixed: textures that kept spinning (F3's spin slider couldn't reach 0). F3 has Stop moving, and every setting
-  has a box to type a value in.
-
-NEW IN 0.23.0
-- Material maker > Finish: brightness and light of its own with no limit, glossiness and reflectiveness up to a
-  mirror. Gamma in Adjust colors. Map panel > Reflections of the map.
-- Textures can spin and swirl (ramp texture settings, F3 in build mode).
-- Every pool of water, lava or glass can have its own look (build mode T menu > Fill > Their look).
-
-NEW IN 0.21.0
-- Make your own materials or change existing ones: material picker > Make / edit a material (or right-click a
-  material). "+ Ridge line" puts a line along a ramp's ridge. Your materials travel inside the maps that use them.
 
 WHAT WE'D LOVE YOU TO TEST
 - Follow the guide's "A first map in ten minutes" from a blank map. Where did you get stuck?
