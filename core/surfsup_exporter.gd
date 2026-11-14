@@ -77,7 +77,7 @@ static func build_scene(map: Dictionary, map_name: String) -> Node3D:
 	look_env.merge(map.get("environment", {}), true)
 	var env := WorldEnvironment.new()
 	env.name = "WorldEnvironment"
-	env.environment = Look.build_environment(look_env)
+	env.environment = Look.build_environment(look_env, true)   # (a canvas_item sky goes in as a still picture)
 	_add(root, root, env)
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"

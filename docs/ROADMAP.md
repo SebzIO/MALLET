@@ -138,6 +138,11 @@ Make your own textures and materials, or change existing ones, inside MALLET.
 - [x] Move / Rotate / Scale gizmos on the selection in every view (editor/gizmo.gd, TransformGizmo): axis arrows,
       plane squares, rings with a view ring, cube handles; 1 / 2 / 3 and W; the side squares joined Scale (0.29.0).
 
+## 0.29.1: Sky fixes from a tester (added 2026-11-14)
+- [x] canvas_item skies (a live 2048 x 1024 picture wrapped around the world, still in the SurfsUp export), the
+      shaders folder looked at every 2 s and when a list opens (misnamed / unusable files grayed out with why),
+      settings kept per sky (environment "sky_params_by"), play mode hides the ground grid and light bulbs (0.29.1).
+
 ## 0.18.0 → 1.0.0: Release candidate
 - [x] **Geometry menu** (0.18.0) and its fixes (0.18.1-0.18.5): nine shapes cut from octree cells, one flat cut face
       per cell, whole cones and cylinders, sliders that keep up, a typed value that sticks, and a preview built on a

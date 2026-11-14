@@ -2,6 +2,8 @@ class_name UserShaders
 extends RefCounted
 ## Your own shaders: Godot .gdshader files dropped into the shaders folder (user://shaders, opened from the menu).
 ## A "shader_type sky;" file becomes a choice for the map's sky, a "shader_type spatial;" file a ramp / block look.
+## A "shader_type canvas_item;" file is a sky too (0.29.1): MALLET draws it as a flat 2:1 picture (2048 x 1024, UV 0-1)
+## in a SubViewport and wraps that around the world like a panorama (see canvas_texture / PANORAMA).
 ## Every uniform becomes a control in the panel (sliders, color pickers, checkboxes, image choosers), so a shader
 ## writer also makes something anyone can tweak. A shader that doesn't compile is never used: its error is shown and
 ## MALLET falls back to the built-in sky / a plain color (no white faces, no crash).
@@ -18,6 +20,24 @@ const EXAMPLES := ["example_sky.gdshader", "example_surface.gdshader"]
 static var _lib := {}
 static var _version := 0
 static var _logger: _ErrorCatcher
+## Files in the folder that look like shaders but don't end in .gdshader (so they can't be used): [[file, id], ...].
+static var misnamed: Array = []
+static var _folder_sig := ""
+
+## canvas_item skies: the size of the flat picture they draw, and the sky shader that wraps it around the world
+## (u = around, starting behind you at -Z; v = top to bottom).
+const CANVAS_SIZE := Vector2i(2048, 1024)
+const PANORAMA := """shader_type sky;
+uniform sampler2D panorama : source_color, filter_linear, repeat_enable;
+void sky() {
+	vec3 d = normalize(EYEDIR);
+	vec2 uv = vec2(atan(d.x, -d.z) / TAU + 0.5, acos(clamp(d.y, -1.0, 1.0)) / PI);
+	COLOR = textureLod(panorama, uv, 0.0).rgb;
+}
+"""
+static var _panorama: Shader
+## id -> {"vp": SubViewport, "mat": ShaderMaterial (on its ColorRect), "shader": the Shader it was made for}
+static var _canvas := {}
 
 
 ## Collects shader compile errors while a shader is being compiled (Godot reports them to its loggers).
@@ -57,9 +77,15 @@ static func scan() -> Array:
 	var changed := []
 	var seen := {}
 	var d := DirAccess.open(dir)
+	misnamed.clear()
+	_folder_sig = folder_signature()
 	if d:
 		for f in d.get_files():
 			if f.get_extension().to_lower() != "gdshader":
+				if f.get_extension().to_lower() in ["", "txt", "shader", "glsl"] and not f.begins_with("."):
+					var head := FileAccess.get_file_as_string(dir + f).left(4000)
+					if RegEx.create_from_string("(?m)^\\s*shader_type\\s+\\w+").search(_strip_comments(head)):
+						misnamed.append([f, f.get_basename()])   # ("n64" or "n64.txt": saved without .gdshader)
 				continue
 			var id := f.get_basename()
 			var path := dir + f
@@ -77,6 +103,24 @@ static func scan() -> Array:
 			_lib.erase(id)                               # removed from the folder (the open map puts back the ones it uses)
 			changed.append(id)
 	return changed
+
+
+## A cheap fingerprint of the folder (names, sizes, times; no file is read): changes when a file is added, saved,
+## renamed or removed, so the editor can look every few seconds without recompiling anything.
+static func folder_signature() -> String:
+	var d := DirAccess.open(dir)
+	if d == null:
+		return ""
+	var parts := PackedStringArray()
+	for f in d.get_files():
+		var path := dir + f
+		parts.append("%s:%d:%d" % [f, FileAccess.get_modified_time(path), FileAccess.get_size(path)])
+	return "|".join(parts)
+
+
+## Whether the folder changed since the last scan (folder_signature).
+static func folder_changed() -> bool:
+	return folder_signature() != _folder_sig
 
 
 ## Shaders that came inside a map file: used when your folder doesn't have one by that name.
@@ -101,11 +145,18 @@ static func _compile(id: String, code: String, path: String, mtime: int) -> Dict
 	match type:
 		"sky": e["kind"] = "sky"
 		"spatial": e["kind"] = "surface"
+		"canvas_item":
+			e["kind"] = "sky"                            # (a flat picture wrapped around the world: canvas_texture)
+			e["canvas"] = true
+			if RegEx.create_from_string("\\bhint_screen_texture\\b|\\bSCREEN_TEXTURE\\b").search(_strip_comments(code)):
+				e["error"] = ("This canvas_item shader reads the screen (hint_screen_texture): it's a screen effect, not a sky. "
+					+ "MALLET draws canvas_item skies as a flat picture of their own, so there's no screen for it to read.")
+				return e
 		"":
-			e["error"] = "The file doesn't start with a shader type. Put  shader_type sky;  (for a sky) or  shader_type spatial;  (for a ramp / block surface) at the top."
+			e["error"] = "The file doesn't start with a shader type. Put  shader_type sky;  or  shader_type canvas_item;  (for a sky) or  shader_type spatial;  (for a ramp / block surface) at the top."
 			return e
 		_:
-			e["error"] = "\"shader_type %s\" isn't used by MALLET. Use  shader_type sky;  for a sky or  shader_type spatial;  for a surface." % type
+			e["error"] = "\"shader_type %s\" isn't used by MALLET. Use  shader_type sky;  or  shader_type canvas_item;  for a sky, or  shader_type spatial;  for a surface." % type
 			return e
 	var s := Shader.new()
 	_logger.got.clear()
@@ -216,7 +267,7 @@ static func ids(kind: String, with_broken := false) -> Array:
 	return out
 
 
-## Files in the folder that don't compile (or aren't a sky / spatial shader): [[id, error], ...].
+## Files in the folder that don't compile (or aren't a sky / canvas_item / spatial shader): [[id, error], ...].
 static func broken() -> Array:
 	var out := []
 	for id in _lib:
@@ -244,6 +295,84 @@ static func version(id: String) -> int:
 ## The shader's code for saving into a map (only shaders that are known).
 static func code(id: String) -> String:
 	return String(_lib.get(id, {}).get("code", ""))
+
+
+## Whether a sky is a canvas_item shader (drawn flat, then wrapped around: canvas_texture).
+static func is_canvas(id: String) -> bool:
+	return bool(_lib.get(id, {}).get("canvas", false))
+
+
+## A canvas_item sky's picture, live: a SubViewport (CANVAS_SIZE) under the scene tree's root with one ColorRect
+## wearing the shader and the map's settings. Animated shaders (TIME) redraw every frame, others once per change.
+## One viewport per shader, reused. `still`: a copy of the last frame as an embeddable texture instead (exports: a
+## ViewportTexture can't be saved into a scene file), or null when nothing has been drawn yet.
+static func canvas_texture(id: String, params: Dictionary, still := false) -> Texture2D:
+	if not ok(id) or not is_canvas(id):
+		return null
+	var c: Dictionary = _canvas.get(id, {})
+	if c.is_empty() or not is_instance_valid(c["vp"]) or c["shader"] != _lib[id]["shader"]:
+		if not c.is_empty() and is_instance_valid(c["vp"]):
+			(c["vp"] as Node).queue_free()
+		var tree := Engine.get_main_loop() as SceneTree
+		if tree == null or tree.root == null:
+			return null
+		var vp := SubViewport.new()
+		vp.name = "CanvasSky_" + id.validate_node_name()
+		vp.size = CANVAS_SIZE
+		vp.disable_3d = true
+		var rect := ColorRect.new()
+		rect.size = Vector2(CANVAS_SIZE)
+		var m := ShaderMaterial.new()
+		m.shader = _lib[id]["shader"]
+		rect.material = m
+		vp.add_child(rect)
+		tree.root.add_child.call_deferred(vp)           # (deferred: this may run while the root is adding children)
+		c = {"vp": vp, "mat": m, "shader": _lib[id]["shader"]}
+		_canvas[id] = c
+	var mat: ShaderMaterial = c["mat"]
+	for u in _lib[id]["uniforms"]:
+		var v = decode(u, params[u["name"]]) if params.has(u["name"]) else null
+		if v == null and u["type"] != "image":
+			v = u["default"]
+		mat.set_shader_parameter(u["name"], v)
+	var vpn: SubViewport = c["vp"]
+	vpn.render_target_update_mode = SubViewport.UPDATE_ALWAYS if _lib[id]["animated"] else SubViewport.UPDATE_ONCE
+	if not still:
+		return vpn.get_texture()
+	if not vpn.is_inside_tree():
+		return null
+	var img := vpn.get_texture().get_image()
+	if img == null or img.is_empty():
+		return null
+	img.convert(Image.FORMAT_RGB8)
+	var tex := PortableCompressedTexture2D.new()
+	tex.keep_compressed_buffer = true                    # (so it's saved into the exported scene)
+	tex.create_from_image(img, PortableCompressedTexture2D.COMPRESSION_MODE_LOSSY, false, 0.9)
+	return tex
+
+
+## One setting of a canvas_item sky that's showing, changed without building anything again (a slider drag).
+static func canvas_param(id: String, name: String, value: Variant) -> void:
+	var c: Dictionary = _canvas.get(id, {})
+	if c.is_empty() or not is_instance_valid(c["vp"]):
+		return
+	(c["mat"] as ShaderMaterial).set_shader_parameter(name, value)
+	if not _lib[id]["animated"]:
+		(c["vp"] as SubViewport).render_target_update_mode = SubViewport.UPDATE_ONCE
+
+
+## The sky material that wraps a canvas_item sky's picture around the world (null if it can't be used).
+static func canvas_sky_material(id: String, params: Dictionary, still := false) -> ShaderMaterial:
+	var tex := canvas_texture(id, params, still)
+	if tex == null:
+		return null
+	if _panorama == null:
+		_panorama = Shader.new()
+		_panorama.code = PANORAMA
+	var m := ShaderMaterial.new()
+	m.shader = _panorama
+	m.set_shader_parameter("panorama", tex)
+	return m
 
 
 ## A material for a working shader with the map's settings applied (null if the shader can't be used).

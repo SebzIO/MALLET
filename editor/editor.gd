@@ -79,6 +79,9 @@ var show_all_arcs := false
 var best_ghost: Dictionary = {}         ## the map's best run in play mode (saved with the map, not in undo)
 var show_ghost_path := true
 var _ground_grid: MeshInstance3D         ## the 3D view's ground grid plane (View > Ground grid)
+var _play_hidden: Array = []             ## editor-only things hidden while playing: [[node, was visible], ...]
+var _play_hid_bulbs := false             ## whether play mode hid the lights' bulbs (shown again afterwards)
+var _shader_poll := 0.0                  ## seconds until the shaders folder is looked at again (_process)
 var show_direction := true             ## editor guide: arrows along each ramp from its start to its end
 var _arcs: Array = []                ## [{ramp, speed, ref, runs: [full, sloppy]}] from the jump checker
 var _arcs_timer := 0.0
@@ -964,7 +967,7 @@ func _build_map_props(props: VBoxContainer) -> void:
 		if i < keys.size():
 			_checkpoint()
 			var keep := {}                                 # (a sky preset doesn't change the water / lava / glass looks)
-			for k in ["water_look", "lava_look", "glass_look", "sky_shader", "sky_params"]:
+			for k in ["water_look", "lava_look", "glass_look", "sky_shader", "sky_params", "sky_params_by"]:
 				if environment.has(k):
 					keep[k] = environment[k]
 			environment = Look.preset_environment(keys[i])
@@ -982,6 +985,7 @@ func _build_map_props(props: VBoxContainer) -> void:
 	sky_pick.clip_text = true
 	sky_pick.tooltip_text = "MALLET's own sky, or a sky shader from your shaders folder (Folder\u2026 opens it)."
 	sky_pick.item_selected.connect(func(i): _pick_sky_shader(String(sky_pick.get_item_metadata(i))))
+	sky_pick.button_down.connect(_rescan_shaders)        # (a file just saved into the folder is in the list it opens)
 	sky_row.add_child(sky_pick)
 	sky_row.add_child(_shaders_folder_button())
 	_add_row(_map_props, "Sky", sky_row)
@@ -1068,8 +1072,8 @@ func _shaders_folder_button() -> Button:
 	var b := Button.new()
 	b.text = "Folder\u2026"
 	b.focus_mode = Control.FOCUS_NONE
-	b.tooltip_text = ("Open your shaders folder. Put Godot .gdshader files in it (shader_type sky; or shader_type spatial;)\n"
-		+ "and switch back to MALLET: they show up here, with a control for every setting. Guide: docs/SHADERS.md")
+	b.tooltip_text = ("Open your shaders folder. Put Godot .gdshader files in it (shader_type sky; or canvas_item; for a sky,\n"
+		+ "shader_type spatial; for a surface): they show up here, with a control for every setting. Guide: docs/SHADERS.md")
 	b.pressed.connect(_open_shaders_folder)
 	return b
 
@@ -1085,8 +1089,11 @@ func _open_shaders_folder() -> void:
 func _rescan_shaders() -> void:
 	var in_use := _used_shaders(environment, ramps_root.get_children().map(func(r): return r.to_dict()),
 		blocks_root.get_children().map(func(b): return b.data))
+	var misnamed_before := str(UserShaders.misnamed)
 	var changed := UserShaders.scan()
 	if changed.is_empty():
+		if str(UserShaders.misnamed) != misnamed_before:
+			_refresh_props()                             # (a file without .gdshader appeared or went: the lists say so)
 		return
 	UserShaders.add_embedded(in_use)                     # (a file deleted while this map uses it: keep the map's copy)
 	_apply_environment()
@@ -1125,6 +1132,18 @@ func _fill_shader_choice(ob: OptionButton, kind: String, current: String) -> voi
 		ob.add_item("No surface shaders yet: click Folder\u2026")
 		ob.set_item_metadata(0, "")
 		ob.set_item_disabled(0, true)
+	# files in the folder that can't be either: listed (grayed out) with why, so a new file never just goes missing
+	for id in UserShaders.ids("other", true):
+		ob.add_item("%s  (can't be used: %s)" % [id, UserShaders.problem(id).left(60)])
+		ob.set_item_metadata(ob.item_count - 1, "")
+		ob.set_item_disabled(ob.item_count - 1, true)
+		ob.set_item_tooltip(ob.item_count - 1, UserShaders.problem(id))
+	for m in UserShaders.misnamed:
+		if UserShaders.has(String(m[1])) and UserShaders.entry(String(m[1]))["path"] != "":
+			continue                                     # (there's a .gdshader by that name too)
+		ob.add_item("%s  (rename it to %s.gdshader)" % [m[0], m[1]])
+		ob.set_item_metadata(ob.item_count - 1, "")
+		ob.set_item_disabled(ob.item_count - 1, true)
 	for i in ob.item_count:
 		if String(ob.get_item_metadata(i)) == current:
 			ob.select(i)
@@ -1144,6 +1163,7 @@ func _surface_shader_box(parent: Container, prefix: String) -> void:
 		if not _updating_ui:
 			_edit_prop(prefix + "shader", String(ob.get_item_metadata(i)))
 			_refresh_props())
+	ob.button_down.connect(_rescan_shaders)
 	row.add_child(ob)
 	row.add_child(_shaders_folder_button())
 	_add_row(box, "Shader", row)
@@ -1357,13 +1377,33 @@ func _pick_sky_shader(id: String) -> void:
 	if _updating_ui:
 		return
 	_checkpoint()
-	environment["sky_shader"] = id
-	environment["sky_params"] = {}
+	_store_sky_params(id)
 	_apply_environment()
 	_map_changed()                               # (a sky is a map change like any other: the others follow it)
 	_refresh_props()
 	if id != "" and not UserShaders.ok(id):
 		_set_status("That sky shader has an error, so the built-in sky stays for now: " + UserShaders.problem(id))
+
+
+## Switch the map's sky to `id`, keeping every sky's own settings: the one showing goes into "sky_params_by" (by sky
+## id) and the new one's come back out of it into "sky_params" (which the sky and the exporters read). Saved with
+## the map; undo takes back both.
+func _store_sky_params(id: String) -> void:
+	var old := String(environment.get("sky_shader", ""))
+	var by: Dictionary = (environment.get("sky_params_by", {}) as Dictionary).duplicate(true)
+	var now: Dictionary = environment.get("sky_params", {})
+	if old != "":
+		if now.is_empty():
+			by.erase(old)
+		else:
+			by[old] = now.duplicate(true)
+	environment["sky_shader"] = id
+	environment["sky_params"] = (by.get(id, {}) as Dictionary).duplicate(true)
+	by.erase(id)                                         # (the one showing lives in sky_params)
+	if by.is_empty():
+		environment.erase("sky_params_by")
+	else:
+		environment["sky_params_by"] = by
 
 
 func _set_sky_param(name: String, value) -> void:
@@ -1379,6 +1419,11 @@ func _set_sky_param(name: String, value) -> void:
 	_map_changed()
 	# a slider drag only changes one setting of the sky that's already showing: no need to build it all again
 	var id := String(environment.get("sky_shader", ""))
+	if name != "" and UserShaders.ok(id) and UserShaders.is_canvas(id):
+		for u in UserShaders.entry(id)["uniforms"]:
+			if u["name"] == name:
+				UserShaders.canvas_param(id, name, UserShaders.decode(u, value))
+		return
 	var m = world_env.environment.sky.sky_material if world_env.environment and world_env.environment.sky else null
 	if name != "" and m is ShaderMaterial and UserShaders.ok(id) and m.shader == UserShaders.entry(id)["shader"]:
 		for u in UserShaders.entry(id)["uniforms"]:
@@ -4744,6 +4789,11 @@ func _process(delta: float) -> void:
 	if _blocks_dirty:
 		_rebuild_blocks()
 	_refresh_position()
+	_shader_poll -= delta
+	if _shader_poll <= 0.0:
+		_shader_poll = 2.0                        # (a shader saved into the folder shows up without leaving MALLET)
+		if UserShaders.folder_changed():
+			_rescan_shaders()
 	if play.active:
 		return
 	_tick_co_cursors(delta)
@@ -6292,6 +6342,7 @@ func _play_from(at: Transform3D, start: EntityNode = null, finish: EntityNode = 
 	if selected:
 		selected.set_selected(false)
 	_ui.visible = false
+	_show_editor_overlays(false)
 	var volumes: Array = []                             # (untyped: lava / death in cube objects are KillBoxes, not nodes)
 	volumes.append_array(entities_root.get_children().filter(func(x): return x.is_volume()))
 	for cm in cube_models_root.get_children():
@@ -6361,12 +6412,36 @@ func _mouse_buttons_up() -> void:
 		get_viewport().push_input(up)
 
 
+## Play mode shows the map as the game will: the 3D ground grid and the lights' bulbs (editor-only) hide while you
+## play and come back as they were afterwards.
+func _show_editor_overlays(on: bool) -> void:
+	if not on:
+		if not _play_hidden.is_empty() or _play_hid_bulbs:
+			return                                       # (already hidden: keep what to bring back)
+		for n in [_ground_grid]:
+			if n != null:
+				_play_hidden.append([n, (n as Node3D).visible])
+				(n as Node3D).visible = false
+		_play_hid_bulbs = not LightNode.hide_bulbs
+		if _play_hid_bulbs:
+			LightNode.show_bulbs(lights_root, false)
+		return
+	for pair in _play_hidden:
+		if is_instance_valid(pair[0]):
+			(pair[0] as Node3D).visible = bool(pair[1])
+	_play_hidden.clear()
+	if _play_hid_bulbs:
+		LightNode.show_bulbs(lights_root, true)
+	_play_hid_bulbs = false
+
+
 ## Build mode's P: play from where you are, and come back to build mode afterwards.
 func _play_from_build(at: Transform3D) -> void:
 	_play_from(at, _find_entity("start"), _find_entity("finish"))
 
 
 func _on_play_stopped() -> void:
+	_show_editor_overlays(true)
 	for cm in cube_models_root.get_children():
 		cm.set_show_mats(true)
 	if not tester.is_empty():

@@ -215,8 +215,10 @@ mode's **T** menu, Fill tab, pick the look under "Their look" before you fill, s
 sparks, snow, rain, mist and more. **Text** (X) puts signs on surfaces. **Props** (I) are glTF models.
 **Water** (H) is a water block with presets.
 
-**Your own shaders**: Options > Your shaders folder… Put Godot `.gdshader` files there: sky shaders show up under the
-map's Sky, surface shaders in a Look ("Your own shader"). See `docs/SHADERS.md`.
+**Your own shaders**: Options > Your shaders folder… Put Godot `.gdshader` files there: sky shaders
+(`shader_type sky;`, or a 2D `shader_type canvas_item;` shader wrapped around the world) show up under the map's Sky,
+surface shaders in a Look ("Your own shader"). A new file shows up within a couple of seconds, no restart needed.
+Each sky keeps its own settings when you switch between skies. See `docs/SHADERS.md`.
 
 ## 8. Working with others
 

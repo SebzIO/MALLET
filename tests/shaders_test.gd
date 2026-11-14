@@ -48,7 +48,7 @@ func _run() -> void:
 	check("first use makes the folder with both examples", FileAccess.file_exists(dir + "example_sky.gdshader")
 		and FileAccess.file_exists(dir + "example_surface.gdshader"))
 	write(dir + "test_broken.gdshader", "shader_type spatial;\nuniform float a = 1.0;\nvoid fragment() {\n\tALBEDO = vec3(a) + oops;\n}\n")
-	write(dir + "test_type.gdshader", "shader_type canvas_item;\nvoid fragment() { COLOR = vec4(1.0); }\n")
+	write(dir + "test_type.gdshader", "shader_type particles;\nvoid process() { }\n")
 	# a sky colored by direction: red = Godot +X (Source east), green = up, blue = Godot -Z (Source north)
 	write(dir + "test_dir.gdshader", "shader_type sky;\nvoid sky() { COLOR = vec3(max(EYEDIR.x, 0.0), max(EYEDIR.y, 0.0), max(-EYEDIR.z, 0.0)) * 4.0; }\n")
 	write(dir + "test_glow.gdshader", "shader_type spatial;\nrender_mode cull_disabled;\nuniform vec4 tint : source_color = vec4(0.2, 0.4, 0.6, 1.0); // The tint\n"
@@ -61,7 +61,7 @@ func _run() -> void:
 		and UserShaders.ids("surface") == ["example_surface", "test_glow"], "%s %s" % [UserShaders.ids("sky"), UserShaders.ids("surface")])
 	check("a broken shader isn't used and says which line is wrong", not UserShaders.ok("test_broken")
 		and UserShaders.problem("test_broken").begins_with("Line 4:") and UserShaders.problem("test_broken").contains("oops"), UserShaders.problem("test_broken"))
-	check("a canvas_item shader is refused with a reason", not UserShaders.ok("test_type") and UserShaders.problem("test_type").contains("canvas_item"))
+	check("a particles shader is refused with a reason", not UserShaders.ok("test_type") and UserShaders.problem("test_type").contains("particles"))
 	check("an unknown shader says it isn't there", UserShaders.problem("nope").contains("isn't in your shaders folder"))
 	check("scanning again finds nothing new", UserShaders.scan().is_empty())
 	var us: Array = UserShaders.entry("test_glow")["uniforms"]
@@ -92,7 +92,7 @@ func _run() -> void:
 	var labels := []
 	for i in sky_ob.item_count:
 		labels.append(sky_ob.get_item_text(i))
-	check("the Map panel lists MALLET's sky and your sky shaders", labels.size() == 3 and labels[1] == "example_sky" and labels[2] == "test_dir", str(labels))
+	check("the Map panel lists MALLET's sky and your sky shaders", labels.filter(func(x): return not String(x).contains("can't be used")).size() == 3 and labels[1] == "example_sky" and labels[2] == "test_dir", str(labels))
 	check("...with the built-in sky's colors showing", ed._fields["env_sky_builtin"].visible)
 	ed._pick_sky_shader("example_sky")
 	await process_frame

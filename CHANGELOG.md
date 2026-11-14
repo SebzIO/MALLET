@@ -3,6 +3,22 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.29.1 preview — 2026-11-14: Sky fixes from a tester
+
+- **2D skies**: a `shader_type canvas_item;` shader is a sky now. MALLET draws it as a flat 2048 x 1024 picture and
+  wraps it around the world (UV.x once around, UV.y from straight up to straight down); TIME animates it and its
+  settings get controls. Limits: no EYEDIR or sun, a seam in the south if the picture's edges don't match, a
+  still picture in the SurfsUp export, and screen effects (hint_screen_texture) are refused with why.
+- **New shader files show up without restarting**: MALLET looks at the shaders folder every couple of seconds and
+  whenever a shader list opens, not only when it gets the focus back. A shader saved without `.gdshader` ("n64",
+  "n64.txt") and a shader type MALLET can't use are listed grayed out, saying what to do.
+- **Every sky keeps its own settings**: change one sky, switch to another and back, and the first one's settings
+  are still there (saved with the map, undoable; a sky preset keeps them too).
+- **Play mode hides the editor's grid**: the 3D ground grid and the lights' bulbs hide while you play and come back
+  as they were.
+- New test: sky_fixes_test (clicks in the sky list, new and misnamed files, 2D skies live / in exports / in the CS:S
+  skybox, per-sky settings with undo and save, the grid in play mode).
+
 ## 0.29.0 preview — 2026-11-14: Move, rotate and scale gizmos
 
 - **The selected object carries a gizmo** in the usual colors (X red, Y green and up, Z blue), the same size on screen

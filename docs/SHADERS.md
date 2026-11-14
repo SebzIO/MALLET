@@ -11,8 +11,10 @@ once, and MALLET turns its settings into sliders and color pickers, so anyone ca
 - `example_sky.gdshader`: a gradient sky with drifting clouds and a sun.
 - `example_surface.gdshader`: a surface with glowing stripes and an optional image.
 
-Copy one, rename it (the file name is the name MALLET shows), and change it in any text editor. Save it and switch back
-to MALLET: it picks up new, changed and deleted files on its own.
+Copy one, rename it (the file name is the name MALLET shows), and change it in any text editor. Save it: MALLET
+picks up new, changed and deleted files on its own within a couple of seconds, when you switch back to it, and
+whenever you open a shader list. The file must end in `.gdshader`: a shader saved as `n64` or `n64.txt` is listed
+grayed out with "rename it to n64.gdshader", and a shader type MALLET can't use is listed grayed out with why.
 
 ## Skies
 
@@ -23,6 +25,29 @@ stars, aurora and nebula are hidden while your sky is in use.
 - `EYEDIR` is the direction the pixel looks in (`y` is up). Write the color to `COLOR`.
 - The sun from the Map panel: `LIGHT0_ENABLED`, `LIGHT0_DIRECTION`, `LIGHT0_COLOR`, `LIGHT0_ENERGY`.
 - Using `TIME` animates the sky (MALLET then redraws it every frame).
+- **Every sky keeps its own settings.** Switch to another sky and back, and the first one's settings are still there
+  (they're saved with the map, and undo takes a switch back). Back to the shader's own values clears only the sky
+  that's showing.
+
+### 2D skies (`shader_type canvas_item;`)
+
+A file that starts with `shader_type canvas_item;` is a sky too: handy for the many 2D shaders on godotshaders.com.
+MALLET draws it as a flat picture, 2048 x 1024 pixels, and wraps that picture around the world like a panorama:
+
+- `UV.x` goes once around you: the middle of the picture (`UV.x = 0.5`) faces north (Godot -Z)
+  and 0 and 1 meet in the south. `UV.y` goes from straight up (0) to straight down (1); the horizon is at
+  `UV.y = 0.5`. Write the color to `COLOR` in `fragment()`, as in any 2D shader.
+- `TIME` animates it (redrawn every frame); without `TIME` it's drawn once, and again when you change a setting.
+  Its uniforms become controls like any shader's.
+
+Limits:
+- It's a flat picture: there's no `EYEDIR` and no sun (`LIGHT0_*`), the picture is squeezed toward straight up and
+  straight down, and a picture whose left and right edges don't match shows a seam in the south.
+- 2048 x 1024 is the most detail it has; very fine patterns look soft up close.
+- **Screen effects aren't skies**: a canvas_item shader that reads the screen (`hint_screen_texture`,
+  `SCREEN_TEXTURE`, such as a VHS or blur effect) is listed with an error, because a sky has no screen to read.
+- **SurfsUp** gets the picture as it looks when you export (a still picture, so a moving 2D sky stands still in the
+  game). Counter-Strike: Source gets it in the baked skybox like any sky.
 
 ## Surfaces (ramps and blocks)
 
@@ -60,7 +85,7 @@ Every `uniform` becomes a control in the panel, named after the uniform (`cloud_
 A shader that doesn't compile is never used. The panel shows the line and Godot's message (for example
 `Line 12: Unknown identifier in expression: 'colr'`), and until you fix it the map shows the built-in sky, or a plain
 color in the Color above. Nothing turns white and nothing crashes. Files with a shader type MALLET doesn't use
-(`canvas_item`, `particles`, `fog`) are listed as errors too.
+(`particles`, `fog`) and canvas_item screen effects are listed with their reason too.
 
 ## Sharing and exporting
 

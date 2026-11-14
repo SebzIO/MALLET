@@ -187,10 +187,15 @@ static func _c(env: Dictionary, key: String) -> Color:
 
 
 ## The map's sky material: your own sky shader (environment "sky_shader" + "sky_params") when it works, else the
-## built-in one. Second value: whether it moves (needs redrawing every frame).
-static func sky_material(env: Dictionary) -> Array:
+## built-in one. Second value: whether it moves (needs redrawing every frame). A canvas_item sky is its live picture
+## wrapped around the world (UserShaders.canvas_sky_material); `still` takes a copy of its last frame instead (exports).
+static func sky_material(env: Dictionary, still := false) -> Array:
 	var id := String(env.get("sky_shader", ""))
-	if id != "":
+	if id != "" and UserShaders.is_canvas(id):
+		var cm := UserShaders.canvas_sky_material(id, env.get("sky_params", {}), still)
+		if cm:
+			return [cm, false if still else bool(UserShaders.entry(id)["animated"])]
+	elif id != "":
 		var um := UserShaders.material(id, env.get("sky_params", {}))
 		if um:
 			return [um, UserShaders.entry(id)["animated"]]
@@ -206,10 +211,11 @@ static func sky_material(env: Dictionary) -> Array:
 	return [mat, float(env.get("aurora", 0.0)) > 0.0 or float(env.get("nebula", 0.0)) > 0.0 or float(env.get("stars", 0.0)) > 0.0]
 
 
-static func build_environment(env: Dictionary) -> Environment:
+## `still`: for a scene that gets saved (the SurfsUp export): a canvas_item sky as a still picture (sky_material).
+static func build_environment(env: Dictionary, still := false) -> Environment:
 	var e := Environment.new()
 	var sky := Sky.new()
-	var sm := sky_material(env)
+	var sm := sky_material(env, still)
 	sky.sky_material = sm[0]
 	sky.process_mode = Sky.PROCESS_MODE_REALTIME if sm[1] else Sky.PROCESS_MODE_AUTOMATIC
 	e.background_mode = Environment.BG_SKY
