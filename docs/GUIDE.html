@@ -39,6 +39,20 @@ li { margin: 4px 0; }
 <tr><td>Frame the selection</td><td>F</td><td>F</td></tr>
 </table>
 <p><b>Selecting and moving.</b> Click an object to select it (Ctrl+click adds or removes one; drag on empty space in a 2D view to box-select); drag it to move it (Shift while dragging: up and down). Arrow keys and Page Up / Page Down nudge the selection by the grid step. <b>Snap to grid</b> (top bar) makes points land on the grid. Ctrl+Z / Ctrl+Y undo and redo; Ctrl+S saves (<code>.mallet</code> files).</p>
+<p><b>The gizmo: move, rotate, scale.</b> The selected object carries a gizmo in X red, Y green (up) and Z blue. Pick its mode on the top bar or with <b>1 / 2 / 3</b> (<b>W</b> switches to the next one); the handle under the mouse lights up.</p>
+<table>
+<tr><th>Mode</th><th>Drag</th><th>What happens</th></tr>
+<tr><td>Move (1)</td><td>an arrow</td><td>slides along that axis only</td></tr>
+<tr><td></td><td>a small square</td><td>slides across the two axes next to it (the green one: along the ground)</td></tr>
+<tr><td></td><td>the white dot, or the object itself</td><td>the free drag (Shift: up and down)</td></tr>
+<tr><td>Rotate (2)</td><td>a ring</td><td>turns about that axis (15° steps while snap is on)</td></tr>
+<tr><td></td><td>the outer ring</td><td>turns about your line of sight (blocks and text)</td></tr>
+<tr><td>Scale (3)</td><td>a cube</td><td>stretches along that axis, keeping the middle where it is</td></tr>
+<tr><td></td><td>a small square</td><td>stretches along the two axes next to it</td></tr>
+<tr><td></td><td>the white middle square</td><td>scales it evenly</td></tr>
+<tr><td></td><td>a yellow side square</td><td>moves just that side (blocks, zones, particle areas)</td></tr>
+</table>
+<p>What each thing does with it: blocks and text turn every way (the rings set facing, tilt and roll); ramps, platforms, zones, props, particles and cube objects turn about the vertical; spot lights, light strips and boosters also tilt (the red ring). Blocks and zones scale in meters on the grid; ramps stretch their points (the middle square also widens their faces); props and text scale evenly; a light's reach grows (a strip's X cube makes it longer). Cube objects are resized in build mode. With a ramp point picked, the Move gizmo moves that point. The flat views show only the arrows and ring that work in them. Locked objects have no gizmo, and every drag is one undo step.</p>
 <p><b>Locking.</b> Click the padlock next to anything in the Outliner (or right-click &gt; Lock) to lock it: it can't be moved, edited or deleted, and clicks in the views go straight through it to what's behind. Lock a folder and everything in it is locked. A locked object can still be selected in the Outliner (the side panel says it's locked and has an Unlock button), copied, hidden, renamed and filed. In build mode a locked cube object can't be changed either.</p>
 <h2 id="2-a-first-map-in-ten-minutes">2. A first map in ten minutes</h2>
 <ol><li>Pick <b>Blank</b> on the welcome screen. You get a start platform (green) and a finish (blue).</li><li>Press <b>N</b> for a ramp. It appears in front of the camera. Drag its round points in the Top view to aim it, and in the Front or Side view to drop it downhill.</li><li>Watch the <b>jump arc</b> (the dotted line off the end of the ramp): it is where a player at your map's speed would fly. Move the next ramp, or the finish, under it.</li><li>Press <b>N</b> again for the next ramp, or select a ramp and use <b>Edit &gt; Extend ramp</b> to carry it on.</li><li>Press <b>P</b> to play from the start. Surf it. <b>Esc</b> brings you back.</li><li><b>Ctrl+S</b> to save, then <b>File &gt; Export &gt; To SurfsUp…</b> and type a name. In SurfsUp, open the console (~) and type <code>map &lt;name&gt;</code>.</li></ol>
@@ -61,7 +75,7 @@ li { margin: 4px 0; }
 <table>
 <tr><th>Kill zone</th><th>K</th><th>Touching it sends the player back to their respawn.</th></tr>
 </table>
-<p>Built your own start or finish out of ramps or cubes? <b>Start / Finish / Stage zone (on your own platform)</b> adds just the zone box. Zones can be stretched by the small squares on their sides.</p>
+<p>Built your own start or finish out of ramps or cubes? <b>Start / Finish / Stage zone (on your own platform)</b> adds just the zone box. Zones can be stretched by the small squares on their sides (Scale gizmo, 3).</p>
 <h2 id="5-playing-your-map">5. Playing your map</h2>
 <ul><li><b>P</b> plays from the start. In build mode, <b>Ctrl+P</b> plays from where you are.</li><li><b>R</b> restarts, <b>Backspace</b> goes back to your last stage, <b>Esc</b> returns to the editor.</li><li>Your best run is kept with the map as a <b>ghost</b>; View &gt; Best run path draws it.</li></ul>
 <p><b>Practice tools</b> (they make the run <i>practice</i>: the timer says PRACTICE and the finish doesn't count):</p>
@@ -105,6 +119,7 @@ li { margin: 4px 0; }
 <tr><td>L</td><td>lock the selected ramp point</td><td>[ / ]</td><td>turn 15 degrees</td></tr>
 <tr><td>P</td><td>play</td><td>arrows, Page Up / Down</td><td>nudge</td></tr>
 <tr><td>E</td><td>build mode</td><td>F / Space / F11</td><td>frame / one view / fullscreen</td></tr>
+<tr><td>1 / 2 / 3</td><td>move / rotate / scale gizmo</td><td>W</td><td>next gizmo mode</td></tr>
 </table>
 <p><b>Build mode</b>: F1 shows them all on screen. The main ones are in section 6.</p>
 <p><b>Play mode</b>: R restart, Backspace last stage, Esc editor, hold left / right mouse to turn, Q / E save / load position, 2-9 stages, N noclip, T triggers.</p>

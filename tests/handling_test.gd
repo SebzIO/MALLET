@@ -59,6 +59,7 @@ func _run() -> void:
 	ed._select(b)
 	await settle()
 
+	ed.set_gizmo_mode(TransformGizmo.Mode.SCALE)            # (side squares are part of Scale since 0.29.0)
 	# top handle in the 3D view: drag it up 4 m
 	var top: Array = b.face_handles()[3]                  # axis 1 (Y), + side
 	check("handle 3 is the top one", (top[1] as Vector3).is_equal_approx(Vector3.UP))
@@ -73,6 +74,7 @@ func _run() -> void:
 	check("bottom handle in the 3D view: 2 m lower, top stays", absf(b.size().y - 14.0) < 0.05 and absf(b.global_position.y + 2.0) < 0.05,
 		"(%.2f, base %.2f)" % [b.size().y, b.global_position.y])
 
+	ed.set_gizmo_mode(TransformGizmo.Mode.MOVE)
 	# text on the +X face (x = 8)
 	var t := TextNode.new()
 	ed.texts_root.add_child(t)

@@ -134,6 +134,10 @@ Make your own textures and materials, or change existing ones, inside MALLET.
 - [x] Aurora colors (sky and ramp look), every built-in shader's settings shown (Look.param_uniforms), your shaders'
       ivec settings, "Not shown" with why; shader_coverage_test guards it (0.26.0).
 
+## 0.29.0: Transform gizmos (added 2026-11-14)
+- [x] Move / Rotate / Scale gizmos on the selection in every view (editor/gizmo.gd, TransformGizmo): axis arrows,
+      plane squares, rings with a view ring, cube handles; 1 / 2 / 3 and W; the side squares joined Scale (0.29.0).
+
 ## 0.18.0 → 1.0.0: Release candidate
 - [x] **Geometry menu** (0.18.0) and its fixes (0.18.1-0.18.5): nine shapes cut from octree cells, one flat cut face
       per cell, whole cones and cylinders, sliders that keep up, a typed value that sticks, and a preview built on a

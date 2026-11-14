@@ -90,7 +90,8 @@ var _redo: Array = []
 var _coalesce_key := ""
 var _coalesce_time := 0.0
 # drag state
-enum Drag { NONE, POINT, OBJECT, FACE }
+enum Drag { NONE, POINT, OBJECT, FACE, GIZMO }
+var gizmo: TransformGizmo                 ## Move / Rotate / Scale handles on the selection (0.29.0)
 var _drag := Drag.NONE
 var _drag_pane: ViewPane
 var _drag_plane := Plane()
@@ -196,6 +197,7 @@ const BLOCK_LOOKS := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "
 
 
 func _ready() -> void:
+	gizmo = TransformGizmo.new(self)
 	FieldGuard.install(get_tree())                      # (typing boxes: a click elsewhere takes the value; numbers only)
 	if get_tree().current_scene == self:
 		Migrate.from_surfforge()                         # first start after the rename: bring SurfForge's settings along
@@ -412,7 +414,10 @@ func _build_ui_main() -> void:
 		["Save selection as prefab\u2026", KEY_NONE, _save_prefab_clicked], [],
 		["Extend ramp", KEY_NONE, _extend_clicked], ["Add bend to ramp", KEY_NONE, _bend_clicked],
 		["Turn left 15°", KEY_BRACKETLEFT, func(): _rotate_selected(-15.0)],
-		["Turn right 15°", KEY_BRACKETRIGHT, func(): _rotate_selected(15.0)]])
+		["Turn right 15°", KEY_BRACKETRIGHT, func(): _rotate_selected(15.0)], [],
+		["Move gizmo (W switches)", KEY_1, func(): set_gizmo_mode(TransformGizmo.Mode.MOVE)],
+		["Rotate gizmo", KEY_2, func(): set_gizmo_mode(TransformGizmo.Mode.ROTATE)],
+		["Scale gizmo", KEY_3, func(): set_gizmo_mode(TransformGizmo.Mode.SCALE)]])
 	_menu(bar, "View ▾", [
 		["Frame selection", KEY_F, _frame_clicked], [],
 		["Jump arcs: all ramps", KEY_NONE, func(): show_all_arcs = not show_all_arcs; _sync_view_menu(); _map_changed(), "arcs"],
@@ -440,6 +445,24 @@ func _build_ui_main() -> void:
 		["What's new (every version)", KEY_NONE, func(): MalletVersion.open_doc("CHANGELOG.html")], [],
 		["Build mode keys: press F1 in build mode", KEY_NONE, func(): _set_status("In build mode (E), F1 shows every key on screen.")],
 		["Start a new map (templates)", KEY_NONE, _new_map_clicked]])
+	bar.add_child(VSeparator.new())
+	var tools := ButtonGroup.new()                     # the gizmo: Move / Rotate / Scale (1 / 2 / 3, W switches)
+	var tool_row := HBoxContainer.new()                # (wraps as one piece)
+	tool_row.add_theme_constant_override("separation", 3)
+	bar.add_child(tool_row)
+	for m in 3:
+		var tb := Button.new()
+		tb.text = ["✥ Move", "⟳ Rotate", "⤡ Scale"][m]
+		tb.toggle_mode = true
+		tb.button_group = tools
+		tb.button_pressed = m == 0
+		tb.focus_mode = Control.FOCUS_NONE
+		tb.tooltip_text = ["Move gizmo (1): drag an arrow along X / Y / Z, a square across two of them, the dot anywhere. W switches.",
+			"Rotate gizmo (2): drag a ring to turn about that axis, the outer ring to turn about your line of sight. W switches.",
+			"Scale gizmo (3): drag a cube to stretch along that axis, a square for two, the middle square for all. W switches."][m]
+		tb.pressed.connect(set_gizmo_mode.bind(m))
+		tool_row.add_child(tb)
+		_fields["gizmo_%d" % m] = tb
 	bar.add_child(VSeparator.new())
 	var snap := CheckButton.new()
 	snap.text = "Snap to grid"
@@ -4227,7 +4250,7 @@ func _pick_face(pane: ViewPane, mouse: Vector2) -> int:
 	var hs: Array = selected.face_handles()
 	for i in hs.size():
 		var fh: Array = hs[i]
-		if pane.camera.is_position_behind(fh[0]):
+		if pane.camera.is_position_behind(fh[0]) or gizmo.covers(pane, pane.camera.unproject_position(fh[0])):
 			continue
 		if pane.is_ortho() and absf((fh[1] as Vector3).dot(-pane.camera.global_basis.z)) > 0.5:
 			continue
@@ -4358,6 +4381,8 @@ func unlock_selection() -> void:
 ## A lock was set or taken off: a drag in progress stops, the panel shows it.
 func _lock_changed() -> void:
 	if _drag != Drag.NONE and _deny_locked():
+		if _drag == Drag.GIZMO:
+			gizmo.end()
 		_drag = Drag.NONE
 	_update_lock_cover()
 	_map_changed()
@@ -4665,6 +4690,7 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 		return
 	if selected is RampNode:                       # the locked part: muted
 		_draw_lines(cam, ov, selected.outline_frozen, Color(0.62, 0.64, 0.7, 0.9), 2.0)
+	gizmo.draw(pane, ov)                               # (0.29.0: under the ramp points and side squares)
 	if selected is RampNode:
 		var pts: PackedVector3Array = selected.points
 		var aligned := aligned_pairs(pts, pane)               # (0.27.3: lines at exact 45° steps in this view)
@@ -4694,9 +4720,9 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			ov.draw_circle(s, HANDLE_RADIUS, col)
 			if selected.is_locked_point(i):
 				_draw_padlock(ov, s + Vector2(0, -HANDLE_RADIUS - 12), Color(1.0, 0.62, 0.15))
-	elif selected is BlockNode or selected is EntityNode or selected is ParticleNode:
-		for fh in selected.face_handles():
-			if cam.is_position_behind(fh[0]):
+	elif (selected is BlockNode or selected is EntityNode or selected is ParticleNode) and gizmo.mode == TransformGizmo.Mode.SCALE:
+		for fh in selected.face_handles():                # (side squares belong to the Scale gizmo since 0.29.0)
+			if cam.is_position_behind(fh[0]) or gizmo.covers(pane, cam.unproject_position(fh[0])):
 				continue
 			# in a 2D view only the sides seen edge-on can be dragged
 			if pane.is_ortho() and absf((fh[1] as Vector3).dot(-cam.global_basis.z)) > 0.5:
@@ -4704,12 +4730,6 @@ func draw_pane_overlay(pane: ViewPane, ov: Control) -> void:
 			var s := cam.unproject_position(fh[0])
 			ov.draw_rect(Rect2(s - Vector2(6, 6), Vector2(12, 12)), Color(0, 0, 0, 0.75), true)
 			ov.draw_rect(Rect2(s - Vector2(4.5, 4.5), Vector2(9, 9)), Color(1.0, 0.85, 0.15), true)
-	else:
-		var hp := _move_handle_point(selected)
-		if not cam.is_position_behind(hp):
-			var s := cam.unproject_position(hp)
-			ov.draw_rect(Rect2(s - Vector2(6, 6), Vector2(12, 12)), Color(1, 0.85, 0.15), true)
-			ov.draw_rect(Rect2(s - Vector2(7, 7), Vector2(14, 14)), Color(0, 0, 0, 0.7), false, 1.5)
 
 
 ## Where an object's yellow move handle is drawn. A cube object's own origin can be far from its cubes (they're
@@ -4892,13 +4912,27 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 		_paint_face(pane, event.position)
 		return true
 	if (selected is BlockNode or selected is EntityNode or selected is ParticleNode) and selection().size() == 1 and event is InputEventMouseButton \
-			and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and gizmo.mode == TransformGizmo.Mode.SCALE:   # (side squares: Scale)
 		var f := _pick_face(pane, event.position)
 		if f >= 0:
 			_face = f
 			# top and bottom handles move up and down: drag them on an upright plane (a level one can't go up)
 			var up_down := absf((selected.face_handles()[f][1] as Vector3).y) > 0.7
 			_begin_drag(pane, Drag.FACE, event.position, up_down)
+			return true
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed 			and not (event.ctrl_pressed or event.meta_pressed or event.double_click) and _pick_handle(pane, event.position) < 0:
+		var gid := gizmo.pick(pane, event.position)       # the gizmo (ramp points and side squares come first)
+		if gid == "c":                                   # its dot: the free drag
+			var rp := gizmo.ramp_point()
+			if rp >= 0:
+				_begin_drag(pane, Drag.POINT, event.position, event.shift_pressed, rp)
+			else:
+				_begin_drag(pane, Drag.OBJECT, event.position, event.shift_pressed)
+			return true
+		if gid != "":
+			if gizmo.begin(pane, event.position, gid):
+				_drag = Drag.GIZMO
+				_drag_pane = pane
 			return true
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
@@ -4954,9 +4988,14 @@ func pane_input(pane: ViewPane, event: InputEvent) -> bool:
 	elif event is InputEventMouseMotion and _marquee_pane and pane == _marquee_pane:
 		_marquee_b = event.position
 		return true
+	elif event is InputEventMouseMotion and _drag == Drag.GIZMO and pane == _drag_pane:
+		gizmo.drag(event.position)
+		return true
 	elif event is InputEventMouseMotion and _drag != Drag.NONE and pane == _drag_pane:
 		_drag_to(event.position, _drag_vertical if _drag == Drag.FACE else event.shift_pressed)
 		return true
+	elif event is InputEventMouseMotion and _drag == Drag.NONE:
+		gizmo.set_hover(pane, event.position)             # (lights the handle under the mouse)
 	return false
 
 
@@ -5037,6 +5076,10 @@ func _handle_key(e: InputEventKey) -> void:
 		KEY_P: _play_clicked()
 		KEY_E: _build_clicked()
 		KEY_SPACE: _toggle_maximise_hovered()
+		KEY_W: set_gizmo_mode((gizmo.mode + 1) % 3)
+		KEY_1: set_gizmo_mode(TransformGizmo.Mode.MOVE)
+		KEY_2: set_gizmo_mode(TransformGizmo.Mode.ROTATE)
+		KEY_3: set_gizmo_mode(TransformGizmo.Mode.SCALE)
 		KEY_DELETE, KEY_BACKSPACE: _delete_clicked()
 		KEY_F: _frame_clicked()
 		KEY_G:
@@ -5256,8 +5299,20 @@ func _snap_axes(v: Vector3, axes: Vector3) -> Vector3:
 
 func _end_drag() -> void:
 	_settle_ramps()
+	if _drag == Drag.GIZMO:
+		gizmo.end()
+		_refresh_props()
 	_drag = Drag.NONE
 	_drag_pane = null
+
+
+## Move, Rotate or Scale (TransformGizmo.Mode): the toolbar buttons, 1 / 2 / 3 and W.
+func set_gizmo_mode(m: int) -> void:
+	gizmo.set_mode(m)
+	for i in 3:
+		(_fields["gizmo_%d" % i] as Button).set_pressed_no_signal(i == m)
+	var why := gizmo.unsupported()
+	_set_status("%s gizmo%s" % [TransformGizmo.MODE_NAMES[m], (": " + why.to_lower()) if why != "" else ""])
 
 
 ## Double-click on the selected ramp: add a control point on the path where you clicked.

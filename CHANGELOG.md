@@ -3,6 +3,26 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.29.0 preview — 2026-11-14: Move, rotate and scale gizmos
+
+- **The selected object carries a gizmo** in the usual colors (X red, Y green and up, Z blue), the same size on screen
+  however far away it is, and the handle under the mouse lights up. Pick the mode on the top bar (Move / Rotate /
+  Scale), with **1 / 2 / 3**, or switch with **W** (E and R stay build mode and Generate).
+- **Move**: an arrow slides along one axis, a small square across two (the green one along the ground), the white
+  dot is the old free drag. With a ramp point picked, it moves that point.
+- **Rotate**: a see-through ball with a ring per axis the object can turn about, and an outer ring that turns about
+  your line of sight. Blocks and text turn every way; ramps, platforms, zones, props, particles and cube objects
+  turn about the vertical; spot lights, light strips and boosters also tilt. 15° steps while snap is on.
+- **Scale**: axis lines with cube heads, squares for two axes and a middle square for all three, about the object's
+  middle. Blocks and zones scale on the grid; ramps stretch their points (the middle square also widens the faces);
+  props and text scale evenly; lights reach further (a strip's X cube makes it longer). Cube objects are resized in
+  build mode, and Scale works on one object at a time.
+- The flat views show only what works in them (two arrows, or the ring about the axis they look along). The yellow
+  side squares on blocks, zones and particle areas are now part of Scale; the old yellow move square is the gizmo's
+  dot. Locked objects have no gizmo, and every drag is one undo step.
+- New test: gizmo_test (every handle on every kind of object, undo, the keys, hover, the flat views, locks and
+  several objects at once).
+
 ## 0.28.0 preview — 2026-11-13: Even ramps (work order 2, batch 5)
 
 - **New ramps use an "even" path.** The spine runs exactly along the straight line between two points - points in a

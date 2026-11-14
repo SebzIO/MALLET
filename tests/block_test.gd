@@ -105,6 +105,7 @@ func _run() -> void:
 	check("Draw block: a 16 x 20 m footprint drawn in the top view", ed.blocks_root.get_child_count() == n_before + 1
 		and absf(dsz.x - 16.0) < 0.01 and absf(dsz.z - 20.0) < 0.01, "(%s)" % dsz)
 	ed._select(drawn)
+	ed.set_gizmo_mode(TransformGizmo.Mode.SCALE)            # (side squares are part of Scale since 0.29.0)
 	var fh: Array = drawn.face_handles()[1]                 # +X side
 	mouse(topv, fh[0], true)
 	mouse(topv, fh[0] + Vector3(8, 0, 0), false, true)

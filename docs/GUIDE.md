@@ -53,6 +53,28 @@ own settings (sky, sun, fog) when nothing is.
 Page Up / Page Down nudge the selection by the grid step. **Snap to grid** (top bar) makes points land on the grid.
 Ctrl+Z / Ctrl+Y undo and redo; Ctrl+S saves (`.mallet` files).
 
+**The gizmo: move, rotate, scale.** The selected object carries a gizmo in X red, Y green (up) and Z blue. Pick its
+mode on the top bar or with **1 / 2 / 3** (**W** switches to the next one); the handle under the mouse lights up.
+
+| Mode | Drag | What happens |
+| --- | --- | --- |
+| Move (1) | an arrow | slides along that axis only |
+| | a small square | slides across the two axes next to it (the green one: along the ground) |
+| | the white dot, or the object itself | the free drag (Shift: up and down) |
+| Rotate (2) | a ring | turns about that axis (15° steps while snap is on) |
+| | the outer ring | turns about your line of sight (blocks and text) |
+| Scale (3) | a cube | stretches along that axis, keeping the middle where it is |
+| | a small square | stretches along the two axes next to it |
+| | the white middle square | scales it evenly |
+| | a yellow side square | moves just that side (blocks, zones, particle areas) |
+
+What each thing does with it: blocks and text turn every way (the rings set facing, tilt and roll); ramps, platforms,
+zones, props, particles and cube objects turn about the vertical; spot lights, light strips and boosters also tilt
+(the red ring). Blocks and zones scale in meters on the grid; ramps stretch their points (the middle square also
+widens their faces); props and text scale evenly; a light's reach grows (a strip's X cube makes it longer). Cube
+objects are resized in build mode. With a ramp point picked, the Move gizmo moves that point. The flat views show only
+the arrows and ring that work in them. Locked objects have no gizmo, and every drag is one undo step.
+
 **Locking.** Click the padlock next to anything in the Outliner (or right-click > Lock) to lock it: it can't be moved,
 edited or deleted, and clicks in the views go straight through it to what's behind. Lock a folder and everything in
 it is locked. A locked object can still be selected in the Outliner (the side panel says it's locked and has an
@@ -111,7 +133,7 @@ hit the wall before it fires. Make it 6 m deep or more, or move it off the wall.
 | Booster | J | Pushes players along its arrow: adds to their speed, or sets it. |
 
 Built your own start or finish out of ramps or cubes? **Start / Finish / Stage zone (on your own platform)** adds just
-the zone box. Zones can be stretched by the small squares on their sides.
+the zone box. Zones can be stretched by the small squares on their sides (Scale gizmo, 3).
 
 ## 5. Playing your map
 
@@ -236,6 +258,7 @@ Both exports check the map first and tell you about anything missing (no finish,
 | L | lock the selected ramp point | [ / ] | turn 15 degrees |
 | P | play | arrows, Page Up / Down | nudge |
 | E | build mode | F / Space / F11 | frame / one view / fullscreen |
+| 1 / 2 / 3 | move / rotate / scale gizmo | W | next gizmo mode |
 
 **Build mode**: F1 shows them all on screen. The main ones are in section 6.
 

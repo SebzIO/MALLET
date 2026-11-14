@@ -1,4 +1,4 @@
-MALLET 0.28.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
+MALLET 0.29.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
 ===================================================================================================================
 
 START HERE
@@ -9,6 +9,10 @@ START HERE
   welcome screen). It takes you from an empty map to one your friends can play in ten minutes, then covers
   everything else: ramps, zones, build mode, materials, playing, testing with others and exporting.
 - Everything new, version by version: docs\CHANGELOG.html (Help > What's new).
+
+NEW IN 0.29.0 (GIZMOS)
+- The selected object has Move / Rotate / Scale handles: arrows, rings and cubes in X red, Y green, Z blue. Pick the
+  mode on the top bar or with 1 / 2 / 3 (W switches). Every drag is one undo step.
 
 NEW IN 0.28.0 (EVEN RAMPS)
 - New ramps run exactly straight between their points and turn in one even arc at each; ramps already on maps keep

@@ -79,7 +79,11 @@ func _run() -> void:
 	check("box drawn in the top view selects all three", ed.selection().size() == 3)
 	# drag them together by one of them
 	var before := [a.global_position, b.global_position, c.global_position]
-	click(top, b.center(), false, b.center() + Vector3(0, 0, 20))
+	var grab := b                                         # (one not under the gizmo's arrows, 0.29.0: its dot is fine)
+	for o in [a, b, c]:
+		if ed.gizmo.pick(top, top.camera.unproject_position(o.center())) in ["", "c"]:
+			grab = o
+	click(top, grab.center(), false, grab.center() + Vector3(0, 0, 20))
 	var moved: Vector3 = a.global_position - before[0]
 	check("dragging one moves the whole selection", moved.distance_to(Vector3(0, 0, 20)) < 0.01
 		and (c.global_position - before[2]).distance_to(Vector3(0, 0, 20)) < 0.01, str(moved))

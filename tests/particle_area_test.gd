@@ -47,6 +47,7 @@ func _run() -> void:
 	await frames(2)
 	var pn: ParticleNode = ed.particles_root.get_child(0)
 	ed._select(pn)
+	ed.set_gizmo_mode(TransformGizmo.Mode.SCALE)            # (side squares are part of Scale since 0.29.0)
 	await frames(1)
 	ed._edit_prop("fx_area_x", 12.0)
 	ed._edit_prop("fx_area_z", 6.0)
