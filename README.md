@@ -109,3 +109,9 @@ Questions or concerns about this are welcome in the issues.
 - **Mark Arneman**: SUCC, SurfsUp's movement code (MIT), used for play mode.
 - **Cube 2: Sauerbraten**: the inspiration for build mode.
 See THIRD_PARTY.md for the details.
+
+## License
+MALLET's code and documentation are under the [MIT license](LICENSE): use, change and share them freely, keeping the
+copyright notice. The bundled textures in `materials/` are **not** covered by it and keep their creators' licenses.
+Some packs are non-commercial (don't sell MALLET or maps that use them) and some are share-alike; THIRD_PARTY.md and
+`materials/SAUERBRATEN.txt` list each pack's terms. SUCC (`addons/SUCC/`) and Godot have their own MIT licenses.

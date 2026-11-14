@@ -1,5 +1,12 @@
 # Third-party components
 
+MALLET's own code and docs are under the MIT license (LICENSE). The parts below keep their own licenses.
+
+## Godot Engine
+- MALLET runs on Godot Engine 4.5.1 (https://godotengine.org), MIT license.
+- Copyright (c) 2014-present Godot Engine contributors. Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.
+- Godot's full license text and the licenses of the libraries it includes: https://godotengine.org/license
+
 ## SUCC — SurfsUp Character Controller
 - Author: Mark Arneman (creator of SurfsUp) — https://github.com/bearlikelion/SUCC
 - License: MIT (full text in `addons/SUCC/LICENSE`)
