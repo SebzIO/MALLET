@@ -248,7 +248,7 @@
       ],
       "roll": 0.0,
       "tex_scale": 30.0,
-      "texture": "D:/SurfForge/tests/out/test_texture.png",
+      "texture": "tests/out/test_texture.png",
       "width": 20.0
     }
   ],

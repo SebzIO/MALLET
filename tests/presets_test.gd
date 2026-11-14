@@ -2,7 +2,7 @@ extends SceneTree
 ## Presets for light and texture settings (0.19.3): saved under a name, they come back on any light or face (a light
 ## keeps where it is and which way it points; a face keeps its texture), deleting one forgets it, and they live in a
 ## file of their own, so they work in every map.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/presets_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/presets_test.gd -- <out folder>
 
 var ok := true
 

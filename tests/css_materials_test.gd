@@ -2,7 +2,7 @@ extends SceneTree
 ## CS:S's own materials, read from the CS:S install (0.11): they're listed and drawn in MALLET, CS:S exports use the
 ## game's material as it is (right texture scale, nothing written or packed), and SurfsUp exports copy them in only
 ## when the map maker turns that on (otherwise a similar MALLET material stands in). Skipped without CS:S.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/css_materials_test.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tests/css_materials_test.gd -- <out folder>
 
 var ok := true
 
@@ -64,7 +64,7 @@ func _run() -> void:
 		and FileAccess.get_file_as_string(tinted[0][1]).contains("\"$basetexture\" \"concrete/concretefloor005a\""), "(%s)" % [written])
 
 	# a real compile with Valve's tools: the game's materials are found, the tinted copy is packed in
-	var cvmf := "D:/SurfForge_exports/css/sf_css_mats.vmf"
+	var cvmf := OS.get_user_data_dir().path_join("test_exports/css/sf_css_mats.vmf")
 	var cres := VmfExporter.export_vmf(map, cvmf)
 	var c := VmfExporter.compile(cvmf, CssLibrary.root(), "fast", cres.get("materials", []))
 	var clog: String = String(c["log"]).to_lower()

@@ -1,7 +1,7 @@
 extends SceneTree
 ## Builds templates/5_cube_park: a surf made of build mode cubes (two V ramps from the Geometry menu's prism, each
 ## half a cube object's worth of cut cubes), joined by a teleport to a destination that keeps your speed.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tools/make_cube_park.gd
+## Run: godot --path . --resolution 1280x720 -s res://tools/make_cube_park.gd
 
 const W := 8.0                     ## each half's width (m): with H, a 56 degree face
 const H := 12.0

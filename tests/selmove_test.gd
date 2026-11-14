@@ -3,7 +3,7 @@ extends SceneTree
 ## moves the box (a right click still extends / turns it), Shift + right-drag leaves a copy of its cubes where it's let
 ## go, a red box shows where V will paste (growing away from the face you aim at, whichever way it faces), and a copy
 ## pasted after making the grid smaller keeps its exact shape.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/selmove_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/selmove_test.gd -- <out>
 
 var ok := true
 var ed

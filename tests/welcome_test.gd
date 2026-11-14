@@ -1,6 +1,6 @@
 extends SceneTree
 ## Welcome screen: lists the templates with thumbnails, loading one gives a complete map, Esc closes, undo restores.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/welcome_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/welcome_test.gd -- <out>
 
 func _init() -> void:
 	call_deferred("_run")

@@ -273,5 +273,5 @@ position, 2-9 stages, N noclip, T triggers.
 - With nothing selected, the panel tells you how heavy the map is (lights, particles, cubes).
 - Lights with shadows draw them only while you're within 60 m of the light (it still lights everything farther
   away), and the flat views show no light shadows: that keeps big maps with many lights smooth.
-- Maps are plain `.mallet` files: back them up like any document. Older SurfForge `.sfmap` maps still open.
+- Maps are plain `.mallet` files: back them up like any document.
 - Something broke or felt wrong? Tell whoever sent you MALLET: what you did, what you expected, what happened.

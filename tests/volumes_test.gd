@@ -1,6 +1,6 @@
 extends SceneTree
 ## Kill zones + boosters: editor placement, play-mode behavior, export tags.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/volumes_test.gd -- <out_dir>
+## Run: godot --path . --resolution 1600x900 -s res://tests/volumes_test.gd -- <out_dir>
 
 const U := 39.37
 var ed
@@ -66,7 +66,7 @@ func _run() -> void:
 	ed.play.stop()
 
 	# export and read the tags back
-	var maps := "D:/SurfForge_downloads/maps_test"
+	var maps := OS.get_user_data_dir().path_join("test_maps")
 	DirAccess.make_dir_recursive_absolute(maps)
 	print("export: '", SurfsUpExporter.export_pack(ed._map_dict(), "sf_volumes_test", maps), "'")
 	ProjectSettings.load_resource_pack(maps + "/sf_volumes_test.pck")

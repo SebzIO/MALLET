@@ -1,6 +1,6 @@
 extends SceneTree
 ## A picture of a co-editor's body in build mode (U17 visual check). This opens a real MALLET window.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tools/shoot_avatar.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tools/shoot_avatar.gd -- <out folder>
 
 var ed
 

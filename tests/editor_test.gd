@@ -1,6 +1,6 @@
 extends SceneTree
 ## Editor test: four views, moving a whole ramp with a real mouse drag, nudge/rotate, solid ramps, undo,
-## platforms and a timed run. Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/editor_test.gd -- <out>
+## platforms and a timed run. Run: godot --path . --resolution 1600x900 -s res://tests/editor_test.gd -- <out>
 
 var ed
 var out := ""

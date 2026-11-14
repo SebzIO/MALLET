@@ -4,7 +4,7 @@ extends SceneTree
 ## that face before moving it, any face of the selection can be right-clicked even where it holds only air, the
 ## number of selected blocks is shown, a paste keeps the copy's air, and a kill zone placed from the T menu fills the
 ## selection. Saves a picture of the selection (white face square, red origin marker) for a look.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/selection_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/selection_test.gd -- <out folder>
 
 var ok := true
 var ed

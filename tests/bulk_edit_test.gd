@@ -2,7 +2,7 @@ extends SceneTree
 ## Big edits on big cube objects don't hitch (0.18.12): finding the cubes in a cell walks the octree (and gives exactly
 ## what scanning everything gives), clearing a layer of a big sphere is quick, and redrawing it runs on worker threads
 ## and goes in a few chunks a frame, so no frame stalls.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/bulk_edit_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/bulk_edit_test.gd -- <out folder>
 
 var ok := true
 

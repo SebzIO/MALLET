@@ -72,6 +72,6 @@ WHAT WE'D LOVE YOU TO TEST
   and what happened.
 
 GOOD TO KNOW
-- Save with Ctrl+S; maps are .mallet files. Older SurfForge .sfmap maps still open.
+- Save with Ctrl+S; maps are .mallet files.
 - File > Export > To SurfsUp needs SurfsUp installed; File > Export > To Counter-Strike: Source needs CS:S installed.
 - F1 in build mode shows every key on screen.

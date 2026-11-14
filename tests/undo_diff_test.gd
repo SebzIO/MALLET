@@ -2,7 +2,7 @@ extends SceneTree
 ## Undo and redo rebuild only what the step changed (0.19.0): every step back and forward gives exactly the map that
 ## was there, objects the step didn't touch stay the very same objects (nothing re-made), and a big map's undo is
 ## quick (it reloaded the whole map: 18 s on a 76,000-cube map).
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/undo_diff_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/undo_diff_test.gd -- <out folder>
 
 var ok := true
 

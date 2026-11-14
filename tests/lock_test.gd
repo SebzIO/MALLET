@@ -8,7 +8,7 @@ extends SceneTree
 ##  - the geometry self-check still passes (level right, upright, angles/lengths as set per station, no folds)
 ##  - locks can't be placed inside a locked part or on the last point; unlock merges; undo/redo round-trips
 ##  - frozen points can't be dragged, nudged, deleted; Flip is refused; moving the whole ramp is rigid
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/lock_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/lock_test.gd -- <out>
 
 var ok := true
 var ed

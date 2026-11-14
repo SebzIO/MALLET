@@ -1,7 +1,7 @@
 extends SceneTree
 ## Compiles a small CS:S map (sf_shader_sky) whose sky is the example sky shader baked into a skybox, and checks the
 ## skybox files went into the .bsp. Needs CS:S installed. (Not part of the regression: it writes into cstrike/maps.)
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/css_sky_compile.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/css_sky_compile.gd -- <out folder>
 
 
 func _init() -> void:

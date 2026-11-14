@@ -4,7 +4,7 @@ extends SceneTree
 ## stage is reached, so dying after it sends you back to where you'd respawn anyway (here: the start). The SurfsUp
 ## export makes it a point teleport to a marker, CS:S a trigger_teleport to an info_teleport_destination, and a
 ## teleport to a destination that isn't there is flagged.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/tp_dest_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/tp_dest_test.gd -- <out folder>
 
 var ok := true
 

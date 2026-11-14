@@ -1,6 +1,6 @@
 extends SceneTree
 ## Stages: plates + teleports in the editor, a full staged run in play mode, export validation and tags.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/stages_test.gd -- <out_dir>
+## Run: godot --path . --resolution 1600x900 -s res://tests/stages_test.gd -- <out_dir>
 
 const U := 39.37
 var ed
@@ -84,7 +84,7 @@ func _run() -> void:
 	var bad: Dictionary = ed._map_dict()
 	bad["entities"].append({"kind": "teleport", "position": [0, 0, 0], "size": [10, 10, 10], "yaw": 0.0, "number": 7})
 	print("validation: ", SurfsUpExporter.check(bad))
-	var maps := "D:/SurfForge_downloads/maps_test"
+	var maps := OS.get_user_data_dir().path_join("test_maps")
 	print("export: '", SurfsUpExporter.export_pack(ed._map_dict(), "sf_stages_test", maps), "'")
 	ProjectSettings.load_resource_pack(maps + "/sf_stages_test.pck")
 	var scene: Node = (load("res://Levels/sf_stages_test.tscn") as PackedScene).instantiate()

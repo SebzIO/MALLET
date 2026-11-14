@@ -1,6 +1,6 @@
 extends SceneTree
 ## Screenshot: a hill raised with the Round brush on a 1 m grid block (heightmap mode), outlines on.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/hmap_shot.gd -- <out.png>
+## Run: godot --path . --resolution 1280x720 -s res://tests/hmap_shot.gd -- <out.png>
 
 func _init() -> void:
 	call_deferred("_run")

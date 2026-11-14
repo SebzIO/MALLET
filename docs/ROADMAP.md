@@ -1,6 +1,6 @@
 # MALLET roadmap to 1.0.0
 
-**MALLET** (Mapping And Level Layout Editor Tool), formerly SurfForge. A mallet is the simple tool anyone can pick up,
+**MALLET** (Mapping And Level Layout Editor Tool). A mallet is the simple tool anyone can pick up,
 next to Source's Hammer: that is the whole idea of this editor.
 
 1.0.0 is reached only when **every** milestone below is done **and the user says so**. Each milestone ships as its
@@ -14,19 +14,9 @@ CS:S export all work and have been tested by the user and a friend.
 
 ---
 
-## 0.10.0: SurfForge becomes MALLET ✅ (released 2026-11-06)
-Do this first, so every later feature, file and screenshot already carries the new name.
-- [x] Rename everywhere the user sees it: window title, welcome screen, About text, version string
-      ("MALLET 0.10.0 preview"), menus, status messages, help text, READ ME FIRST, THIRD_PARTY, CHANGELOG heading.
-- [x] Program files: `MALLET.exe` / `MALLET.pck`, zip `MALLET-0.10.0-windows.zip`, Godot project name.
-- [x] Map files: new extension **`.mallet`**. Open / Save use it; **old `.mallet` maps still open**
-      (and are saved as `.mallet`). Templates and prefabs renamed too.
-- [x] Your own data moves with you: Godot keeps settings, your own materials and prefabs under the project name, so
-      on first start MALLET copies them over from the old SurfForge folder (mouse settings, fly speed, prefabs, own
-      materials, export folders).
-- [x] Exports: the `made_with` stamp in SurfsUp maps, CS:S file comments, tester build names.
-- [x] Code / tests / docs: class names (`MalletVersion` …), launcher `.cmd` files, memory notes, handover.
-      (The local folders `D:\SurfForge` and `D:\SurfForge_builds` keep their names: development only.)
+## 0.10.0: The name MALLET ✅ (released 2026-11-06)
+- [x] The name everywhere: window title, welcome screen, menus, version string, program files (`MALLET.exe`),
+      `.mallet` maps and `.malletprefab` prefabs, export stamps, class names and docs.
 
 ## 0.11.0: Materials (0.11.0 released 2026-11-07; the unticked items follow in 0.11.x)
 - [x] **Getridou's materials pack** (170 materials incl. his friends' photo textures + 18 by LURKing, glow maps, credit in the picker / THIRD_PARTY / README /
@@ -71,15 +61,15 @@ Do this first, so every later feature, file and screenshot already carries the n
 - [x] Ship a handful of starter ramp prefabs (tapered entry, diagonal cut end, booster lip…).
 
 ## 0.15.0: Playtest builds (offline)
-Plan in detail: [PLAYTEST.md](PLAYTEST.md), parts 1–2.
+
 - [x] **Export > Test build**: a small tester program (play mode only) with the map inside, zipped for sharing.
 - [x] Username + clear consent on first launch; map version stamped into every build.
 - [x] Every attempt recorded (route, speed, deaths, splits, finish time / speed, restarts) to a file next to it.
 - [x] **Import tester runs** in MALLET (in the Export menu).
 
 ## 0.16.0: Live playtesting
-[PLAYTEST.md](PLAYTEST.md), parts 3–4.
-- [x] Relay server on the user's VPS (Debian 12 + Docker, domain sebz.xyz, TLS through Nginx Proxy Manager: the
+
+- [x] Relay server (Docker, TLS through Nginx Proxy Manager: the
       relay runs as a Docker container behind it, e.g. a subdomain): testers and the map maker both connect
       out to it; session codes; per-session secret; untrusted-input checks; runs kept until collected. (Live at
       wss://relay.sebz.xyz/ws since 0.16; a rebuild for kick / map_version is still open.)
@@ -158,7 +148,7 @@ Make your own textures and materials, or change existing ones, inside MALLET.
       stretches when one is bent or lengthened.
 - [ ] **A prefab that keeps its look**: store `look` in `.malletramp` files (they hold shape only today), then
       optionally a "full ramp" prefab that also stores the path, so a favorite ramp comes back exactly as made.
-- [ ] 0.18.x fixes from testing 0.17.4: [ISSUES.md](ISSUES.md) holds the 17 items in seven batches. A (menus,
+- [ ] 0.18.x fixes from testing 0.17.4: the 17 items are in seven batches. A (menus,
       buttons, the playtest panel) shipped in 0.17.5;      B shipped in 0.17.6-0.17.8 (U7, picking through a folded face, in 0.17.8). C shipped in 0.17.7 (a new map resets
       the session, map properties sync as they change, undo keeps other people's later work).      D: U9 (one Source
       sensitivity) in 0.17.8, U10's cube half (a small cube's face against a bigger cube's wall) and U11 (the draw
@@ -177,9 +167,7 @@ Make your own textures and materials, or change existing ones, inside MALLET.
 
 ## Decisions (2026-11-06)
 - Map files: **`.mallet`**.
-- Local folders `D:\SurfForge` / `D:\SurfForge_builds` stay as they are (development only).
 - Getridou: credited in the GitHub README (plus the in-app credits above).
-- VPS: Debian 12, Docker, domain sebz.xyz with TLS via Nginx Proxy Manager.
 - **No code signing**, ever: MALLET and its test builds stay unsigned. READ ME FIRST and the website / GitHub explain
   the Windows SmartScreen warning ("More info" > "Run anyway") so users know what to expect.
 

@@ -2,7 +2,7 @@ extends SceneTree
 ## Mouse sensitivity (View > Mouse sensitivity): the editor's 3D view, build mode and play mode each turn at their
 ## own speed, invert flips up / down, it's saved for next time, and the dialog's sliders change it. Your own settings
 ## file is put back afterwards.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/settings_test.gd
+## Run: godot --path . --resolution 1600x900 -s res://tests/settings_test.gd
 
 var ok := true
 

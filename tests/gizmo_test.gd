@@ -2,7 +2,7 @@ extends SceneTree
 ## The Move / Rotate / Scale gizmo (0.29.0): drags every kind of handle on every kind of object through the views'
 ## own mouse input, checks what changed, that each drag is one undo step and that undo puts it back. Also: the
 ## mode keys (W, 1, 2, 3), hover highlight, the ortho views' handles, locked objects and multi-selection.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/gizmo_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/gizmo_test.gd -- <out folder>
 
 var ok := true
 var ed

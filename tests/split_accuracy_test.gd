@@ -5,7 +5,7 @@ extends SceneTree
 ## its corners are exactly the original's solid inside its cell (no rounding anywhere), and the pieces' volumes add
 ## up to the original's minus what was pushed out. Also: save / load, rotate x4, flip x2 and copy / paste keep the
 ## pieces, and the meshes / collision points come out of them.
-## Run: godot --headless --path D:/SurfForge -s res://tests/split_accuracy_test.gd
+## Run: godot --headless --path . -s res://tests/split_accuracy_test.gd
 
 const N := 48
 var ok := true

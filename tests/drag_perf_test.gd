@@ -1,7 +1,7 @@
 extends SceneTree
 ## Dragging any object must stay smooth (the user's #3: cube objects and ramps dragged at a low frame rate while
 ## platforms were smooth). Drags each kind of object with mouse moves on a busy map and times each move + frame.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/drag_perf_test.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tests/drag_perf_test.gd -- <out folder>
 
 var ed
 var ok := true

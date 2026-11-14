@@ -2,7 +2,7 @@ extends SceneTree
 ## The material maker (0.21.0): a material from a starting material (or a plain color) plus layers. A ridge line
 ## (a stripe in the middle, "fit across a ramp") lands on a ramp's ridge; painting, adjusting and saving over work;
 ## a starting material's surface detail comes along; your materials travel inside the maps that use them.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/material_maker_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/material_maker_test.gd -- <out folder>
 
 var ok := true
 var made: Array = []

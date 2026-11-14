@@ -1,6 +1,6 @@
 extends SceneTree
 ## Play-mode test: editor -> Play on a long ramp -> a bot surfs it through SUCC -> screenshots -> back to editor.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/play_test.gd -- <out_dir>
+## Run: godot --path . --resolution 1600x900 -s res://tests/play_test.gd -- <out_dir>
 
 var ed
 var out := ""

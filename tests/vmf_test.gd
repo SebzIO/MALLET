@@ -2,7 +2,7 @@ extends SceneTree
 ## CS:S export: the templates and a map with every kind of object are written as .vmf and compiled with the
 ## vbsp / vvis / vrad that ship with CS:S. Every map must compile without a leak or brush errors, and the hull
 ## code must wind faces the way Hammer expects (a cube's top face points up).
-## Run: godot --path D:/SurfForge --headless -s res://tests/vmf_test.gd -- <out dir>
+## Run: godot --path . --headless -s res://tests/vmf_test.gd -- <out dir>
 
 var ok := true
 

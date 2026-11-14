@@ -2,7 +2,7 @@ extends SceneTree
 ## Ramp generators: each shape, generated off the starter ramp, must be landed on by that ramp's jump (full and 85%
 ## speed). Then a showcase course start -> spiral -> S-curve -> rollers -> finish is chained with
 ## "continue from the selected ramp", every jump checked, and exported as sf_generators.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/gen_test.gd -- <out> [maps_dir]
+## Run: godot --path . --resolution 1600x900 -s res://tests/gen_test.gd -- <out> [maps_dir]
 
 var ed
 var out := ""

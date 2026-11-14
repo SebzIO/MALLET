@@ -2,7 +2,7 @@ extends SceneTree
 ## Direction of travel: Flip reverses the points but leaves the ramp exactly where it was (same surface, half ramps
 ## keep their face on the same side), undo restores the original order, and the
 ## arrows are an editor overlay only. Screenshots: direction_*.png
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/direction_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/direction_test.gd -- <out>
 
 var ok := true
 

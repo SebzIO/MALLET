@@ -1,6 +1,6 @@
 extends SceneTree
 ## Builds the starter prefabs in res://prefabs/. Run:
-##   godot --headless --path D:/SurfForge -s res://tools/make_prefabs.gd
+##   godot --headless --path . -s res://tools/make_prefabs.gd
 ## Each prefab is one group (so it moves as one), sitting on y = 0 around x = z = 0.
 
 const DIR := "res://prefabs/"

@@ -3,7 +3,7 @@ extends SceneTree
 ## duplicated, undone, saved and loaded; solid props block players and jump arcs (collision layer 1), decorative
 ## ones don't; a missing file shows a stand-in and blocks export; the exported scene carries the meshes with
 ## compressed textures and collision, no scripts and no reference back to the .glb, and loads on its own.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/prop_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/prop_test.gd -- <out>
 
 var ok := true
 var ed

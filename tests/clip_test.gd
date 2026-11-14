@@ -21,7 +21,7 @@ func _run():
 		if img.get_pixel(x, int(fr.get_center().y)).r > 0.2:
 			grid += 1
 	print("grid/label pixels across the front view (must be > 0): ", grid)
-	img.save_png("D:/SurfForge/tests/out/clip_test.png")
+	img.save_png(ProjectSettings.globalize_path("res://tests/out/clip_test.png"))
 	quit()
 
 

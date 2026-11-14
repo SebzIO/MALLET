@@ -4,7 +4,7 @@ extends SceneTree
 ## plane of the face you grabbed; a copied light pastes onto the middle of the face you aim at. Color cycles: pulse
 ## flows through the colors, flicker jumps between them. A light reaches up to 2,000 m. Cube faces closer than 44
 ## degrees share smoothed normals (soft light on slopes); a cube's 90 degree edges stay sharp.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/lights_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/lights_test.gd -- <out folder>
 
 var ok := true
 var bm: BuildMode

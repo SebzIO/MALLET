@@ -3,7 +3,7 @@ extends SceneTree
 ## be picked in the views, box-selected or Select all'd; selected from the Outliner it can't be dragged, nudged,
 ## turned, deleted, extended or edited in the panel (a cover says so, with Unlock); build mode leaves a locked cube
 ## object alone. Locks save with the map and undo; a copy of a locked object isn't locked.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/lock_objects_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/lock_objects_test.gd -- <out folder>
 
 var ok := true
 var ed

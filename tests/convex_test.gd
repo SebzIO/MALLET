@@ -1,7 +1,7 @@
 extends SceneTree
 ## Convex pieces and carving: volumes add up exactly, hollowing leaves the right walls, every piece is convex and
 ## solid, and meshes face outwards.
-## Run: godot --headless --path D:/SurfForge -s res://tests/convex_test.gd
+## Run: godot --headless --path . -s res://tests/convex_test.gd
 
 var ok := true
 

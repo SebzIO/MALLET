@@ -22,7 +22,7 @@ const DEFAULTS := {
 static var _cfg: ConfigFile = null
 
 
-## Read the file again (after Migrate copied the old SurfForge one in).
+## Read the file again (after something else changed it on disk).
 static func reload() -> void:
 	_cfg = null
 

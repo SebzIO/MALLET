@@ -1,7 +1,7 @@
 extends SceneTree
 ## Editor handling (0.5.4): top / bottom block handles in the 3D view, text staying on the face it was placed on while
 ## dragged (in the 3D view and a 2D view), typing and letter height staying fast, and the panel's position fields.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/handling_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/handling_test.gd -- <out>
 
 var ok := true
 var ed

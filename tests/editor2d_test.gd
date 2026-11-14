@@ -3,7 +3,7 @@ extends SceneTree
 ## picks that); zones, kill zones, boosters and platforms stretch and shrink by squares on their sides, like blocks;
 ## a ramp's texture can be turned, shifted, scrolled and made see-through, as in build mode, in the editor and in
 ## the SurfsUp export.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/editor2d_test.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tests/editor2d_test.gd -- <out folder>
 
 var ok := true
 var ed

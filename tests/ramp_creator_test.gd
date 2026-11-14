@@ -3,7 +3,7 @@ extends SceneTree
 ## stretching), every starter ramp prefab builds cleanly, the creator window (profile points, ends, apply / new ramp,
 ## locked ramps refused), saving / sharing / importing prefabs with thumbnails, save + load + undo, the jump
 ## checker's exit, and both exports. Saves pictures of the creator.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/ramp_creator_test.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tests/ramp_creator_test.gd -- <out folder>
 
 var ok := true
 const SPINE := [Vector3(-60, 40, 0), Vector3(0, 30, 10), Vector3(60, 20, 0)]

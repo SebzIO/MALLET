@@ -1,6 +1,6 @@
 extends SceneTree
 ## Screenshots of the ramp panel: a half ramp, Freeform, and a too-tight bend marked red.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/shape_ui_shot.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/shape_ui_shot.gd -- <out>
 
 func _init() -> void:
 	call_deferred("_run")

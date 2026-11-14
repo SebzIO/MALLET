@@ -2,7 +2,7 @@ extends SceneTree
 ## Better water, lava and glass (0.11): every preset builds, a block's liquid preset sets its look and whether it's
 ## deadly, build mode's water / lava / glass follow the Map panel's looks, and CS:S gets the preset's water material,
 ## lava as a glowing pass-through surface, glass tinted. Saves pictures: water (sunny, over a sloping floor), lava, glass.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/liquids_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/liquids_test.gd -- <out folder>
 
 var ok := true
 

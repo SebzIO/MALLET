@@ -1,7 +1,7 @@
 extends SceneTree
 ## Compiles a CS:S map (sf_ramp_prefabs) with one ramp of every starter ramp prefab, so vbsp checks the brushes of
 ## cuts, tapers, lips and closed ends. Needs CS:S. (Not part of the regression: it writes into cstrike/maps.)
-## Run: godot --path D:/SurfForge --headless -s res://tests/css_ramps_compile.gd -- <out folder>
+## Run: godot --path . --headless -s res://tests/css_ramps_compile.gd -- <out folder>
 
 
 func _init() -> void:

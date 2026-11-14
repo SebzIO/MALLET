@@ -1,6 +1,6 @@
 extends SceneTree
 ## Picture: ramp looks on shaped ends (taper, round, flare, diagonal cut), to see textures stay straight.
-## Saves taper_looks.png. Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/taper_look_shot.gd -- <out>
+## Saves taper_looks.png. Run: godot --path . --resolution 1600x900 -s res://tests/taper_look_shot.gd -- <out>
 
 
 func _init() -> void:

@@ -1,7 +1,7 @@
 extends SceneTree
 ## Cube world (build mode's geometry): pull / push cubes, merging, face and corner pushes (slopes), splitting a sloped
 ## cube, validity, textures, rotate / flip, copy / paste, undo / redo, saving, hidden faces.
-## Run: godot --headless --path D:/SurfForge -s res://tests/cube_test.gd
+## Run: godot --headless --path . -s res://tests/cube_test.gd
 
 var ok := true
 

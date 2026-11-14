@@ -2,7 +2,7 @@ extends SceneTree
 ## Play mode practice tools (0.20.0): turn binds (hold left / right mouse), Q / E save and load a position (with its
 ## speed and view), 2-9 to a stage, N noclip, T shows the triggers. Loading, a stage jump or noclip make the run
 ## practice: the timer says so and a finish doesn't count; R is a real run again.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/practice_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/practice_test.gd -- <out folder>
 
 var ok := true
 var ed

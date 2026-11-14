@@ -1,7 +1,7 @@
 extends SceneTree
 ## The CS:S export dialog end to end: open it on the Three Stages template, export + compile on the background
 ## thread, and wait for the .bsp to land in cstrike/maps. Screenshot of the dialog: css_dialog.png
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/css_ui_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/css_ui_test.gd -- <out>
 
 func _init() -> void:
 	call_deferred("_run")

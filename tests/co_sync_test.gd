@@ -4,7 +4,7 @@ extends SceneTree
 ## (every other deletion used to be skipped), an edit to a big cube object goes as just the cubes that changed (it
 ## used to be refused as too big, so build-mode work on a big object never synced), a pasted big cube object
 ## arrives in parts, and a copy that drifted apart gets the whole object again.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/co_sync_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/co_sync_test.gd -- <out folder>
 
 const PORT := 8797
 const URL := "ws://127.0.0.1:%d/ws" % PORT

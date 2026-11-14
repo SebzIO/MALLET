@@ -1,6 +1,6 @@
 extends SceneTree
 ## Screenshot: a two-way sloped 8 m cube with a 0.5 m and a 1 m shaft pushed through its slope (exact cut pieces), outlines on.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/split_shot.gd -- <out.png>
+## Run: godot --path . --resolution 1280x720 -s res://tests/split_shot.gd -- <out.png>
 
 func _init() -> void:
 	call_deferred("_run")

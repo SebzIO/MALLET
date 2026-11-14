@@ -3,7 +3,7 @@ func _init():
 	call_deferred("_run")
 func shot(name: String) -> void:
 	for i in 5: await process_frame
-	root.get_viewport().get_texture().get_image().save_png("D:/SurfForge/tests/out/" + name + ".png")
+	root.get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://tests/out/" + name + ".png"))
 func _run():
 	var ed = load("res://editor/main.tscn").instantiate()
 	root.add_child(ed)

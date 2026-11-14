@@ -1,6 +1,6 @@
 extends SceneTree
 ## Screenshot of a sky preset, looking up and toward the horizon (look check for sky.gdshader).
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/sky_shot.gd -- <out.png> [preset]
+## Run: godot --path . --resolution 1280x720 -s res://tests/sky_shot.gd -- <out.png> [preset]
 
 func _init() -> void:
 	call_deferred("_run")

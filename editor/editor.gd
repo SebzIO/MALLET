@@ -12,9 +12,7 @@ extends Node3D
 ##                    Ctrl+Z / Ctrl+Y undo/redo · Ctrl+S save · Ctrl+O open
 
 const MAP_FORMAT := "mallet-map"
-const OLD_MAP_FORMATS := ["surfforge-map"]     ## maps saved before the rename (SurfForge) still open
 const MAP_EXT := "mallet"
-const OLD_MAP_EXTS := ["sfmap"]
 const MAP_VERSION := 2
 const HANDLE_RADIUS := 6.0          ## px
 const PICK_PIXELS := 12.0
@@ -202,8 +200,6 @@ const BLOCK_LOOKS := ["color", "ceramic", "steel", "grid", "aurora", "nebula", "
 func _ready() -> void:
 	gizmo = TransformGizmo.new(self)
 	FieldGuard.install(get_tree())                      # (typing boxes: a click elsewhere takes the value; numbers only)
-	if get_tree().current_scene == self:
-		Migrate.from_surfforge()                         # first start after the rename: bring SurfForge's settings along
 	# The editor draws handles, outlines and arcs from objects' true positions, so the 3D view must not be
 	# smoothed between physics ticks (that made outlines trail moving objects and the camera).
 	# Only the play-mode player uses physics interpolation, as in SurfsUp.
@@ -541,7 +537,7 @@ func _build_ui_main() -> void:
 	_file_dialog = FileDialog.new()
 	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	_file_dialog.use_native_dialog = true
-	_file_dialog.filters = PackedStringArray(["*.mallet, *.sfmap ; MALLET map"])   # (.sfmap: from before the rename)
+	_file_dialog.filters = PackedStringArray(["*.mallet ; MALLET map"])
 	_file_dialog.current_dir = ProjectSettings.globalize_path("res://maps") if OS.has_feature("editor") else OS.get_executable_path().get_base_dir()
 	_file_dialog.file_selected.connect(_on_file_chosen)
 	_file_dialog.canceled.connect(func(): _quit_after_save = false)   # (backed out of Save-then-close)
@@ -4539,7 +4535,7 @@ func _copy() -> void:
 ## Ctrl+V: paste in the middle of the 3D view.
 func _paste_clicked() -> void:
 	var data = JSON.parse_string(DisplayServer.clipboard_get())
-	if typeof(data) != TYPE_DICTIONARY or not (data.has("mallet_clipboard") or data.has("surfforge_clipboard")):
+	if typeof(data) != TYPE_DICTIONARY or not data.has("mallet_clipboard"):
 		_set_status("Nothing to paste: copy something in MALLET first (Ctrl+C).")
 		return
 	# center of what was copied
@@ -6214,7 +6210,7 @@ func _new_map_clicked() -> void:
 
 func _on_template_chosen(path: String) -> void:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if typeof(data) != TYPE_DICTIONARY or not (data.get("format", "") == MAP_FORMAT or data.get("format", "") in OLD_MAP_FORMATS):
+	if typeof(data) != TYPE_DICTIONARY or data.get("format", "") != MAP_FORMAT:
 		_set_status("Template %s could not be read" % path.get_file())
 		return
 	welcome.hide()
@@ -6248,8 +6244,6 @@ func _save_clicked() -> void:
 
 func _on_file_chosen(path: String) -> void:
 	if _file_dialog.file_mode == FileDialog.FILE_MODE_SAVE_FILE:
-		if path.get_extension() in OLD_MAP_EXTS:
-			path = path.get_basename()                   # (saving an old SurfForge map: it becomes a .mallet)
 		if not path.ends_with("." + MAP_EXT):
 			path += "." + MAP_EXT
 		save_map(path)
@@ -6281,7 +6275,7 @@ func save_map(path: String) -> void:
 
 func load_map(path: String) -> void:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if typeof(data) != TYPE_DICTIONARY or not (data.get("format", "") == MAP_FORMAT or data.get("format", "") in OLD_MAP_FORMATS):
+	if typeof(data) != TYPE_DICTIONARY or data.get("format", "") != MAP_FORMAT:
 		_set_status("%s is not a MALLET map" % path.get_file())
 		return
 	_checkpoint()

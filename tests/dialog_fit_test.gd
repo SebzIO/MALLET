@@ -1,7 +1,7 @@
 extends SceneTree
 ## Every dialog fits the screen with its buttons showing (0.18.16: the Export dialog grew past a 900-pixel screen,
 ## its wrapped text measured before it had a width, so the Export button was off the bottom).
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/dialog_fit_test.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tests/dialog_fit_test.gd -- <out folder>
 
 var ok := true
 

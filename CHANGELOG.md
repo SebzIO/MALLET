@@ -443,8 +443,6 @@ Measured on a tester's 76,000-cube map:
 
 - Framing the 3D view on a course no longer fails on maps with blocks, cube objects, lights or other scenery (it looks
   at the ramps and platforms only).
-- For the 1.0 trailer: tools/demo/trailer.gd films the footage on a showcase map, tools/demo/cut_trailer.py cuts it
-  on the beat (docs/TRAILER.md). Nothing changes in MALLET itself.
 
 ## 0.18.13 preview — 2026-11-11: A trail for crashes
 
@@ -919,17 +917,13 @@ Measured on a tester's 76,000-cube map:
   materials at the game's texture scale, nothing to pack. SurfsUp exports get a switch, "Copy CS:S textures into the
   map" (remembered): on copies the real textures in; off swaps in a similar MALLET material (brick, wood, metal...).
 
-## 0.10.0 preview — 2026-11-06: SurfForge is now MALLET
+## 0.10.0 preview — 2026-11-06: The name MALLET
 
-- The editor has a new name: **MALLET**, Mapping And Level Layout Editor Tool. (Hammer is Source's editor; a mallet is
-  the simpler tool anyone can pick up.) Everything is renamed: the window, welcome screen, menus and messages, the
-  program (`MALLET.exe`) and the tester zip.
-- Maps are saved as **`.mallet`**, prefabs as `.malletprefab`. Maps and prefabs from SurfForge (`.sfmap`,
-  `.sfprefab`) still open, and saving an old map writes a `.mallet` beside it. Objects copied in SurfForge still paste.
-- On its first start MALLET copies your SurfForge settings (mouse, fly speed, grid, export folders), your own
-  materials and your prefabs across, once, never overwriting anything.
-- CS:S exports put the map's textures in `materials/mallet` (was `materials/surfforge`).
-- Everything below this line was released under the SurfForge name.
+- The editor is **MALLET**, Mapping And Level Layout Editor Tool. (Hammer is Source's editor; a mallet is the simpler
+  tool anyone can pick up.) The window, welcome screen, menus and messages, the program (`MALLET.exe`) and the tester
+  zip carry the name.
+- Maps are saved as **`.mallet`**, prefabs as `.malletprefab`.
+- CS:S exports put the map's textures in `materials/mallet`.
 
 ## 0.9.3 preview — 2026-11-06: square grid on blocks and cubes
 

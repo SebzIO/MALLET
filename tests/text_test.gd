@@ -2,7 +2,7 @@ extends SceneTree
 ## Text: solid 3D letters you can stand on, a flat sign you pass through, old engraved text loading as 3D letters,
 ## "place on a surface", a font file from disk, save / load, both exports and a CS:S compile.
 ## Screenshot: text.png
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/text_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/text_test.gd -- <out>
 
 var ok := true
 var ed
@@ -134,7 +134,7 @@ CD", "height": 2.0, "position": [0, 120, 0]})
 	scene.free()
 	var css := VmfExporter.find_css()
 	if css != "":
-		var vmf := "D:/SurfForge_exports/css/sf_text.vmf"
+		var vmf := OS.get_user_data_dir().path_join("test_exports/css/sf_text.vmf")
 		var res := VmfExporter.export_vmf(map, vmf)
 		var c := VmfExporter.compile(vmf, css, "fast", res.get("materials", []))
 		var bad := 0

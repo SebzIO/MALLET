@@ -2,7 +2,7 @@ extends SceneTree
 ## 0.5: lights (point and spot), water (see-through, pass-through, deadly lava), glowing blocks, prefabs (the starter
 ## ones, saving your own, placing them), save / load, both exports and a CS:S compile.
 ## Screenshot: world.png
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/world_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/world_test.gd -- <out>
 
 var ok := true
 var ed
@@ -125,7 +125,7 @@ func _run() -> void:
 	scene.free()
 	var css := VmfExporter.find_css()
 	if css != "":
-		var vmf := "D:/SurfForge_exports/css/sf_world.vmf"
+		var vmf := OS.get_user_data_dir().path_join("test_exports/css/sf_world.vmf")
 		var res := VmfExporter.export_vmf(map, vmf)
 		var txt := FileAccess.get_file_as_string(vmf)
 		check("VMF: light and light_spot entities", txt.contains("\"light\"") and txt.contains("\"light_spot\""))

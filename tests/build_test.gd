@@ -5,7 +5,7 @@ extends SceneTree
 ## Tab entities with 1-4 + wheel, N new object, P play and back. Back in the editor the cube object moves, turns,
 ## copies and is still editable where it went; save / load, play on the cubes, both exports and a CS:S compile.
 ## Screenshots: build_fp.png (first person), build_editor.png.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/build_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/build_test.gd -- <out>
 
 var ok := true
 var ed
@@ -458,7 +458,7 @@ func _run() -> void:
 	scene.free()
 	var css := VmfExporter.find_css()
 	if css != "":
-		var vmf := "D:/SurfForge_exports/css/sf_build.vmf"
+		var vmf := OS.get_user_data_dir().path_join("test_exports/css/sf_build.vmf")
 		var res := VmfExporter.export_vmf(map, vmf)
 		var txt := FileAccess.get_file_as_string(vmf)
 		check("CS:S: water brushes for the pool", txt.to_upper().contains("LIQUIDS/AZTECWATER"))

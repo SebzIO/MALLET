@@ -4,7 +4,7 @@ extends SceneTree
 ## move, the move hit the wall first and zeroed the speed, then the teleport carried that zero over. Now this
 ## tick's move counts: the player's body touching the teleport on the way is enough, at full speed. A teleport
 ## behind a wall still can't be reached through it, and a thin booster at speed is still felt.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/tp_speed_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/tp_speed_test.gd -- <out folder>
 
 var ok := true
 var ed

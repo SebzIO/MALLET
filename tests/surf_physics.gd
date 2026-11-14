@@ -1,7 +1,7 @@
 extends SceneTree
 ## Physics check: SUCC's player surfs a MALLET ramp (holding strafe into the face, as a player does)
 ## and we compare its speed against the in-game SurfsUp measurement: ~2200 u/s after a 76 m drop.
-## Run: godot --headless --path D:/SurfForge -s res://tests/surf_physics.gd
+## Run: godot --headless --path . -s res://tests/surf_physics.gd
 
 const U := 39.37      # Source units per meter
 

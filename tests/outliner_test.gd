@@ -3,7 +3,7 @@ extends SceneTree
 ## everything in it and dragging it in a view moves the lot, drag-and-drop filing, hiding (and hidden things can't be
 ## clicked), deleting a folder keeps what's in it, prefabs land in a folder of their own, save / load keeps it all.
 ## Screenshot: outliner.png
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/outliner_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/outliner_test.gd -- <out>
 
 var ok := true
 var ed

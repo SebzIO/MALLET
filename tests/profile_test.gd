@@ -3,7 +3,7 @@ extends SceneTree
 ## profile, face lengths and angles exactly as set, level bar, apex above the middle, no NaNs, no folds), plus:
 ## a too-tight bend must be caught, faces must face outwards (a downward ray hits the riding face from above with
 ## back faces ignored), arc-length spacing must be even, and the width/height <-> angle/length conversion holds.
-## Run: godot --path D:/SurfForge --headless -s res://tests/profile_test.gd
+## Run: godot --path . --headless -s res://tests/profile_test.gd
 
 var ok := true
 

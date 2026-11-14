@@ -3,7 +3,7 @@ extends SceneTree
 ## texture size / turn change the UVs; a ramp wears a library material; the SurfsUp export carries the textures
 ## (read back from the saved scene); the CS:S export converts the used materials to VTF/VMT, the compile finds them
 ## (no "material not found") and packs them into the .bsp. Screenshots: materials.png, picker.png
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/material_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/material_test.gd -- <out>
 
 var ok := true
 var ed
@@ -115,7 +115,7 @@ func _run() -> void:
 	# CS:S: VTF + VMT, found by the compiler, packed into the map
 	var css := VmfExporter.find_css()
 	if css != "":
-		var vmf := "D:/SurfForge_exports/css/sf_materials.vmf"
+		var vmf := OS.get_user_data_dir().path_join("test_exports/css/sf_materials.vmf")
 		var res := VmfExporter.export_vmf(map, vmf)
 		var mats: Array = res.get("materials", [])
 		check("CS:S export lists the materials it uses", mats.size() == 5, str(mats))

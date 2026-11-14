@@ -1,6 +1,6 @@
 extends SceneTree
 ## Can the bot surf the templates to the finish with SUCC? Prints progress per ramp and the finish time.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/bot_test.gd -- <template file name>
+## Run: godot --path . --resolution 1280x720 -s res://tests/bot_test.gd -- <template file name>
 
 var ed
 var bot: SurfBot

@@ -2,7 +2,7 @@ extends SceneTree
 ## After orbiting a view with the right / middle mouse button (which hides and holds the mouse), clicks must reach the
 ## rest of the window again (the Outliner, other views) without alt-tabbing. And a fire can be picked by clicking its
 ## flames, not just its base.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/mouse_release_test.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tests/mouse_release_test.gd -- <out folder>
 
 var ok := true
 var outliner_got := 0

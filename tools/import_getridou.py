@@ -6,7 +6,7 @@ are his, made from photos those friends sent him, and the unprefixed ones are hi
 friend LURKing, who is fine with them being used with credit: they get their own "LURKing" category and credit.
 See materials/GETRIDOU.txt.
 
-    python tools/import_getridou.py D:/getridou [materials folder]
+    python tools/import_getridou.py <getridou folder> [materials folder]
 
 For each material (its .tex file says which images it uses):
   diffuse  -> color.jpg            (largest side capped at 1024 px, like the rest of the library)
@@ -113,7 +113,7 @@ def surface_of(name):
 
 
 def main():
-    src = sys.argv[1] if len(sys.argv) > 1 else "D:/getridou"
+    src = sys.argv[1] if len(sys.argv) > 1 else sys.exit(__doc__)
     out_root = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "materials")
     files = set(os.listdir(src))
     found = {}

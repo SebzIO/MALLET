@@ -2,7 +2,7 @@ extends SceneTree
 ## Structure blocks end to end: a floor, a hollow room with a doorway cut by a cutter, stairs, a pillar; drawing a
 ## block with the Draw tool and resizing it by a side handle (real mouse events through the views); collision,
 ## the live cutter, undo, save / load, the SurfsUp export and a real CS:S compile.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/block_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/block_test.gd -- <out>
 
 var ok := true
 var ed
@@ -130,7 +130,7 @@ func _run() -> void:
 	scene.free()
 	var css := VmfExporter.find_css()
 	if css != "":
-		var vmf := "D:/SurfForge_exports/css/sf_blocks.vmf"
+		var vmf := OS.get_user_data_dir().path_join("test_exports/css/sf_blocks.vmf")
 		var res := VmfExporter.export_vmf(map, vmf)
 		check("CS:S: written", res["error"] == "", "(%d brushes) %s" % [res["brushes"], res["error"]])
 		var c := VmfExporter.compile(vmf, css, "fast")

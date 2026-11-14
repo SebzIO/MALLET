@@ -1,7 +1,7 @@
 extends SceneTree
 ## Picture of 0.13's shader UI: the example sky with its controls in the Map panel, then a ramp wearing the example
 ## surface with its controls. Saves shader_sky.png and shader_ramp.png. (Uses a shaders folder of its own.)
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/shader_ui_shot.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tests/shader_ui_shot.gd -- <out folder>
 
 
 func _init() -> void:

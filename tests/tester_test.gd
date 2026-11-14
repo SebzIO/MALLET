@@ -2,10 +2,11 @@ extends SceneTree
 ## Test builds (0.15): the zip (MALLET renamed, the map, tester.cfg, only the used materials, READ ME), tester mode
 ## (map loaded, editor hidden, straight into play), every attempt written to the runs file (restart / finish / quit
 ## with time, deaths, route), the pause menu, and importing runs (checked, summarized, kept with the map).
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/tester_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/tester_test.gd -- <out folder>
 
 var ok := true
-const BUILT_EXE := "D:/SurfForge_builds/MALLET/MALLET.exe"
+## An exported MALLET.exe to package: set the MALLET_EXE environment variable to it before running this test.
+var BUILT_EXE := OS.get_environment("MALLET_EXE")
 
 
 func check(label: String, good: bool, detail := "") -> void:
@@ -25,6 +26,10 @@ func _run() -> void:
 			{"kind": "finish", "position": [0, 10, 60], "size": [20, 2, 20], "yaw": 0.0}], "ramps": []}
 
 	# ---- the zip
+	if BUILT_EXE == "" or not FileAccess.file_exists(BUILT_EXE):
+		check("MALLET_EXE points to an exported MALLET.exe", false, "(set MALLET_EXE)")
+		quit(1)
+		return
 	var res := Tester.make_build(map, "tester_map", 3, BUILT_EXE, out.path_join("builds"))
 	check("a test build zip is made from MALLET.exe", res["error"] == "" and FileAccess.file_exists(res["zip"]), str(res))
 	var zr := ZIPReader.new()

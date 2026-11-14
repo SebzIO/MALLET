@@ -1,6 +1,6 @@
 extends SceneTree
 ## Jump checker: arcs on the starter map, a too-far finish (red), and the prediction vs the real SUCC player.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/jump_test.gd -- <out_dir>
+## Run: godot --path . --resolution 1600x900 -s res://tests/jump_test.gd -- <out_dir>
 
 var ed
 var out := ""

@@ -3,7 +3,7 @@ extends SceneTree
 ## own, gloss, reflections) shows on library materials, cube faces and turned ramp textures, and in the CS:S export;
 ## gamma in the adjust layer; spin and swirl on cube faces and ramps (and spin in CS:S); water / lava / glass cells
 ## with a look of their own that still count as water / lava / glass; the map's Reflections setting.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/finish_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/finish_test.gd -- <out folder>
 
 var ok := true
 var made: Array = []

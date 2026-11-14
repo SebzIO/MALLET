@@ -1,11 +1,10 @@
 # MALLET
 
-**Mapping And Level Layout Editor Tool**, formerly SurfForge. Source's editor is Hammer; a mallet is the simpler tool
+**Mapping And Level Layout Editor Tool**. Source's editor is Hammer; a mallet is the simpler tool
 anyone can pick up. MALLET is a surf map editor that does the heavy lifting: shape ramps by dragging, build with cubes,
 test your runs, and export straight to SurfsUp or Counter-Strike: Source.
 
-Maps are `.mallet` files (maps from SurfForge, `.sfmap`, still open). On its first start MALLET copies your
-SurfForge settings, own materials and prefabs across.
+Maps are `.mallet` files.
 
 ## Download
 Tester builds are published as GitHub Releases: **github.com/SebzIO/MALLET/releases**. Unzip one and run
@@ -73,7 +72,7 @@ Maps save as `.mallet` (plain JSON, engine-neutral so other exporters can be add
 20. Outliner ✅ (0.8) names, folders (nested), select / move whole folders, hide, find
 21. Required before 1.0 (planned, not started): playtest builds - Export > Test build makes a small download that
     drops testers onto the map, and their runs (routes, deaths, times) reach MALLET live through a relay
-    server on the user's VPS, several testers at once (docs/PLAYTEST.md)
+    server, several testers at once (docs/RELAY.md)
 22. Geometry menu ✅ (0.18) nine shapes made of octree cubes, sizes in grid units, a detail control, a live preview and ghost placement
 23. Next: decided with you
 

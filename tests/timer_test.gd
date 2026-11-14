@@ -3,7 +3,7 @@ extends SceneTree
 ## runs at 60 steps a second; before this every time was a whole number of steps: 6.383, 6.400, 6.417...).
 ## Checks the crossing maths exactly, then flies a player through a start and a finish zone and compares the timer
 ## with the true crossing moments worked out from where the player was each tick.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/timer_test.gd
+## Run: godot --path . --resolution 1280x720 -s res://tests/timer_test.gd
 
 var ok := true
 

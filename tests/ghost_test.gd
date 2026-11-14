@@ -2,7 +2,7 @@ extends SceneTree
 ## Ghost replay: a real SUCC run that finishes becomes the best run (recorded at 20 Hz), the ghost follows it on the
 ## next run, a slower run reports "+x vs best" and keeps the old ghost, the ghost is saved with the map and comes
 ## back on load, it never reaches an export, and the editor draws its path. Screenshot: ghost_path.png
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/ghost_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/ghost_test.gd -- <out>
 
 var ok := true
 var ed

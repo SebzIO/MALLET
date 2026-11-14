@@ -1,7 +1,7 @@
 extends SceneTree
 ## The side panel has what build mode's panels have (0.27.2): a light's color cycle and your light presets (F4), and
 ## texture settings for all of a cube object's faces (F3), each face keeping its own texture; undo works.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/side_panel_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/side_panel_test.gd -- <out folder>
 
 var ok := true
 var ed

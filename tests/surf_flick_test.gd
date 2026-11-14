@@ -2,7 +2,7 @@ extends SceneTree
 ## Surf physics in play mode match Source / SurfsUp (0.18.17). Flicking away from a ramp mid-surf (a j-turn) never
 ## throws you down the ramp: air strafing is horizontal, as in Source, not tilted along the ramp face (SUCC did that,
 ## and while you were still moving up, the speed cap let one tick add up to 17 m/s down the slope).
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/surf_flick_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/surf_flick_test.gd -- <out folder>
 
 var ok := true
 var player: SUCC

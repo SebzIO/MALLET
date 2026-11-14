@@ -5,7 +5,7 @@ extends SceneTree
 ## and cubes on a slope only cover the part of their cell that's full underneath.
 ## Raises and lowers bumps with every brush on a 1 m grid block, then scans hundreds of vertical lines: each must be
 ## solid from the ground up to the surface in one piece.
-## Run: godot --headless --path D:/SurfForge -s res://tests/hmap_test.gd
+## Run: godot --headless --path . -s res://tests/hmap_test.gd
 
 var ok := true
 

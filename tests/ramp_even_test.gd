@@ -2,7 +2,7 @@ extends SceneTree
 ## The "even" ramp path (0.28.0, new ramps): exactly straight along the line between two points (no dip or bulge),
 ## one circular arc at each point (constant curvature), arcs that never overlap, and moving a point only reshapes
 ## the corners next to it. Ramps already on maps keep the path they had.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/ramp_even_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/ramp_even_test.gd -- <out folder>
 
 var ok := true
 

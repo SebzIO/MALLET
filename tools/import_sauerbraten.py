@@ -1,6 +1,6 @@
 """Import the Cube 2: Sauerbraten texture packs whose licenses allow shipping them in MALLET.
 
-    python tools/import_sauerbraten.py D:/Sauerbraten [materials folder]
+    python tools/import_sauerbraten.py <Sauerbraten folder> [materials folder]
 
 Sauerbraten's README: its media "is not" free to reuse unless a pack's readme says so ("may be used for any purpose"
 or similar). The packs below were checked one by one (2026-11-07); everything else stays out (no license file, only
@@ -97,7 +97,7 @@ def nice_name(stem):
 
 
 def main():
-    root = sys.argv[1] if len(sys.argv) > 1 else "D:/Sauerbraten"
+    root = sys.argv[1] if len(sys.argv) > 1 else sys.exit(__doc__)
     out_root = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "materials")
     pk = os.path.join(root, "packages")
     slots = parse_cfgs(root)

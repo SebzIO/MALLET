@@ -2,7 +2,7 @@ extends SceneTree
 ## Hovering and selecting in build mode stay cheap over big shapes (0.18.9): a grid cell over many small cubes is
 ## highlighted as its plain square instead of outlining thousands of cubes every frame; a cell with few cubes still
 ## shows their true faces.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/hover_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/hover_test.gd -- <out folder>
 
 var ok := true
 

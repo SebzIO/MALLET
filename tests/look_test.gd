@@ -1,6 +1,6 @@
 extends SceneTree
 ## Look & feel showcase: one ramp per material look under every sky preset; then export and check the pack
-## carries the shaders and the image inline. Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/look_test.gd -- <out>
+## carries the shaders and the image inline. Run: godot --path . --resolution 1600x900 -s res://tests/look_test.gd -- <out>
 
 var ed
 var out := ""
@@ -74,7 +74,7 @@ func _run() -> void:
 
 	# export: shaders + image must be embedded
 	ed.environment = Look.preset_environment("aurora")
-	var maps := "D:/SurfForge_downloads/maps_test"
+	var maps := OS.get_user_data_dir().path_join("test_maps")
 	print("export: '", SurfsUpExporter.export_pack(ed._map_dict(), "sf_look_test", maps), "'")
 	var pck_files := []
 	var f := FileAccess.open(ProjectSettings.globalize_path("user://export/sf_look_test.tscn"), FileAccess.READ)

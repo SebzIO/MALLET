@@ -4,7 +4,7 @@ extends SceneTree
 ## and blocks with "Your own shader", saving the code into the map (and loading it on a computer without the file),
 ## the SurfsUp export (embedded, no scripts), the CS:S export (base image / color, baked skybox VTFs facing the right
 ## way). Saves the baked skybox faces as a picture.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/shaders_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/shaders_test.gd -- <out folder>
 
 var ok := true
 

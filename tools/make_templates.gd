@@ -1,7 +1,7 @@
 extends SceneTree
 ## Builds the starter templates in res://templates/ and proves every jump in them with the jump checker
 ## (full speed and 85% speed must both land somewhere good). Run:
-##   godot --path D:/SurfForge --resolution 1280x720 -s res://tools/make_templates.gd
+##   godot --path . --resolution 1280x720 -s res://tools/make_templates.gd
 ## Ramps are placed where SurfsUp physics says riders land: speed from the drop since the plate (from 400 u/s),
 ## gravity 20.32, the same model the jump checker uses (matched the real controller within 1 m).
 

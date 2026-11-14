@@ -2,7 +2,7 @@ extends SceneTree
 ## Render chunks by cube size (0.18.15): a map of big blocks spread out stays a handful of chunks (each chunk is a draw
 ## call and a physics body; 4 m chunks for everything made a 0.18.4 map 14,000 chunks, 7 fps, and too many bodies for
 ## the player to move), small cubes go in small chunks, and an edit next to a cube of the other size redraws both.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/chunk_budget_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/chunk_budget_test.gd -- <out folder>
 
 var ok := true
 

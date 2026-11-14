@@ -2,7 +2,7 @@ extends SceneTree
 ## Typing boxes (0.23.2): clicking anywhere outside the box you are typing in ends the typing and takes the value
 ## (the booster's "Push angle above horizontal" kept the cursor before), number boxes refuse letters, text boxes
 ## keep them, and the same holds in the material maker's window.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/field_guard_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/field_guard_test.gd -- <out folder>
 
 var ok := true
 var ed

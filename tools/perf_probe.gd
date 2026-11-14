@@ -1,5 +1,5 @@
 extends SceneTree
-## Performance probe on a real map (run: godot --path D:/SurfForge --resolution 1600x900 -s res://tools/perf_probe.gd -- <map> [noshadow|nolights|noanim|manylights]): frame time (vsync off), each view's GPU time and draw calls, in the four views,
+## Performance probe on a real map (run: godot --path . --resolution 1600x900 -s res://tools/perf_probe.gd -- <map> [noshadow|nolights|noanim|manylights]): frame time (vsync off), each view's GPU time and draw calls, in the four views,
 ## one view, build mode and play mode. Args: <map> [label]
 
 var ed

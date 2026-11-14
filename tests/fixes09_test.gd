@@ -1,6 +1,6 @@
 extends SceneTree
-## 0.9.0 fixes from the user's list (docs/PLAN_0.9.md): one section per item, added slice by slice.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/fixes09_test.gd -- <out folder>
+## 0.9.0 fixes: one section per item, added slice by slice.
+## Run: godot --path . --resolution 1600x900 -s res://tests/fixes09_test.gd -- <out folder>
 
 var ed
 var ok := true

@@ -3,7 +3,7 @@ extends SceneTree
 ## big cells (it scanned every material cell for every cell filled: a 32,000-cell fill hung MALLET); what's drawn is
 ## exactly the outside of the filled shape, even where cells of different sizes meet; and no fill face is drawn
 ## against solid cubes, however small they are.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/fill_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/fill_test.gd -- <out folder>
 
 var ok := true
 

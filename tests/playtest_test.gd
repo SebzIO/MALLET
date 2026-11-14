@@ -2,7 +2,7 @@ extends SceneTree
 ## 0.16 playtest session: the editor opens a session against a real relay, a tester joins with its secret, live
 ## positions and attempts reach the panel and the map, a repeated attempt is kept once, the secret never reaches
 ## the map, and a test build's tester.cfg carries the session. Window: this instantiates the editor.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/playtest_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/playtest_test.gd -- <out>
 
 const PORT := 8798
 const URL := "ws://127.0.0.1:8798/ws"

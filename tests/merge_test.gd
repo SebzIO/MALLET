@@ -3,7 +3,7 @@ extends SceneTree
 ## and nothing you can see or touch changes: the drawn area of every texture and the collision are the same before
 ## and after, folded, cut, painted and differently textured cubes are left alone, and fills still hold. A map opens
 ## with its cubes merged.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/merge_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/merge_test.gd -- <out folder>
 
 var ok := true
 

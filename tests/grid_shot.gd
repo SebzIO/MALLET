@@ -1,6 +1,6 @@
 extends SceneTree
 ## Screenshot: blank cubes and a block side by side, to see the Dev grid is even squares (1 m) on both.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/grid_shot.gd -- <out.png>
+## Run: godot --path . --resolution 1280x720 -s res://tests/grid_shot.gd -- <out.png>
 
 func _init() -> void:
 	call_deferred("_run")

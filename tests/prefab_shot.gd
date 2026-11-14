@@ -1,6 +1,6 @@
 extends SceneTree
 ## Screenshot of every starter prefab in a row, at dusk so the lights and lava show: prefabs.png
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/prefab_shot.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/prefab_shot.gd -- <out>
 
 
 func _init() -> void:

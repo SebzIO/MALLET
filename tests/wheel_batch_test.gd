@@ -2,7 +2,7 @@ extends SceneTree
 ## Build mode gathers the wheel notches of one frame into one edit (pull_n / push_n, laid down as big aligned cubes).
 ## That must give exactly the same cubes and textures as the notches one by one, and be fast on big selections at the
 ## 0.125 m grid. Also checks greedy meshing draws the same surface area as before.
-## Run: godot --headless --path D:/SurfForge -s res://tests/wheel_batch_test.gd
+## Run: godot --headless --path . -s res://tests/wheel_batch_test.gd
 
 var ok := true
 

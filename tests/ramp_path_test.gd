@@ -4,7 +4,7 @@ extends SceneTree
 ## around the spine instead of collapsing (a vertical slice can't hold one), while ramps under 40 degrees ride exactly
 ## as before; the ramp creator starts straight; a ramp turns around its middle (pitch, yaw) and banks (roll); maps
 ## made before keep their smooth curves.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/ramp_path_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/ramp_path_test.gd -- <out folder>
 
 var ok := true
 

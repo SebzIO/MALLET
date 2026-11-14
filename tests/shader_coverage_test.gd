@@ -4,7 +4,7 @@ extends SceneTree
 ## (Look.param_uniforms) - a uniform added later without a control fails here. Your own shaders: every kind of
 ## setting MALLET can edit gets a control (ivec too), and the rest are listed as not shown, with why. And the aurora:
 ## both sky colors and the ramp look's second color, applied.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/shader_coverage_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/shader_coverage_test.gd -- <out folder>
 
 var ok := true
 var ed

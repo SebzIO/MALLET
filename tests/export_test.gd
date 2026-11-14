@@ -1,7 +1,7 @@
 extends SceneTree
 ## Export test: build a map, export it to a scratch Maps folder, then load it back exactly like the game does
 ## (mount the .pck, load res://Levels/<name>.tscn) and inspect it.
-## Run: godot --headless --path D:/SurfForge -s res://tests/export_test.gd -- <scratch_maps_dir>
+## Run: godot --headless --path . -s res://tests/export_test.gd -- <scratch_maps_dir>
 
 func _init() -> void:
 	var maps: String = OS.get_cmdline_user_args()[0]

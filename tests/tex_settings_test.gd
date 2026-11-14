@@ -1,7 +1,7 @@
 extends SceneTree
 ## Cube faces with F3 texture settings (tint, see-through, scroll) must still show their texture (the user's #7: a
 ## shader that didn't compile turned them all plain white). Renders four brick cubes and samples their pixels.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/tex_settings_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/tex_settings_test.gd -- <out folder>
 
 func _init() -> void:
 	call_deferred("_run")

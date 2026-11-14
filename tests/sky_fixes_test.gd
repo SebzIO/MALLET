@@ -5,7 +5,7 @@ extends SceneTree
 ## (a live picture wrapped around the world, a still picture in the SurfsUp export; screen effects refused), (4) play
 ## mode hides the 3D ground grid and the lights' bulbs and brings them back, (5) every sky keeps its own settings
 ## (switch away and back, undo, save and load). Opens a MALLET window. Uses a shaders folder of its own.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/sky_fixes_test.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tests/sky_fixes_test.gd -- <out folder>
 
 var ok := true
 

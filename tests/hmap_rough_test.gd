@@ -2,7 +2,7 @@ extends SceneTree
 ## The experimental heightmap (0.19.7, Shift+H): the same brush makes a different shape every time (normal mode makes
 ## the same one wherever you use it), and the terrain stays joined - rays dropped onto it a few centimeters apart
 ## never fall into a crack or a pit (heights next to each other stay close), in both modes. Saves a picture.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/hmap_rough_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/hmap_rough_test.gd -- <out folder>
 
 var ok := true
 

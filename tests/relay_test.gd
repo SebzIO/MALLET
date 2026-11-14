@@ -3,7 +3,7 @@ extends SceneTree
 ## secret is refused, the right one joins and is announced, live positions and a finished attempt reach the maker,
 ## collect hands back the stored run, an oversized message disconnects only its sender, and the server answers
 ## /health. Nothing here needs a window (headless is fine).
-## Run: godot --headless --path D:/SurfForge -s res://tests/relay_test.gd -- <out>
+## Run: godot --headless --path . -s res://tests/relay_test.gd -- <out>
 
 const PORT := 8799
 const URL := "ws://127.0.0.1:8799/ws"

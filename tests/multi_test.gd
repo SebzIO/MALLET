@@ -3,7 +3,7 @@ extends SceneTree
 ## in a 2D view selects what's inside, dragging moves the whole selection, [ ] turns it around its middle, Ctrl+G
 ## groups (a click then selects the group), Ctrl+C / Ctrl+V go through the system clipboard (skipping a second
 ## start platform), Delete removes them all, undo brings them back. Screenshots: multi.png, menu_add.png
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/multi_test.gd -- <out>
+## Run: godot --path . --resolution 1600x900 -s res://tests/multi_test.gd -- <out>
 
 var ok := true
 var ed

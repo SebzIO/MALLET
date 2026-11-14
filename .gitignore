@@ -1,7 +1,22 @@
 .godot/
 tests/out/
-maps/smoke_test.mallet
-maps/smoke_test.sfmap
+maps/smoke_test.*
 *.tmp
 __pycache__/
 relay-data/
+
+# local working notes and tools (kept on disk, not in the repository)
+AGENTS.md
+docs/HANDOVER.md
+docs/ISSUES.md
+docs/PLAN_0.9.md
+docs/PRE_1_0.md
+docs/WORK_ORDER_2.md
+docs/PLAYTEST.md
+docs/TRAILER.md
+docs/DEMO_VIDEO.md
+Render demo.cmd
+tools/demo/
+tests/_*.gd
+tests/_*.gd.uid
+*.mdmp

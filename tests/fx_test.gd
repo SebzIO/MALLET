@@ -2,7 +2,7 @@ extends SceneTree
 ## Lights and particles (0.12): light presets, strips and effects (an AnimationPlayer, no script), particle effects in
 ## the editor (add, edit, save, load, copy), the SurfsUp export (owned nodes, no scripts), the CS:S export (light
 ## styles, a light per strip point, stock particle entities), and the map weight readout. Saves a picture.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/fx_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/fx_test.gd -- <out folder>
 
 var ok := true
 

@@ -3,7 +3,7 @@ extends SceneTree
 ## each 64 m region once it settles (the same triangles, a fraction of the draws); an edit shows the small meshes there
 ## again at once and the region merges again afterwards, with the edit in it. Shadowed lights only draw shadows near the
 ## camera, and the flat views draw none.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/batching_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/batching_test.gd -- <out folder>
 
 var ok := true
 var ed

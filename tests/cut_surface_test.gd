@@ -2,7 +2,7 @@ extends SceneTree
 ## Cut cubes keep every face (0.18.6). Where two nearly parallel planes meet, single-precision math lost corners and
 ## whole faces went missing: see-through pits along a cone's seams. For many-sided shapes: every plane that crosses a
 ## cell has its face in cut_faces, and the real mesh's slanted surface adds up to the shape's true area.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/cut_surface_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/cut_surface_test.gd -- <out folder>
 
 var ok := true
 

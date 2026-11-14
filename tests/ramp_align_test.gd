@@ -2,7 +2,7 @@ extends SceneTree
 ## Ramp point alignment (0.27.3): the line between two neighboring points counts as aligned in a view when it runs
 ## at an exact 45° step in that view's plane (level, upright, diagonal - so also when the points share an X or a Z);
 ## aligned lines are drawn green and their points get a green ring, updated as points move.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/ramp_align_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/ramp_align_test.gd -- <out folder>
 
 var ok := true
 var ed

@@ -3,7 +3,7 @@ extends SceneTree
 ## surface as before); shapes the octree can't make whole are refused with the reason (too many sides for the size,
 ## thinner than the finest cube); quarter pipes and halfpipes are concave, with their curve where it should be and
 ## no holes; and a shape with its settings is kept as a preset.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/geo_gen_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/geo_gen_test.gd -- <out folder>
 
 var ok := true
 

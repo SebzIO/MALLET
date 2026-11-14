@@ -2,7 +2,7 @@ extends SceneTree
 ## Build-mode aiming jumps over empty space (0.18.18): at a 0.125 m grid on a big object with many material cells,
 ## finding what you aim at took up to 436 ms a frame (every empty cell scanned every material cell). The jump must
 ## find exactly what the plain cell-by-cell walk finds, for any ray, grid size, cube size, material and cut shape.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/aim_skip_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/aim_skip_test.gd -- <out folder>
 
 var ok := true
 

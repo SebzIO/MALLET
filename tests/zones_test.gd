@@ -1,7 +1,7 @@
 extends SceneTree
 ## Custom zones (the user's #13): start / finish / stage zones without the built-in plate, on a platform the mapper
 ## built, and zones of any shape made of several boxes. Editor, save, play mode timing, SurfsUp and CS:S export.
-## Run: godot --path D:/SurfForge --resolution 1600x900 -s res://tests/zones_test.gd -- <out folder>
+## Run: godot --path . --resolution 1600x900 -s res://tests/zones_test.gd -- <out folder>
 
 const U := 39.37
 var ed

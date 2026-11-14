@@ -1,7 +1,7 @@
 extends SceneTree
 ## Particle areas (0.23.3): changing the effect (Sparks -> Rain) keeps the area you made (and your own color); a
 ## particle effect has side squares like zones and blocks, and dragging one stretches the area from that side.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/particle_area_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/particle_area_test.gd -- <out folder>
 
 var ok := true
 var ed

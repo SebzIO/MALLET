@@ -2,7 +2,7 @@ extends SceneTree
 ## Getridou's materials (0.11): every one loads with its maps and its credit, glow maps make parts shine in the
 ## editor (library materials and cube faces with texture settings) and in CS:S ($selfillum over a DXT5 alpha mask),
 ## and the material picker can be searched. Saves a screenshot of a few on cubes, at night so the glow shows.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/getridou_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/getridou_test.gd -- <out folder>
 
 var ok := true
 

@@ -1,7 +1,7 @@
 extends SceneTree
 ## P and Esc only re-mesh what looks different (0.18.7): a chunk with invisible materials (clip, death...) is redrawn,
 ## every other chunk is left alone, so entering and leaving play mode stays instant however big the cube objects are.
-## Run: godot --path D:/SurfForge --resolution 1280x720 -s res://tests/play_toggle_test.gd -- <out folder>
+## Run: godot --path . --resolution 1280x720 -s res://tests/play_toggle_test.gd -- <out folder>
 
 var ok := true
 

@@ -2,7 +2,7 @@ extends SceneTree
 ## F3's Center on selection / Fit to selection (the user's lamp texture that straddled four 1 m cubes): the texture's
 ## middle lands in the middle of the selection, Fit makes one repeat span it, turned textures too, and CS:S exports
 ## put it in the same place - also for a cube object moved off the texture's grid. Saves a top-down picture.
-## Run: godot --path D:/SurfForge --resolution 900x900 -s res://tests/texture_place_test.gd -- <out folder>
+## Run: godot --path . --resolution 900x900 -s res://tests/texture_place_test.gd -- <out folder>
 
 var ok := true
 
