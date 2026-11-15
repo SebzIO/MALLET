@@ -3,6 +3,16 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.30.2 preview — 2026-11-14: Real textures in CS:S
+
+- **MALLET's materials show up in CS:S** instead of rainbow static. The CS:S export compressed each texture with
+  Godot's DXT compressor, which only exists in the editor build: MALLET.exe (the exported program) left the pixels
+  raw under a DXT header, and Source read them as noise. Textures are now written uncompressed (BGR888, or BGRA8888
+  when the material glows), which needs no compressor and looks sharper; each texture is about 1 MB (1.4 MB with
+  glow) inside the map. CS:S's own materials and the skybox were never affected.
+- New test: css_vtf_test (reads every texture file back: format, size, mip levels and the picture's pixels; run it
+  with the exported MALLET.exe too). Checked with CS:S's own vtf2tga.
+
 ## 0.30.1 preview — 2026-11-14: Smooth curved ramps in CS:S
 
 - **Curved ramps no longer stop you in CS:S.** A ramp goes to CS:S as a row of pieces about 2 m long. On a bend,

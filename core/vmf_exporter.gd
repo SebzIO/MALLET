@@ -1226,8 +1226,8 @@ static func _write_vtf(src_img: Image, path: String, glow: Image = null) -> void
 		img.decompress()
 	img.convert(Image.FORMAT_RGB8)
 	img.resize(VTF_SIZE, VTF_SIZE, Image.INTERPOLATE_LANCZOS)
-	var dxt5 := glow != null
-	if dxt5:
+	var has_glow := glow != null
+	if has_glow:
 		var mask: Image = glow.duplicate()
 		if mask.is_compressed():
 			mask.decompress()
@@ -1239,18 +1239,26 @@ static func _write_vtf(src_img: Image, path: String, glow: Image = null) -> void
 		for i in VTF_SIZE * VTF_SIZE:
 			px[i * 4 + 3] = maxi(mk[i * 3], maxi(mk[i * 3 + 1], mk[i * 3 + 2]))
 		img = Image.create_from_data(VTF_SIZE, VTF_SIZE, false, Image.FORMAT_RGBA8, px)
+	# Uncompressed (BGR888, or BGRA8888 with the glow mask in alpha): Godot's DXT compressor only exists in the
+	# editor, not in an exported MALLET, which wrote raw pixels under a DXT header (rainbow static in CS:S).
+	var with_alpha := has_glow
+	if not with_alpha:
+		img.convert(Image.FORMAT_RGB8)
 	img.generate_mipmaps()
-	img.compress(Image.COMPRESS_S3TC, Image.COMPRESS_SOURCE_GENERIC)
-	dxt5 = img.get_format() == Image.FORMAT_DXT5          # (a mask with no dark parts compresses to DXT1)
+	var bpp := 4 if with_alpha else 3
 	var data := img.get_data()
 	var levels := img.get_mipmap_count() + 1
 	var chunks := []
 	var at := 0
 	for l in levels:
 		var w := maxi(VTF_SIZE >> l, 1)
-		var size := maxi((w + 3) / 4, 1) * maxi((w + 3) / 4, 1) * (16 if dxt5 else 8)
-		chunks.append(data.slice(at, at + size))
-		at += size
+		var lvl := data.slice(at, at + w * w * bpp)
+		at += w * w * bpp
+		for i in range(0, lvl.size(), bpp):                # RGB(A) -> BGR(A)
+			var r := lvl[i]
+			lvl[i] = lvl[i + 2]
+			lvl[i + 2] = r
+		chunks.append(lvl)
 	var h := StreamPeerBuffer.new()
 	h.big_endian = false
 	h.put_data("VTF".to_ascii_buffer())
@@ -1260,7 +1268,7 @@ static func _write_vtf(src_img: Image, path: String, glow: Image = null) -> void
 	h.put_u32(80)                         # header size
 	h.put_u16(VTF_SIZE)
 	h.put_u16(VTF_SIZE)
-	h.put_u32(0x2000 if dxt5 else 0)      # flags (EIGHTBITALPHA when the alpha holds the glow mask)
+	h.put_u32(0x2000 if with_alpha else 0)   # flags (EIGHTBITALPHA when the alpha holds the glow mask)
 	h.put_u16(1)                          # frames
 	h.put_u16(0)                          # first frame
 	h.put_u32(0)                          # padding
@@ -1268,7 +1276,7 @@ static func _write_vtf(src_img: Image, path: String, glow: Image = null) -> void
 		h.put_float(0.5)                  # reflectivity
 	h.put_u32(0)                          # padding
 	h.put_float(1.0)                      # bumpmap scale
-	h.put_u32(15 if dxt5 else 13)         # high-res format: DXT5 / DXT1
+	h.put_u32(12 if with_alpha else 3)    # high-res format: BGRA8888 / BGR888
 	h.put_u8(levels)
 	h.put_u32(0xFFFFFFFF)                 # no low-res thumbnail
 	h.put_u8(0)
