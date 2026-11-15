@@ -249,9 +249,9 @@ Both exports check the map first and tell you about anything missing (no finish,
 **Ramps in CS:S.** A ramp keeps its look in CS:S only with the **Material** look (a texture from the picker: yours,
 the bundled ones or CS:S's own, packed into the map). The other looks (Color, Aurora, Neon...) need MALLET's shaders,
 which Source can't run, so those ramps come out in Source's gray developer texture; the export window says how many.
-Curved ramps go to CS:S as short pieces; where a bend would leave a small valley between two pieces (which stops a
-surfer dead in Source), the next piece starts a few units lower so you drop onto it. If a bend is too sharp even for
-that, the export tells you.
+Curved ramps go to CS:S as short pieces. What you see is one smooth copy of the ramp; what you ride is an invisible
+copy in which, where a bend would leave a small valley between two pieces (that stops a surfer dead in Source), the
+next piece starts a few units lower so you drop onto it. If a bend is too sharp even for that, the export tells you.
 
 **Testing in CS:S.** Tick "Compile it now" and the map lands in `cstrike/maps`. In CS:S, turn on the developer
 console (Options > Keyboard > Advanced), press `~` and type `map surf_yourmap`. Then `sv_airaccelerate 150` makes it
@@ -333,4 +333,5 @@ position, 2-9 stages, N noclip, T triggers.
 - Lights with shadows draw them only while you're within 60 m of the light (it still lights everything farther
   away), and the flat views show no light shadows: that keeps big maps with many lights smooth.
 - Maps are plain `.mallet` files: back them up like any document.
+- What we know isn't right yet is listed in `docs/KNOWN_ISSUES.md` (in the MALLET folder and on GitHub).
 - Something broke or felt wrong? Tell whoever sent you MALLET: what you did, what you expected, what happened.

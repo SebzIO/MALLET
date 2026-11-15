@@ -3,7 +3,8 @@ extends SceneTree
 ## at the seam), Source's player box caught the next piece's front and stopped dead. The exporter now starts such a
 ## piece a little lower (VmfExporter._seam_drops). Checks: a straight ramp gets no steps, curved ones do, every step is
 ## enough (the next face stays below the ridden one under the whole box), none hits the limit on ordinary bends, the
-## end slabs sit outside the ramp, and the maps compile with CS:S's vbsp. (A Source movement check that rides the
+## end slabs sit outside the ramp, the ramp you see is a separate non-solid copy (0.30.3), straight stretches are one
+## piece, and the maps compile with CS:S's vbsp. (A Source movement check that rides the
 ## exported ramps: tools/css_ramp_ride.py.)
 ##   godot --path . --headless -s res://tests/css_seam_test.gd -- <out dir>
 
@@ -32,10 +33,14 @@ func _run() -> void:
 	var shapes := {"sf_seam_straight": [[-80, 200, 0], [80, 160, 0]], "sf_seam_curve": [[-80, 200, 0], [0, 170, 0], [0, 140, 80]],
 		"sf_seam_s": [[-120, 220, 0], [-40, 200, 30], [40, 180, -30], [120, 160, 0]]}
 	var css := VmfExporter.find_css()
+	var counts := {}
 	for k in shapes:
 		var ex := VmfExporter.new()
 		var text := ex.build(_map(shapes[k]))
 		check(text != "", "%s: exported (%d brushes)" % [k, ex.brushes])
+		check(text.contains("\"classname\" \"func_illusionary\"") and text.contains("TOOLS/TOOLSNODRAW"),
+			"%s: the ramp you see is not solid, the one you ride is invisible (no slits, no black edges)" % k)
+		counts[k] = ex.brushes
 		var drops := Array(ex.seam_drops).filter(func(x: float) -> bool: return x > 0.0)
 		if k == "sf_seam_straight":
 			check(drops.is_empty(), "straight ramp: no steps (%d)" % drops.size())
@@ -50,6 +55,8 @@ func _run() -> void:
 		if css != "" and k != "sf_seam_straight":
 			var res := VmfExporter.compile(path, css, "fast")
 			check(res["error"] == "", "%s: vbsp / vvis / vrad compile it (%s)" % [k, res["error"] if res["error"] != "" else res["bsp"].get_file()])
+	check(counts["sf_seam_straight"] * 4 < counts["sf_seam_curve"], "a straight ramp takes far fewer pieces than a bend (%d vs %d brushes; pieces up to %d m)" % [
+		counts["sf_seam_straight"], counts["sf_seam_curve"], VmfExporter.PIECE_MAX])
 	# the check itself: a seam's next face stays below the ridden one once lowered (and not before)
 	var ex2 := VmfExporter.new()
 	var p := PackedVector3Array([Vector3(0, 10, 0), Vector3(0, 0, 10), Vector3(0, 0, -10)])

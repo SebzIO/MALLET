@@ -23,8 +23,10 @@ const SEAM_REACH := 48.0                 ## units: how far behind a seam the pla
 const SEAM_MARGIN := 0.1                 ## units the next ramp piece's face stays below the ridden one (> DIST_EPSILON 0.03125)
 const SEAM_SPLIT := 3.0                  ## units: a seam needing a bigger step gets shorter pieces around it
 const SEAM_WARN := 1.0                   ## units a seam may still rise after the biggest step before the export warns
+const CLIP_SINK := 0.0                   ## units the solid (invisible) ramp sits under the ramp you see
 const SEAM_MAX_DROP := 8.0               ## units: the most a ramp piece is lowered at a seam
-const MIN_SEGMENT := 2.0                 ## meters: ramp cross-sections closer than this are merged (brush budget)
+const PIECE_TOLERANCE := 1.0             ## units a CS:S ramp piece may differ from the ramp in MALLET
+const PIECE_MAX := 32.0                  ## meters: the longest CS:S ramp piece
 const MAX_BRUSHES := 8192                ## Source's brush limit
 const RAMP_MATERIAL := "DEV/DEV_MEASUREGENERIC01B"
 const PLATFORM_MATERIAL := "DEV/DEV_MEASUREWALL01C"
@@ -160,13 +162,23 @@ func build(map: Dictionary, opts := {}) -> String:
 		elif rd.get("look", "") == "shader":
 			rmat = _shader_material(rd.get("shader", ""), rd.get("shader_params", {}), RAMP_MATERIAL)
 		var rb := _ramp_brushes(geo, rmat, fit)
-		if not rb.is_empty():
+		if not (rb["clip"] as PackedStringArray).is_empty():  # what you ride: solid, invisible, with the seam steps
 			details.append("entity
 {
 	\"id\" \"%d\"
 	\"classname\" \"func_detail\"
 %s}
-" % [_next(), "".join(rb)])
+" % [_next(), "".join(rb["clip"])])
+		if not (rb["visual"] as PackedStringArray).is_empty():   # what you see: flush, not solid
+			details.append("entity
+{
+	\"id\" \"%d\"
+	\"classname\" \"func_illusionary\"
+	\"rendermode\" \"0\"
+	\"renderamt\" \"255\"
+	\"vrad_brush_cast_shadows\" \"1\"
+%s}
+" % [_next(), "".join(rb["visual"])])
 	var sharp := Array(seam_drops).filter(func(x: float) -> bool: return x >= SEAM_MAX_DROP - 0.001).size()
 	if sharp > 0 and seam_left > SEAM_WARN:
 		warnings.append("%d ramp seam%s bend%s too sharply for CS:S to ride smoothly everywhere (riders may catch there): make those bends gentler." % [
@@ -419,7 +431,7 @@ func build(map: Dictionary, opts := {}) -> String:
 
 
 # ------------------------------------------------------------------------------------------------ ramps
-## Brushes for one ramp: between consecutive cross-sections (at least MIN_SEGMENT apart, seams kept), one convex
+## Brushes for one ramp: between consecutive cross-sections (_ramp_keep picks them, seams kept), one convex
 ## hull per convex piece of the profile.
 ## `fit` (texture px, meters along; zero = off): the riding faces' textures span the riding surface once across,
 ## as in the editor (MaterialLibrary.ramp_fit), instead of Hammer's world-aligned default.
@@ -435,20 +447,18 @@ static func ramp_look_exports(rd: Dictionary) -> bool:
 	return false
 
 
-func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL, fit := Vector2.ZERO) -> PackedStringArray:
+## Returns {"visual": brushes you see (flush pieces, no steps; written as a non-solid func_illusionary), "clip":
+## brushes you ride (the same pieces with the seam steps, all nodraw, in a func_detail; also the end slabs)}.
+## Split because the steps that stop the ramp bug left see-through slits in the visible ramp (vbsp drops a face
+## that lies on its neighbor's plane), and detail brushes' face edges got black lightmap texels where they touch.
+func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL, fit := Vector2.ZERO) -> Dictionary:
 	var out := PackedStringArray()
+	var seen := PackedStringArray()
 	var rings: Array = geo["rings"]
 	var ridge: PackedVector3Array = geo["ridge"]
 	if rings.size() < 2:
-		return out
-	var keep := [0]
-	var seams: PackedInt32Array = geo.get("seams", PackedInt32Array())
-	var since := 0.0
-	for i in range(1, ridge.size()):
-		since += ridge[i].distance_to(ridge[i - 1])
-		if since >= MIN_SEGMENT or i == ridge.size() - 1 or i in seams:
-			keep.append(i)
-			since = 0.0
+		return {"visual": seen, "clip": out}
+	var keep := _ramp_keep(rings, ridge, geo.get("seams", PackedInt32Array()))
 	var pp: PackedVector2Array = (geo["profile"] as Dictionary)["pts"]
 	var pieces := []
 	for poly in Geometry2D.decompose_polygon_in_convex(pp):
@@ -482,11 +492,25 @@ func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL, fit := Vector2.ZE
 	for s in range(1, keep.size()):
 		var a: PackedVector3Array = rings[keep[s - 1]]
 		var b: PackedVector3Array = rings[keep[s]]
-		if drops[s - 1] > 0.0:                             # (this piece starts a little lower: see _seam_drops)
-			var low := PackedVector3Array()
-			for q in a:
-				low.append(q - Vector3(0, drops[s - 1], 0))
-			a = low
+		for idx in pieces:                                 # what you see: flush
+			var pts := []
+			for k in idx:
+				pts.append(src(a[k]))
+				pts.append(src(b[k]))
+			var sides := _hull(pts)
+			if sides.size() >= 4:
+				seen.append(_solid(sides, material, _fit_axes(sides, a, b, geo["profile"], fit) if fit.x > 0.0 else []))
+		# what you ride: this piece starts a little lower (_seam_drops), and all of it sits CLIP_SINK under what you see
+		# (where the two surfaces touched, vrad counted the visible face's light samples as inside the solid: black)
+		var sink := Vector3(0, CLIP_SINK / U, 0)
+		var low := PackedVector3Array()
+		for q in a:
+			low.append(q - Vector3(0, drops[s - 1], 0) - sink)
+		a = low
+		var lowb := PackedVector3Array()
+		for q in b:
+			lowb.append(q - sink)
+		b = lowb
 		for idx in pieces:
 			var pts := []
 			for k in idx:
@@ -494,7 +518,7 @@ func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL, fit := Vector2.ZE
 				pts.append(src(b[k]))
 			var sides := _hull(pts)
 			if sides.size() >= 4:
-				out.append(_solid(sides, material, _fit_axes(sides, a, b, geo["profile"], fit) if fit.x > 0.0 else []))
+				out.append(_solid(sides, NODRAW))
 	var body := Vector3.ZERO                             # (the ramp's middle: the end slabs go away from it)
 	for q in rings[rings.size() / 2]:
 		body += q
@@ -515,8 +539,42 @@ func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL, fit := Vector2.ZE
 			pts.append(src(q))
 		var sides := _hull(pts)
 		if sides.size() >= 4:
-			out.append(_solid(sides, material))
-	return out
+			seen.append(_solid(sides, material))          # (seen and solid like the rest: a solid slab beside the
+			out.append(_solid(sides, NODRAW))             # visible ramp darkened its end edge's lightmap)
+	return {"visual": seen, "clip": out}
+
+
+## Which cross-sections become piece ends: a piece runs on as long as the ramp's real surface stays within
+## PIECE_TOLERANCE of a straight piece between its ends (and at most PIECE_MAX long), so a straight stretch is one
+## piece and a bend gets as many as it needs. (Fixed 2 m pieces ran a CS:S map out of brush planes with five ramps.)
+func _ramp_keep(rings: Array, ridge: PackedVector3Array, seams: PackedInt32Array) -> Array:
+	var keep := [0]
+	var dist := PackedFloat32Array([0.0])
+	for i in range(1, ridge.size()):
+		dist.append(dist[i - 1] + ridge[i].distance_to(ridge[i - 1]))
+	var tol := PIECE_TOLERANCE / U
+	var i := 0
+	while i < ridge.size() - 1:
+		var j := i + 1
+		while j + 1 < ridge.size() and not (j in seams) and dist[j + 1] - dist[i] <= PIECE_MAX 				and _span_fits(rings, dist, i, j + 1, tol):
+			j += 1
+		keep.append(j)
+		i = j
+	return keep
+
+
+## Do the cross-sections between i and j lie within `tol` of the straight piece from i to j?
+func _span_fits(rings: Array, dist: PackedFloat32Array, i: int, j: int, tol: float) -> bool:
+	var a: PackedVector3Array = rings[i]
+	var b: PackedVector3Array = rings[j]
+	var span := maxf(dist[j] - dist[i], 1e-6)
+	for r in range(i + 1, j):
+		var t := (dist[r] - dist[i]) / span
+		var m: PackedVector3Array = rings[r]
+		for k in m.size():
+			if m[k].distance_to(a[k].lerp(b[k], t)) > tol:
+				return false
+	return true
 
 
 ## How far (meters, straight down) each ramp piece's first cross-section is lowered so a rider never runs into its

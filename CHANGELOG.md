@@ -3,6 +3,19 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.30.3 preview — 2026-11-14: Clean ramps in CS:S
+
+- **No more cracks or black lines between a ramp's pieces in CS:S.** The steps that stop the ramp bug (0.30.1)
+  left see-through slits where pieces met (vbsp drops a face that lies on its neighbor's plane), and the edges of
+  every piece had black lightmap texels where they touched the next one (there since CS:S export began). A ramp now
+  goes to CS:S twice: the ramp you see, smooth and flush, as a non-solid func_illusionary (its faces light
+  cleanly), and the ramp you ride, invisible (nodraw) with the seam steps, as func_detail. In a tester's map 156 of
+  157 lit ramp faces had black edges; now the only dark texels left are real shadows.
+- **Fewer pieces**: a ramp piece now runs as long as the ramp stays within 1 unit of a straight piece (up to 32 m)
+  instead of a fixed 2 m, so straight stretches are one piece and bends keep as many as they need. The same map
+  went from 59% of Source's brush planes to 51%, with both copies.
+- docs/KNOWN_ISSUES.md lists what we know isn't right yet (first entry: ramp textures run at an angle in CS:S).
+
 ## 0.30.2 preview — 2026-11-14: Real textures in CS:S
 
 - **MALLET's materials show up in CS:S** instead of rainbow static. The CS:S export compressed each texture with

@@ -254,7 +254,7 @@ def sweep(path, speeds=(1000, 2000), seconds=0.6):
                 if (cs[i + 3] - cs[i]) @ lvl < 0:
                     lvl = -lvl
                 for sp in speeds:
-                    ev, on, dur = ride(bs, c + n * (np.abs(n) @ EXT + 8.0), lvl * sp, seconds)
+                    ev, on, dur = ride(bs, c + n * (np.abs(n) @ EXT + 20.0), lvl * sp, seconds)
                     rides += 1
                     if ev:
                         bad += 1

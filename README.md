@@ -9,9 +9,14 @@ Maps are `.mallet` files.
 > **Made with AI assistance.** MALLET is built with the help of AI coding assistants. See [AI disclosure](#ai-disclosure).
 
 ## Download
-Tester builds are published as GitHub Releases: **github.com/SebzIO/MALLET/releases**. Unzip one and run
-`MALLET.exe` from the `MALLET` folder (keep `materials/` next to it). The repository is private for now; ask for an
-invite, or for a zip directly.
+Builds are published as GitHub Releases: **github.com/SebzIO/MALLET/releases**. Unzip the latest and run
+`MALLET.exe` from the `MALLET` folder (keep `materials/` next to it). `READ ME FIRST.txt` and `docs/GUIDE.html` in the
+zip get you started.
+
+## Known issues and bug reports
+What we already know about is in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md). Found something else? Open an issue
+with what you did, what you expected and what happened; a screenshot and the `.mallet` file help a lot. MALLET is a
+preview on its way to 1.0, so reports are very welcome.
 
 ## Run
 Double-click `Run MALLET.cmd` (uses Godot 4.5.1), or open this folder as a project in Godot and press F5.
