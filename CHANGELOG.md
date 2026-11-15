@@ -3,6 +3,28 @@
 Versions: 0.x are previews. The middle number goes up with each batch of new features, the last with bug-fix
 releases. 1.0 is the first release we call complete (the MVP). The version lives in `core/version.gd`.
 
+## 0.30.1 preview — 2026-11-14: Smooth curved ramps in CS:S
+
+- **Curved ramps no longer stop you in CS:S.** A ramp goes to CS:S as a row of pieces about 2 m long. On a bend,
+  the next piece's face tilted up against the one being ridden (a slight valley at the seam, on the inside of the
+  bend, made worse because each piece was the convex hull of its two ends). Source's player box rides a hair above
+  the face, so it was already inside the next face's plane when it reached that piece, hit its front, and stopped
+  dead: a "ramp bug" at seams all along every curved ramp. Now, wherever a seam would form a valley, the next piece
+  starts a small step lower (the least that keeps its face below the ridden one under the whole player box, mostly
+  1-4 units, never more than 8), so you drop onto it instead of running into it. Each piece still ends at its true
+  height, so the steps never add up, and pieces on tight bends are made shorter so their steps stay small. A
+  straight ramp is unchanged. The end slabs that close a ramp's ends sit outside the ramp now (half of each used to
+  overlap the last piece). If a bend is still too sharp, the export says so.
+- Checked with a re-implementation of Source's player movement (the CS:S box, Source 2013's brush collision with
+  vbsp's bevel planes, TryPlayerMove, air strafing into the ramp), now `tools/css_ramp_ride.py`: on a tester's map
+  about 1 ride in 10 along the ramps hit a seam and lost most of its speed; on a test S-curve 88 of 708 rides did
+  before and none after, and on a 90° bend none of 730.
+- **The CS:S export window says which ramps CS:S can't texture**: a ramp keeps its look in CS:S only with the
+  Material look (or one of your shaders MALLET can turn into a texture); Color, Ceramic, Steel, Grid, Aurora, Nebula
+  and Neon come out as Source's gray developer texture, and the window now says how many ramps that is and what to do.
+- New test: css_seam_test (no steps on a straight ramp, steps on curves that cover every valley, no warning on
+  ordinary bends, the maps compile with vbsp / vvis / vrad).
+
 ## 0.30.0 preview — 2026-11-14: Camera shots and Render video
 
 - **Camera shots** (View > Camera shots): a strip under the views where you make named shots from camera keys. **Add

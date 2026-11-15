@@ -8127,6 +8127,11 @@ func _build_css_dialog() -> void:
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD
 	note.add_theme_color_override("font_color", Color(0.8, 0.8, 0.6))
 	box.add_child(note)
+	var looks := Label.new()                            # (filled in when the window opens: ramps CS:S can't texture)
+	looks.autowrap_mode = TextServer.AUTOWRAP_WORD
+	looks.add_theme_color_override("font_color", Color(1.0, 0.6, 0.45))
+	box.add_child(looks)
+	_fields["css_looks_note"] = looks
 	_wrap_width(box, 568)
 	_css_dialog.confirmed.connect(_do_css_export)
 	_ui_root.add_child(_css_dialog)
@@ -8148,6 +8153,15 @@ func _css_clicked() -> void:
 	_css_compile.disabled = css == ""
 	_css_compile.button_pressed = css != "" and cfg.get_value("css", "compile", true)
 	_css_compile.tooltip_text = "Found CS:S at " + css if css != "" else "Counter-Strike: Source wasn't found, so only the .vmf is written."
+	var plain := 0                                     # ramps whose look CS:S can't show (they get the gray developer texture)
+	for r in ramps_root.get_children():
+		if not VmfExporter.ramp_look_exports(r.to_dict()):
+			plain += 1
+	var looks: Label = _fields["css_looks_note"]
+	looks.visible = plain > 0
+	looks.text = ("⚠ %d of %d ramps use a look CS:S can't show (Color, Ceramic, Steel, Grid, Aurora, Nebula, Neon): in CS:S "
+		+ "they are Source's gray developer texture. To texture a ramp in CS:S, give it the Material look and pick a "
+		+ "texture (yours, the bundled ones or CS:S's own); those are packed into the map.") % [plain, ramps_root.get_child_count()]
 	_css_dialog.size = Vector2i(600, 0)                   # (fit it to what shows now)
 	_css_dialog.popup_centered()
 

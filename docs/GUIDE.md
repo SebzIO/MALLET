@@ -246,6 +246,18 @@ camera, mouse and selection. Undo only takes back your own work. The map's owner
 
 Both exports check the map first and tell you about anything missing (no finish, a teleport with nowhere to go...).
 
+**Ramps in CS:S.** A ramp keeps its look in CS:S only with the **Material** look (a texture from the picker: yours,
+the bundled ones or CS:S's own, packed into the map). The other looks (Color, Aurora, Neon...) need MALLET's shaders,
+which Source can't run, so those ramps come out in Source's gray developer texture; the export window says how many.
+Curved ramps go to CS:S as short pieces; where a bend would leave a small valley between two pieces (which stops a
+surfer dead in Source), the next piece starts a few units lower so you drop onto it. If a bend is too sharp even for
+that, the export tells you.
+
+**Testing in CS:S.** Tick "Compile it now" and the map lands in `cstrike/maps`. In CS:S, turn on the developer
+console (Options > Keyboard > Advanced), press `~` and type `map surf_yourmap`. Then `sv_airaccelerate 150` makes it
+ride like a surf server (`sv_cheats 1` then `noclip` to fly around). Surf servers add a timer and other fixes with
+SourceMod plugins; the map's zones use the names those timers look for.
+
 ## 10. Videos: camera shots
 
 MALLET can make a video of your map: a camera that glides through it on a path you set, rendered frame by frame at

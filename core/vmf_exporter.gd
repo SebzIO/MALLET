@@ -19,6 +19,11 @@ const SKY_THICK := 64.0
 const WELD := 0.5                        ## units: a cut cube's corners closer than this become one (about 1 cm)
 const SIDE_SPREAD := 256.0               ## units between the three points that define a cut cube's brush side
 const MIN_THICK := 1.0                   ## units: a cut piece thinner than this is left out (about 2.5 cm)
+const SEAM_REACH := 48.0                 ## units: how far behind a seam the player box (32 x 32) can reach
+const SEAM_MARGIN := 0.1                 ## units the next ramp piece's face stays below the ridden one (> DIST_EPSILON 0.03125)
+const SEAM_SPLIT := 3.0                  ## units: a seam needing a bigger step gets shorter pieces around it
+const SEAM_WARN := 1.0                   ## units a seam may still rise after the biggest step before the export warns
+const SEAM_MAX_DROP := 8.0               ## units: the most a ramp piece is lowered at a seam
 const MIN_SEGMENT := 2.0                 ## meters: ramp cross-sections closer than this are merged (brush budget)
 const MAX_BRUSHES := 8192                ## Source's brush limit
 const RAMP_MATERIAL := "DEV/DEV_MEASUREGENERIC01B"
@@ -39,6 +44,8 @@ const SKY_CHOICES := ["sky_day01_01", "sky_day01_05", "sky_day01_08", "sky_day02
 
 var _id := 0
 var _off := Vector3.ZERO
+var seam_drops := PackedFloat32Array()       ## every seam's step down (units), for checks
+var seam_left := 0.0                         ## units the worst seam still rises after the biggest step (0 = none)
 var _out := PackedStringArray()
 var warnings := PackedStringArray()
 var brushes := 0
@@ -160,6 +167,10 @@ func build(map: Dictionary, opts := {}) -> String:
 	\"classname\" \"func_detail\"
 %s}
 " % [_next(), "".join(rb)])
+	var sharp := Array(seam_drops).filter(func(x: float) -> bool: return x >= SEAM_MAX_DROP - 0.001).size()
+	if sharp > 0 and seam_left > SEAM_WARN:
+		warnings.append("%d ramp seam%s bend%s too sharply for CS:S to ride smoothly everywhere (riders may catch there): make those bends gentler." % [
+			sharp, "" if sharp == 1 else "s", "s" if sharp == 1 else ""])
 	for e in ents:
 		if e.get("kind", "") in ["start", "finish", "stage"] and not e.get("zone_only", false):
 			world.append(_solid(_hull(_box_corners(e, false).map(func(c): return src(c))), PLATFORM_MATERIAL))
@@ -412,6 +423,18 @@ func build(map: Dictionary, opts := {}) -> String:
 ## hull per convex piece of the profile.
 ## `fit` (texture px, meters along; zero = off): the riding faces' textures span the riding surface once across,
 ## as in the editor (MaterialLibrary.ramp_fit), instead of Hammer's world-aligned default.
+## Does this ramp's look reach CS:S (a library material, or one of your shaders MALLET can turn into a texture or a
+## color)? Every other look comes out as RAMP_MATERIAL, Source's developer texture.
+static func ramp_look_exports(rd: Dictionary) -> bool:
+	match String(rd.get("look", "color")):
+		"material":
+			return MaterialLibrary.has(String(rd.get("material", "")))
+		"shader":
+			var base := UserShaders.css_base(String(rd.get("shader", "")), rd.get("shader_params", {}))
+			return base.has("image") or base.has("color")
+	return false
+
+
 func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL, fit := Vector2.ZERO) -> PackedStringArray:
 	var out := PackedStringArray()
 	var rings: Array = geo["rings"]
@@ -437,9 +460,33 @@ func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL, fit := Vector2.ZE
 					best = k
 			idx.append(best)
 		pieces.append(idx)
+	var drops := _seam_drops(rings, keep, pp)
+	for round in 4:                                      # tight bends: shorter pieces there, so each step stays small
+		var more := []
+		for s in range(1, drops.size()):
+			if drops[s] * U > SEAM_SPLIT:
+				for j in [s - 1, s]:                     # (the pieces on both sides of that seam)
+					if keep[j + 1] - keep[j] > 1 and not more.has(j):
+						more.append(j)
+		if more.is_empty():
+			break
+		more.sort()
+		for j in range(more.size() - 1, -1, -1):
+			keep.insert(more[j] + 1, (keep[more[j]] + keep[more[j] + 1]) / 2)
+		drops = _seam_drops(rings, keep, pp)
+	for s in range(1, drops.size()):
+		seam_drops.append(drops[s] * U)
+		if drops[s] * U >= SEAM_MAX_DROP - 0.001:        # (how much of that valley is left after the biggest step)
+			var left := _seam_above(rings[keep[s - 1]], rings[keep[s]], rings[keep[s + 1]], pp, drops[s - 1], drops[s])
+			seam_left = maxf(seam_left, left * U + SEAM_MARGIN)
 	for s in range(1, keep.size()):
 		var a: PackedVector3Array = rings[keep[s - 1]]
 		var b: PackedVector3Array = rings[keep[s]]
+		if drops[s - 1] > 0.0:                             # (this piece starts a little lower: see _seam_drops)
+			var low := PackedVector3Array()
+			for q in a:
+				low.append(q - Vector3(0, drops[s - 1], 0))
+			a = low
 		for idx in pieces:
 			var pts := []
 			for k in idx:
@@ -448,19 +495,98 @@ func _ramp_brushes(geo: Dictionary, material := RAMP_MATERIAL, fit := Vector2.ZE
 			var sides := _hull(pts)
 			if sides.size() >= 4:
 				out.append(_solid(sides, material, _fit_axes(sides, a, b, geo["profile"], fit) if fit.x > 0.0 else []))
-	for poly in geo.get("closures", []):                 # closed ends: a slab 0.3 m thick across the end
-		var pv: PackedVector3Array = poly
+	var body := Vector3.ZERO                             # (the ramp's middle: the end slabs go away from it)
+	for q in rings[rings.size() / 2]:
+		body += q
+	body /= maxf((rings[rings.size() / 2] as PackedVector3Array).size(), 1)
+	for poly in geo.get("closures", []):                 # closed ends: a slab 0.3 m thick across the end, outside the
+		var pv: PackedVector3Array = poly               # ramp (half inside stuck out above the riding face as a lip)
 		if pv.size() < 3:
 			continue
 		var nrm := (pv[1] - pv[0]).cross(pv[pv.size() - 1] - pv[0]).normalized()
+		var mid := Vector3.ZERO
+		for q in pv:
+			mid += q
+		if nrm.dot(mid / pv.size() - body) < 0.0:
+			nrm = -nrm
 		var pts := []
 		for q in pv:
-			pts.append(src(q + nrm * 0.15))
-			pts.append(src(q - nrm * 0.15))
+			pts.append(src(q + nrm * 0.3))
+			pts.append(src(q))
 		var sides := _hull(pts)
 		if sides.size() >= 4:
 			out.append(_solid(sides, material))
 	return out
+
+
+## How far (meters, straight down) each ramp piece's first cross-section is lowered so a rider never runs into its
+## front. Source's player box slides a hair (DIST_EPSILON) above the face it rides; where the next piece's face is
+## tilted up against it (a valley at the seam, on the inside of a bend), the box is already inside that face's plane
+## when it crosses the piece's front, collides with the front, and stops dead (the "ramp bug"). Starting the next
+## piece lower by enough that its face, extended back under the whole box, stays below the face being ridden turns
+## every valley into a small step down. Each piece still ends at its true height, so the steps never add up.
+## drops[s] is for piece s (between keep[s] and keep[s + 1]); the first piece is never lowered.
+func _seam_drops(rings: Array, keep: Array, pp: PackedVector2Array) -> PackedFloat32Array:
+	var drops := PackedFloat32Array()
+	drops.resize(maxi(keep.size() - 1, 0))
+	drops.fill(0.0)
+	var most := SEAM_MAX_DROP / U
+	for s in range(1, keep.size() - 1):
+		var p: PackedVector3Array = rings[keep[s - 1]]
+		var m: PackedVector3Array = rings[keep[s]]
+		var q: PackedVector3Array = rings[keep[s + 1]]
+		var low_p := drops[s - 1]                        # (the piece before starts lowered by its own drop)
+		if _seam_above(p, m, q, pp, low_p, 0.0) <= 0.001 / U:
+			continue                                     # (flat or a crest: nothing to catch on)
+		var lo := 0.0
+		var hi := most
+		if _seam_above(p, m, q, pp, low_p, hi) > -SEAM_MARGIN / U:
+			drops[s] = hi                                # (a very sharp valley: the biggest step allowed)
+		else:
+			for it in 20:                                # (the smallest step that leaves the margin)
+				var h := (lo + hi) * 0.5
+				if _seam_above(p, m, q, pp, low_p, h) > -SEAM_MARGIN / U:
+					lo = h
+				else:
+					hi = h
+			drops[s] = hi
+	return drops
+
+
+## How far (meters) the next piece's riding face, starting `h` lower, rises above the face being ridden anywhere
+## within the player box's reach behind the seam (the most over every riding face; <= 0 means it stays below).
+## p, m, q: the cross-sections before, at and after the seam; the piece before starts `low_p` lower.
+func _seam_above(p: PackedVector3Array, m: PackedVector3Array, q: PackedVector3Array, pp: PackedVector2Array,
+		low_p: float, h: float) -> float:
+	var mid := Vector3.ZERO
+	for v in m:
+		mid += v
+	mid /= maxf(m.size(), 1)
+	var reach := SEAM_REACH / U
+	var worst := -INF
+	for k in pp.size():
+		var k1 := (k + 1) % pp.size()
+		if m[k].distance_to(m[k1]) < 0.05:
+			continue
+		var pk := p[k] - Vector3(0, low_p, 0)
+		var pk1 := p[k1] - Vector3(0, low_p, 0)
+		var na := (m[k1] - m[k]).cross(pk - m[k]).normalized()
+		if na.dot(m[k] - mid) < 0.0:
+			na = -na
+		if na.y < 0.05:
+			continue                                     # (not a face anyone rides on)
+		var mk := m[k] - Vector3(0, h, 0)
+		var nb := (m[k1] - m[k]).cross(q[k] - mk).normalized()
+		if nb.dot(na) < 0.0:
+			nb = -nb
+		# the ridden face from the seam back as far as the box reaches: its corners (a plane's height over a flat
+		# patch is greatest at a corner)
+		for pair in [[m[k], pk], [m[k1], pk1]]:
+			var e: Vector3 = pair[0]
+			var back: Vector3 = (pair[1] as Vector3) - e
+			for x in [e, e + back.normalized() * minf(reach, back.length())]:
+				worst = maxf(worst, -nb.dot((x as Vector3) - mk))
+	return worst
 
 
 ## Texture axes for the sides of one ramp piece that lie on a riding face: u across from 0 (one edge) to 1 (the

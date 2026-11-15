@@ -1,4 +1,4 @@
-MALLET 0.30.0 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
+MALLET 0.30.1 preview - Mapping And Level Layout Editor Tool: a map editor for SurfsUp (and Counter-Strike: Source)
 ===================================================================================================================
 
 START HERE
@@ -10,6 +10,10 @@ START HERE
   everything else: ramps, zones, build mode, materials, playing, testing with others and exporting.
 - Everything new, version by version: docs\CHANGELOG.html (Help > What's new).
 
+NEW IN 0.30.1 (SMOOTH CURVED RAMPS IN CS:S)
+- Curved ramps exported to Counter-Strike: Source no longer stop you at the seams between their pieces. The CS:S
+  export window also says which ramps CS:S can't texture (only the Material look carries over).
+
 NEW IN 0.30.0 (CAMERA SHOTS AND VIDEOS)
 - Make videos of your map without a screen recorder: View > Camera shots, fly the 3D view to a spot and press
   "Add key here", then the next spot... The camera glides smoothly through your keys (Play previews it). File >
@@ -18,10 +22,6 @@ NEW IN 0.30.0 (CAMERA SHOTS AND VIDEOS)
 NEW IN 0.29.1 (SKY FIXES)
 - 2D sky shaders (shader_type canvas_item;) work as skies; a shader saved into your shaders folder shows up within
   a couple of seconds; each sky keeps its own settings; play mode hides the editor's ground grid.
-
-NEW IN 0.29.0 (GIZMOS)
-- The selected object has Move / Rotate / Scale handles: arrows, rings and cubes in X red, Y green, Z blue. Pick the
-  mode on the top bar or with 1 / 2 / 3 (W switches). Every drag is one undo step.
 
 WHAT WE'D LOVE YOU TO TEST
 - Follow the guide's "A first map in ten minutes" from a blank map. Where did you get stuck?
